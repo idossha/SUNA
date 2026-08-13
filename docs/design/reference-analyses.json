@@ -1,0 +1,423 @@
+[
+  {
+    "journal": "Nature Astronomy (Springer Nature), Volume 10, August 2026, pp. 1208–1217, Article type \"Article\", Open Access (CC BY 4.0), DOI 10.1038/s41550-026-02892-9",
+    "paper_title": "Ram-pressure stripping caught in action in a young cluster at z = 2.51",
+    "layout": "Page 1 is a bespoke front-matter page: journal masthead (\"nature astronomy\" wordmark, lowercase, top-left) between two teal horizontal rule bands, orange Open Access badge top-right. Below, a metadata strip separated by thin rules: bold \"Article\" label left, blue hyperlinked DOI right. Title is very large bold serif (Harding-style), 2 lines, with italic math (z = 2.51) inline. Below the title the page splits asymmetrically: a narrow LEFT rail holds the article history (Received / Accepted / Published online dates, each in its own thin-rule-delimited row) plus a \"Check for updates\" badge; the wider RIGHT area holds the author list (bold names, green ORCID icon glyphs after most names, superscript numeric affiliation markers, envelope glyph on the corresponding author) followed by a large-type single-column abstract block set off by a rule. Numbered affiliation footnote block spans the full width at the bottom of page 1 in ~6pt type, ending with \"✉ e-mail: taowang@nju.edu.cn\". Body text begins two-column at the bottom third of page 1 with NO \"Introduction\" heading. All subsequent pages: running header \"Article\" (bold, left) | blue DOI URL (right) above a thin rule; footer \"Nature Astronomy | Volume 10 | August 2026 | 1208–1217\" (journal name in teal) left, bold folio right. Two-column body, ~8.5–9pt serif, ragged-free justified, column gutter ~5 mm, text block ~180 mm wide, margins ~17–20 mm. Heading hierarchy: A-heads bold sans-ish at slightly larger size (Results, Methods, Data availability, References, Acknowledgements...); B-heads bold at body size, may wrap (\"Kinematic and star-formation properties of disturbed galaxies\"). Figures float at top of page or column, either single-column or full two-column width; captions sit directly beneath the figure in small sans-serif type, spanning the same width as the figure (Fig. 3's caption runs as two columns under a full-width figure). References set two-column in very small type.",
+    "section_structure": [
+      "Front matter (title, authors+ORCID, history dates, abstract, affiliations footnote)",
+      "Untitled introduction (body starts with no heading)",
+      "Results",
+      "Results > Galaxies exhibiting disturbed gas morphologies",
+      "Results > Kinematic and star-formation properties of disturbed galaxies (discussion folded into results; no separate Discussion heading)",
+      "Methods",
+      "Methods > Source detection and classification with ALMA data",
+      "Methods > Derivation of the physical properties of the cluster galaxies",
+      "Data availability",
+      "Code availability",
+      "References (numbered 1–97)",
+      "Acknowledgements",
+      "Author contributions",
+      "Competing interests",
+      "Additional information (bold run-in sub-blocks: Extended data; Correspondence and requests for materials; Peer review information; Reprints and permissions information; Publisher's note; Open Access licence statement; © The Author(s) 2026)"
+    ],
+    "figures": [
+      {
+        "label": "Fig. 1",
+        "kind": "Annotated astronomical sky image (JWST/NIRCam RGB composite) with WCS coordinate axes",
+        "panels": 1,
+        "elements": "Single-column raster sky image with Right Ascension / Declination axes using sexagesimal tick labels (\"10 h 01 m 04 s\", \"2° 22′\"); overlaid vector annotation layers: small orange circles (CO detections) with orange ID+redshift text labels and leader lines, red circles (RPS candidates), one solid white circle (virial radius), large dashed white circles (ALMA pointing FWHM), orange X-ray contour set; legend box top-left with semi-transparent dark background listing marker/line styles."
+      },
+      {
+        "label": "Fig. 2",
+        "kind": "Multi-panel postage-stamp image grid + velocity-field maps (two lettered panels a/b)",
+        "panels": 2,
+        "elements": "Panel a: ~13 false-colour JWST cutout stamps in a grid (M1–M4 mergers, D1–D9 disturbed), each 5″×5″, with white CO(3–2) contour overlays at specified sigma levels, white ID label per stamp, red highlight borders around high-fidelity RPS stamps, 1″ scale bar in first stamp only, grey filled synthesized-beam ellipse in each lower-left corner. Panel b: three moment-1 velocity maps (D1, D4, D5) as pixelated red–blue diverging colormaps on greyscale background, black contours, white plus symbols (stellar centres), black fitted ellipses, hatched beam ellipses, and a horizontal colorbar under each map labelled V (km s⁻¹), −100 to 100. Bold panel letters a and b."
+      },
+      {
+        "label": "Fig. 3",
+        "kind": "Two-panel scatter/phase-space diagram (full two-column width)",
+        "panels": 2,
+        "elements": "Panel a: scatter of r_gas/r_eff,★ vs CO(3–2) asymmetry A; red filled squares (disturbed), blue filled circles (normal), small grey markers (field), symmetric X and Y error bars (1σ), black dashed demarcation box/lines. Panel b: cluster phase-space diagram |dv/σ_c| vs dr/R_200c; diamond markers colour-coded by a third quantity via a vertical colorbar (log μ_gas/μ_gas,MS, red–blue diverging) on the right edge, grey × crosses for mergers, black solid theoretical curve, red and blue dotted contour lines with inline numeric labels (0.3, 0.5), black dashed threshold lines, legend with mixed marker+line entries, subscripted/Greek axis labels."
+      },
+      {
+        "label": "Fig. 4",
+        "kind": "Composite statistical plots: CDF bars + radial profile with confidence bands, and a log–log scaling-relation scatter (two lettered panels a/b)",
+        "panels": 2,
+        "elements": "Panel a is itself a two-part composite sharing a Y axis: left, overlapping semi-transparent red/blue vertical bar CDF chart of Toomre Q with error bars; right, spatially resolved Q vs r/r_eff,★ with solid median lines, broad semi-transparent red/blue 1σ shaded envelopes, small scatter dots of pixel values, horizontal black dashed reference line labelled Q_thick,crit = 0.67 in an inline legend. Panel b: Kennicutt–Schmidt log–log scatter, log Σ_SFR,eff vs log Σ_gas,eff, red squares vs blue circles plus larger mean diamonds, error bars, solid best-fit/reference line, legend citing \"Ref. 47\". Bold panel letters, axis labels with subscripts, units in parentheses with solar-mass symbols."
+      }
+    ],
+    "caption_style": "Caption begins with bold \"Fig. N | \" followed by a bold sentence-fragment title ending in a period (\"Fig. 1 | Sky image of CLJ1001.\"), then regular-weight explanatory text. Panel letters referenced inside captions are set bold and lowercase (\"a, CO(3–2) distributions... b, Moment-1 maps...\"), and cross-caption references like \"applies to all maps in b\" also bold the letter. Captions are set in small sans-serif type (~7pt), placed immediately below the figure, matching the figure's column span (single-column captions in one column; the full-width Fig. 3 caption flows as two side-by-side caption columns). Captions are long and self-contained (100–220 words), including sigma levels, panel sizes, symbol meanings, error-bar definitions (\"Error bars show 1σ\"), and citation superscripts inside the caption text.",
+    "citation_style": "Superscript numeric citations in order of appearance, hyperlinked in blue; multi-citation forms collapse ranges (\"refs. 1–9\", \"refs. 10,11\", single \"ref. 14\"); bare superscripts attach directly to words (\"gas fractions12, compact sizes13\"). Reference list is numbered 1–97, set two-column in very small type: Author, A. B. et al. Article title sentence-case. Italic journal abbreviation bold volume, page-range (year). Preprints cite arXiv URLs as blue links; software cites Zenodo DOIs. In-text cross-references to figures (\"Fig. 2b\", \"Extended Data Fig. 4\") and equations (\"equation (3)\") are also blue hyperlinks.",
+    "math_and_tables": "Eight displayed equations, centred in-column with right-aligned parenthesized numbers (1)–(8), continuing through Methods without resetting; multi-line/stacked forms allowed (equation (5) sets two Σ definitions on shared lines). Heavy inline math: italic variables, multi-level subscripts (r_eff,gas, Σ_SFR,eff, Q_thick,crit), Greek letters (σ, Σ, μ, ρ, Ω, Λ), solar-mass/Sun symbol M⊙, operators ≈, ≳, ×, ∝, radicals and fractions inline (√(3/2)), and scientific notation (1.81 × 10⁻²² kg m⁻³). Function-style notation like log(M★/M⊙) appears constantly in running text. No tables in the main PDF; tabular material is deferred to an external \"Extended Data Table 1\" referenced by link.",
+    "special_elements": "ORCID green icon glyphs inline in the author list; envelope (✉) glyph marking the corresponding author both in the byline and at the end of the affiliations block; \"Check for updates\" badge; orange Open Access badge on the masthead; article-history rail (Received 4 June 2025 / Accepted 12 May 2026 / Published online 22 June 2026); Extended Data Figs. 1–9 and Extended Data Table 1 exist only as external objects reached via a DOI link under \"Additional information\"; Data availability and Code availability sections dense with live links (ALMA archive project codes, MAST DOIs, named software packages each carrying a citation superscript); Peer review information naming a reviewer; Publisher's note; CC BY 4.0 licence paragraph; journal pagination continues across the volume (1208–1217); teal brand colour reserved for masthead rules and footer journal name; final page is mostly whitespace after back matter ends.",
+    "formatter_requirements": [
+      "Two distinct page templates: a front-matter page (masthead band, article-type/DOI strip, full-width title, left history rail + right author/abstract zone, affiliations footnote block) and a running-text page (header 'Article' | DOI, two-column body, journal footer with folio).",
+      "Asymmetric front-matter grid: narrow left rail (history dates in thin-rule rows, badges) alongside a wide right column (byline, abstract), collapsing to full-width affiliations at page bottom.",
+      "Author byline renderer supporting inline ORCID icon glyphs, superscript numeric affiliation markers, comma/ampersand list punctuation, and a corresponding-author envelope glyph tied to an e-mail line in the affiliations block.",
+      "Abstract set as a single wide block at larger type size than body, rule-delimited, no 'Abstract' heading.",
+      "Body starts with an unheaded introduction — the template must not force an Introduction heading; heading levels: A-heads (Results, Methods, Data availability, Code availability, References, Acknowledgements, Author contributions, Competing interests, Additional information) and bold B-heads at body size.",
+      "Two-column justified body with float placement of figures at top of column/page, supporting both single-column (~88 mm) and double-column (~180 mm) figure widths; caption width always matches figure width, including two-column caption flow under full-width figures.",
+      "Caption generator: bold 'Fig. N |' + bold title fragment, bold lowercase panel letters inside caption prose, small sans-serif type distinct from serif body.",
+      "Superscript numeric citation engine with range collapsing (1–9), 'ref./refs.' textual forms, and blue hyperlinking of citations, figure refs, equation refs, DOIs, and URLs.",
+      "Reference list style: numbered, two-column, tiny type, 'Author, A. B. et al. Title. Italic-journal-abbrev bold-volume, pages (year)', with arXiv/Zenodo link variants.",
+      "Display-equation layout: centred equation with right-aligned parenthesized number, continuous numbering across Results and Methods, stacked multi-definition equations; full inline-math support (multi-level subscripts, Greek, M⊙, ≈, ≳, inline radicals/fractions).",
+      "Back-matter block renderer for Additional information: bold run-in labels ('Extended data', 'Correspondence and requests for materials', 'Peer review information', 'Reprints and permissions', \"Publisher's note\", 'Open Access') each starting a paragraph.",
+      "Cross-reference resolver for external Extended Data objects (Extended Data Fig. N, Extended Data Table N) that links out rather than to in-document floats.",
+      "Journal-brand tokens: teal accent for masthead rules and footer journal name, orange OA badge, continuing volume pagination (start folio configurable, e.g. 1208), footer string 'Journal | Volume N | Month Year | first–last'.",
+      "History-date metadata rendering (Received/Accepted/Published online) plus 'Check for updates' badge slot."
+    ],
+    "canvas_requirements": [
+      "Raster image layers (imported RGB astronomical composites) as a base layer with vector overlays on top, including axes calibrated in sky coordinates with sexagesimal tick labels (h m s / ° ′).",
+      "Vector annotation primitives over images: circles and ellipses with independent stroke colour, dash pattern (solid/dashed), and no fill; text labels with colour matching their marker and optional leader lines; arbitrary contour polyline sets imported from data at specified levels.",
+      "Legend builder supporting mixed entries (marker swatches, line-style swatches, contour swatches) inside a semi-transparent rounded box placed over an image.",
+      "Multi-panel grid layout tooling: N×M postage-stamp grids with uniform stamp size, per-stamp ID text, selective coloured highlight borders (red boxes), a scale bar drawn in one stamp that 'applies to all', and per-stamp beam-ellipse glyphs (filled grey or hatched fill patterns) pinned to a corner.",
+      "Lettered panel system: bold lowercase panel letters (a, b) anchored at consistent offsets outside/inside panel corners, kept in sync with caption text.",
+      "Pixel/heatmap layers with diverging colormaps (red–white–blue) and attachable colorbars in both horizontal (below panel) and vertical (right of panel) orientations, with tick labels, end-cap range labels, and math-formatted titles (V (km s⁻¹), log μ_gas/μ_gas,MS).",
+      "Scatter-plot marks with categorical styling (filled square/circle/diamond, × cross), per-point symmetric X and Y error bars, and per-point colour mapping bound to a colorbar.",
+      "Curve overlays: solid/dashed/dotted lines and analytic curves, with inline numeric labels placed along dotted contour lines, plus horizontal/vertical reference lines carrying inline legend text (Q_thick,crit = 0.67).",
+      "Semi-transparent shaded confidence bands (filled regions between curves) that visually blend where red and blue bands overlap, layered under median lines and over small scatter dots.",
+      "Overlapping semi-transparent bar/CDF charts with error bars sharing an axis with an adjacent profile panel (composite sub-panels inside one lettered panel, shared Y axis).",
+      "Axis system supporting linear and log-quantity axes (log-valued labels), minor ticks, math text in labels (Greek, multi-level subscripts, solar symbol, superscript units), and independent per-panel ranges.",
+      "Fill-pattern support (hatching) for glyphs such as beam ellipses.",
+      "Export presets at journal figure widths (single ~88 mm, double ~180 mm) with fonts converted/embedded so labels survive at ~6–7pt final size."
+    ]
+  },
+  {
+    "journal": "Nature Astronomy (Springer Nature), article type \"Article\", Open Access (CC BY 4.0)",
+    "paper_title": "Detection of a four-carbon sugar in interstellar space",
+    "layout": "Trim approx 210x280mm with generous (~19mm) margins. Page 1 is a bespoke title page: thin full-width rule at top, lowercase journal wordmark \"nature astronomy\" (bold serif) top-left, orange open-access unlock logo top-right; below, a metadata band with bold \"Article\" left and the full DOI URL as a blue hyperlink right, separated by a rule. Title set very large (~28pt) in the journal's bold serif (Harding), left-aligned, max ~2 lines. Below the title a two-zone grid: a narrow left rail containing Received / Accepted / Published-online dates, each in its own thin ruled row, plus a \"Check for updates\" badge; the wider right zone holds the author block (bold names, inline green ORCID iD icons, superscript affiliation numbers, envelope icon on the corresponding author, ampersand before last author). The abstract is a single indented wide block (~11pt) with a heavy black rule above its left-indented column. Body begins on page 1 below the abstract in TWO justified columns (~8.5-9pt serif, ~5mm gutter), first paragraph unlabeled (no \"Introduction\" heading). A footnote above the page-1 bottom rule reads \"A full list of affiliations appears at the end of the paper. [envelope] e-mail: ...\" with the address as a blue link. Every subsequent page: running header with bold \"Article\" left and the blue DOI URL right over a thin rule; running footer with \"Nature Astronomy\" in the journal's blue at bottom-left over a rule. Typographic hierarchy: A-heads (Results, Discussion, Methods, References, Acknowledgements...) in bold sans ~12pt with space above; B-heads (e.g. \"Detection of erythrulose in G+0.693\") bold sans ~9.5pt flush left on their own line; captions ~7.5pt. Figures and their captions span the full two-column width; wide figure captions are themselves set in two columns. Tables span both columns with the caption (\"Table 1 | ...\") above. Links, cross-references (Fig. 1, Table 1, ref numbers) and URLs are all colored blue. Extended Data pages (after end matter) place one figure or table per page with the same running header/footer.",
+    "section_structure": [
+      "Title/author front matter (dates rail, authors with ORCID, abstract)",
+      "Unlabeled introduction",
+      "Results",
+      "Results > Detection of erythrulose in G+0.693",
+      "Results > Formation mechanism on interstellar ice surfaces",
+      "Results > Astrochemical modelling of erythrulose formation",
+      "Discussion",
+      "Methods",
+      "Methods > Observational campaign and spectral coverage",
+      "Methods > Identification of predominantly unblended transitions",
+      "Methods > LTE analysis with MADCUBA",
+      "Methods > Computational methods",
+      "Methods > Grain-surface chemistry simulations using the KMC approach",
+      "Data availability",
+      "Code availability",
+      "References (numbered 1-104, two columns)",
+      "Acknowledgements",
+      "Author contributions",
+      "Funding",
+      "Competing interests",
+      "Additional information (Extended data / Supplementary information / Correspondence / Peer review information / Reprints and permissions / Publisher's note / Open Access licence / copyright line)",
+      "Numbered affiliations block (end of paper, small type with corresponding e-mail)",
+      "Extended Data Fig. 1 (own page)",
+      "Extended Data Table 1 (own page)"
+    ],
+    "figures": [
+      {
+        "label": "Fig. 1",
+        "kind": "Multi-panel radio spectral-line plot (12 spectra) with a central 3D molecular-structure inset",
+        "panels": 13,
+        "elements": "12 lettered panels (bold lowercase a-l) in a 4+2+4+2 grid arranged AROUND a central inset: a ball-and-stick 3D render of erythrulose with blue dotted lines marking intramolecular hydrogen bonds and a text label with chemical formula (C4H8O4). Each spectral panel: observed spectrum as a black step/histogram line with light-grey fill to zero, red Gaussian LTE-fit curve for erythrulose, blue curve for the total model of all species, a boxed quantum-number label (e.g. 7_{7,1}-6_{6,1}) in the top corner, small rotated (vertical) blue text labels identifying contaminating molecular species at their frequencies, y-axis in antenna temperature with a single shared rotated y-axis label T_A* (K) spanning the grid, per-panel x-tick labels in GHz, and one shared x-axis label 'Rest frequency (GHz)' centered below the whole grid."
+      },
+      {
+        "label": "Fig. 2",
+        "kind": "Mixed figure: 3D molecular geometry renders (top row) + Arrhenius/rate line plots (bottom row)",
+        "panels": 8,
+        "elements": "Panels a-d: rendered 3D optimized geometries of reaction complexes on an amorphous water-ice surface drawn as thin red wireframe; atoms highlighted with numbered colored circles (blue, green, purple), a curved black reaction arrow in panel c, italic short titles above each panel. Panels e-h: line plots of ln k vs 1000/T with a secondary top x-axis showing temperature in K; e and f show smooth teal/violet curves with scatter markers and in-plot legends keyed '(2) g*-e', '(3) g-e'; g shows branching-ratio percentages vs T with two series (solid teal curve + magenta dotted markers) and a two-entry legend; h shows a single dashed teal curve (ISC rate) with legend. Bold lowercase panel letters throughout."
+      },
+      {
+        "label": "Fig. 3",
+        "kind": "Three-panel simulation time-series plot with log axes (KMC ice-abundance evolution)",
+        "panels": 3,
+        "elements": "Three side-by-side panels sharing a linear time axis (0-1.6 Myr) and a log y-axis spanning ~6 decades (10^-10 to 10^-4); each panel titled with its cosmic-ray ionization rate (zeta = 1.3x10^-17 s^-1 etc., with math). Eight colored solid lines (CO, H2O, CH3OH, glycolaldehyde, ethylene glycol, dihydroxyacetone, glyceraldehyde, erythrulose) each surrounded by a semi-transparent shaded band (+/-1 s.d. over nine random seeds); horizontal semi-transparent color-shaded ranges marking observed gas-phase values with 1-sigma widths; a dashed black line for gas density tied to a secondary right-hand log axis (n_H, cm^-3) on the rightmost panel; a color-keyed legend outside the plot area at right; shared rotated y-axis label n(X)_grain/n_H."
+      },
+      {
+        "label": "Table 1",
+        "kind": "Journal-styled data table (derived physical parameters, 6 molecules x 6 quantities)",
+        "elements": "Caption above ('Table 1 | ...'), tinted header band, units row in parentheses under each column head, horizontal rules only (no vertical rules), math in heads (N, T_ex, v_LSR, FWHM, chi_obs, chi_mod with super/subscripts and x10^-10 scaling), <= symbols, +/- uncertainties, superscript letter footnote markers (a-d) resolved in small-type footnotes below the table."
+      },
+      {
+        "label": "Table 2",
+        "kind": "Small journal-styled ratio table (4 rows, observed vs modelled abundance ratios)",
+        "elements": "Same Nature table styling: caption above with pipe separator, tinted header, horizontal rules, ~ and >= symbols, one-line footnote below."
+      },
+      {
+        "label": "Extended Data Fig. 1",
+        "kind": "Dense 6x6 grid of 36 mini spectral-line panels (remaining erythrulose transitions)",
+        "panels": 36,
+        "elements": "Same graphical vocabulary as Fig. 1 at smaller scale: grey-filled black histogram spectra, red erythrulose fit, blue total-model curve, boxed quantum-number labels, rotated blue species labels, blue asterisk glyphs flagging 3mm-window transitions, shared rotated y-axis label T_A* (mK), shared x-axis label 'Rest Frequency (GHz)', heterogeneous per-panel y ranges (some panels 0-5, 0-20, 0-80 mK). Two-column caption below with bold 'Extended Data Fig. 1 |' lead-in."
+      },
+      {
+        "label": "Extended Data Table 1",
+        "kind": "LaTeX-typeset spectroscopic table (14 transition rows) placed as an image-like block",
+        "elements": "Rendered in Computer Modern (visibly different from journal tables): booktabs-style top/mid/bottom rules, math column heads (J', K'_{-1}, K'_{+1} -> J'', ...), quantum-number arrows, parenthetical frequency uncertainties, bold rows highlighting 'mostly unblended' transitions, integral notation in a column head, footnote paragraph in journal small type below including inline math (sigma = rms x sqrt(delta-v x FWHM)) and a superscript note marker (a)."
+      }
+    ],
+    "caption_style": "Bold \"Fig. N |\" (and \"Extended Data Fig. N |\", \"Table N |\") label with a vertical-bar separator, followed by a bold declarative caption title sentence, then regular-weight explanatory text. Panel letters referenced in bold within the caption (e.g. \"a-l,\" \"a-d,\") acting as run-in sub-labels. Figure captions sit BELOW the figure and span the full page width; long captions are set in two columns. Table captions sit ABOVE the table; table footnotes (superscript a, b, c...) sit below in ~6.5pt. Typical length 60-130 words. Captions ~7.5pt with the same serif face as body.",
+    "citation_style": "Numbered superscript citations in text (e.g. species2-4, chemistry11,14,15) with en-dash range collapsing and comma lists; also parenthetical \"(ref. 39)\" / \"(refs. 33,34)\" forms when the number cannot be superscripted after a value. Reference list numbered 1.-104., set in two columns at ~7.5pt: authors as \"Surname, Initials.\" with \"et al.\" truncation, article title in roman, journal name abbreviated in italic, volume bold, page range, year in parentheses; DOIs/URLs and Zenodo links as blue hyperlinks; in-text citation numbers, figure/table cross-references and section links all rendered in blue.",
+    "math_and_tables": "Displayed equations centered with right-aligned parenthesized numbers (1)-(3), e.g. k = 10^-9 exp(-2.5 A_V) + 500*zeta s^-1; equations referenced by number. Heavy inline math: italic single-letter variables with roman subscripts (T_ex, v_LSR, n_H, A_V), Greek letters (zeta, sigma, chi, delta), +/- uncertainties, x10^n scientific notation, <= / >= comparisons, quantum-number transition notation with stacked subscripts (7_{7,1} -> 6_{6,1}), chemical formulas with subscripts (HOCH2CH(OH)COCH2OH), and units with superscript exponents (cm^-2, km s^-1, s^-1). Journal tables: caption above with pipe convention, tinted header band, horizontal rules only, units in parentheses on a second header line, superscript-letter footnotes below; the Extended Data table is instead LaTeX/Computer Modern typeset (booktabs rules, bold rows for emphasis), showing the platform must accept author-typeset table blocks verbatim.",
+    "special_elements": "Extended Data figures and tables with their own numbering namespace, one per page after end matter; \"Additional information\" block linking Extended data and Supplementary information via DOI; ORCID iD icons inline in the author list; envelope glyph marking the corresponding author (repeated in the affiliations block); \"Check for updates\" badge; orange open-access logo on page 1; Received/Accepted/Published-online date rail in ruled rows; full DOI URL as blue link in every running header; numbered affiliations deferred to an end-of-paper small-type block with the note \"A full list of affiliations appears at the end of the paper\"; Data availability (Zenodo DOI) and Code availability (GitHub/institutional links) sections; Peer review information and Publisher's note paragraphs; CC BY 4.0 licence paragraph and \"(c) The Author(s) 2026\" line; footnote markers a-d on table cells; blue asterisk annotation glyphs inside Extended Data figure panels.",
+    "formatter_requirements": [
+      "Mixed-width page grid: single-wide-block front matter (title, abstract) and end matter transitioning into two-column justified body on the same page",
+      "Bespoke title-page template: journal wordmark + OA logo band, Article/DOI band, oversized serif title, left metadata rail (ruled date rows, Check-for-updates badge) beside the author block",
+      "Author-block renderer: bold names, superscript affiliation numbers, inline ORCID icon glyphs, corresponding-author envelope glyph, ampersand before final author",
+      "Deferred affiliations: superscript numbers in the byline resolved to a numbered small-type paragraph at the end of the paper, plus the page-1 pointer footnote with e-mail link",
+      "Running header (bold 'Article' + blue DOI URL over a rule) and running footer (blue journal name over a rule) on every page",
+      "Two-level heading system: bold sans A-heads (Results, Methods, References...) and bold sans B-heads, with an unlabeled introduction (no 'Introduction' heading emitted)",
+      "Superscript numeric citation engine with comma lists and en-dash range collapsing, plus '(ref. N)' inline fallback form; all citation numbers and cross-refs (Fig./Table/Extended Data Fig.) styled as blue links",
+      "Nature reference-list formatter: numbered entries, et-al truncation, italic abbreviated journal, bold volume, year in parentheses, hyperlinked DOIs/Zenodo, set in two columns at reduced size",
+      "Display-equation layout with right-aligned parenthesized numbers, and rich inline math (Greek, sub/superscripts, scientific notation, quantum-number transitions) flowing inside justified two-column text",
+      "Figure float engine: full-width figure blocks with bold 'Fig. N |' captions below, long captions auto-set in two columns; tables with captions above, tinted header row, horizontal-rules-only styling, and superscript-letter footnotes",
+      "Support for author-supplied pre-typeset table images/blocks (Extended Data Table 1 in Computer Modern) placed under a journal-styled caption and footnote",
+      "Extended Data namespace: separately numbered figures/tables placed one per page after the Additional information section, cross-referenceable from body text",
+      "End-matter section templates in fixed order: Data availability, Code availability, References, Acknowledgements, Author contributions, Funding, Competing interests, Additional information (with its fixed bold-run-in sub-blocks), licence/copyright boilerplate",
+      "Blue accent color token applied consistently to links, URLs, e-mail, cross-references and footer wordmark",
+      "Footnote-above-rule convention on page 1 for the affiliations pointer and corresponding e-mail"
+    ],
+    "canvas_requirements": [
+      "Multi-panel grid layouts up to 6x6 (36 panels) with per-panel axes but SHARED spanning axis titles (one rotated y-label and one centered x-label for the whole grid)",
+      "Irregular grid composition: reserve a central grid cell spanning multiple rows/columns for a non-plot inset (3D molecule render) surrounded by plot panels (Fig. 1)",
+      "Bold lowercase panel lettering (a-l, a-h) placed consistently at panel top-left, plus per-panel italic titles (Fig. 2)",
+      "Step/histogram line traces with translucent grey area fill to the zero baseline, overlaid with multiple smooth curves in semantic colors (red = target fit, blue = total model)",
+      "Rotated (90-degree) text annotations anchored to data coordinates for species line IDs, in a secondary color",
+      "Boxed text labels (framed annotation boxes) containing math/quantum-number notation inside panels",
+      "Embedding imported raster or vector images (chemistry renders) as figure elements, with overlay annotation tools: numbered colored highlight circles, curved arrows, dotted bond lines",
+      "Log-scale axes over 6+ decades with 10^n tick labels; linear axes with decimal GHz ticks; per-panel independent y ranges within a shared grid",
+      "Secondary axes: top x-axis with a nonlinear transform of the bottom axis (T vs 1000/T in Fig. 2) and right-hand y-axis with independent scale (n_H in Fig. 3)",
+      "Shaded uncertainty bands following a curve (+/-1 s.d. envelopes) and horizontal shaded reference ranges spanning the full panel width, both semi-transparent",
+      "Dashed/dotted line styles and mixed marker+line series with in-panel and outside-right legends (color-keyed, multi-entry)",
+      "Symbol/glyph annotations at arbitrary panel positions (blue asterisks flagging specific panels)",
+      "Math-capable text engine everywhere (axis titles, tick labels, legends, annotations): superscripts, subscripts, Greek letters, x10^n notation",
+      "Per-panel title strips carrying math expressions (zeta values atop Fig. 3 panels)",
+      "Canvas presets and export at journal figure widths (~89mm single-column, ~183mm double-column) with journal-scale fonts (~6-8pt) that remain legible at print size"
+    ]
+  },
+  {
+    "journal": "Nature Astronomy (Springer Nature, \"Article\" type, open access CC BY 4.0, online-first PDF, DOI 10.1038/s41550-026-02925-3)",
+    "paper_title": "Dynamic electron radiation belt at Mercury controlled by solar wind driving",
+    "layout": "Page 1 is a mixed-layout opener: black journal masthead 'nature astronomy' top-left with open-access badge top-right; below it a metadata row with bold 'Article' label left and the DOI as a blue hyperlink right, separated by thin horizontal rules. Large bold serif (Harding typeface) title (~26-28pt) spans full text width over two lines. Beneath a rule, the page splits into a narrow left sidebar (~30% width) holding a ruled date box (Received / Accepted / Published online, each row rule-separated) plus a 'Check for updates' badge, and a wide right region (~70%) holding the bold author list (with ORCID icons, envelope icons, CJK name glosses, superscript affiliation numbers) followed by a single-column abstract set larger (~11pt) than body text. Body text begins two-column at the bottom of page 1 (~8.5-9pt serif, justified, hyphenated, ~89mm columns). Affiliations sit as a footnote block above the page-1 footer in small type with superscript markers, equal-contribution note, and blue e-mail links. Every subsequent page carries a running header: bold 'Article' left, blue DOI URL right, thin rule beneath; footer: thin rule with 'Nature Astronomy' in blue at lower-left; no page numbers (online-first). Main figures are full-text-width blocks placed at the top of pages, caption below the figure often set in two columns. Section heads ('Results', 'Conclusion', 'Methods', back-matter heads) are bold sans-weight headings ~11-12pt; Methods uses two lower levels: bold subheading lines and bold run-in paragraph leads ending with a period ('Particle initialization.'). Extended Data figures/tables occupy one full page each after the back matter, figure centered with caption below in two columns.",
+    "section_structure": [
+      "Title + author block + date box",
+      "Abstract (unlabeled, large type)",
+      "Introduction (unlabeled body text)",
+      "Results",
+      "Conclusion",
+      "Methods (with ~12 bold subsections: MESSENGER Magnetometer; Fast-Imaging Plasma Spectrometer; GRS and NS; Detection algorithms for GRS and NS energetic electron events; Classification of GRS and NS energetic electron events; Aberrated MSM coordinate system; Radiation-belt probability model; NS energetic electron spectra; KT17 magnetic field model; Bounce unstable zone; Guiding centre simulation (with run-in sub-subheads Particle initialization / Particle tracing / Particle loss evaluation); Energetic electron measurements from other Mercury missions)",
+      "Data availability",
+      "Code availability",
+      "References (1-66)",
+      "Acknowledgements",
+      "Author contributions",
+      "Funding",
+      "Competing interests",
+      "Additional information (Extended data / Supplementary information / Correspondence / Peer review information / Reprints and permissions / Publisher's note / Open Access licence / copyright line)",
+      "Extended Data Table 1",
+      "Extended Data Figs. 1-6 (one per page)"
+    ],
+    "figures": [
+      {
+        "label": "Fig. 1",
+        "kind": "Large multi-panel composite: schematic diagrams + energy-time spectrograms + magnetometer time series + count-rate line plots + trajectory map",
+        "panels": 7,
+        "elements": "Two mirrored columns of panels labeled a(i)/a(ii) with roman-numeral sub-panels plus a small inset line plot a(iii); hand-drawn-style magnetosphere schematics with curved field lines, colored drift-path arrows (cyan/magenta), orange solar-wind arrows, Mercury photo basemap; FIPS H+ spectrograms with rainbow log colorbar (DNF); 4-trace magnetometer line plots (Bx red, By green, Bz blue, |B| black) with translucent cyan/magenta/red shaded time intervals and colored annotation text ('Magnetic reconnections'); NS BP channel spectrogram with red-blue diverging symlog colorbar and orange horizontal band annotation ('Equivalent energy 93 keV'); NS count-rate step plots with blue background fit and red signal overlays, grey 'Bounce unstable' shaded bars; GRS dual-resolution count rates (10 ms grey, 500 ms red moving average, blue background line); bottom panel g: spacecraft trajectory in X-Z plane over Mercury disk image with cyan/magenta orbit curves and orange shaded pressure zones; connector lines linking zoomed panels f to shaded regions in e; rotated y-axis labels; right-margin colored text legends"
+      },
+      {
+        "label": "Fig. 2",
+        "kind": "Statistical multi-panel: timeline bar chart, dual-axis time series, step histograms, log scatter with model fits, 12-panel small-multiple grid with trajectory insets",
+        "panels": 5,
+        "elements": "a: bar chart of consecutive-orbit counts over 4 years with cyan bars and grey exclusion shading, boxed legend; b: dual y-axis time series (black r_hel left, red altitude right, distinct colored axes); c: overlapping step histograms (cyan/magenta) of orbit fractions; d: semi-log scatter (filled/open circles) with three straight statistical-model fit lines labeled P = 0.90/0.55/0.25 in legend; e: 6x2 grid of NS count-rate small multiples (orbits 2897-2908) sharing x-axis 'Time from perihelm (min)', red event overlays, cyan shaded event windows, green magnetopause lines, black background fits, plus two circular trajectory insets (Y-X and Z-Y planes) at right; arrow connector from panel b to panel e"
+      },
+      {
+        "label": "Fig. 3",
+        "kind": "Statistical/spatial multi-panel: custom quantile plots, annular spatial heatmaps around planet image, spectra, stacked histograms",
+        "panels": 7,
+        "elements": "a: four custom horizontal quantile glyphs (box 25-75%, ticks at 15/85%, arrows to 5/95%, labeled percentile scale on top) on log x-axis in cyan/purple/magenta; b,c: annular binned occurrence maps (fraction of orbit) around Mercury photo disk in X-Y plane, cyan and magenta sequential colormaps sharing a dual-ended horizontal top colorbar (40%-0%-40%), black magnetopause curve; d: overlapping normalized spectra curves with orange shaded band annotation for 93 keV reaction line; e,f: spatial residual maps in X-Z plane with blue-white-red diverging colormap and horizontal bottom colorbar, planet image center, LT range annotation; g: three vertically stacked histograms (cyan/magenta/grey) vs subsolar standoff distance with mean±sd annotations (e.g. 1.52 ± 0.14 R_M) and reversed x-axis"
+      },
+      {
+        "label": "Fig. 4",
+        "kind": "Simulation multi-panel: schematic spatial maps with zoom inset, physics schematic with colorbar, and 4 curve-family line plots",
+        "panels": 8,
+        "elements": "a-c: X-Y plane maps over Mercury image with orange/cream region shading labeled 'Adiabatic'/'Main'/'Diffusion'/'Advection', red dashed drift-shell circles, red-shaded footprint distributions, magnified inset box with connector lines and numbered green/blue arrows, per-panel parameter titles (r_hel, pitch angle); d: meridional schematic with black field lines, orange trapped-population blobs, purple arrows, top-mounted red sequential colorbar for kappa := sqrt(R_c/r_g) with math in label, side annotations (Transport/Scattering/Precipitation); e-h: four remnant-fraction-vs-time line plots, each a family of 5 colored curves (blue-cyan-green-yellow-red) with square markers and inline end labels of parameter ranges, grey dashed zero line, italic parameter text block under each panel, shared percent y-axis"
+      },
+      {
+        "label": "Extended Data Fig. 1",
+        "kind": "Schematic + two small line plots",
+        "panels": 3,
+        "elements": "a: Mercury photo disk with white dipole-center marker, yellow surface outline, cyan (low p_dyn) and magenta (high p_dyn) bounce-path field-line curves with endpoint dots, grey shaded bounce-unstable zone with leader-line label, color-keyed text legend; b,c: |B| vs s line plots (log y-axis 100-800 nT) with yellow 'Surface' shaded edge bands, grey/magenta/cyan region shading, arrows along curves, titled 'Bifurcated/Conventional Bounce Path' in matching colors"
+      },
+      {
+        "label": "Extended Data Fig. 2",
+        "kind": "4x3 grid of SNR time-series diagnostics (small multiples)",
+        "panels": 12,
+        "elements": "Panels labeled a1-a4, b1-b4, c1-c4 (rows = NS/GRS for two events; columns = Total/Low-pass/High-pass SNR); black step/line traces with red algorithm overlay, cyan polynomial fit, red significant-peak dots; vertical magenta event-boundary lines; dashed zero baselines; per-panel stat annotations above axes (mean SNR with overbar notation, Pearson r); shared time-from-timestamp x-labels (ISO datetime in label)"
+      },
+      {
+        "label": "Extended Data Fig. 3",
+        "kind": "Classification scatter plots + score histograms",
+        "panels": 4,
+        "elements": "a,b: log-log feature scatter (relative FFT power vs mean highpass SNR) with cyan 'Stable' and magenta 'Impulsive' semi-transparent point clouds, black linear decision boundary line, HSS score in panel title, top color-key legend; c,d: grey bar histograms of ensemble-cluster average scores with vertical dashed magenta threshold line"
+      },
+      {
+        "label": "Extended Data Fig. 4",
+        "kind": "3-column heatmap + line-profile grid",
+        "panels": 9,
+        "elements": "a-c: equatorial |B| heatmaps (rainbow colormap, shared vertical log colorbar 10^1-10^2 nT) with Mercury photo disk overlay, dashed graticule grid, two-line colored column titles (Low/Moderate/High p_dyn with r_hel values); d-f and g-i: two rows of compact |B|(s) line-profile panels with 3-4 colored curves each, endpoint marker dots, right-margin color-coded coordinate legend (X, Y value pairs)"
+      },
+      {
+        "label": "Extended Data Fig. 5",
+        "kind": "5x4 small-multiple grid of loss-fraction time series",
+        "panels": 20,
+        "elements": "Panels a1-a5 through d1-d5; two line styles per panel distinguished in a top centered legend (solid squares = Current Sheet Scattering, dashed circles = Magnetopause Shadowing); row-wise color coding (red/orange/green/cyan/blue) with bold colored in-panel range labels; bold column headers (Heliospheric Distance, Pitch Angle, Radial Distance, Energy); per-column italic parameter blocks beneath the grid; axis arrows on spines; dotted gridlines; shared 'Loss Fraction [%]' y-label"
+      },
+      {
+        "label": "Extended Data Fig. 6",
+        "kind": "Two-column mission-comparison composite: time series, spectrum with error bars, spectrogram, trajectory maps with percentile ribbons, orbit-overlay maps",
+        "panels": 8,
+        "elements": "Left column Mariner 10 / right column BepiColombo with dated column titles; a: dual-axis magnetometer traces (|B| black left, B_z blue right) with pink shaded event interval; b: log count-rate step plot; multi-row UTC + X/Y/Z coordinate tick-label table under time axes; d: electron energy spectrum, log-log with Poisson error bars; e: MEA energy-time spectrogram with rainbow log colorbar; c,f: X-Y trajectory maps over Mercury image with blue spacecraft track, time-stamp labels along track, dashed dipole footprint, red 5/50/95th-percentile trapped-region ribbons, orange shading; g,h: X-Z orbit overlays of BepiColombo MPO (orange) and Mio (cyan) ellipses over binned residual NS count maps with horizontal red-blue diverging colorbar and date-time titles"
+      }
+    ],
+    "caption_style": "Main figures: 'Fig. N | Bold sentence-case title.' — 'Fig. N |' and the title sentence in bold, followed by roman description text. Panel references use bold lowercase letters ('a', 'b,c', 'e,f', ranges 'a–f') set bold inline at the start of each description clause, including compound sub-panel notation like a(i), (ii), (iii) and b(i)/b(ii); numeric sub-panels (a1–a4) in Extended Data captions. Extended Data figures use 'Extended Data Fig. N | Bold title.' and parenthesized bold panel letters '(a)', '(b-c)'. Captions sit below the figure, span the figure width, and are frequently set in two columns for full-width figures; typical length 100–250 words (Fig. 1's is ~250 words). Captions embed blue hyperlinked citation numbers (refs. 64–66), define abbreviations at the end ('DNF, differential number flux; FIPS, ...'), and include image-credit lines ('Mercury USGS/NASA MESSENGER MDIS basemap data...'). Cross-references to figures inside captions are blue links. Table caption format: 'Extended Data Table 1 | Title' in bold above the table.",
+    "citation_style": "Superscript numbered citations in order of appearance, collated with commas and en-dash ranges (e.g. 2–5, 7–9, 10,11); when a citation is syntactically part of the sentence it uses '(refs. 14,15)' or 'ref. 18' with the numbers as blue hyperlinks; superscripts are blue links. Figure/table cross-references (Fig. 1b(i), Extended Data Fig. 6c, Extended Data Table 1, equation (16) in ref. 52) are blue hyperlinks with only the number colored in some cases. Reference list: numbered 1–66, hanging indent, two columns, ~7.5pt; format 'Surname, A. B. et al. Article title. Journal Abbrev. Volume, pages (year).' with journal name italic and volume bold; book chapters as 'in Book Title (eds Name, A.) pages (Publisher, year)'; dataset/software refs include blue Zenodo DOIs and URLs. No author-year citations anywhere.",
+    "formatter_requirements": [
+      "Two-column justified body (~89mm columns) with a distinct page-1 opener: full-width title, left ruled date sidebar (Received/Accepted/Published online + Check for updates badge), right author block + single-column large-type abstract, affiliation footnote block above footer",
+      "Running header on every page after page 1: bold 'Article' left, blue hyperlinked DOI right, thin rule; footer with rule and blue journal name 'Nature Astronomy'; no page numbers",
+      "Author block rendering: bold names, superscript affiliation numbers, ORCID icon glyphs, envelope glyph for corresponding authors, CJK characters in parenthetical native-script names, 'These authors contributed equally' footnote marker, blue mailto links",
+      "Automatic superscript citation collation (commas, en-dash ranges) plus inline 'ref./refs.' form, all rendered as blue hyperlinks; reference list generator producing Nature style (italic journal, bold volume, hanging indent, et al. truncation, book-chapter and Zenodo-DOI variants)",
+      "Blue hyperlink styling for DOIs, URLs, e-mails, figure/table/equation cross-references, including compound targets like 'Fig. 1a(i)' and 'Extended Data Fig. 6g,h'",
+      "Section heading hierarchy: unlabeled abstract/intro; bold section heads (Results, Conclusion, Methods); bold Methods subheads; bold run-in sub-subheads terminated by a period within a paragraph",
+      "Display equations numbered continuously (1)–(6) with right-aligned parenthesized numbers, centered equations, support for := definitions, bold vectors (B*, A*), fractions, sqrt, partial-style derivatives, and inline math with italic multi-level sub/superscripts (p_dyn, r_hel, R_M, kappa)",
+      "Numbered and bulleted lists inside Methods (algorithm steps '(1)(2)(3)' and feature bullets) matching body typography",
+      "Figure blocks spanning full text width placed at top of page, caption below in one or two balanced columns, with bold 'Fig. N |' lead-in and bold inline panel letters",
+      "Distinct Extended Data numbering series: 'Extended Data Fig. N' and 'Extended Data Table N', each on its own page after references/back matter, caption below figure / title above table",
+      "Table style: bold 'Extended Data Table 1 | Title' heading, shaded bold header row, subtle zebra row striping, horizontal rules only (no vertical rules), full text width",
+      "Fixed Nature back-matter sequence and styles: Data availability, Code availability, References, Acknowledgements, Author contributions, Funding, Competing interests, Additional information with bold run-in labels (Extended data, Supplementary information, Correspondence and requests for materials, Peer review information, Reprints and permissions, Publisher's note, Open Access licence text, copyright line)",
+      "Open-access badge on page 1 masthead row and 'Check for updates' badge in sidebar (SVG assets)",
+      "Harding-like serif body font with sans-serif figure-label font pairing; abstract set at larger size than body; hyphenation and justification control",
+      "Unicode coverage: CJK author names, Greek letters, minus signs, en-dashes, overbar notation (mean SNR), degree symbols, ± and subscripted italic symbols in running text"
+    ],
+    "canvas_requirements": [
+      "Multi-panel grid composition with bold lowercase panel letters and hierarchical sub-labels — a(i)/a(ii)/a(iii), a1–a5 grids — with snapping, shared axes, and aligned columns/rows across panels",
+      "Small-multiple factories: replicate a panel template into 6x2, 4x3, and 5x4 grids with shared axis labels, per-row color themes, per-column bold titles, and per-column parameter text blocks below the grid",
+      "Line/step time-series plots with many overlaid series, distinct colors per trace, background-fit overlays, moving-average overlays, and dual y-axes with independently colored left/right spines and labels",
+      "Log, semi-log, log-log, symlog, and reversed axes; axis labels with units in both bracket styles ([nT], (counts per second)); rotated y-axis labels; multi-row composite tick labels (UTC time plus X/Y/Z coordinate rows under one axis)",
+      "2D heatmap/spectrogram rendering (energy-time spectrograms, binned spatial residual maps, annular occurrence maps) with rainbow, sequential, diverging, and dual-ended colormaps; colorbars placed vertical-right, horizontal-top, and horizontal-bottom, with log and symlog scales and math in colorbar titles",
+      "Raster image embedding inside axes: Mercury photographic basemap clipped to a circle, layered under vector curves, shaded regions, and binned data, with credit-line text support",
+      "Translucent vertical/horizontal shaded bands (event intervals, 'Bounce unstable' zones, surface bands) with labels, plus large soft-shaded background regions with region labels (Adiabatic/Main/Diffusion/Advection)",
+      "Zoom insets: magnified sub-region in an inset box with connector/leader lines to the parent region; standalone inset mini-plots (trajectory diagrams, loss-vs-time inset) placed beside or inside panels",
+      "Freeform schematic drawing: smooth curved field lines, curved arrows with heads, orange flow arrows, glow/halo effects, endpoint dots, mixing schematic art with quantitative axes in one figure",
+      "Custom composite glyphs: nonstandard quantile plots (box + ticks + arrow whiskers with a labeled percentile scale), statistical percentile ribbons (5/50/95%) drawn as nested shaded bands along curves",
+      "Error bars (Poisson), dashed reference/threshold lines, decision-boundary lines over scatter clouds, model-fit line overlays with legend labels like 'P = 0.90'",
+      "Curve-family styling: 5-color ordered families with markers, inline end-of-curve labels colored to match, and legends as colored text in margins, boxed legends, and top-centered marker+linestyle legends",
+      "Scatter plots with semi-transparent point clouds in two class colors, filled vs open marker variants",
+      "Rich text everywhere: italic math with sub/superscripts and Greek (p_dyn, r_hel, R_M, kappa := sqrt(R_c/r_g)), overbar notation, colored annotation text, rotated text, leader-line callouts, per-panel stat annotations above axes",
+      "Orbit/trajectory overlays: ellipses and tracks with along-track time-stamp labels, directional arrows, dashed projected footprints",
+      "Layer management, grouping, and clipping (data clipped to axes, images clipped to shapes), with vector SVG export at full journal text width using a sans-serif label font consistent across all figures"
+    ],
+    "math_and_tables": "Display equations are centered with right-aligned parenthesized numbers running continuously (1)–(6) across Methods and Supplementary-referencing text; they include a probability density definition f(N,P)=(1-P)P^(N-1), an inequality with nested sqrt and bracketed ± term (equation 2), and guiding-centre ODEs (3)–(6) with fractions dX/dt, bold starred vectors B*, A*, unit vector b, gradient/curl operators, and := definitions. Inline math is heavy: italic single-letter variables with roman multi-letter subscripts (p_dyn, r_hel, R_M, B_x), compound expressions like kappa = sqrt(R_c/r_g) < 3 set inline, and unit exponents (cm^2 sr s (keV/e))^-1 in colorbar labels. The single table (Extended Data Table 1) is full-width with 5 columns (Panel, Energy (keV), Pitch Angle Range (deg), Radial Distance (R_M), Heliocentric Distance (au)), a bold header row on a grey band, alternating light-grey row striping, thin horizontal rules top/bottom, no vertical rules, ± values in cells, and a bold pipe-separated title above ('Extended Data Table 1 | Input parameters for the test-particle simulations'). No numbered tables appear in the main text.",
+    "special_elements": "Extended Data figures (6) and one Extended Data table with their own numbering series, one per page after back matter, cross-referenced from main text as blue links; ruled Received/Accepted/Published-online date box; 'Check for updates' CrossMark badge; open-access orange padlock badge on masthead; ORCID iD icons after author names; envelope icons marking the two corresponding authors plus a footnote e-mail line; CJK native-script author names in parentheses; 'These authors contributed equally' superscript-numbered footnote; Peer review information naming the reviewers and noting reports are available; Publisher's note; full CC BY 4.0 licence paragraph and '© The Author(s) 2026'; Data availability and Code availability sections dense with live URLs and Zenodo DOIs (data/software citations 60–63 in the reference list); figure image-credit lines citing USGS/NASA basemap refs 64–66 inside captions; Author contributions paragraph that hyperlinks specific figure numbers; Funding section with grant numbers; Supplementary Information pointer (Supplementary Figs. and Tables exist online but not in this PDF)."
+  },
+  {
+    "journal": "Nature Physics (Review Article, Vol. 13, March 2017, pp. 232–238, DOI 10.1038/NPHYS3816)",
+    "paper_title": "High-energy neutrino astrophysics",
+    "layout": "A4-ish page, two-column justified body text (~89 mm columns, ~6 mm gutter) with generous outer margins. Page 1 opens with a full-width dark indigo banner: 'REVIEW ARTICLE' in white bold sans caps, a second line 'PUBLISHED ONLINE: 4 JULY 2016 | DOI: 10.1038/NPHYS3816' in small white caps, and the nature physics logo block (white lowercase serif wordmark on blue) at top right. Below the banner, spanning full width: article title in large (~26 pt) bold sans-serif, author line 'Francis Halzen*' in medium sans with asterisk footnote marker, then a bold sans-serif standfirst abstract paragraph (~9 pt, full text width, no 'Abstract' heading). Body text is a serif face (Minion-like, ~8.5–9 pt) starting with a 3-line drop cap 'T'. Section headings are bold sans-serif, unnumbered, set flush left at body size. Page 1 carries a footnote block above the footer rule: affiliation ('University of Wisconsin-Madison, Department of Physics, 5293 Chamberlin Hall...') and '*e-mail: francis.halzen@icecube.wisc.edu'. Running heads alternate recto/verso: one side shows 'REVIEW ARTICLE' in a blue band on the outer edge with 'NATURE PHYSICS DOI: 10.1038/NPHYS3816' on the inner; the other side mirrors it. Footer: folio (page number) at outer margin in bold, 'NATURE PHYSICS | VOL 13 | MARCH 2017 | www.nature.com/naturephysics' at the opposite side, plus a small centered copyright line '© 2017 Macmillan Publishers Limited, part of Springer Nature. All rights reserved.' on every page. Figures are anchored to the tops of columns/pages: single-column figures (Figs 2–6) sit at column top with the caption directly beneath at column width; Figure 1 spans both columns with a full-width caption; Box 1 is a full-width tinted (pale blue-grey) panel containing its own two-column text flow and an internal full-width figure (B1).",
+    "section_structure": [
+      "Title + author + standfirst abstract (bold sans, unheaded)",
+      "Untitled introduction (drop-cap opening)",
+      "Box 1 | The IceCube experiment. (shaded sidebar with its own Figure B1)",
+      "Detection of cosmic neutrinos",
+      "Origin of cosmic neutrinos",
+      "High-energy neutrinos and dark matter",
+      "Future developments",
+      "Received/accepted/published-online dates line",
+      "References (numbered, 1–70)",
+      "Acknowledgements",
+      "Additional information (reprints/permissions URL + correspondence statement)",
+      "Competing financial interests"
+    ],
+    "figures": [
+      {
+        "label": "Figure B1 (inside Box 1)",
+        "kind": "labeled schematic / 3D technical illustration, two side-by-side drawings",
+        "panels": 2,
+        "elements": "Left: cutaway sketch of the IceCube observatory with depth scale annotations (50 m, 1,450 m, 2,450 m, 2,820 m), text callouts with thin leader lines (IceCube Lab, IceTop, IceCube array, Amanda II array, DeepCore, Bedrock), and an Eiffel Tower silhouette for scale ('324 m'). Right: rendered 3D exploded view of the digital optical module with ~8 leader-line callouts (Penetrator, High voltage divider, LED flasher board, Main board, Delay board, RTV gel, Glass pressure housing, Photomultiplier, Mu-metal grid). Sits on the box's tinted background; caption defines the abbreviation RTV."
+      },
+      {
+        "label": "Figure 1",
+        "kind": "two-panel raster event-display images (3D detector renderings on dark background)",
+        "panels": 2,
+        "elements": "Bold sans panel letters 'a' and 'b' above each panel; colored dot clouds where color encodes photon arrival time (red early to purple late) and dot size encodes photon count; white dots for no-signal sensors; grey 3D wireframe grid floor and vertical string lines; double-column width; long explanatory caption referencing panels a and b."
+      },
+      {
+        "label": "Figure 2",
+        "kind": "single-panel stepped-histogram spectrum, log-log",
+        "panels": 1,
+        "elements": "Log x-axis (Median neutrino energy, GeV, 10^4–10^7) and log y-axis (Events per bin, 10^-2–10^3) with power-of-ten tick labels; stepped outline histograms; solid colored band fills (red = astrophysical ν+ν̄, blue = conventional atmospheric ν+ν̄); black data crosses with vertical error bars; framed legend top-right with marker/fill swatches ('Assuming best-fit power law:'); red in-plot annotation 'IceCube preliminary'."
+      },
+      {
+        "label": "Figure 3",
+        "kind": "single-panel stacked histogram with hatched uncertainty bands, log-log",
+        "panels": 1,
+        "elements": "Log axes (Deposited EM-equivalent energy in detector, TeV vs Events per 1,347 days); stacked filled histograms (red atmospheric muon flux, blue atmospheric neutrinos π/K); diagonal-hatch overlay regions for background uncertainties and 90% CL charm limit; solid and dashed line overlays for two power-law fits (E^-2.58 and fixed E^-2); black data points with vertical error bars; multi-entry framed legend at top; caption ends with abbreviation definitions (EM; bkg.; CL)."
+      },
+      {
+        "label": "Figure 4",
+        "kind": "all-sky map, Mollweide-type projection in Galactic coordinates, with heatmap shading and colorbar",
+        "panels": 1,
+        "elements": "Elliptical projection outline with graticule and coordinate edge labels (180°, -90°, 'Galactic'); scatter markers of two types ('+' shower events, '×' muon-track events) each tagged with a small event-ID number; continuous purple-magenta colormap shading for test-statistic density; horizontal colorbar below the map labeled 'TS = 2log(L/L0)' with endpoint values 0 and 13.1; red 'IceCube preliminary' annotation top-left."
+      },
+      {
+        "label": "Figure 5",
+        "kind": "single-panel multi-series flux plot (lines + data points with error bars), log-log",
+        "panels": 1,
+        "elements": "Log-log axes spanning ~7 decades in x (E, TeV) with y-axis in spectral units E²Φ (GeV cm⁻² s⁻¹ sr⁻¹); black theory curve and red cascaded gamma-ray curve; red open crosses (Fermi IGRB data) and black filled points with error bars (IceCube combined); blue shaded confidence band around a best-fit segment; downward red arrow (upper limit); framed legend top-right; italic in-plot annotation 'pp scenario, SFR evolution'."
+      },
+      {
+        "label": "Figure 6",
+        "kind": "exclusion-limit plot: many overlaid curves and shaded allowed/excluded regions, log-log",
+        "panels": 1,
+        "elements": "Axes in log10 units (log10(mχ/GeV c⁻²) vs log10(σSD/cm²) with negative exponents -35 to -42); ~8 experiment curves distinguished by color AND dash pattern (solid = τ⁺τ⁻/W⁺W⁻ channels, dashed = bb̄ channel); square data markers connected by lines (IceCube limit); filled translucent regions (purple MSSM allowed space, green DAMA, grey PICO2L direct-search); two separate legends — one keying experiments by color (left) and one keying annihilation channels by line style (right); red 'IceCube preliminary' annotation; overbar and superscript math in legend entries (bb̄, W⁺W⁻, τ⁺τ⁻)."
+      }
+    ],
+    "caption_style": "Sans-serif, ~7.5 pt, set at figure width directly below the figure. Lead-in is bold: 'Figure N | ' (pipe separator, not period), followed by a bold first sentence acting as the figure title; remaining sentences are regular weight. Panel letters are referenced inside the caption as bold lowercase 'a,' and 'b,' starting their own sentences. Box figures use the 'Figure B1 |' numbering series. Abbreviations used in the figure are defined at the caption end in the pattern 'EM, electromagnetic; bkg., background; CL, confidence level.' Superscript citation numbers appear inside captions (e.g. 'refs 41,45,46'). Typical length 50–150 words; Figure 1's full-width caption runs ~6 lines.",
+    "citation_style": "Nature numbered style: superscript Arabic numerals in order of first appearance, with hyphenated ranges (e.g. 'messenger1–3', 'detector58–60') and comma-separated lists; when a reference is the sentence object it is written textually as 'refs 16,17' or '(see Box 1)'. Reference list: two-column small type under a bold sans 'References' heading; entries numbered with plain Arabic numbers; format 'Surname, F. M. et al. Article title. Abbrev. Journal Name (italic) vol (bold), page–page (year).' Collaboration credit appears parenthetically ('(for the IceCube Collaboration)'); preprints cited as 'Preprint at https://arXiv.org/abs/...' URLs; 70 references total.",
+    "math_and_tables": "One displayed equation, centered in-column with a right-aligned parenthesized number '(1)': (1/3) Σ E²_ν dN_ν/(dE_ν dt) ≃ (K_π/4) E²_γ dN_γ/(dE_γ dt) — requires summation signs, stacked fractions in derivative notation, subscripted Greek (ν, γ, π), and simeq. Inline math is heavy: Greek letters (ν, τ, χ, σ, Φ, μ), overbars for antiparticles (ν̄, bb̄), superscript powers (10^20 eV, E^-2.15, 10^-18 GeV^-1 cm^-2 sr^-1), italic variables, and mixed unit strings; the caron/haček in 'Čerenkov' appears throughout body text. Numbers use comma thousands separators (1,450 m; 100,000) and unit thin-spacing (2.6 PeV, 100 TeV). No tables anywhere in the paper — table support is untested by this reference.",
+    "special_elements": "Boxed sidebar ('Box 1 | The IceCube experiment.') as a full-width tinted panel with bold sans box title, its own two-column text flow, and a separately numbered internal figure (Figure B1) — a distinct numbering series from main figures. Drop cap on the opening paragraph. Standfirst-style bold abstract with no heading. 'IceCube preliminary' watermark annotations inside three figures. Corresponding-author asterisk footnote with e-mail on page 1. Received/accepted/published-online dates line before References. Per-page copyright line. Branded article-type banner and journal logo on page 1 with alternating colored running-head bands thereafter. No ORCID, no Methods, no Extended Data, no Data/Code availability (2016 Review Article — those sections postdate/do not apply).",
+    "formatter_requirements": [
+      "Two-column justified body layout with full-width opening block (banner, title, author, standfirst) that then breaks into columns mid-page",
+      "Branded header system: page-1 banner with article type + published-online date + DOI + journal logo; alternating recto/verso running heads with colored band containing 'NATURE PHYSICS DOI: ...' and article-type label",
+      "Footer template: outer-margin bold folio, journal|volume|month|URL string on the opposite edge, centered per-page copyright line",
+      "Dual typeface hierarchy: serif body vs sans-serif for title, standfirst, section heads, box titles, captions, and reference list",
+      "Drop cap (3-line) on the first body paragraph only",
+      "Unnumbered bold sans section headings, single level deep",
+      "Box/sidebar environment: full-width tinted panel with 'Box N | Title.' heading, independent two-column internal flow, and an independent figure numbering series (Figure B1) with captions styled like main figures",
+      "Figure float placement anchored to top of column/page; support both single-column (~89 mm) and double-column (~183 mm) figure widths with caption width matching figure width",
+      "Caption micro-format: bold 'Figure N |' lead-in + bold first-sentence title + regular continuation + bold inline panel letters + trailing abbreviation-definition list",
+      "Superscript numeric citations with automatic range collapsing (1–3) and a 'refs N,M' textual form; renumbering by order of appearance",
+      "Nature reference-list rendering: numbered entries, 'Surname, F. M.' author format with 'et al.' truncation, italic abbreviated journal, bold volume, page range, parenthesized year, live arXiv URLs",
+      "Displayed equations centered in-column with right-aligned '(N)' tags; full LaTeX-grade inline math (Greek, overbars, stacked super/subscripts, units)",
+      "Page-1 footnote block above footer rule for affiliations and '*e-mail:' corresponding-author line",
+      "End-matter block set in smaller type: dates line ('Received ...; accepted ...; published online ...'), Acknowledgements, Additional information, Competing financial interests, each with bold sans run-in headings",
+      "Unicode fidelity: háček (Čerenkov), Greek in running text, comma-grouped numbers, non-breaking thin spaces before units",
+      "Hyperlink styling for URLs and e-mail addresses in blue within footnotes/end matter"
+    ],
+    "canvas_requirements": [
+      "Log-scale axes on both x and y with power-of-ten tick labels (10^-2 ... 10^7), minor decade ticks, and axis ranges spanning up to 7 decades",
+      "Stepped-outline histograms and stacked filled histograms with per-series fill color",
+      "Hatch-pattern fills (diagonal hatching) usable as overlay uncertainty bands on top of solid fills",
+      "Scatter/data series with vertical (and horizontal) error bars, cross-style markers, and downward upper-limit arrows",
+      "Solid/dashed/dotted line-style control used semantically (dash pattern encodes a category, e.g. annihilation channel), independent of color",
+      "Translucent shaded regions and confidence bands (filled polygons with alpha) layered under/over curves",
+      "Framed legend boxes with mixed entry types (line sample, filled swatch, hatched swatch, marker), including two independent legends in one plot (Fig 6)",
+      "Continuous colormap shading over a map surface plus a horizontal colorbar with min/max labels and a math-formatted title (TS = 2log(L/L0))",
+      "All-sky map support: Mollweide/Hammer elliptical projection with graticule, Galactic-coordinate edge labels, and per-point marker glyphs ('+', '×') each carrying a small numeric ID label",
+      "Multi-panel composition with bold sans panel letters (a, b) placed outside the panel top-left, and mixed panel widths (two half-width panels under one double-column figure)",
+      "Raster image embedding inside panels (3D event displays, rendered CAD views) with vector annotation overlays on top",
+      "Text callouts with thin leader lines/arrows pointing into schematic artwork, plus dimension-style annotations (depth scale ticks: 50 m, 1,450 m, 2,820 m)",
+      "In-plot free text annotations with color and style control (red 'IceCube preliminary', italic 'pp scenario')",
+      "Math-capable text everywhere in the canvas: axis titles with Greek letters, overbars (bb̄, ν̄), super/subscripts, and compound units (GeV cm⁻² s⁻¹ sr⁻¹)",
+      "Rotated (90°) y-axis titles and tick-label formatting control (scientific notation vs plain, comma thousands)",
+      "Export presets at journal single-column (~89 mm) and double-column (~183 mm) widths holding ~6–7 pt in-figure type sizes",
+      "Color-blind-relevant palette management: distinct saturated series colors (red/blue fills) that also stay distinguishable when combined with hatching"
+    ]
+  }
+]
