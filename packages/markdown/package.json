@@ -3,9 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "katex": "^0.18.4",
+    "mdast-util-to-string": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.8",
+    "@types/mdast": "^4.0.4",
+    "@types/unist": "^3.0.3"
   }
 }
