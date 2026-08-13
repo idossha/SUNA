@@ -219,8 +219,12 @@ function renderNode(node: RootContent, ctx: RenderContext): string {
       return '';
     case 'tableCell':
       return renderChildren(node.children, ctx);
-    case 'math':
-      return `<div class="math math--display"${posAttr(node)}>${renderMath(node.value, true)}</div>`;
+    case 'math': {
+      // Equation label convention: `$$ {#eq:label}` on the opening fence.
+      const labelMatch = /^\{#(eq:[A-Za-z][\w:.-]*)\}$/.exec(node.meta?.trim() ?? '');
+      const idAttr = labelMatch ? ` id="${escapeHtml(labelMatch[1] as string)}"` : '';
+      return `<div class="math math--display"${idAttr}${posAttr(node)}>${renderMath(node.value, true)}</div>`;
+    }
     case 'inlineMath':
       return renderMath(node.value, false);
     case 'citation':

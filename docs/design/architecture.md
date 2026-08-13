@@ -67,7 +67,7 @@ where it exists:
 
 - **Math**: `$…$` inline, `$$…$$`/`\begin{equation}` display. Rendered with
   KaTeX in preview; passed through to LaTeX on export. Display equations get
-  auto-numbers and `{#eq:label}` ids.
+  auto-numbers; labels go on the opening fence: `$$ {#eq:label}` … `$$`.
 - **Citations**: `[@wang2025; @smith2024]` and narrative `@wang2025`. Resolved
   against `references.bib`; rendering (superscript numeric, author-year,
   parenthetical) is decided by the active publisher profile, never stored.

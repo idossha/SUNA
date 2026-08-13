@@ -6,16 +6,20 @@ import { SideBar } from './shell/SideBar'
 import { StatusBar } from './shell/StatusBar'
 import { DockHost, type DockPanelComponent } from './shell/dock/DockHost'
 import { WelcomeTab } from './shell/WelcomeTab'
+import { EditorTab } from './editor/EditorTab'
 import { useUiStore } from './state/ui'
+import { setDockApi } from './state/dock'
 
 const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
-  welcome: WelcomeTab
+  welcome: WelcomeTab,
+  editor: EditorTab
 }
 
 export function App(): JSX.Element {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible)
 
   const handleDockReady = useCallback((api: DockviewApi) => {
+    setDockApi(api)
     api.addPanel({ id: 'welcome', component: 'welcome', title: 'Welcome' })
   }, [])
 

@@ -3,8 +3,9 @@ import { CHANNELS, FsNodeSchema, type FsNode, type RequestOf, type ResponseOf } 
 import { DEFAULT_PROJECT_DIRS } from './project';
 
 describe('CHANNELS', () => {
-  it('declares exactly the M0 channel set', () => {
+  it('declares exactly the M1 channel set', () => {
     expect(Object.keys(CHANNELS).sort()).toEqual([
+      'dialog:pick-directory',
       'fs:list',
       'fs:read-text',
       'fs:write-text',

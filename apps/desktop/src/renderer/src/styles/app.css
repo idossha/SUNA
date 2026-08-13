@@ -290,6 +290,212 @@ button {
   background: #f0c274;
 }
 
+/* ---- explorer tree ------------------------------------------------------- */
+
+.tree {
+  padding: 4px 0;
+}
+
+.tree__row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-right: 8px;
+  font-size: var(--s-text-md);
+  color: var(--s-ink-muted);
+  text-align: left;
+  border-radius: var(--s-radius);
+}
+
+.tree__row:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.tree__row--dir {
+  color: var(--s-ink);
+}
+
+.tree__chevron {
+  width: 10px;
+  font-size: 9px;
+  color: var(--s-ink-faint);
+  flex-shrink: 0;
+}
+
+.tree__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- editor tab ---------------------------------------------------------- */
+
+.editor-tab {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-editor);
+}
+
+.editor-tab__toolbar {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 5;
+}
+
+.editor-tab__mode {
+  padding: 3px 12px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+}
+
+.editor-tab__mode:hover {
+  color: var(--s-accent);
+  border-color: var(--s-border-strong);
+}
+
+.editor-tab__source {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-tab__source .cm-editor {
+  height: 100%;
+}
+
+.editor-tab__source .cm-scroller {
+  overflow: auto;
+}
+
+.editor-tab__rendered {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  user-select: text;
+}
+
+/* ---- rendered manuscript (SciMark) --------------------------------------- */
+
+.scimark {
+  max-width: 62ch;
+  margin: 0 auto;
+  padding: 48px 32px 96px;
+  font-family: var(--s-font-serif);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--s-ink);
+}
+
+.scimark h1,
+.scimark h2,
+.scimark h3 {
+  font-family: var(--s-font-ui);
+  line-height: 1.3;
+  margin: 1.6em 0 0.6em;
+}
+
+.scimark h1 {
+  font-size: 22px;
+}
+
+.scimark h2 {
+  font-size: 17px;
+}
+
+.scimark h3 {
+  font-size: 14px;
+}
+
+.scimark p {
+  margin: 0 0 1em;
+}
+
+.scimark a {
+  color: #8ab4d8;
+}
+
+.scimark sup.cite {
+  color: var(--s-accent);
+  font-family: var(--s-font-ui);
+  font-size: 11px;
+  cursor: default;
+}
+
+.scimark .xref {
+  color: #8ab4d8;
+  text-decoration: none;
+}
+
+.scimark .figure--unresolved {
+  margin: 1.5em 0;
+  padding: 20px;
+  border: 1px dashed var(--s-border-strong);
+  border-radius: var(--s-radius);
+  color: var(--s-ink-faint);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  text-align: center;
+}
+
+.scimark .katex-display {
+  margin: 1.4em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.scimark table {
+  border-collapse: collapse;
+  margin: 1.4em 0;
+  font-size: 14px;
+}
+
+.scimark th,
+.scimark td {
+  padding: 5px 12px;
+  border-top: 1px solid var(--s-border);
+  border-bottom: 1px solid var(--s-border);
+  text-align: left;
+}
+
+.scimark th {
+  font-family: var(--s-font-ui);
+  font-size: 12px;
+  background: var(--s-bg-panel);
+}
+
+.scimark blockquote {
+  margin: 1.2em 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--s-border-strong);
+  color: var(--s-ink-muted);
+}
+
+.scimark code {
+  font-family: var(--s-font-mono);
+  font-size: 0.85em;
+  background: var(--s-bg-raised);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.scimark pre code {
+  display: block;
+  padding: 12px 16px;
+  overflow-x: auto;
+}
+
 /* ---- status bar ---------------------------------------------------------- */
 
 .statusbar {

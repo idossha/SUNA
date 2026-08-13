@@ -20,6 +20,19 @@ describe('math rendering', () => {
     expect(html).toContain('katex-display');
     expect(html).toMatch(/<div class="math math--display" data-pos="\d+-\d+">/);
   });
+
+  it('turns an opening-fence {#eq:label} into the block id', () => {
+    const html = render('$$ {#eq:stripping}\nP = \\rho v^2\n$$');
+    expect(html).toContain('id="eq:stripping"');
+    expect(html).toContain('katex-display');
+    expect(html).not.toContain('{#eq:stripping}');
+  });
+
+  it('ignores malformed opening-fence meta', () => {
+    const html = render('$$ not-a-label\nP = \\rho v^2\n$$');
+    expect(html).not.toContain('id=');
+    expect(html).toContain('katex-display');
+  });
 });
 
 describe('citation rendering', () => {

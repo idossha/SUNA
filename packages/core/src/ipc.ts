@@ -74,6 +74,13 @@ export const CHANNELS = {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({ root: FsNodeSchema }),
   },
+  'dialog:pick-directory': {
+    request: z.object({
+      title: z.string().min(1),
+      allowCreate: z.boolean(),
+    }),
+    response: z.object({ path: z.string().min(1).nullable() }),
+  },
 } as const satisfies Record<string, ChannelContract>;
 
 export type ChannelName = keyof typeof CHANNELS;
