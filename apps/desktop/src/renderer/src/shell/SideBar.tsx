@@ -1,5 +1,6 @@
 import type { JSX } from 'react'
 import { SIDEBAR_VIEW_LABELS, useUiStore, type SidebarView } from '../state/ui'
+import { ExplorerView } from './ExplorerView'
 
 const VIEW_EMPTY_COPY: Record<SidebarView, string> = {
   explorer: 'Open a project to browse its files.',
@@ -17,7 +18,11 @@ export function SideBar(): JSX.Element {
     <aside className="sidebar">
       <div className="sidebar__header">{SIDEBAR_VIEW_LABELS[activeView]}</div>
       <div className="sidebar__body">
-        <p className="sidebar__empty">{VIEW_EMPTY_COPY[activeView]}</p>
+        {activeView === 'explorer' ? (
+          <ExplorerView />
+        ) : (
+          <p className="sidebar__empty">{VIEW_EMPTY_COPY[activeView]}</p>
+        )}
       </div>
     </aside>
   )

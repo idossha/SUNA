@@ -1,8 +1,9 @@
 import type { JSX } from 'react'
-import { useUiStore } from '../state/ui'
+import { useProjectStore } from '../state/project'
 
 export function WelcomeTab(): JSX.Element {
-  const setStatusNote = useUiStore((s) => s.setStatusNote)
+  const createProject = useProjectStore((s) => s.createProject)
+  const openProject = useProjectStore((s) => s.openProject)
 
   return (
     <div className="welcome">
@@ -14,16 +15,10 @@ export function WelcomeTab(): JSX.Element {
         </p>
         <div className="welcome__rule" />
         <div className="welcome__actions">
-          <button
-            className="btn btn--primary"
-            onClick={() => setStatusNote('Project scaffolding lands in M1 — next milestone.')}
-          >
+          <button className="btn btn--primary" onClick={() => void createProject()}>
             Create project
           </button>
-          <button
-            className="btn"
-            onClick={() => setStatusNote('Opening existing projects lands in M1 — next milestone.')}
-          >
+          <button className="btn" onClick={() => void openProject()}>
             Open project…
           </button>
         </div>
