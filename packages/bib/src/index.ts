@@ -1,1 +1,9 @@
-export {}
+export type { Author, BibEntry, LiteralAuthor, PersonAuthor, Run, RunLink } from './model.js';
+export { detectArxivId } from './model.js';
+export type { ParseIssue, ParseResult } from './parse.js';
+export { parseBibtex } from './parse.js';
+export { serializeBibtex, serializeEntry } from './serialize.js';
+export type { CitationCluster, CitationMode, CitationStyleConfig, CiteRendering } from './cite.js';
+export { assignNumbers, renderCluster } from './cite.js';
+export type { BibFormatConfig } from './format.js';
+export { formatReference } from './format.js';
