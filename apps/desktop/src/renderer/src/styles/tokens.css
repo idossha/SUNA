@@ -1,0 +1,53 @@
+/* ---------------------------------------------------------------------------
+   SUNA design tokens — "dark-adapted instrument" theme.
+   Deep blue-black surfaces (night sky), warm off-white ink, one gold accent
+   (dark-adapted observatory lighting) reserved for active/focus states.
+   --------------------------------------------------------------------------- */
+:root {
+  /* surfaces, darkest (window chrome) → lightest (raised panels) */
+  --s-bg-chrome: #101014;
+  --s-bg-shell: #16161c;
+  --s-bg-panel: #1a1a21;
+  --s-bg-editor: #1e1e26;
+  --s-bg-raised: #23232c;
+  --s-bg-hover: rgba(255, 255, 255, 0.05);
+  --s-bg-active: rgba(232, 180, 92, 0.12);
+
+  /* ink */
+  --s-ink: #e8e6e1;
+  --s-ink-muted: #a09d97;
+  --s-ink-faint: #6b6963;
+
+  /* the one accent: dark-adapted gold */
+  --s-accent: #e8b45c;
+  --s-accent-ink: #16161c;
+
+  /* semantic, used sparingly */
+  --s-ok: #7fb8a4;
+  --s-warn: #d9915b;
+  --s-err: #d97b6c;
+
+  /* lines */
+  --s-border: #2a2a33;
+  --s-border-strong: #3a3a45;
+
+  /* type */
+  --s-font-ui:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --s-font-serif: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia,
+    serif;
+  --s-font-mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --s-text-xs: 11px;
+  --s-text-sm: 12px;
+  --s-text-md: 13px;
+  --s-text-lg: 15px;
+
+  /* metrics */
+  --s-titlebar-h: 40px;
+  --s-activitybar-w: 46px;
+  --s-statusbar-h: 24px;
+  --s-radius: 4px;
+
+  color-scheme: dark;
+}

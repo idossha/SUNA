@@ -1,0 +1,31 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+out/
+*.tsbuildinfo
+
+# electron
+apps/desktop/release/
+
+# python
+__pycache__/
+*.egg-info/
+.venv/
+.uv/
+
+# tooling caches
+.vite/
+.turbo/
+coverage/
+
+# os / editor
+.DS_Store
+*.local
+
+# secrets — never commit keys
+.env
+.env.*
+.claude/settings.local.json
