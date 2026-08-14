@@ -1,0 +1,439 @@
+- generic [ref=f39e3]:
+  - generic [ref=f39e4]:
+    - link "Skip to main content" [ref=f39e5] [cursor=pointer]:
+      - /url: "#main-content-focus"
+    - generic [ref=f39e12]:
+      - generic [ref=f39e13]: Advertisement
+      - iframe [ref=f39e17]:
+        - link [ref=f48e2] [cursor=pointer]:
+          - /url: https://googleads.g.doubleclick.net/pcs/click?xai=AKAOjstpawVLdMKpZifqh_jmCGSB_nzxJCE_63fGSRl1ZfaXECOWTeKPhayL9UBe9ta3Qap4ysZpiAhIRkl6PmW6xXVjpvYlOqbp5cU4DlvvaTG_L0YQBxjXZEGjT0TTMH5tPXKLVTLzJH568HAbZbQ-mosrIFe_v6ABcQyKbxF9HKncsloVHn6KH6XxQ8DnuxwHOyL4IOd4SVrpio9KSwcm-ghU1G_myCZ5ceLe8uxcZ0cSDjqGFFHnWn0W0HcNU60zPM7jiHJa_WACqh4RaPcLetgzeQmVYNRl2Ll9ZGj0aXl1tDblCeyNtS0P3IYVLds9wVKBTPeW5_2Gkv09hXqu0jCf_zoxQI8oRiXpNK-3Q9-eT3vc1Ov3NdhH0wLNtfUFuNlZdTNcNLrsdlNbp2GeZV4RWg&sai=AMfl-YR5ioXhnd9Q11jlaLIeoSGLs2h78v0Mps9mkvpYaRmJyNEPVKYG42FeTQr25RJO1K7MRegtHq_xeMr2vIlpgJ-4NJC3Tb8PcOEaOdgdNIYNkilAboxE2masfLHwILtCIyCs4X03yniXUSl7gAePyI4rT-ck3LiICx9mdGQ4MdUySKH54Hww77__eb57YHD_gqHcmYDLcwwMqeiudtLCDutfegnTzg0qgBeWYIi6ipw-U6n8xxYNy0XMnp17-T6da2V1iA3SIhXDyW0NOlWiA4UydHEi_n25dim8ir-Hr99w7QSMkqnA4p6X6_GzWj35AOvETLffas_1U0FTrycKFbVXqWckf0ATKP4DAIbQ6rorkISV82PuY8pHzsytwM9hn2fX6tGqbhB_zryndtD9rw&sig=Cg0ArKJSzNOzYAWeUse4&fbs_aeid=%5Bgw_fbsaeid%5D&adurl=https://www.science.org/content/blog-post/biographies-take-center-stage-new-limited-podcast-series%3Futm_medium%3Ddisplay%26utm_source%3Dpublishing-website%26utm_campaign%3Dbookseries-banner%26utm_id%3DrecbfbjPPRsfuYH7J
+          - img "Advertisement for Science Podcast" [ref=f48e3]
+    - banner [ref=f39e18]:
+      - navigation [ref=f39e19]:
+        - generic [ref=f39e21]:
+          - list [ref=f39e23]:
+            - listitem [ref=f39e24]:
+              - button "Toggle navigation" [ref=f39e25] [cursor=pointer]:
+                - generic [ref=f39e26]: 
+            - listitem [ref=f39e27]:
+              - link "news" [ref=f39e28] [cursor=pointer]:
+                - /url: /news
+            - listitem [ref=f39e29]:
+              - link "careers" [ref=f39e30] [cursor=pointer]:
+                - /url: /careers
+            - listitem [ref=f39e31]:
+              - link "commentary" [ref=f39e32] [cursor=pointer]:
+                - /url: /commentary
+            - listitem [ref=f39e33]:
+              - button "Journals " [ref=f39e34] [cursor=pointer]:
+                - generic [ref=f39e35]: Journals
+                - generic [ref=f39e36]: 
+          - link [ref=f39e38] [cursor=pointer]:
+            - /url: /
+            - img "Science" [ref=f39e39]
+          - list [ref=f39e41]:
+            - listitem
+            - listitem [ref=f39e42]:
+              - link "Search" [ref=f39e43] [cursor=pointer]:
+                - /url: "#header-quick-search-wrapper"
+                - generic [ref=f39e44]: 
+            - listitem [ref=f39e45]:
+              - link "Cart" [ref=f39e47] [cursor=pointer]:
+                - /url: /action/showCart?FlowID=1
+                - generic [ref=f39e48]: 
+              - link "Log in" [ref=f39e51] [cursor=pointer]:
+                - /url: /action/ssostart?redirectUri=%2Fcontent%2Fpage%2Finstructions-preparing-revised-manuscript
+            - listitem [ref=f39e52]:
+              - tooltip "Become A Member" [ref=f39e56] [cursor=pointer]
+      - text: 
+    - generic [ref=f39e58]: Main content starts here
+    - main [ref=f39e59]:
+      - generic [ref=f39e62]:
+        - generic [ref=f39e64]:
+          - navigation "breadcrumbs" [ref=f39e66]:
+            - list [ref=f39e67]:
+              - listitem [ref=f39e68]:
+                - link "Home" [ref=f39e69] [cursor=pointer]:
+                  - /url: https://www.science.org/
+                - generic [ref=f39e70]: 
+              - listitem [ref=f39e71]:
+                - link "Author Portal" [ref=f39e72] [cursor=pointer]:
+                  - /url: /content/page/contributing-science-family-journals
+                - generic [ref=f39e73]: 
+              - listitem [ref=f39e74]:
+                - generic [ref=f39e75]: Instructions for preparing a revised manuscript
+            - text: 
+          - heading "Instructions for preparing a revised manuscript" [level=1] [ref=f39e77]
+        - generic [ref=f39e79]:
+          - generic [ref=f39e81]:
+            - text: 
+            - generic [ref=f39e82]:
+              - paragraph
+              - paragraph [ref=f39e83]:
+                - text: In general, the style guidelines and formatting are the same as for an initial submission. See our
+                - link "instructions for preparing an initial manuscript" [ref=f39e84] [cursor=pointer]:
+                  - /url: /content/page/instructions-preparing-initial-manuscript
+                - text: ", which provide guidelines for each section of the manuscript. We prefer to receive final manuscripts in Word (.docx) format and encourage you to use our Word templates for the main text ("
+                - link "download main text template here" [ref=f39e85] [cursor=pointer]:
+                  - /url: /cms/asset/9f76328e-b5ac-4591-90ad-70065e5104ac/science_manuscript_word_template_december2025.docx
+                - text: ) and supplementary materials (
+                - link "download SM template here" [ref=f39e86] [cursor=pointer]:
+                  - /url: /cms/asset/8676899b-1de1-431a-9e4b-c95742de6fa9/science_supplementary_materials_word_template_december2025.docx
+                - text: ). If you need to submit your final manuscript file in LaTeX, please
+                - link "see our LaTeX instructions" [ref=f39e87] [cursor=pointer]:
+                  - /url: /content/page/preparing-manuscripts-using-latex
+                - text: . Below we provide some formatting guidelines relevant to revised manuscripts. Return your revised manuscript documents by uploading them through your account at our Content Tracking System (
+                - link "https://cts.sciencemag.org" [ref=f39e88] [cursor=pointer]:
+                  - /url: https://cts.sciencemag.org
+                - text: ).
+              - paragraph [ref=f39e89]: "At the revision stage:"
+              - list [ref=f39e90]:
+                - listitem [ref=f39e91]: Please refer to your revision letter, checklist, and edited manuscript and follow all editorial requirements.
+                - listitem [ref=f39e92]: Collate all text, references, figure legends, and tables into one .docx file. We have no naming requirements – the file will be renamed when uploaded to our manuscript handling system.
+                - listitem [ref=f39e93]: Do not include the figures themselves. Figures should be uploaded as separate files. See further instructions below.
+                - listitem [ref=f39e94]: Supplementary text, figures, and tables should be prepared as a separate PDF file.
+                - listitem [ref=f39e95]: Use single spacing throughout the text, tables, figure legends, and references and notes.
+                - listitem [ref=f39e96]: For best results, use Times New Roman font. Avoid Symbol fonts.
+                - listitem [ref=f39e97]: If your manuscript contains equations, please refer to the “Preparing equations” section below.
+                - listitem [ref=f39e98]: Format files for US letter paper (8.5 by 11 inches).
+                - listitem [ref=f39e99]: Define technical terms, symbols, abbreviations, and acronyms the first time that they are used.
+                - listitem [ref=f39e100]: Cite all tables and figures in numerical order.
+                - listitem [ref=f39e101]: Remove all references to data not shown. All data must be provided in the main manuscript or the supplementary materials – or must be available in an established database, with accession details provided in the Acknowledgments.
+              - paragraph [ref=f39e102]:
+                - link "Back to top" [ref=f39e103] [cursor=pointer]:
+                  - /url: "#ContentTop"
+              - heading "Preparing revised figures" [level=2] [ref=f39e104]
+              - paragraph [ref=f39e105]:
+                - text: To expedite publication of your paper, please follow the style guidelines given in
+                - link "instructions for preparing an initial manuscript" [ref=f39e106] [cursor=pointer]:
+                  - /url: /authors/instructions-preparing-initial-manuscript
+                - text: . It is best to create your figures as vector-based files, such as those produced by Adobe Illustrator. Vector-based files will give us maximum flexibility for sizing your figures properly without losing resolution, as they can be altered in size while maintaining high-quality resolution. For helpful tips, please refer to our
+                - link "figure preparation guide" [ref=f39e107] [cursor=pointer]:
+                  - /url: /cms/asset/62583409-a188-466e-8cc0-6fb5f083bbff/author_prep_guide_2025.pdf
+                - text: .
+              - paragraph [ref=f39e108]: Submit each figure as an individual file separated from the manuscript text.
+              - heading "Figure layout and scaling" [level=3] [ref=f39e109]
+              - paragraph [ref=f39e110]: The width of figures, when printed, will usually be 5.7 cm (2.24 inches or 1 column) or 12.1 cm (4.76 inches or 2 columns), or 18.4 cm (7.24 inches or 3 columns). Bar graphs, simple line graphs, and gels may be reduced to a smaller width. Symbols and lettering should be large enough to be legible after reduction [a reduced size of about 7 points (2.5 mm) high, and not smaller than 5 points]. Avoid wide variation in type size within a single figure. When laying out information in a figure, the objective is to maximize the space given to presentation of the data. Avoid wasted white space and clutter.
+              - heading "Resolution" [level=3] [ref=f39e111]
+              - paragraph [ref=f39e112]:
+                - text: It is
+                - emphasis [ref=f39e113]: essential
+                - text: that revised manuscripts have adequate figure resolution for high-quality print and online rendering. Line art that is not available as a vector file should have a resolution of at least 300 dots per inch (dpi), preferably higher, at final size (see “Figure layout and scaling” above). Grayscale and color images should have a minimum resolution of 300 dpi at final size, and a higher resolution if possible.
+              - paragraph [ref=f39e114]: Please note that these resolutions apply to figures sized at dimensions comparable to those of figures in the PDF or print version of the final published article. Reducing or enlarging the dimensions of a digital image will also change its effective resolution. For example, reducing the dimensions of an image by 50%, with no change in file size, will double its effective resolution. Doubling the dimensions of the image will cut resolution by 50%, increase visible pixilation, and degrade image quality. Upsampling of images (i.e., artificially increasing file size or resolution) is not permitted.
+              - heading "Format" [level=3] [ref=f39e115]
+              - paragraph [ref=f39e116]: "Figure files at the revision stage must be in one of the following formats (in preferred order):"
+              - paragraph [ref=f39e117]:
+                - emphasis [ref=f39e118]: Vector illustrations and diagrams (preferred)
+                - text: ": Adobe Portable Document Format (PDF) Encapsulated PostScript (EPS), or Adobe Illustrator (AI)"
+              - paragraph [ref=f39e119]:
+                - emphasis [ref=f39e120]: Raster illustrations and diagrams
+                - text: ": Tagged Image File Format (TIFF), minimum 300 dpi"
+              - paragraph [ref=f39e121]:
+                - emphasis [ref=f39e122]: Vector and raster combinations for photographs or microscopy images
+                - text: ": Adobe Portable Document Format (PDF) or Encapsulated PostScript (EPS)"
+              - paragraph [ref=f39e123]:
+                - emphasis [ref=f39e124]: Raster photographs or microscopy images
+                - text: ": Tagged Image File Format (TIFF)"
+              - paragraph [ref=f39e125]:
+                - text: Please keep an archive of all original images used in figures, as
+                - emphasis [ref=f39e126]: Science
+                - text: may request delivery of these images for production purposes. Save these at the highest resolution possible, preferably as the original file in its native format.
+              - paragraph [ref=f39e127]:
+                - text: At this stage in the process, we cannot accept files in formats other than those specified above; in particular, we
+                - strong [ref=f39e128]: cannot
+                - text: "accept:"
+              - list [ref=f39e129]:
+                - listitem [ref=f39e130]: Figures embedded in Microsoft Word files
+                - listitem [ref=f39e131]: Microsoft PowerPoint files
+              - paragraph [ref=f39e132]:
+                - link "Back to top" [ref=f39e133] [cursor=pointer]:
+                  - /url: "#ContentTop"
+              - heading "Preparing equations" [level=2] [ref=f39e134]
+              - list [ref=f39e135]:
+                - listitem [ref=f39e136]: Long equations should be set on their own line and numbered sequentially. After an equation is introduced, refer to it by number (e.g., “Eq. 1,” “Eqs. 3 and 4”).
+                - listitem [ref=f39e137]: Use standard text and fonts for simple equations (i.e., those set on a single baseline).
+                - listitem [ref=f39e138]: For complex equations, use MathType (recommended) or the legacy equation editor in Word (chose Insert > Insert Object > Word Equation). Do not use the native Word 2007, 2008, 2010, or 2011 equation editor, because this may result in display errors.
+                - listitem [ref=f39e139]: The same guidelines apply to mathematical expressions within a sentence of text (e.g., inline equations).
+              - paragraph [ref=f39e140]:
+                - link "Back to top" [ref=f39e141] [cursor=pointer]:
+                  - /url: "#ContentTop"
+          - complementary [ref=f39e143]:
+            - generic [ref=f39e146]:
+              - heading "Advertisement" [level=4] [ref=f39e147]
+              - iframe [ref=f39e150]:
+                - link [ref=f49e2] [cursor=pointer]:
+                  - /url: https://googleads.g.doubleclick.net/pcs/click?xai=AKAOjsvz2ZVcXPvXyautIUcBiImb1j2rqDxWSiA1mMaTX9Hgx9B4_YtQmkMr0Pfec_fq_l6QE159dpjBV7hx2UCktxpwd6fE92OozE-7aQAcDjnsX0VnimWSVHEqRZon9GQ4qhhFWM1JrO7yOqXeiGOPPKPrDWeeYJLywtDjc89u1AdVfiunwahZjrWJxnvDFDd-Otvv5Zc-K4GGPY8pPVjwSq_-Q-upbSxQNBoUsZYAOD7fPd8B_7eU08GFZDROJPtayZeFmt9ZCetD6xiK8Lcp-PjI1neITs9as7HXbHBJX1aJnadZrtaiQt6QN8c41i36cxpZ_PrfxUbE5SC8HNxAWeVYPC0qv7jGZl0vYPc-bRrzcLPg0x5ak9aK1QNZKgQ90vT3mo4WGsdttfjQLo-xMEXrUQ&sai=AMfl-YQPpZznzZT52pkadPkCcpPSlD3VF5tFtKIbJWPgHtqYv3yYzTuGf6QtSGkM0a_KcXbibQvJmVSuwldNxVZI32cTrk6y2Fd3u-GYwhESjmBGZnp25tkVcffqaeqi0IUF_cqZKsAyBx8ZRmOCWgg-7cylDeI9yShamtzBp5hOVZ3bXvPrt12FcAGVq2HRGKRgcBcfURVtN5bgap1suLSt-b7v4w-3wOQffiCtyNLhLylN1rVY_QuF9qUs0NmTAMA26vzdoOYDpmdUJZw-O6tAiUTCbaTHiJuaWs5kaW2Va6eqO_DtME_GRzIqKCHcoJUEVbUrPC7n7lL3D9SqLDAiBkMhRAF-mcMjwGQUzLAb_-owzNpwx_a2ejdFB03jdYNZUhCShEF57_OwPF7j-nVBrQ&sig=Cg0ArKJSzIAWBHO2gIp_&fbs_aeid=%5Bgw_fbsaeid%5D&adurl=https://www.science.org/podcasts%3Futm_medium%3Ddisplay%26utm_source%3Dpublishing-website%26utm_campaign%3Dpod2026-banner%26utm_id%3DrecylD1eaB7nnpzqv
+                  - img "Advertisement for Science Podcast" [ref=f49e3]
+            - generic [ref=f39e153]:
+              - heading "Advertisement" [level=4] [ref=f39e154]
+              - iframe [ref=f39e157]:
+                - link [ref=f46e2] [cursor=pointer]:
+                  - /url: https://googleads.g.doubleclick.net/pcs/click?xai=AKAOjstk0hJUBiBnBqvZLSQPHUgkOe6jX94fImeLgAMF3mhflr2oLszpn7lWnmMmHpg1EJ2A3k8tifxhZRBeV1tzWhghTfnrt4MvN-vi3Im-wElfwqxNew91bkhzE49NztttnHrPiEj7Fj3Jn-mcRuLKWlP_sqvjSgvrTkjlKh3EHKp_x12VV4cSzB4zBUFh6mv5787PF9bwclHnbtet6bNseuIDzvHzXVsyos3JiKMUYdX5ju0fO1Rn72-ulSx_YwAlnCYJiFGMFYf8OS-BvUgeSKIFvXM_rtD0dVS4oqp0BSUTLjZbPY7p0hXSbLc0IGoa-lIKj5a4d5i2mREhrNw1AQu3nenkDGodzt2lV50BdrhFNAueiBwn4dCnyLTCd1jzFRZk5gAkO3ZNBy4Ft2roYN52-A&sai=AMfl-YTB54Jh-e3gN7rdEf7pt1tbis6cr4mfTZg9e6cy_--C4XyaAU4OJcVG7jsJYseEvTappDANuKpLmpMLLfn4nn8l1vj1oW3rs6dHh65-6tLjSNV9hf5v8NDwqiT4hQVrwTsSe2Jw9_QHs-ZdX0bGeEo4dPM8Qgk2EYheRcHSVetJxKBtDNMWCz9yfIX5rZq3xE99IVkOWEQimEtGdJ_A8hK2Cpdwq4WmpaMj6UD4nMxBkU3_zLqSjaCg7W2eDskImwD6aniJ2dixLNdaQdM5W9RTw6_SkVqMdc739gr3fJwUGhFZOtJamXB4AwNtX5orv5-9QXXDm16Aca9T3lymXjS0Es7sRRk3W0zeaVtymh8sP14XUKePRBUrJRaFtVQrNoENOTsNGahoCZ3T0nGrtA&sig=Cg0ArKJSzLqK5PDUnNbz&fbs_aeid=%5Bgw_fbsaeid%5D&adurl=https://purchase.aaas.org/Order/StartNew/702%3Futm_medium%3Ddisplay%26utm_source%3Dmembership-website%26utm_campaign%3Dacquistions2026%26utm_content%3Dsciads%26dmc%3DP25SMT%26ctc%3DBA%26utm_id%3DreckX15UwPkTpZjgf
+                  - 'img "Advertisement for AAAS Membership: Join AAAS and get our exclusive tote bag" [ref=f46e3]'
+    - contentinfo [ref=f39e158]:
+      - generic [ref=f39e162]:
+        - link "Skip slideshow" [ref=f39e163] [cursor=pointer]:
+          - /url: "#afterSlideshow-j3n"
+        - generic [ref=f39e165]:
+          - link "Science Journal Logo" [ref=f39e167] [cursor=pointer]:
+            - /url: /journal/science
+          - link "Science Advances Journal Logo" [ref=f39e178] [cursor=pointer]:
+            - /url: /journal/sciadv
+          - link "Science Immunology Journal Logo" [ref=f39e185] [cursor=pointer]:
+            - /url: /journal/sciimmunol
+          - link "Science Robotics Journal Logo" [ref=f39e193] [cursor=pointer]:
+            - /url: /journal/scirobotics
+          - link "Science Signaling Journal Logo" [ref=f39e200] [cursor=pointer]:
+            - /url: /journal/signaling
+          - link "Science Translational Medicine Journal Logo" [ref=f39e207] [cursor=pointer]:
+            - /url: /journal/stm
+      - generic [ref=f39e218]:
+        - generic [ref=f39e219]:
+          - text:     󡀆    
+          - navigation [ref=f39e221]:
+            - list [ref=f39e222]:
+              - listitem [ref=f39e223]:
+                - link "NEWS" [ref=f39e224] [cursor=pointer]:
+                  - /url: /news
+              - listitem [ref=f39e225]:
+                - link "All News" [ref=f39e226] [cursor=pointer]:
+                  - /url: /news/all-news
+              - listitem [ref=f39e227]:
+                - link "ScienceInsider" [ref=f39e228] [cursor=pointer]:
+                  - /url: /news/scienceinsider
+              - listitem [ref=f39e229]:
+                - link "News Features" [ref=f39e230] [cursor=pointer]:
+                  - /url: /news/features
+              - listitem [ref=f39e231]:
+                - link "Subscribe to News from Science" [ref=f39e232] [cursor=pointer]:
+                  - /url: /content/page/news-science-subscriptions?intcmp=footer-subscribetonews&utm_id=recziGpGO7jMVeez2
+              - listitem [ref=f39e233]:
+                - link "News from Science FAQ" [ref=f39e234] [cursor=pointer]:
+                  - /url: /content/page/news-subscriber-faqs
+              - listitem [ref=f39e235]:
+                - link "About News from Science" [ref=f39e236] [cursor=pointer]:
+                  - /url: /content/page/about-news-science
+              - listitem [ref=f39e237]:
+                - link "Donate to News" [ref=f39e238] [cursor=pointer]:
+                  - /url: /news/donate?intcmp=footer-donate&utm_id=recVQVKKRRLdidlGT
+            - list [ref=f39e239]:
+              - listitem [ref=f39e240]:
+                - link "CAREERS" [ref=f39e241] [cursor=pointer]:
+                  - /url: /careers
+              - listitem [ref=f39e242]:
+                - link "Careers Articles" [ref=f39e243] [cursor=pointer]:
+                  - /url: /topic/article-type/careers-editorial
+              - listitem [ref=f39e244]:
+                - link "Find Jobs" [ref=f39e245] [cursor=pointer]:
+                  - /url: https://jobs.sciencecareers.org/
+              - listitem [ref=f39e246]:
+                - link "Employer Hubs" [ref=f39e247] [cursor=pointer]:
+                  - /url: /careers/employers
+            - list [ref=f39e248]:
+              - listitem [ref=f39e249]:
+                - link "COMMENTARY" [ref=f39e250] [cursor=pointer]:
+                  - /url: /commentary
+              - listitem [ref=f39e251]:
+                - link "Opinion" [ref=f39e252] [cursor=pointer]:
+                  - /url: /commentary/opinion
+              - listitem [ref=f39e253]:
+                - link "Analysis" [ref=f39e254] [cursor=pointer]:
+                  - /url: /commentary/analysis
+              - listitem [ref=f39e255]:
+                - link "Blogs" [ref=f39e256] [cursor=pointer]:
+                  - /url: /blogs
+            - list [ref=f39e257]:
+              - listitem [ref=f39e258]:
+                - link "JOURNALS" [ref=f39e259] [cursor=pointer]:
+                  - /url: /journals
+              - listitem [ref=f39e260]:
+                - link "Science" [ref=f39e261] [cursor=pointer]:
+                  - /url: /journal/science
+              - listitem [ref=f39e262]:
+                - link "Science Advances" [ref=f39e263] [cursor=pointer]:
+                  - /url: /journal/sciadv
+              - listitem [ref=f39e264]:
+                - link "Science Immunology" [ref=f39e265] [cursor=pointer]:
+                  - /url: /journal/sciimmunol
+              - listitem [ref=f39e266]:
+                - link "Science Robotics" [ref=f39e267] [cursor=pointer]:
+                  - /url: /journal/scirobotics
+              - listitem [ref=f39e268]:
+                - link "Science Signaling" [ref=f39e269] [cursor=pointer]:
+                  - /url: /journal/signaling
+              - listitem [ref=f39e270]:
+                - link "Science Translational Medicine" [ref=f39e271] [cursor=pointer]:
+                  - /url: /journal/stm
+              - listitem [ref=f39e272]:
+                - link "Science Partner Journals" [ref=f39e273] [cursor=pointer]:
+                  - /url: https://spj.sciencemag.org/
+            - list [ref=f39e274]:
+              - listitem [ref=f39e275]:
+                - link "AUTHORS & REVIEWERS" [ref=f39e276] [cursor=pointer]:
+                  - /url: /content/page/contributing-science-family-journals
+              - listitem [ref=f39e277]:
+                - link "Information for Authors" [ref=f39e278] [cursor=pointer]:
+                  - /url: /content/page/contributing-science-family-journals
+              - listitem [ref=f39e279]:
+                - link "Information for Reviewers" [ref=f39e280] [cursor=pointer]:
+                  - /url: /content/page/peer-review-science-publications
+            - list [ref=f39e281]:
+              - listitem [ref=f39e282]:
+                - link "LIBRARIANS" [ref=f39e283] [cursor=pointer]:
+                  - /url: /content/page/librarian-portal
+              - listitem [ref=f39e284]:
+                - link "Manage Your Institutional Subscription" [ref=f39e285] [cursor=pointer]:
+                  - /url: /action/institutionAccessEntitlements
+              - listitem [ref=f39e286]:
+                - link "Library Admin Portal" [ref=f39e287] [cursor=pointer]:
+                  - /url: /content/page/librarian-portal
+              - listitem [ref=f39e288]:
+                - link "Request a Quote" [ref=f39e289] [cursor=pointer]:
+                  - /url: https://scienceaaas.org/request
+              - listitem [ref=f39e290]:
+                - link "Librarian FAQs" [ref=f39e291] [cursor=pointer]:
+                  - /url: /content/page/librarian-portal-frequently-asked-questions
+            - list [ref=f39e292]:
+              - listitem [ref=f39e293]:
+                - link "ADVERTISERS" [ref=f39e294] [cursor=pointer]:
+                  - /url: https://advertising.sciencemag.org/
+              - listitem [ref=f39e295]:
+                - link "Advertising Kits" [ref=f39e296] [cursor=pointer]:
+                  - /url: https://advertising.sciencemag.org/
+              - listitem [ref=f39e297]:
+                - link "Custom Publishing Info" [ref=f39e298] [cursor=pointer]:
+                  - /url: /custom-publishing
+              - listitem [ref=f39e299]:
+                - link "Post a Job" [ref=f39e300] [cursor=pointer]:
+                  - /url: https://employers.sciencecareers.org/
+            - list [ref=f39e301]:
+              - listitem [ref=f39e302]:
+                - link "RELATED SITES" [ref=f39e303] [cursor=pointer]:
+                  - /url: /content/page/related-sites
+              - listitem [ref=f39e304]:
+                - link "AAAS.org" [ref=f39e305] [cursor=pointer]:
+                  - /url: //www.aaas.org/
+              - listitem [ref=f39e306]:
+                - link "AAAS Communities" [ref=f39e307] [cursor=pointer]:
+                  - /url: //members.aaas.org/home
+              - listitem [ref=f39e308]:
+                - link "EurekAlert!" [ref=f39e309] [cursor=pointer]:
+                  - /url: //www.eurekalert.org/
+              - listitem [ref=f39e310]:
+                - link "Science in the Classroom" [ref=f39e311] [cursor=pointer]:
+                  - /url: //www.scienceintheclassroom.org/
+            - list [ref=f39e312]:
+              - listitem [ref=f39e313]:
+                - link "ABOUT US" [ref=f39e314] [cursor=pointer]:
+                  - /url: /content/page/aboutus
+              - listitem [ref=f39e315]:
+                - link "Leadership" [ref=f39e316] [cursor=pointer]:
+                  - /url: /content/page/leadership-and-management
+              - listitem [ref=f39e317]:
+                - link "Work at AAAS" [ref=f39e318] [cursor=pointer]:
+                  - /url: //www.aaas.org/careers/workataaas
+              - listitem [ref=f39e319]:
+                - link "Prizes and Awards" [ref=f39e320] [cursor=pointer]:
+                  - /url: /content/page/prizes-and-awards
+            - list [ref=f39e321]:
+              - listitem [ref=f39e322]:
+                - link "HELP" [ref=f39e323] [cursor=pointer]:
+                  - /url: /content/page/help
+              - listitem [ref=f39e324]:
+                - link "FAQs" [ref=f39e325] [cursor=pointer]:
+                  - /url: /content/page/faqs
+              - listitem [ref=f39e326]:
+                - link "Access and Subscriptions" [ref=f39e327] [cursor=pointer]:
+                  - /url: /content/page/access-and-subscriptions
+              - listitem [ref=f39e328]:
+                - link "Order a Single Issue" [ref=f39e329] [cursor=pointer]:
+                  - /url: //backissues.science.org/
+              - listitem [ref=f39e330]:
+                - link "Reprints and Permissions" [ref=f39e331] [cursor=pointer]:
+                  - /url: /content/page/reprints-and-permissions
+              - listitem [ref=f39e332]:
+                - link "TOC Alerts and RSS Feeds" [ref=f39e333] [cursor=pointer]:
+                  - /url: /content/page/email-alerts-and-rss-feeds
+              - listitem [ref=f39e334]:
+                - link "Contact Us" [ref=f39e335] [cursor=pointer]:
+                  - /url: /content/page/contact-us
+        - generic [ref=f39e336]:
+          - generic [ref=f39e338]:
+            - heading [level=6] [ref=f39e339]:
+              - link "Follow Us" [ref=f39e340] [cursor=pointer]:
+                - /url: https://www.science.org/content/page/science-family-journals-social-media
+            - list [ref=f39e341]:
+              - listitem [ref=f39e342]:
+                - link "Facebook opens a new window" [ref=f39e343] [cursor=pointer]:
+                  - /url: https://www.facebook.com/ScienceMagazine
+                  - generic [ref=f39e344]: 
+              - listitem [ref=f39e345]:
+                - link "X opens a new window" [ref=f39e346] [cursor=pointer]:
+                  - /url: https://twitter.com/sciencemagazine
+                  - generic [ref=f39e347]: 
+              - listitem [ref=f39e348]:
+                - link "Instagram opens a new window" [ref=f39e349] [cursor=pointer]:
+                  - /url: https://www.instagram.com/ScienceMagazine
+                  - generic [ref=f39e350]: 
+              - listitem [ref=f39e351]:
+                - link "Youtube opens a new window" [ref=f39e352] [cursor=pointer]:
+                  - /url: https://www.youtube.com/user/ScienceMag
+                  - generic [ref=f39e353]: 
+              - listitem [ref=f39e354]:
+                - link "WeChat opens a new window" [ref=f39e355] [cursor=pointer]:
+                  - /url: https://mp.weixin.qq.com/s?__biz=MzI3NDY3NzQ2Mg==&mid=100002815&idx=1&sn=2949c025a553ac718b9612a0473b9f60&chksm=6b1120465c66a9508b01eaef1589b15d440e50b189106c8c594de8c6471f696a978de952fb15&mpshare=1&scene=1&srcid=0716JJQ5V4cKbgMMsya2MQ0n&sharer_sharetime=
+                  - generic [ref=f39e356]: 󡀆
+              - listitem [ref=f39e357]:
+                - link "linkedIn opens a new window" [ref=f39e358] [cursor=pointer]:
+                  - /url: https://www.linkedin.com/company/science-magazine
+                  - generic [ref=f39e359]: 
+              - listitem [ref=f39e360]:
+                - link "Threads opens a new window" [ref=f39e361] [cursor=pointer]:
+                  - /url: https://www.threads.net/@sciencemagazine
+                  - generic [ref=f39e362]: 
+              - listitem [ref=f39e363]:
+                - link "BlueSky opens a new window" [ref=f39e364] [cursor=pointer]:
+                  - /url: https://bsky.app/profile/science.org
+                  - generic [ref=f39e365]: 
+              - listitem [ref=f39e366]:
+                - link "RSS feeds opens a new window" [ref=f39e367] [cursor=pointer]:
+                  - /url: /content/page/email-alerts-and-rss-feeds
+                  - generic [ref=f39e368]: 
+            - link "Get our newsletter" [ref=f39e370] [cursor=pointer]:
+              - /url: /content/page/scienceadviser?intcmp=ftr-adviser&utm_id=recdExfxt1yeSJxzi
+          - generic [ref=f39e371]:
+            - link [ref=f39e373] [cursor=pointer]:
+              - /url: //www.aaas.org/
+              - img "AAAS logo" [ref=f39e374]
+            - paragraph [ref=f39e375]: © 2026 American Association for the Advancement of Science. All rights reserved. AAAS is a partner of HINARI, AGORA, OARE, CHORUS, CLOCKSS, CrossRef and COUNTER.
+      - list [ref=f39e380]:
+        - listitem [ref=f39e381]:
+          - link "Terms of Service" [ref=f39e382] [cursor=pointer]:
+            - /url: /content/page/terms-service
+        - listitem [ref=f39e383]:
+          - text: "|"
+          - link "Privacy Policy" [ref=f39e384] [cursor=pointer]:
+            - /url: /content/page/privacy-policy
+        - listitem [ref=f39e385]:
+          - text: "|"
+          - link "Cookie Preferences" [ref=f39e386] [cursor=pointer]:
+            - /url: "#cookie-preferences"
+        - listitem [ref=f39e387]:
+          - text: "|"
+          - link "Accessibility" [ref=f39e388] [cursor=pointer]:
+            - /url: /content/page/accessibility
+  - region "Sign up for ScienceAdviser" [ref=f39e389]:
+    - generic [ref=f39e391]:
+      - link [ref=f39e392] [cursor=pointer]:
+        - /url: "#"
+        - button [ref=f39e393]: 
+      - generic [ref=f39e394]:
+        - link [ref=f39e395] [cursor=pointer]:
+          - /url: https://bit.ly/ScienceMagPodcasts
+          - img "Science Podcasts" [ref=f39e396]
+        - paragraph [ref=f39e397]: Listen as Science staff delve into scientific discoveries and policy with researchers and writers from around the globe.
+      - generic [ref=f39e399]:
+        - link "Listen on Youtube" [ref=f39e400] [cursor=pointer]:
+          - /url: https://bit.ly/ScienceMagPodcasts
+        - link "Not Now" [ref=f39e401] [cursor=pointer]:
+          - /url: "#"

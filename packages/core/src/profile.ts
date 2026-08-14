@@ -1,154 +1,18 @@
 import { z } from 'zod';
-import { FigureNamespaceSchema } from './figure';
-import { HeadingLevelSchema } from './manuscript';
 
-const MmSchema = z.number().positive();
-const PtSchema = z.number().positive();
-
-export const FolioModeSchema = z.enum(['continuing', 'none', 'outer-margin-bold']);
-export type FolioMode = z.infer<typeof FolioModeSchema>;
-
-export const PageGeometrySchema = z.object({
-  trimMm: z.object({ w: MmSchema, h: MmSchema }),
-  marginsMm: z.object({
-    top: MmSchema,
-    bottom: MmSchema,
-    inner: MmSchema,
-    outer: MmSchema,
-  }),
-  columns: z.number().int().positive(),
-  columnWidthMm: MmSchema,
-  gutterMm: MmSchema,
-  textBlockWidthMm: MmSchema,
-  folio: z.object({
-    mode: FolioModeSchema,
-    start: z.number().int().positive().nullable(),
-  }),
-});
-export type PageGeometry = z.infer<typeof PageGeometrySchema>;
-
-export const FontFamilyRoleSchema = z.enum(['serif', 'sans', 'mono']);
-export type FontFamilyRole = z.infer<typeof FontFamilyRoleSchema>;
-
-export const FontWeightSchema = z.enum(['regular', 'medium', 'bold']);
-export type FontWeight = z.infer<typeof FontWeightSchema>;
-
-export const TypeStyleSchema = z.object({
-  family: FontFamilyRoleSchema,
-  sizePt: PtSchema,
-  weight: FontWeightSchema,
-});
-export type TypeStyle = z.infer<typeof TypeStyleSchema>;
-
-export const TypographySchema = z.object({
-  body: TypeStyleSchema.extend({
-    justified: z.boolean(),
-    hyphenation: z.boolean(),
-  }),
-  headings: TypeStyleSchema,
-  title: TypeStyleSchema,
-  abstract: TypeStyleSchema,
-  caption: TypeStyleSchema,
-  references: TypeStyleSchema,
-  affiliations: TypeStyleSchema,
-  dropCap: z.object({
-    enabled: z.boolean(),
-    lines: z.number().int().positive(),
-    scope: z.literal('first-paragraph-only'),
-  }),
-});
-export type Typography = z.infer<typeof TypographySchema>;
-
-export const HeadingLevelStyleSchema = z.object({
-  sizePt: PtSchema,
-  weight: FontWeightSchema,
-  runIn: z.boolean(),
-  terminator: z.string().nullable(),
-});
-export type HeadingLevelStyle = z.infer<typeof HeadingLevelStyleSchema>;
-
-export const HeadingLevelsSchema = z.record(HeadingLevelSchema, HeadingLevelStyleSchema);
-export type HeadingLevels = z.infer<typeof HeadingLevelsSchema>;
-
-export const MastheadStyleSchema = z.enum(['rule-bands', 'banner']);
-export type MastheadStyle = z.infer<typeof MastheadStyleSchema>;
-
-export const AbstractStyleSchema = z.enum(['rule-delimited-block', 'standfirst']);
-export type AbstractStyle = z.infer<typeof AbstractStyleSchema>;
-
-export const AffiliationsPlacementSchema = z.enum(['footnote-page1', 'deferred-end']);
-export type AffiliationsPlacement = z.infer<typeof AffiliationsPlacementSchema>;
-
-export const FrontMatterConfigSchema = z.object({
-  masthead: z.object({
-    style: MastheadStyleSchema,
-    showOpenAccessBadge: z.boolean(),
-    showArticleType: z.boolean(),
-    showDoiStrip: z.boolean(),
-  }),
-  historyRail: z.object({
-    enabled: z.boolean(),
-    widthPercent: z.number().min(0).max(100),
-    showCheckForUpdatesBadge: z.boolean(),
-  }),
-  abstractStyle: AbstractStyleSchema,
-  affiliationsPlacement: AffiliationsPlacementSchema,
-});
-export type FrontMatterConfig = z.infer<typeof FrontMatterConfigSchema>;
-
-export const HeaderModeSchema = z.enum(['uniform', 'mirrored', 'none']);
-export type HeaderMode = z.infer<typeof HeaderModeSchema>;
-
-/** Templates use tokens: {journal} {volume} {month} {year} {firstPage} {lastPage} {doi} {articleType}. */
-export const RunningPageSchema = z.object({
-  header: z.object({
-    mode: HeaderModeSchema,
-    template: z.string().nullable(),
-  }),
-  footer: z.object({
-    template: z.string().nullable(),
-  }),
-});
-export type RunningPage = z.infer<typeof RunningPageSchema>;
-
-export const SectionOrderKindSchema = z.enum([
-  'body',
-  'back-matter',
-  'references',
-  'affiliations',
-  'extended-data',
-]);
-export type SectionOrderKind = z.infer<typeof SectionOrderKindSchema>;
-
-export const SectionOrderEntrySchema = z.object({
-  id: z.string().min(1),
-  kind: SectionOrderKindSchema,
-  required: z.boolean(),
-});
-export type SectionOrderEntry = z.infer<typeof SectionOrderEntrySchema>;
-
-export const PanelLetterStyleSchema = z.enum(['bold-lowercase', 'parenthesized']);
-export type PanelLetterStyle = z.infer<typeof PanelLetterStyleSchema>;
-
-export const CaptionStyleSchema = z.object({
-  figureLabel: z.string().min(1),
-  separator: z.string().min(1),
-  panelLetterStyle: PanelLetterStyleSchema,
-});
-export type CaptionStyle = z.infer<typeof CaptionStyleSchema>;
-
-export const TableStyleSchema = z.object({
-  label: z.string().min(1),
-  separator: z.string().min(1),
-  headerBand: z.boolean(),
-  zebraStriping: z.boolean(),
-  rules: z.enum(['horizontal-only', 'full-grid']),
-  footnoteSizePt: PtSchema,
-});
-export type TableStyle = z.infer<typeof TableStyleSchema>;
-
-export const EquationNumberingSchema = z.enum(['continuous', 'per-section']);
-export type EquationNumbering = z.infer<typeof EquationNumberingSchema>;
+/**
+ * Publisher profile v2 — author-guideline model (ADR-002).
+ *
+ * A profile encodes what a journal's published author guidelines actually
+ * state: citation/reference formatting, figure design rules, manuscript
+ * limits. It does NOT describe typeset page design. `null` on any rule means
+ * "the journal does not state this" — checkers skip null rules rather than
+ * inventing thresholds. Each section carries the official source URLs it was
+ * extracted from.
+ *
+ * Consumers: citations → @suna/bib; figures → canvas + suna_mpl + checker;
+ * manuscript → manuscript editor + checker; all → export dialog.
+ */
 
 export const CitationModeSchema = z.enum([
   'numeric-superscript',
@@ -157,69 +21,137 @@ export const CitationModeSchema = z.enum([
 ]);
 export type CitationMode = z.infer<typeof CitationModeSchema>;
 
-export const CitationConfigSchema = z.object({
+export const AuthorYearRulesSchema = z.object({
+  includeInitials: z.boolean().nullable(),
+  twoAuthorJoiner: z.string().min(1).nullable(),
+  etAlFromNAuthors: z.number().int().positive().nullable(),
+  sameYearSuffixes: z.boolean().nullable(),
+});
+export type AuthorYearRules = z.infer<typeof AuthorYearRulesSchema>;
+
+/** Entry templates use slot syntax: "{authors} {year}, {journalAbbrev}, {volume}, {firstPage}". */
+export const ReferenceListRulesSchema = z.object({
+  entryTemplates: z.object({
+    article: z.string().min(1).nullable(),
+    book: z.string().min(1).nullable(),
+    preprint: z.string().min(1).nullable(),
+    software: z.string().min(1).nullable(),
+  }),
+  authorTruncation: z.object({
+    etAlAllowed: z.boolean().nullable(),
+    truncateWhenMoreThan: z.number().int().positive().nullable(),
+    keepFirstN: z.number().int().positive().nullable(),
+  }),
+  journalAbbreviation: z.enum(['iso4', 'ads', 'full']).nullable(),
+  doiPolicy: z.string().min(1).nullable(),
+  sortOrder: z.enum(['appearance', 'alphabetical']),
+});
+export type ReferenceListRules = z.infer<typeof ReferenceListRulesSchema>;
+
+export const CitationRulesSchema = z.object({
   mode: CitationModeSchema,
   collapseRanges: z.boolean(),
-  textualTokens: z.object({
-    ref: z.string().min(1),
-    refs: z.string().min(1),
+  textualTokens: z.object({ ref: z.string().min(1), refs: z.string().min(1) }),
+  authorYear: AuthorYearRulesSchema.nullable(),
+  referenceList: ReferenceListRulesSchema,
+  maxReferences: z.number().int().positive().nullable(),
+  sources: z.array(z.url()),
+});
+export type CitationRules = z.infer<typeof CitationRulesSchema>;
+
+export const PaletteRulesSchema = z.object({
+  requirement: z.enum([
+    'colorblind-safe-required',
+    'colorblind-safe-recommended',
+    'none-stated',
+  ]),
+  suggestedRamps: z.array(z.string().min(1)),
+  suggestedHex: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/)).nullable(),
+  colorAsSoleDelimiter: z.enum(['allowed', 'discouraged', 'forbidden']).nullable(),
+  redGreenDiscouraged: z.boolean().nullable(),
+});
+export type PaletteRules = z.infer<typeof PaletteRulesSchema>;
+
+export const FigureRulesSchema = z.object({
+  widthPresetsMm: z.object({
+    single: z.number().positive().nullable(),
+    onehalf: z.number().positive().nullable(),
+    double: z.number().positive().nullable(),
   }),
+  maxHeightMm: z.number().positive().nullable(),
+  minFontPt: z.number().positive().nullable(),
+  maxFontPt: z.number().positive().nullable(),
+  lineWeightPt: z.object({
+    min: z.number().positive().nullable(),
+    max: z.number().positive().nullable(),
+  }),
+  preferredFontFamilies: z.array(z.string().min(1)).nullable(),
+  palette: PaletteRulesSchema,
+  formats: z.object({
+    vectorPreferred: z.array(z.string().min(1)),
+    rasterAccepted: z.array(z.string().min(1)),
+    minDpi: z.number().int().positive().nullable(),
+  }),
+  panelLabel: z.object({
+    letterCase: z.enum(['lower', 'upper']).nullable(),
+    weight: z.enum(['bold', 'regular']).nullable(),
+    wrapper: z.enum(['parens', 'none']).nullable(),
+  }),
+  sources: z.array(z.url()),
 });
-export type CitationConfig = z.infer<typeof CitationConfigSchema>;
+export type FigureRules = z.infer<typeof FigureRulesSchema>;
 
-export const InitialsStyleSchema = z.enum(['period-space', 'period', 'none']);
-export type InitialsStyle = z.infer<typeof InitialsStyleSchema>;
-
-export const BibliographyFormatSchema = z.object({
-  authorTruncation: z.number().int().positive(),
-  initialsStyle: InitialsStyleSchema,
-  abbreviateJournals: z.boolean(),
+export const WordLimitSchema = z.object({
+  max: z.number().int().positive(),
+  scope: z.string().min(1),
+  hard: z.boolean(),
 });
-export type BibliographyFormat = z.infer<typeof BibliographyFormatSchema>;
+export type WordLimit = z.infer<typeof WordLimitSchema>;
 
-export const HexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-
-export const BrandColorsSchema = z.object({
-  accent: HexColorSchema,
-  link: HexColorSchema,
-  banner: HexColorSchema.nullable(),
-});
-export type BrandColors = z.infer<typeof BrandColorsSchema>;
-
-export const NamespacePlacementSchema = z.enum([
-  'in-flow',
-  'one-per-page-back-matter',
-  'external-link-out',
-  'in-box',
-]);
-export type NamespacePlacement = z.infer<typeof NamespacePlacementSchema>;
-
-export const NamespaceConfigSchema = z.object({
-  figureLabel: z.string().min(1),
-  tableLabel: z.string().min(1).nullable(),
-  placement: NamespacePlacementSchema,
-});
-export type NamespaceConfig = z.infer<typeof NamespaceConfigSchema>;
-
-export const NamespacesConfigSchema = z.record(FigureNamespaceSchema, NamespaceConfigSchema);
-export type NamespacesConfig = z.infer<typeof NamespacesConfigSchema>;
-
-export const PublisherProfileSchema = z.object({
+export const ArticleTypeRulesSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  page: PageGeometrySchema,
-  typography: TypographySchema,
-  headingLevels: HeadingLevelsSchema,
-  frontMatter: FrontMatterConfigSchema,
-  runningPage: RunningPageSchema,
-  sectionOrder: z.array(SectionOrderEntrySchema),
-  captionStyle: CaptionStyleSchema,
-  tableStyle: TableStyleSchema,
-  equationNumbering: EquationNumberingSchema,
-  citation: CitationConfigSchema,
-  bibliographyFormat: BibliographyFormatSchema,
-  figureWidthPresetsMm: z.object({ single: MmSchema, double: MmSchema }),
-  colors: BrandColorsSchema,
-  namespaces: NamespacesConfigSchema,
+  wordLimit: WordLimitSchema.nullable(),
+  abstractWordLimit: z.number().int().positive().nullable(),
+  titleLimitChars: z.number().int().positive().nullable(),
+  maxDisplayItems: z.number().int().positive().nullable(),
+  maxReferences: z.number().int().positive().nullable(),
+});
+export type ArticleTypeRules = z.infer<typeof ArticleTypeRulesSchema>;
+
+export const RequiredSectionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  required: z.boolean(),
+});
+export type RequiredSection = z.infer<typeof RequiredSectionSchema>;
+
+export const ManuscriptRulesSchema = z.object({
+  articleTypes: z.array(ArticleTypeRulesSchema).min(1),
+  runningHeadLimitChars: z.number().int().positive().nullable(),
+  requiredSections: z.array(RequiredSectionSchema),
+  availabilityStatements: z.object({
+    data: z.boolean().nullable(),
+    code: z.boolean().nullable(),
+  }),
+  submissionFormat: z.object({
+    doubleSpacing: z.boolean().nullable(),
+    lineNumbers: z.boolean().nullable(),
+    acceptedFileTypes: z.array(z.string().min(1)),
+  }),
+  sources: z.array(z.url()),
+});
+export type ManuscriptRules = z.infer<typeof ManuscriptRulesSchema>;
+
+export const PublisherProfileSchema = z.object({
+  schemaVersion: z.literal(2),
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  journalName: z.string().min(1),
+  publisher: z.string().min(1),
+  lastVerified: z.iso.date(),
+  citations: CitationRulesSchema,
+  figures: FigureRulesSchema,
+  manuscript: ManuscriptRulesSchema,
+  notes: z.array(z.string()),
 });
 export type PublisherProfile = z.infer<typeof PublisherProfileSchema>;
