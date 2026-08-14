@@ -11,25 +11,36 @@ from matplotlib.figure import Figure
 
 MM_PER_INCH = 25.4
 
-#: preset name -> width in mm
-WIDTH_PRESETS_MM: dict[str, float] = {
-    "single": 89.0,
-    "onehalf": 120.0,
-    "double": 183.0,
+#: preset name -> width in mm, per journal profile (values from official
+#: author guidelines; see SUNA resources/profiles/*.json)
+PROFILE_WIDTHS_MM: dict[str, dict[str, float]] = {
+    "nature": {"single": 88.0, "onehalf": 136.0, "double": 180.0},
+    "science": {"single": 90.0, "onehalf": 138.0, "double": 183.0},
+    "mnras": {"single": 80.0, "onehalf": 120.0, "double": 168.0},
 }
+
+#: default preset table (Nature-family)
+WIDTH_PRESETS_MM: dict[str, float] = PROFILE_WIDTHS_MM["nature"]
 
 #: default height/width ratio when no height is given
 GOLDEN = 0.618
 
 
-def resolve_width_mm(width: str | float) -> float:
+def resolve_width_mm(width: str | float, profile: str = "nature") -> float:
     if isinstance(width, str):
         try:
-            return WIDTH_PRESETS_MM[width]
+            table = PROFILE_WIDTHS_MM[profile]
+        except KeyError:
+            raise ValueError(
+                f"unknown journal profile {profile!r}; use one of "
+                f"{sorted(PROFILE_WIDTHS_MM)}"
+            ) from None
+        try:
+            return table[width]
         except KeyError:
             raise ValueError(
                 f"unknown width preset {width!r}; use one of "
-                f"{sorted(WIDTH_PRESETS_MM)} or a millimetre value"
+                f"{sorted(table)} or a millimetre value"
             ) from None
     return float(width)
 
@@ -39,9 +50,10 @@ def set_size(
     width: str | float = "single",
     height_mm: float | None = None,
     ratio: float = GOLDEN,
+    profile: str = "nature",
 ) -> Figure:
     """Size ``fig`` to a journal column width (preset name or mm)."""
-    w_mm = resolve_width_mm(width)
+    w_mm = resolve_width_mm(width, profile)
     h_mm = height_mm if height_mm is not None else w_mm * ratio
     fig.set_size_inches(w_mm / MM_PER_INCH, h_mm / MM_PER_INCH)
     return fig
