@@ -23,10 +23,14 @@ export const checkFigureComplianceInput = z.object({ figureId: z.string().min(1)
 
 const IGNORED = new Set(['.git', 'node_modules', '__pycache__', '.DS_Store', '.venv'])
 
+import type { Dirent } from 'node:fs'
+
+type DirEntries = Dirent<string>[]
+
 async function walk(dir: string, root: string, depth: number): Promise<string[]> {
   if (depth > 6) return []
   const out: string[] = []
-  let entries: Awaited<ReturnType<typeof readdir>>
+  let entries: DirEntries
   try {
     entries = await readdir(dir, { withFileTypes: true })
   } catch {
@@ -79,7 +83,7 @@ export async function readManuscriptMeta(ctx: ProjectContext): Promise<string> {
 
 export async function listFigures(ctx: ProjectContext): Promise<string> {
   const figuresDir = resolveInside(ctx.root, ctx.dirs.figures)
-  let entries: Awaited<ReturnType<typeof readdir>>
+  let entries: DirEntries
   try {
     entries = await readdir(figuresDir, { withFileTypes: true })
   } catch {
