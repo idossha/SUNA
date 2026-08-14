@@ -973,6 +973,138 @@ try {
     await screenshot('views-agent.png')
   })
 
+  await step('agent-cli-mcp-config', async () => {
+    // the subscription path: SUNA registers its MCP server in the project so
+    // an agent CLI (billed to the user's own plan) can use manuscript tools
+    const buttons = await evalJs(
+      `[...document.querySelectorAll('button')].map((b) => b.textContent.trim())`
+    )
+    assert(
+      buttons.some((t) => t.includes('Claude Code')),
+      'Open Claude Code button missing from the agent view'
+    )
+    const written = await evalJs(`(async () => {
+      const dir = window.__sunaDev.projectStore.getState().rootDir;
+      const { path } = await window.suna.invoke('agent:write-mcp-config', { dir });
+      const { content } = await window.suna.invoke('fs:read-text', { path });
+      return { path, config: JSON.parse(content) };
+    })()`)
+    const server = written.config.mcpServers?.suna
+    assert(server !== undefined, `.mcp.json has no suna server: ${JSON.stringify(written.config)}`)
+    assert(
+      String(server.args?.[0] ?? '').endsWith('server.mjs'),
+      `mcp server path looks wrong: ${JSON.stringify(server.args)}`
+    )
+    assert(existsSync(server.args[0]), `mcp server bundle missing at ${server.args[0]}`)
+  })
+
+  await step('terminal-panel', async () => {
+    const opened = await evalJs(`(async () => {
+      const btn = [...document.querySelectorAll('.statusbar__btn')]
+        .find((b) => b.textContent.includes('Terminal'));
+      if (btn.getAttribute('aria-pressed') !== 'true') btn.click();
+      return true;
+    })()`)
+    assert(opened, 'terminal toggle missing')
+    await sleep(2500)
+    const ready = await evalJs(`({
+      panel: !!document.querySelector('.termpanel'),
+      xterm: !!document.querySelector('.xterm')
+    })`)
+    assert(ready.panel && ready.xterm, `terminal did not mount: ${JSON.stringify(ready)}`)
+
+    // a real shell: echo a marker through the pty and read it back
+    const echoed = await evalJs(`(async () => {
+      const dir = window.__sunaDev.projectStore.getState().rootDir;
+      const chunks = [];
+      const { id } = await window.suna.invoke('term:create', { cwd: dir, cols: 80, rows: 24, envPath: null });
+      const off = window.suna.onTermData(id, (d) => chunks.push(d));
+      await new Promise((r) => setTimeout(r, 900));
+      await window.suna.invoke('term:write', { id, data: 'echo SUNA_PTY_OK\\n' });
+      await new Promise((r) => setTimeout(r, 1600));
+      off();
+      await window.suna.invoke('term:kill', { id });
+      return chunks.join('');
+    })()`)
+    assert(echoed.includes('SUNA_PTY_OK'), 'pty did not echo the marker')
+    await screenshot('terminal-panel.png')
+  })
+
+  await step('settings-tab', async () => {
+    await evalJs(`(() => {
+      const btn = [...document.querySelectorAll('.statusbar__btn')]
+        .find((b) => b.textContent.includes('Settings'));
+      btn.click();
+    })()`)
+    await sleep(900)
+    const sections = await evalJs(
+      `[...document.querySelectorAll('.settings__section-title, .view__section-title')].map((e) => e.textContent.trim())`
+    )
+    assert(sections.length > 0, 'settings tab rendered no sections')
+    // round-trip a real setting through the main process
+    const roundTrip = await evalJs(`(async () => {
+      await window.suna.invoke('settings:set', { patch: { 'smoke.probe': 'yes' } });
+      const { settings } = await window.suna.invoke('settings:get', {});
+      await window.suna.invoke('settings:set', { patch: { 'smoke.probe': null } });
+      return settings['smoke.probe'];
+    })()`)
+    assert(roundTrip === 'yes', `settings did not persist: ${roundTrip}`)
+    await screenshot('settings-tab.png')
+  })
+
+  await step('csv-data-grid', async () => {
+    const dir = await evalJs(`window.__sunaDev.projectStore.getState().rootDir`)
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__DIR__/data/members.csv')}.replace('__DIR__', ${JSON.stringify(dir)}))`)
+    await sleep(1200)
+    const grid = await evalJs(`({
+      table: !!document.querySelector('table.dataview__table'),
+      headers: [...document.querySelectorAll('.dataview__table th')].map((t) => t.textContent.trim()).slice(0, 5),
+      rows: document.querySelectorAll('.dataview__table tbody tr').length,
+      toggle: !!document.querySelector('.dataview__toggle')
+    })`)
+    assert(grid.table, 'csv did not open as a data grid')
+    assert(grid.headers.some((h) => h.includes('mass')), `unexpected headers: ${grid.headers.join('|')}`)
+    assert(grid.rows > 10, `expected the demo members table to have rows, got ${grid.rows}`)
+    await screenshot('csv-grid.png')
+  })
+
+  await step('bib-diagnostics', async () => {
+    // the .bib language pack's pure diagnostics core, exercised on real text
+    const diagnostics = await evalJs(`(() => {
+      const dup = '@article{a1,\\n title = {T},\\n author = {A},\\n journal = {J},\\n year = {2020}\\n}\\n@article{a1,\\n title = {T2},\\n author = {B},\\n journal = {J},\\n year = {2021}\\n}\\n';
+      const missing = '@article{b1,\\n title = {No author}\\n}\\n';
+      const fn = window.__sunaDev.editorBibDiagnostics;
+      return {
+        wired: typeof fn === 'function',
+        dup: fn(dup).map((d) => d.message),
+        missing: fn(missing).map((d) => d.message)
+      };
+    })()`)
+    assert(diagnostics.wired, 'bib diagnostics seam not exposed')
+    assert(
+      diagnostics.dup.some((m) => /duplicate/i.test(m)),
+      `no duplicate-key diagnostic: ${diagnostics.dup.join(' | ')}`
+    )
+    assert(
+      diagnostics.missing.some((m) => /author/i.test(m)),
+      `no missing-required-field diagnostic: ${diagnostics.missing.join(' | ')}`
+    )
+  })
+
+  await step('references-cited-filter', async () => {
+    await activateView('References')
+    await sleep(1200)
+    const counts = await evalJs(
+      `[...document.querySelectorAll('.refs__usage-btn')].map((b) => b.textContent.replace(/\\s+/g, ' ').trim())`
+    )
+    assert(counts.length === 3, `usage filter buttons: ${counts.join(', ')}`)
+    assert(
+      counts.some((c) => c.startsWith('Cited') && !c.endsWith('0')),
+      `nothing counted as cited: ${counts.join(', ')}`
+    )
+    await screenshot('references-filters.png')
+  })
+
   console.log(`\nALL ${results.length} STEPS PASSED`)
 } catch {
   exitCode = 1
