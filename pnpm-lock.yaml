@@ -41,6 +41,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
+      '@suna/canvas':
+        specifier: workspace:*
+        version: link:../../packages/canvas
       '@suna/core':
         specifier: workspace:*
         version: link:../../packages/core

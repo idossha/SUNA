@@ -129,11 +129,20 @@ export function encodeAttributeWhitespace(text: string): string {
   );
 }
 
-/** Undo XMLSerializer's attribute-whitespace escapes. */
+/**
+ * Undo XMLSerializer's attribute-whitespace escapes. jsdom emits hex forms
+ * (&#xA;), Chromium emits decimal (&#10;) — decode both.
+ */
 export function decodeAttributeWhitespace(text: string): string {
   return mapAttributeValues(text, (v) =>
-    v.includes('&#x')
-      ? v.replaceAll('&#xA;', '\n').replaceAll('&#x9;', '\t').replaceAll('&#xD;', '\r')
+    v.includes('&#')
+      ? v
+          .replaceAll('&#xA;', '\n')
+          .replaceAll('&#x9;', '\t')
+          .replaceAll('&#xD;', '\r')
+          .replaceAll('&#10;', '\n')
+          .replaceAll('&#9;', '\t')
+          .replaceAll('&#13;', '\r')
       : v,
   );
 }

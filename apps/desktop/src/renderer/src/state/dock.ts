@@ -15,7 +15,7 @@ export function openFileTab(path: string): void {
   }
   dockApi.addPanel({
     id: path,
-    component: 'editor',
+    component: path.endsWith('.svg') ? 'canvas' : 'editor',
     title: path.split('/').pop() ?? path,
     params: { path }
   })

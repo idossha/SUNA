@@ -19,6 +19,7 @@
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.8",
     "@lezer/highlight": "^1.2.3",
+    "@suna/canvas": "workspace:*",
     "@suna/core": "workspace:*",
     "@suna/markdown": "workspace:*",
     "dockview": "^8.1.0",
