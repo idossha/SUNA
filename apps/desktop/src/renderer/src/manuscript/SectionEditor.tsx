@@ -4,6 +4,7 @@ import { useEditorSettings } from '../editor/settings'
 import { devSeam } from '../state/devSeam'
 import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useUiStore } from '../state/ui'
+import { applyCiteChips } from './citeChips'
 
 interface SectionEditorProps {
   rootDir: string
@@ -141,6 +142,28 @@ export function SectionEditor({
   useEffect(() => {
     handleRef.current?.setTheme(editorTheme)
   }, [editorTheme])
+
+  // Resolve reading-mode citation chips against the citation render data the
+  // References block publishes (numbers + preview-profile style). A mutation
+  // observer re-applies the pass whenever CodeMirror re-creates widget DOM;
+  // applyCiteChips is idempotent per serial, so its own mutations converge.
+  const citationRender = useManuscriptDocStore((s) => s.citationRender)
+  useEffect(() => {
+    const host = hostRef.current
+    if (host === null) return
+    applyCiteChips(host, citationRender)
+    let scheduled = false
+    const observer = new MutationObserver(() => {
+      if (scheduled) return
+      scheduled = true
+      queueMicrotask(() => {
+        scheduled = false
+        applyCiteChips(host, useManuscriptDocStore.getState().citationRender)
+      })
+    })
+    observer.observe(host, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [citationRender])
 
   if (loadError !== null) {
     return (

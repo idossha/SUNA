@@ -9,6 +9,8 @@ import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
 import { CanvasTab } from './canvas/CanvasTab'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
+import { SettingsTab } from './settings/SettingsTab'
+import { TerminalPanel } from './terminal/TerminalPanel'
 import { useUiStore } from './state/ui'
 import { setDockApi } from './state/dock'
 
@@ -16,7 +18,8 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
   editor: EditorTab,
   canvas: CanvasTab,
-  manuscript: ManuscriptTab
+  manuscript: ManuscriptTab,
+  settings: SettingsTab
 }
 
 export function App(): JSX.Element {
@@ -37,7 +40,10 @@ export function App(): JSX.Element {
       >
         <ActivityBar />
         {sidebarVisible && <SideBar />}
-        <DockHost components={DOCK_COMPONENTS} onReady={handleDockReady} />
+        <div className="dock-stage">
+          <DockHost components={DOCK_COMPONENTS} onReady={handleDockReady} />
+          <TerminalPanel />
+        </div>
       </div>
       <StatusBar />
     </div>

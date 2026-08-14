@@ -211,6 +211,15 @@
   user-select: text;
 }
 
+/* 'Rendered as: <journal>' note under the References label — names the
+   preview profile driving numbering and list order (state/renderProfile) */
+.msdoc__rendered-as {
+  margin: -0.2em 0 1em;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+}
+
 .msdoc__ref {
   display: flex;
   gap: 8px;
@@ -249,4 +258,17 @@
   font-family: var(--s-font-mono);
   font-size: var(--s-text-xs);
   line-height: 16px;
+}
+
+/* ---- resolved citation chips (manuscript/citeChips) ------------------------ */
+
+/* Inline-form resolutions — author-year "(Gunn & Gott 1972)" and
+   parenthetical-numeric "(1, 3)" — read as body text even though the
+   live-preview widget element is a <sup>. Triple selector outweighs
+   editor.css's .editor-tab .cm-lp-cite regardless of stylesheet order. */
+.msdoc.editor-tab .cm-lp-cite--inline {
+  font-family: inherit;
+  font-size: 0.95em;
+  line-height: inherit;
+  vertical-align: baseline;
 }

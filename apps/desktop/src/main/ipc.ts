@@ -1,5 +1,5 @@
-import { BrowserWindow, app, dialog, ipcMain } from 'electron'
-import { access, cp } from 'node:fs/promises'
+import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { access, cp, writeFile } from 'node:fs/promises'
 import { basename, join, relative, resolve, sep } from 'node:path'
 import {
   CHANNELS,
@@ -21,6 +21,24 @@ import {
 import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
 import { createProject, openProject, scaffoldStatus } from './services/project'
 import { allowRoot } from './services/roots'
+import { detectEnvs, selectEnv, selectedEnv } from './services/envs'
+import { readSettings, writeSettings } from './services/settings'
+import {
+  createTerminal,
+  killTerminal,
+  resizeTerminal,
+  writeTerminal
+} from './services/terminal'
+
+/**
+ * Absolute path to the bundled MCP server script. Agent CLIs spawn it with
+ * plain `node`, so it must resolve outside the Electron bundle.
+ */
+function mcpServerPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'mcp', 'server.mjs')
+    : resolve(app.getAppPath(), '..', '..', 'packages', 'agent', 'dist-mcp', 'server.mjs')
+}
 
 const AGENT_PROVIDER_IDS = ['anthropic', 'openai', 'ollama'] as const
 
@@ -81,12 +99,12 @@ async function ensureExampleProjectCopy(): Promise<string> {
 /** Register a handler with request/response zod validation on both edges. */
 function handle<C extends ChannelName>(
   channel: C,
-  handler: (req: RequestOf<C>) => Promise<ResponseOf<C>>
+  handler: (req: RequestOf<C>, event: IpcMainInvokeEvent) => Promise<ResponseOf<C>>
 ): void {
-  ipcMain.handle(channel, async (_event, payload: unknown) => {
+  ipcMain.handle(channel, async (event, payload: unknown) => {
     const contract = CHANNELS[channel]
     const request = contract.request.parse(payload) as RequestOf<C>
-    const response = await handler(request)
+    const response = await handler(request, event)
     return contract.response.parse(response)
   })
 }
@@ -146,6 +164,48 @@ export function registerIpcHandlers(): void {
       throw new Error(`no API key configured for ${provider} — add one in settings`)
     }
     return getProvider(provider).chat({ system, messages }, { apiKey: key ?? undefined })
+  })
+
+  handle('term:create', async ({ cwd, cols, rows, envPath }, event) => {
+    const webContents = event.sender
+    return { id: createTerminal({ cwd, cols, rows, envPath, webContents }) }
+  })
+  handle('term:write', async ({ id, data }) => {
+    writeTerminal(id, data)
+    return {}
+  })
+  handle('term:resize', async ({ id, cols, rows }) => {
+    resizeTerminal(id, cols, rows)
+    return {}
+  })
+  handle('term:kill', async ({ id }) => {
+    killTerminal(id)
+    return {}
+  })
+
+  handle('env:detect', async ({ dir }) => ({ envs: await detectEnvs(dir) }))
+  handle('env:select', async ({ dir, envPath }) => {
+    await selectEnv(dir, envPath)
+    return {}
+  })
+  handle('env:selected', async ({ dir }) => ({ envPath: await selectedEnv(dir) }))
+
+  handle('settings:get', async () => ({ settings: await readSettings() }))
+  handle('settings:set', async ({ patch }) => ({ settings: await writeSettings(patch) }))
+
+  handle('agent:write-mcp-config', async ({ dir }) => {
+    // Claude Code and Codex both auto-discover .mcp.json in the project root.
+    const path = join(dir, '.mcp.json')
+    const config = {
+      mcpServers: {
+        suna: {
+          command: 'node',
+          args: [mcpServerPath(), '--project', dir]
+        }
+      }
+    }
+    await writeFile(path, JSON.stringify(config, null, 2) + '\n', 'utf8')
+    return { path }
   })
 
   handle('dialog:pick-directory', async ({ title, allowCreate }) => {

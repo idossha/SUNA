@@ -1,0 +1,137 @@
+/* ---------------------------------------------------------------------------
+   Status bar extras — env chip, terminal toggle, settings gear, env popover.
+   Base .statusbar layout lives in app.css; tokens only here.
+   --------------------------------------------------------------------------- */
+
+.statusbar__btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.statusbar__btn:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.statusbar__btn[aria-pressed='true'] {
+  color: var(--s-accent);
+  background: var(--s-bg-active);
+}
+
+.statusbar__btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.statusbar__env {
+  position: relative;
+}
+
+.statusbar__env-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 999px;
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink-muted);
+}
+
+.statusbar__env-chip:hover {
+  color: var(--s-ink);
+  border-color: var(--s-accent);
+}
+
+.statusbar__env-chip--none {
+  color: var(--s-ink-faint);
+}
+
+.statusbar__env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--s-ok);
+  flex-shrink: 0;
+}
+
+.statusbar__env-dot--none {
+  background: var(--s-ink-faint);
+}
+
+.statusbar__popover {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  z-index: 50;
+  min-width: 260px;
+  max-width: 380px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 6px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+.statusbar__popover-title {
+  padding: 4px 8px 6px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+}
+
+.statusbar__popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  text-align: left;
+}
+
+.statusbar__popover-item:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.statusbar__popover-item[aria-pressed='true'] {
+  color: var(--s-accent);
+  background: var(--s-bg-active);
+}
+
+.statusbar__popover-kind {
+  flex-shrink: 0;
+  min-width: 38px;
+  font-family: var(--s-font-mono);
+  font-size: 9px;
+  color: var(--s-ink-faint);
+  text-transform: uppercase;
+}
+
+.statusbar__popover-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusbar__popover-hint {
+  padding: 5px 8px;
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+  color: var(--s-ink-faint);
+}

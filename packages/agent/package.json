@@ -8,10 +8,17 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "build:mcp": "node build-mcp.mjs",
+    "build": "node build-mcp.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@suna/core": "workspace:*"
+    "@suna/core": "workspace:*",
+    "@suna/formatter": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
