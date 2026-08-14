@@ -1,3 +1,4 @@
+import { bibDiagnostics } from './bibLang'
 import { useEditorSettings } from './settings'
 import { EDITOR_VIEW_MODES } from './EditorTab'
 
@@ -8,5 +9,10 @@ import { EDITOR_VIEW_MODES } from './EditorTab'
 export const editorDevSeam = {
   settingsStore: useEditorSettings,
   /** The editor's view modes, in toggle order: reading is the editable live preview. */
-  viewModes: EDITOR_VIEW_MODES
+  viewModes: EDITOR_VIEW_MODES,
+  /**
+   * Pure .bib diagnostics (parse errors, duplicate keys, missing required
+   * fields) so a driver can assert linting without reading CM internals.
+   */
+  bibDiagnostics
 }

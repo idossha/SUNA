@@ -332,6 +332,21 @@
   font-size: var(--s-text-sm);
 }
 
+.editor-settings__row--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-settings__row--toggle label {
+  margin-bottom: 0;
+}
+
+.editor-settings__row--toggle input[type='checkbox'] {
+  accent-color: var(--s-accent);
+}
+
 .editor-settings__footer {
   display: flex;
   justify-content: flex-end;

@@ -8,6 +8,7 @@ import { DockHost, type DockPanelComponent } from './shell/dock/DockHost'
 import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
 import { CanvasTab } from './canvas/CanvasTab'
+import { DataGridTab } from './dataview/DataGridTab'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
 import { SettingsTab } from './settings/SettingsTab'
 import { TerminalPanel } from './terminal/TerminalPanel'
@@ -18,6 +19,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
   editor: EditorTab,
   canvas: CanvasTab,
+  dataview: DataGridTab,
   manuscript: ManuscriptTab,
   settings: SettingsTab
 }

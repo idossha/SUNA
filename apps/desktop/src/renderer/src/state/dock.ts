@@ -6,6 +6,14 @@ export function setDockApi(api: DockviewApi): void {
   dockApi = api
 }
 
+/** Which dock component owns a file, by extension. Default: the editor. */
+function componentForFile(path: string): string {
+  const lower = path.toLowerCase()
+  if (lower.endsWith('.svg')) return 'canvas'
+  if (lower.endsWith('.csv') || lower.endsWith('.tsv')) return 'dataview'
+  return 'editor'
+}
+
 export function openFileTab(path: string): void {
   if (!dockApi) return
   const existing = dockApi.getPanel(path)
@@ -15,7 +23,7 @@ export function openFileTab(path: string): void {
   }
   dockApi.addPanel({
     id: path,
-    component: path.endsWith('.svg') ? 'canvas' : 'editor',
+    component: componentForFile(path),
     title: path.split('/').pop() ?? path,
     params: { path }
   })

@@ -287,12 +287,20 @@ try {
   })
 
   await step('reading-mode', async () => {
-    // modes are two-state: the button (or ⌘E) toggles Source ⇄ Reading,
-    // and Reading is the *editable* live preview (widgets with cursor-reveal)
+    // modes are two-state: the button (or ⌘E) toggles Source ⇄ Reading, and
+    // Reading — the *editable* live preview — is the default markdown mode,
+    // so a freshly opened section is already there.
+    const opened = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
+    assert(opened === 'Reading', `markdown should open in Reading, got ${opened}`)
+    // round-trip through Source proves the toggle still works both ways
+    await evalJs(`document.querySelector('.editor-tab__mode').click()`)
+    await sleep(400)
+    const toggled = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
+    assert(toggled === 'Source', `toggle from Reading gave ${toggled} (want Source)`)
     await evalJs(`document.querySelector('.editor-tab__mode').click()`)
     await sleep(500)
     const label = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(label === 'Reading', `mode after click: ${label} (want Reading)`)
+    assert(label === 'Reading', `mode after toggling back: ${label} (want Reading)`)
     const before = await evalJs(`({
       katex: !!document.querySelector('.cm-content .katex'),
       block: !!document.querySelector('.cm-content .cm-lp-math-block'),
