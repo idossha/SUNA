@@ -1,0 +1,301 @@
+/* ---------------------------------------------------------------------------
+   Editor-zone styles: theme palettes, live-preview widgets, settings popover.
+   Owned by editor/ — app chrome styles live in styles/app.css (do not edit).
+
+   NOTE: this file is imported by components, so it loads *before* app.css in
+   the bundle. Overrides of app.css rules must therefore use higher
+   specificity, never rely on order.
+   --------------------------------------------------------------------------- */
+
+/* ---- theme palettes (editor surface only; chrome stays night-sky) -------- */
+
+.editor-tab {
+  /* suna-dark: the default, matches the app's dark-adapted instrument look */
+  --ed-bg: var(--s-bg-editor);
+  --ed-ink: var(--s-ink);
+  --ed-ink-muted: var(--s-ink-muted);
+  --ed-ink-faint: var(--s-ink-faint);
+  --ed-accent: var(--s-accent);
+  --ed-border: var(--s-border-strong);
+  --ed-selection: rgba(232, 180, 92, 0.18);
+  --ed-active-line: rgba(255, 255, 255, 0.03);
+  --ed-syn-heading: var(--s-accent);
+  --ed-syn-em: #c9c6f0;
+  --ed-syn-strong: #f0ede8;
+  --ed-syn-link: #8ab4d8;
+  --ed-syn-code: #a8d8b8;
+  --ed-syn-label: #d8a8c8;
+  --ed-syn-number: #d8b48c;
+  --ed-syn-keyword: #c0a0dc;
+}
+
+/* print-like: warm paper, dark ink, muted syntax colors */
+.editor-tab--theme-suna-light {
+  --ed-bg: #f7f2e9;
+  --ed-ink: #2b2620;
+  --ed-ink-muted: #6b6257;
+  --ed-ink-faint: #9a9184;
+  --ed-accent: #8a6a2f;
+  --ed-border: #d8cfbf;
+  --ed-selection: rgba(138, 106, 47, 0.22);
+  --ed-active-line: rgba(43, 38, 32, 0.045);
+  --ed-syn-heading: #7a5a1f;
+  --ed-syn-em: #4a4668;
+  --ed-syn-strong: #1d1913;
+  --ed-syn-link: #35618a;
+  --ed-syn-code: #3f6b4f;
+  --ed-syn-label: #7a4a66;
+  --ed-syn-number: #8a5a28;
+  --ed-syn-keyword: #6a4a8a;
+}
+
+.editor-tab--theme-high-contrast {
+  --ed-bg: #000000;
+  --ed-ink: #ffffff;
+  --ed-ink-muted: #d0d0d0;
+  --ed-ink-faint: #9a9a9a;
+  --ed-accent: #ffd166;
+  --ed-border: #6a6a6a;
+  --ed-selection: rgba(255, 209, 102, 0.35);
+  --ed-active-line: rgba(255, 255, 255, 0.08);
+  --ed-syn-heading: #ffd166;
+  --ed-syn-em: #c8c8ff;
+  --ed-syn-strong: #ffffff;
+  --ed-syn-link: #6ab0ff;
+  --ed-syn-code: #7fe0a0;
+  --ed-syn-label: #ff9ad5;
+  --ed-syn-number: #ffb86c;
+  --ed-syn-keyword: #d0a0ff;
+}
+
+/* the tab surface itself follows the editor theme, not the chrome */
+.editor-tab.editor-tab--theme-suna-light,
+.editor-tab.editor-tab--theme-high-contrast {
+  background: var(--ed-bg);
+}
+
+/* ---- toolbar additions ---------------------------------------------------- */
+
+.editor-tab__toolbar--row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-tab__gear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+}
+
+.editor-tab__gear:hover {
+  color: var(--s-accent);
+  border-color: var(--s-border-strong);
+}
+
+/* ---- live mode ------------------------------------------------------------ */
+
+/* body font + readable measure only in live mode; source stays mono/full-width */
+.editor-tab__source--live {
+  --ed-content-font: var(--ed-body-font, var(--s-font-serif));
+}
+
+.editor-tab__source--live .cm-content {
+  max-width: var(--ed-content-width, 68ch);
+  margin: 0 auto;
+}
+
+/* dimmed (not hidden) markdown syntax characters */
+.editor-tab .cm-lp-syntax {
+  color: var(--ed-ink-faint);
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.editor-tab .cm-lp-strong {
+  font-weight: 700;
+}
+
+.editor-tab .cm-lp-em {
+  font-style: italic;
+}
+
+.editor-tab .cm-line.cm-lp-h1 {
+  font-size: 1.45em;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.editor-tab .cm-line.cm-lp-h2 {
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.editor-tab .cm-line.cm-lp-h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.editor-tab .cm-line.cm-lp-h4 {
+  font-weight: 600;
+}
+
+/* citation chip — styled like the reading view's sup.cite */
+.editor-tab .cm-lp-cite {
+  color: var(--ed-accent);
+  font-family: var(--s-font-ui);
+  font-size: 11px;
+  line-height: 1;
+  cursor: default;
+}
+
+/* crossref chip — styled like the reading view's .xref */
+.editor-tab .cm-lp-xref {
+  color: var(--ed-syn-link);
+  cursor: default;
+}
+
+.editor-tab .cm-lp-math-inline {
+  display: inline-block;
+}
+
+.editor-tab .cm-lp-math-block {
+  position: relative;
+  padding: 10px 48px 10px 16px;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.editor-tab .cm-lp-eq-label {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ed-ink-muted);
+  font-family: var(--s-font-ui);
+  font-size: 12px;
+}
+
+/* figure embed placeholder — mirrors reading view's .figure--unresolved */
+.editor-tab .cm-lp-figure {
+  margin: 6px 16px;
+  padding: 20px;
+  border: 1px dashed var(--ed-border);
+  border-radius: var(--s-radius);
+  color: var(--ed-ink-faint);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  text-align: center;
+}
+
+/* ---- reading mode: visualization settings override app.css defaults ------ */
+
+.editor-tab .editor-tab__rendered .scimark {
+  max-width: var(--ed-content-width, 62ch);
+  font-size: var(--ed-font-size, 16px);
+  line-height: var(--ed-line-height, 1.75);
+  font-family: var(--ed-body-font, var(--s-font-serif));
+}
+
+.editor-tab .editor-tab__rendered {
+  outline: none;
+}
+
+/* ---- settings popover ----------------------------------------------------- */
+
+.editor-settings {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 248px;
+  padding: 14px 14px 10px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.editor-settings__row {
+  margin-bottom: 12px;
+}
+
+.editor-settings__row label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.editor-settings__value {
+  color: var(--s-ink);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-settings__row input[type='range'] {
+  width: 100%;
+  accent-color: var(--s-accent);
+}
+
+.editor-settings__row--select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-settings__row--select label {
+  margin-bottom: 0;
+}
+
+.editor-settings__row--select select {
+  flex: 1;
+  max-width: 150px;
+  padding: 3px 6px;
+  color: var(--s-ink);
+  background: var(--s-bg-panel);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+}
+
+.editor-settings__footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--s-border);
+  padding-top: 8px;
+}
+
+.editor-settings__reset {
+  padding: 3px 10px;
+  color: var(--s-ink-muted);
+  background: transparent;
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  font-size: var(--s-text-xs);
+}
+
+.editor-settings__reset:hover {
+  color: var(--s-accent);
+  border-color: var(--s-border-strong);
+}

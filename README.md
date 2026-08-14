@@ -35,8 +35,12 @@ pnpm dev          # launches the Electron app
 ```bash
 pnpm typecheck    # strict TS across the workspace
 pnpm test         # vitest across the workspace
+pnpm smoke        # end-to-end app smoke test (drives the UI over CDP)
 cd python/suna_mpl && uv run pytest   # python companion tests
 ```
+
+`pnpm smoke` walkthrough details and the human testing script live in
+[TESTING.md](TESTING.md).
 
 Design decisions live in `docs/design/architecture.md`; the formatter and
 canvas requirements are derived from published Nature-family papers in

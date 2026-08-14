@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Publisher profile v2 — author-guideline model (ADR-002).
+ * Publisher profile v3 — author-guideline model (ADR-002).
  *
  * A profile encodes what a journal's published author guidelines actually
  * state: citation/reference formatting, figure design rules, manuscript
@@ -10,9 +10,64 @@ import { z } from 'zod';
  * inventing thresholds. Each section carries the official source URLs it was
  * extracted from.
  *
+ * v3 additions:
+ * - per-section `provenance`: how each encoded value is known — stated in
+ *   the guidelines ('documented'), measured from published output
+ *   ('counted-empirically'), or filled in from convention ('inferred').
+ * - top-level `extends`: id of a base profile, resolved at load time by the
+ *   formatter loader (deep merge; child overrides, arrays replace).
+ * - manuscript `stageSeverity`: per-submission-stage severity override for
+ *   limit checks (journals that ignore formatting at initial submission).
+ *
  * Consumers: citations → @suna/bib; figures → canvas + suna_mpl + checker;
  * manuscript → manuscript editor + checker; all → export dialog.
  */
+
+const PROFILE_ID_RE = /^[a-z][a-z0-9-]*$/;
+export const ProfileIdSchema = z.string().regex(PROFILE_ID_RE);
+
+/**
+ * How a profile value is known. 'documented' = stated verbatim in the
+ * journal's author guidelines; 'counted-empirically' = measured from the
+ * journal's published output (which can diverge from its own guidelines);
+ * 'inferred' = not stated anywhere, filled in from family convention.
+ */
+export const ProvenanceBasisSchema = z.enum([
+  'documented',
+  'counted-empirically',
+  'inferred',
+]);
+export type ProvenanceBasis = z.infer<typeof ProvenanceBasisSchema>;
+
+/** `source: null` = no citable URL (typical for 'inferred' claims). */
+export const ProvenanceEntrySchema = z.object({
+  claim: z.string().min(1),
+  basis: ProvenanceBasisSchema,
+  source: z.url().nullable(),
+});
+export type ProvenanceEntry = z.infer<typeof ProvenanceEntrySchema>;
+
+export const SubmissionStageSchema = z.enum([
+  'initial-submission',
+  'revision',
+  'accepted',
+]);
+export type SubmissionStage = z.infer<typeof SubmissionStageSchema>;
+
+export const LimitSeveritySchema = z.enum(['error', 'warning']);
+export type LimitSeverity = z.infer<typeof LimitSeveritySchema>;
+
+/**
+ * Per-stage severity override applied by the manuscript checker to LIMIT
+ * diagnostics (word/character/item/reference counts). A missing stage keeps
+ * each limit's intrinsic severity; structural checks (missing sections,
+ * availability statements) are never remapped.
+ */
+export const StageSeveritySchema = z.partialRecord(
+  SubmissionStageSchema,
+  LimitSeveritySchema,
+);
+export type StageSeverity = z.infer<typeof StageSeveritySchema>;
 
 export const CitationModeSchema = z.enum([
   'numeric-superscript',
@@ -56,6 +111,7 @@ export const CitationRulesSchema = z.object({
   referenceList: ReferenceListRulesSchema,
   maxReferences: z.number().int().positive().nullable(),
   sources: z.array(z.url()),
+  provenance: z.array(ProvenanceEntrySchema).optional(),
 });
 export type CitationRules = z.infer<typeof CitationRulesSchema>;
 
@@ -98,6 +154,7 @@ export const FigureRulesSchema = z.object({
     wrapper: z.enum(['parens', 'none']).nullable(),
   }),
   sources: z.array(z.url()),
+  provenance: z.array(ProvenanceEntrySchema).optional(),
 });
 export type FigureRules = z.infer<typeof FigureRulesSchema>;
 
@@ -139,13 +196,17 @@ export const ManuscriptRulesSchema = z.object({
     lineNumbers: z.boolean().nullable(),
     acceptedFileTypes: z.array(z.string().min(1)),
   }),
+  stageSeverity: StageSeveritySchema.optional(),
   sources: z.array(z.url()),
+  provenance: z.array(ProvenanceEntrySchema).optional(),
 });
 export type ManuscriptRules = z.infer<typeof ManuscriptRulesSchema>;
 
 export const PublisherProfileSchema = z.object({
-  schemaVersion: z.literal(2),
-  id: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  schemaVersion: z.literal(3),
+  id: ProfileIdSchema,
+  /** Base profile id; the formatter loader deep-merges it in (child overrides, arrays replace). */
+  extends: ProfileIdSchema.optional(),
   journalName: z.string().min(1),
   publisher: z.string().min(1),
   lastVerified: z.iso.date(),

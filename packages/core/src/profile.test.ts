@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PublisherProfileSchema, type PublisherProfile } from './profile';
 
 const apj: PublisherProfile = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   id: 'apj-aas',
   journalName: 'The Astrophysical Journal',
   publisher: 'AAS / IOP',
@@ -92,7 +92,7 @@ const apj: PublisherProfile = {
   notes: ['ApJL display-item limits are editor discretion, no longer compulsory.'],
 };
 
-describe('PublisherProfileSchema v2 (author-guideline model)', () => {
+describe('PublisherProfileSchema v3 (author-guideline model)', () => {
   it('accepts a realistic guideline profile', () => {
     const parsed = PublisherProfileSchema.parse(apj);
     expect(parsed.figures.minFontPt).toBe(6);
@@ -127,5 +127,99 @@ describe('PublisherProfileSchema v2 (author-guideline model)', () => {
     const badUrl = JSON.parse(JSON.stringify(apj));
     badUrl.manuscript.sources = ['journals.aas.org'];
     expect(PublisherProfileSchema.safeParse(badUrl).success).toBe(false);
+  });
+
+  it('rejects the retired v2 schemaVersion', () => {
+    const v2 = JSON.parse(JSON.stringify(apj));
+    v2.schemaVersion = 2;
+    expect(PublisherProfileSchema.safeParse(v2).success).toBe(false);
+  });
+});
+
+describe('v3 provenance', () => {
+  function withProvenance(entries: unknown): Record<string, unknown> {
+    const doc = JSON.parse(JSON.stringify(apj)) as Record<string, unknown>;
+    (doc['figures'] as Record<string, unknown>)['provenance'] = entries;
+    return doc;
+  }
+
+  it('accepts per-section provenance entries on all three sections', () => {
+    const doc = JSON.parse(JSON.stringify(apj));
+    const entry = {
+      claim: 'minFontPt: 6 — "A minimum of 6 pt. font size is acceptable"',
+      basis: 'documented',
+      source: 'https://journals.aas.org/graphics-guide/',
+    };
+    doc.figures.provenance = [entry];
+    doc.citations.provenance = [
+      { claim: 'collapseRanges: not applicable to author-year', basis: 'inferred', source: null },
+    ];
+    doc.manuscript.provenance = [
+      { claim: 'panel style diverged from guidelines in 2022', basis: 'counted-empirically', source: null },
+    ];
+    const parsed = PublisherProfileSchema.parse(doc);
+    expect(parsed.figures.provenance?.[0]?.basis).toBe('documented');
+    expect(parsed.citations.provenance?.[0]?.source).toBeNull();
+    expect(parsed.manuscript.provenance?.[0]?.basis).toBe('counted-empirically');
+  });
+
+  it('provenance is optional (absent on the base fixture)', () => {
+    const parsed = PublisherProfileSchema.parse(apj);
+    expect(parsed.figures.provenance).toBeUndefined();
+  });
+
+  it('rejects unknown bases, empty claims, and non-URL sources', () => {
+    expect(
+      PublisherProfileSchema.safeParse(
+        withProvenance([{ claim: 'x', basis: 'guessed', source: null }]),
+      ).success,
+    ).toBe(false);
+    expect(
+      PublisherProfileSchema.safeParse(
+        withProvenance([{ claim: '', basis: 'inferred', source: null }]),
+      ).success,
+    ).toBe(false);
+    expect(
+      PublisherProfileSchema.safeParse(
+        withProvenance([{ claim: 'x', basis: 'documented', source: 'nature.com' }]),
+      ).success,
+    ).toBe(false);
+  });
+});
+
+describe('v3 extends', () => {
+  it('accepts a profile-id extends and keeps it on the parsed profile', () => {
+    const doc = JSON.parse(JSON.stringify(apj));
+    doc.extends = 'apj-aas';
+    expect(PublisherProfileSchema.parse(doc).extends).toBe('apj-aas');
+  });
+
+  it('rejects extends values that are not valid profile ids', () => {
+    for (const bad of ['Nature-Astronomy', '1abc', 'a b', '']) {
+      const doc = JSON.parse(JSON.stringify(apj));
+      doc.extends = bad;
+      expect(PublisherProfileSchema.safeParse(doc).success).toBe(false);
+    }
+  });
+});
+
+describe('v3 manuscript stageSeverity', () => {
+  it('accepts a partial stage → severity mapping', () => {
+    const doc = JSON.parse(JSON.stringify(apj));
+    doc.manuscript.stageSeverity = { 'initial-submission': 'warning', accepted: 'error' };
+    const parsed = PublisherProfileSchema.parse(doc);
+    expect(parsed.manuscript.stageSeverity?.['initial-submission']).toBe('warning');
+    expect(parsed.manuscript.stageSeverity?.accepted).toBe('error');
+    expect(parsed.manuscript.stageSeverity?.revision).toBeUndefined();
+  });
+
+  it('rejects unknown stages and severities outside error|warning', () => {
+    const badStage = JSON.parse(JSON.stringify(apj));
+    badStage.manuscript.stageSeverity = { 'camera-ready': 'error' };
+    expect(PublisherProfileSchema.safeParse(badStage).success).toBe(false);
+
+    const badSeverity = JSON.parse(JSON.stringify(apj));
+    badSeverity.manuscript.stageSeverity = { revision: 'info' };
+    expect(PublisherProfileSchema.safeParse(badSeverity).success).toBe(false);
   });
 });

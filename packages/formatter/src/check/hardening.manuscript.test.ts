@@ -143,6 +143,25 @@ describe('hardening — scope exclusions (real nature-astronomy.json)', () => {
     expect(byId(checkManuscript(input, profile, 'article'), 'ms.word-limit')).toEqual([]);
   });
 
+  it('stageSeverity (real profile): Article word limit warns at initial submission, errors once accepted', () => {
+    // "Your initial submission does not need to be specially formatted"
+    // (initial-formatting page) — encoded as stageSeverity
+    // {initial-submission: warning, accepted: error}.
+    const input = makeInput({
+      sectionTexts: { 'sections/intro.md': words(3050) },
+      referenceCount: 0,
+    });
+    input.manuscript.abstract.content = words(200);
+
+    const initial = byId(checkManuscript(input, profile, 'article'), 'ms.word-limit');
+    expect(initial).toHaveLength(1);
+    expect(initial[0]?.severity).toBe('warning');
+
+    const accepted = byId(checkManuscript(input, profile, 'article', 'accepted'), 'ms.word-limit');
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0]?.severity).toBe('error'); // upgraded past the soft limit's intrinsic warning
+  });
+
   it('a "not including references" scope does not add reference words', () => {
     const p = realProfile('apj-aas');
     const rnaas = p.manuscript.articleTypes.find((t) => t.id === 'rnaas');

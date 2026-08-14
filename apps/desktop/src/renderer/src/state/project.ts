@@ -7,10 +7,13 @@ interface ProjectState {
   rootDir: string | null
   manifest: SunaProjectManifest | null
   tree: FsNode | null
+  /** Incremented after any successful file save; sidebar views re-read on it. */
+  saveBump: number
   createProject: () => Promise<void>
   openProject: () => Promise<void>
   openExampleProject: () => Promise<void>
   refreshTree: () => Promise<void>
+  noteFileSaved: (path: string) => void
 }
 
 function reportError(prefix: string, error: unknown): void {
@@ -26,6 +29,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   rootDir: null,
   manifest: null,
   tree: null,
+  saveBump: 0,
+
+  noteFileSaved: () => {
+    set((s) => ({ saveBump: s.saveBump + 1 }))
+  },
 
   refreshTree: async () => {
     const { rootDir } = get()

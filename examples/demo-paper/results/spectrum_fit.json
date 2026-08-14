@@ -1,0 +1,12 @@
+{
+  "script": "analysis/fit_spectrum.py",
+  "input": "data/spectrum.csv",
+  "model": "gaussian + flat continuum",
+  "nPoints": 120,
+  "centroid_A": 6563.2569,
+  "sigma_A": 6.1679,
+  "fwhm_A": 14.5242,
+  "amplitude": 1.0234,
+  "continuum": -0.0108,
+  "rmsResidual": 0.04245
+}

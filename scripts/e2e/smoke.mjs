@@ -1,23 +1,34 @@
 #!/usr/bin/env node
 /**
  * SUNA end-to-end smoke test. Launches the app with a CDP endpoint and
- * drives the full loop against examples/demo-paper: open project → edit
- * manuscript → rendered mode → canvas open → drag → save (1-line diff) →
- * undo → save (byte-identical) → compliance clean.
+ * drives the full loop: open example project (a fresh COPY under userData)
+ * → edit manuscript → live + reading modes → canvas editing suite → all six
+ * sidebar views (explorer CRUD, manuscript outline, figures, references,
+ * git commit, agent) — asserting on real files inside the copy.
+ *
+ * Reset strategy: the userData example copy is deleted before launch, so
+ * every run starts from the pristine examples/demo-paper and the git repo
+ * created on open has exactly one "Initial commit".
  *
  * Usage:  node scripts/e2e/smoke.mjs        (or: pnpm smoke)
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
  */
 import { spawn, execSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const EXAMPLE = join(ROOT, 'examples', 'demo-paper')
-const FIGURE = join(EXAMPLE, 'figures', 'fig-spectrum', 'figure.svg')
 const ARTIFACTS = join(ROOT, 'scripts', 'e2e', '.artifacts')
 const PORT = Number(process.env.SUNA_SMOKE_PORT ?? 9321)
+
+// Electron userData for @suna/desktop (package.json name → nested dir).
+const USER_DATA =
+  process.platform === 'darwin'
+    ? join(homedir(), 'Library', 'Application Support', '@suna', 'desktop')
+    : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), '@suna', 'desktop')
+const COPY_DIR = join(USER_DATA, 'example-project')
 
 mkdirSync(ARTIFACTS, { recursive: true })
 
@@ -53,9 +64,14 @@ async function screenshot(name) {
 
 const mouse = (type, x, y) =>
   send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
+const click = async (x, y) => {
+  await mouse('mousePressed', x, y)
+  await mouse('mouseReleased', x, y)
+}
 const key = (keyName, code, modifiers = 0) =>
   send('Input.dispatchKeyEvent', { type: 'keyDown', key: keyName, code, modifiers })
     .then(() => send('Input.dispatchKeyEvent', { type: 'keyUp', key: keyName, code, modifiers }))
+const insertText = (text) => send('Input.insertText', { text })
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -78,6 +94,36 @@ function assert(cond, message) {
   if (!cond) throw new Error(message)
 }
 
+/** Click an activity-bar view button by its title attribute. */
+const activateView = (title) =>
+  evalJs(`(() => {
+    const btn = [...document.querySelectorAll('.activitybar__item')]
+      .find((b) => b.title === ${JSON.stringify(title)});
+    if (!btn) throw new Error('activity item missing: ${title}');
+    btn.click();
+  })()`)
+
+/** Open the explorer context menu on the tree row whose name matches. */
+const openTreeMenu = (name) =>
+  evalJs(`(() => {
+    const row = [...document.querySelectorAll('.tree__row')]
+      .find((r) => r.textContent.trim().replace(/^[▾▸]\\s*/, '') === ${JSON.stringify(name)});
+    if (!row) throw new Error('tree row missing: ${name}');
+    const r = row.getBoundingClientRect();
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true, cancelable: true,
+      clientX: r.left + r.width / 2, clientY: r.top + r.height / 2
+    }));
+  })()`)
+
+const clickMenuItem = (label) =>
+  evalJs(`(() => {
+    const item = [...document.querySelectorAll('.ctxmenu__item')]
+      .find((b) => b.textContent.startsWith(${JSON.stringify(label)}));
+    if (!item) throw new Error('menu item missing: ${label}');
+    item.click();
+  })()`)
+
 // ---------------------------------------------------------------- run
 console.log('SUNA smoke test')
 try {
@@ -87,7 +133,8 @@ try {
 } catch { /* nothing to kill */ }
 await sleep(500)
 
-const originalSvg = readFileSync(FIGURE, 'utf8')
+// Fresh example copy every run (see header).
+rmSync(COPY_DIR, { recursive: true, force: true })
 
 const child = spawn('pnpm', ['dev'], {
   cwd: join(ROOT, 'apps', 'desktop'),
@@ -108,6 +155,9 @@ function cleanup() {
   } catch { /* already gone */ }
 }
 process.on('exit', cleanup)
+
+let FIGURE = null // <copy>/figures/fig-spectrum/figure.svg — known after open
+let originalSvg = null
 
 let exitCode = 0
 try {
@@ -150,15 +200,30 @@ try {
       if (!btn) throw new Error('Open example button missing');
       btn.click();
     })()`)
-    await sleep(2000)
+    // copy + git init + tree listing take a moment on first open
+    const openDeadline = Date.now() + 20_000
+    let rootDir = null
+    while (Date.now() < openDeadline && !rootDir) {
+      rootDir = await evalJs(
+        `window.__sunaDev ? window.__sunaDev.projectStore.getState().rootDir : null`
+      )
+      if (!rootDir) await sleep(400)
+    }
+    assert(rootDir, 'project rootDir still null after open-example')
+    assert(
+      rootDir === COPY_DIR,
+      `open-example landed at ${rootDir}, expected the userData copy ${COPY_DIR}`
+    )
+    FIGURE = join(rootDir, 'figures', 'fig-spectrum', 'figure.svg')
+    originalSvg = readFileSync(FIGURE, 'utf8')
+    await sleep(1200)
     const state = await evalJs(`({
       profile: document.querySelector('.statusbar__profile')?.textContent ?? null,
-      tree: !!document.querySelector('.tree'),
-      dev: typeof window.__sunaDev === 'object'
+      tree: !!document.querySelector('.tree')
     })`)
     assert(state.profile === 'Nature Astronomy', `profile chip: ${state.profile}`)
     assert(state.tree, 'explorer tree missing')
-    assert(state.dev, '__sunaDev seam missing (not a dev build?)')
+    assert(existsSync(join(rootDir, '.git')), 'example copy was not git-initialized')
     await screenshot('01-project-open.png')
   })
 
@@ -167,19 +232,73 @@ try {
     assert(text.includes('Galaxies falling'), 'intro section not in editor')
   })
 
-  await step('rendered-mode', async () => {
+  await step('live-mode', async () => {
+    // mode button cycles Source → Live → Reading
     await evalJs(`document.querySelector('.editor-tab__mode').click()`)
+    await sleep(500)
+    const label = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
+    assert(label === 'Live', `mode after first click: ${label} (want Live)`)
+    const before = await evalJs(`({
+      katex: !!document.querySelector('.cm-content .katex'),
+      block: !!document.querySelector('.cm-content .cm-lp-math-block'),
+      cite: !!document.querySelector('.cm-content .cm-lp-cite'),
+      raw: (document.querySelector('.cm-content')?.textContent ?? '').includes('$$')
+    })`)
+    assert(before.katex, 'KaTeX widget missing from CodeMirror DOM in live mode')
+    assert(before.block, 'display-math block widget missing in live mode')
+    assert(before.cite, 'citation chip missing in live mode')
+    assert(!before.raw, 'raw $$ visible while display math is rendered')
+    await screenshot('live-mode.png')
+
+    // click into the rendered math → decoration drops, raw $$ source at cursor
+    const p = await evalJs(`(() => {
+      const el = document.querySelector('.cm-lp-math-block');
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`)
+    await click(p.x, p.y)
+    await sleep(400)
+    const revealed = await evalJs(`({
+      raw: (document.querySelector('.cm-content')?.textContent ?? '').includes('$$'),
+      widget: !!document.querySelector('.cm-lp-math-block'),
+      cursorLine: document.querySelector('.cm-activeLine')?.textContent ?? ''
+    })`)
+    assert(revealed.raw, 'clicking math did not reveal raw $$ source')
+    assert(!revealed.widget, 'block widget still rendered while cursor is inside it')
+    assert(
+      revealed.cursorLine.includes('$$') || revealed.cursorLine.includes('P_'),
+      `cursor not inside the math source (active line: ${revealed.cursorLine.slice(0, 60)})`
+    )
+
+    // move the cursor out of the math range → widget re-renders
+    for (let i = 0; i < 5; i++) await key('ArrowUp', 'ArrowUp')
+    await sleep(400)
+    const after = await evalJs(`({
+      widget: !!document.querySelector('.cm-lp-math-block .katex'),
+      raw: (document.querySelector('.cm-content')?.textContent ?? '').includes('$$')
+    })`)
+    assert(after.widget, 'math widget did not re-render after cursor left')
+    assert(!after.raw, 'raw $$ still visible after cursor left the math range')
+  })
+
+  await step('reading-mode', async () => {
+    await evalJs(`document.querySelector('.editor-tab__mode').click()`) // Live → Reading
     await sleep(400)
     const r = await evalJs(`({
+      label: document.querySelector('.editor-tab__mode').textContent,
       katex: !!document.querySelector('.scimark .katex'),
       cite: !!document.querySelector('.scimark sup.cite'),
       eqId: !!document.querySelector('.scimark [id="eq:stripping"]')
     })`)
-    assert(r.katex, 'KaTeX math missing in rendered view')
-    assert(r.cite, 'citation chip missing in rendered view')
-    assert(r.eqId, 'equation anchor missing in rendered view')
+    assert(r.label === 'Reading', `mode label: ${r.label} (want Reading)`)
+    assert(r.katex, 'KaTeX math missing in reading view')
+    assert(r.cite, 'citation chip missing in reading view')
+    assert(r.eqId, 'equation anchor missing in reading view')
     await screenshot('02-rendered.png')
-    await evalJs(`document.querySelector('.editor-tab__mode').click()`)
+    await evalJs(`document.querySelector('.editor-tab__mode').click()`) // Reading → Source
+    await sleep(300)
+    const label = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
+    assert(label === 'Source', `mode label after full cycle: ${label} (want Source)`)
   })
 
   await step('canvas-opens-figure', async () => {
@@ -251,8 +370,6 @@ try {
   })
 
   // ---- editing suite (canvas-editing-suite.md §10) --------------------------
-  const insertText = (text) => send('Input.insertText', { text })
-
   const focusCanvas = () =>
     evalJs(`(() => {
       const vp = document.querySelector('.canvas-viewport');
@@ -430,6 +547,227 @@ try {
     )
   })
 
+  // ---- sidebar views --------------------------------------------------------
+
+  await step('explorer-create-rename-delete', async () => {
+    // create: context menu on a root file targets the project root
+    // (suna.json is the only unambiguous root file — README.md also exists in code/)
+    await openTreeMenu('suna.json')
+    await sleep(200)
+    await clickMenuItem('New File')
+    await sleep(300)
+    const focused = await evalJs(
+      `document.activeElement?.className === 'tree__edit-input'`
+    )
+    assert(focused, 'inline create input did not appear/focus')
+    await insertText('scratch-e2e.txt')
+    await key('Enter', 'Enter')
+    await sleep(700)
+    assert(existsSync(join(COPY_DIR, 'scratch-e2e.txt')), 'created file missing on disk')
+    const rowShown = await evalJs(`[...document.querySelectorAll('.tree__row')]
+      .some((r) => r.textContent.includes('scratch-e2e.txt'))`)
+    assert(rowShown, 'created file not listed in the tree')
+
+    // rename: basename is pre-selected, typing replaces it and keeps .txt
+    await openTreeMenu('scratch-e2e.txt')
+    await sleep(200)
+    await clickMenuItem('Rename')
+    await sleep(300)
+    await insertText('renamed-e2e')
+    await key('Enter', 'Enter')
+    await sleep(700)
+    assert(!existsSync(join(COPY_DIR, 'scratch-e2e.txt')), 'old name still on disk after rename')
+    assert(existsSync(join(COPY_DIR, 'renamed-e2e.txt')), 'renamed file missing on disk')
+
+    // delete: two-step arm → confirm, file goes to the trash
+    await openTreeMenu('renamed-e2e.txt')
+    await sleep(200)
+    await clickMenuItem('Delete')
+    await sleep(200)
+    await screenshot('views-explorer.png') // context menu with armed delete
+    await clickMenuItem('Confirm delete?')
+    await sleep(700)
+    assert(!existsSync(join(COPY_DIR, 'renamed-e2e.txt')), 'deleted file still on disk')
+    const rowGone = await evalJs(`![...document.querySelectorAll('.tree__row')]
+      .some((r) => r.textContent.includes('renamed-e2e.txt'))`)
+    assert(rowGone, 'deleted file still listed in the tree')
+  })
+
+  await step('manuscript-view', async () => {
+    await activateView('Manuscript')
+    await sleep(600)
+    const outline = await evalJs(
+      `[...document.querySelectorAll('.ms__row .ms__row-label')].map((e) => e.textContent)`
+    )
+    assert(
+      outline.length === 4,
+      `outline should list 4 sections, got ${outline.length}: ${outline.join(', ')}`
+    )
+    assert(
+      outline[0] === 'untitled' &&
+        outline[1] === 'Results' &&
+        outline[2] === 'Discussion' &&
+        outline[3] === 'Methods',
+      `unexpected outline: ${outline.join(', ')}`
+    )
+    const meta = await evalJs(
+      `[...document.querySelectorAll('.ms__meta')].map((e) => e.textContent).join(' | ')`
+    )
+    assert(meta.includes('2 authors'), `author count missing: ${meta}`)
+    assert(meta.includes('2 figures') && meta.includes('1 table'), `figure/table counts: ${meta}`)
+    await screenshot('views-manuscript.png')
+    // clicking an outline row opens its section in the editor
+    await evalJs(`[...document.querySelectorAll('.ms__row')]
+      .find((r) => r.textContent.includes('Results')).click()`)
+    await sleep(800)
+    const text = await evalJs(`document.querySelector('.cm-content')?.textContent ?? ''`)
+    assert(text.includes('infalling galaxy'), 'Results section did not open in the editor')
+  })
+
+  await step('figures-view', async () => {
+    await activateView('Figures')
+    await sleep(800)
+    const cards = await evalJs(`({
+      names: [...document.querySelectorAll('.figs__name')].map((e) => e.textContent),
+      thumbs: document.querySelectorAll('.figs__thumb img').length
+    })`)
+    assert(
+      cards.names.length === 2 &&
+        cards.names.includes('fig-spectrum') &&
+        cards.names.includes('fig-velocity-map'),
+      `figure cards: ${cards.names.join(', ')}`
+    )
+    assert(cards.thumbs === 2, `expected 2 SVG thumbnails, got ${cards.thumbs}`)
+    await screenshot('views-figures.png')
+    // clicking a card opens that figure on the canvas
+    await evalJs(`[...document.querySelectorAll('.figs__card')]
+      .find((c) => c.textContent.includes('fig-velocity-map')).click()`)
+    await sleep(1500)
+    const r = await evalJs(`({
+      svg: !!document.querySelector('.canvas-world svg'),
+      artboard: document.querySelector('.canvas-tab__meta')?.textContent ?? ''
+    })`)
+    assert(r.svg, 'velocity-map SVG not mounted on canvas')
+    assert(r.artboard.includes('88.0'), `velocity-map artboard label: ${r.artboard}`)
+    const chip = await evalJs(`document.querySelector('.canvas-tab__issues')?.textContent ?? null`)
+    assert(chip === null, `velocity-map should be compliant (300 dpi raster), got: ${chip}`)
+  })
+
+  await step('references-view', async () => {
+    await activateView('References')
+    await sleep(800)
+    const rows = await evalJs(`document.querySelectorAll('.refs__row').length`)
+    assert(rows === 11, `expected 11 reference rows, got ${rows}`)
+    const before = await evalJs(
+      `document.querySelector('.refs__preview')?.textContent ?? ''`
+    )
+    assert(before !== '', 'rendered reference preview is empty')
+    await screenshot('views-references.png')
+    // toggling the style profile re-renders the reference differently
+    await evalJs(`[...document.querySelectorAll('.refs__style')]
+      .find((b) => b.textContent === 'MNRAS').click()`)
+    await sleep(400)
+    const after = await evalJs(`({
+      text: document.querySelector('.refs__preview')?.textContent ?? '',
+      pressed: [...document.querySelectorAll('.refs__style')]
+        .find((b) => b.textContent === 'MNRAS').getAttribute('aria-pressed')
+    })`)
+    assert(after.pressed === 'true', 'MNRAS style button did not activate')
+    assert(
+      after.text !== '' && after.text !== before,
+      'rendered reference did not change between profiles'
+    )
+  })
+
+  await step('git-view', async () => {
+    // dirty the copy through the app's own fs channel, then open the view
+    await evalJs(`(async () => {
+      const root = window.__sunaDev.projectStore.getState().rootDir;
+      const path = root + '/README.md';
+      const { content } = await window.suna.invoke('fs:read-text', { path });
+      await window.suna.invoke('fs:write-text', {
+        path, content: content + '\\nSmoke-edit marker.\\n'
+      });
+      return true;
+    })()`)
+    await activateView('Source Control')
+    await sleep(900)
+    const state = await evalJs(`({
+      branch: document.querySelector('.git__branch')?.textContent?.trim() ?? null,
+      changes: [...document.querySelectorAll('.git__row .git__path')].map((e) => e.textContent),
+      letters: [...document.querySelectorAll('.git__letter')].map((e) => e.textContent),
+      history: document.querySelectorAll('.git__log-row').length
+    })`)
+    assert(state.branch === 'main', `branch label: ${state.branch}`)
+    assert(
+      state.changes.length === 1 && state.changes[0] === 'README.md',
+      `expected exactly the README.md change, got: ${state.changes.join(', ')}`
+    )
+    assert(state.letters[0] === 'M', `README change letter: ${state.letters[0]} (want M)`)
+    assert(state.history === 1, `fresh copy should have 1 commit, got ${state.history}`)
+
+    // row click shows the colored diff
+    await evalJs(`document.querySelector('.git__row').click()`)
+    await sleep(600)
+    const diffAdds = await evalJs(
+      `[...document.querySelectorAll('.git__diff-line--add')].map((e) => e.textContent).join('\\n')`
+    )
+    assert(diffAdds.includes('Smoke-edit marker'), `diff missing added line: ${diffAdds.slice(0, 120)}`)
+    await screenshot('views-git.png')
+
+    // commit all → tree clean, history grows
+    await evalJs(`document.querySelector('.view__textarea').focus()`)
+    await insertText('smoke: annotate readme')
+    await sleep(200)
+    await evalJs(`[...document.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Commit all').click()`)
+    await sleep(1200)
+    const committed = await evalJs(`({
+      clean: [...document.querySelectorAll('.view__hint')]
+        .some((e) => e.textContent.includes('Working tree clean')),
+      history: [...document.querySelectorAll('.git__log-row .git__subject')].map((e) => e.textContent)
+    })`)
+    assert(committed.clean, 'working tree not clean after Commit all')
+    assert(
+      committed.history.length === 2 && committed.history[0] === 'smoke: annotate readme',
+      `history after commit: ${committed.history.join(' | ')}`
+    )
+  })
+
+  await step('agent-view', async () => {
+    await activateView('Agent')
+    await sleep(600)
+    const agent = await evalJs(`({
+      options: [...document.querySelectorAll('.view__select option')].map((o) => o.textContent),
+      status: document.querySelector('.agent__status')?.textContent ?? null,
+      composer: !!document.querySelector('.agent__composer .view__textarea')
+    })`)
+    assert(
+      agent.options.length === 3 &&
+        agent.options.includes('Anthropic') &&
+        agent.options.includes('OpenAI') &&
+        agent.options.includes('Ollama'),
+      `provider options: ${agent.options.join(', ')}`
+    )
+    assert(agent.status !== null && agent.status !== '…', `provider status not loaded: ${agent.status}`)
+    assert(agent.composer, 'chat composer missing')
+    // switching to Ollama needs no key and says so
+    await evalJs(`(() => {
+      const sel = document.querySelector('.view__select');
+      const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+      set.call(sel, 'ollama');
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`)
+    await sleep(300)
+    const ollama = await evalJs(`({
+      status: document.querySelector('.agent__status')?.textContent ?? '',
+      hint: [...document.querySelectorAll('.view__hint')].map((e) => e.textContent).join(' ')
+    })`)
+    assert(ollama.status.includes('local'), `ollama status: ${ollama.status}`)
+    assert(ollama.hint.includes('no key required'), 'ollama no-key hint missing')
+    await screenshot('views-agent.png')
+  })
+
   console.log(`\nALL ${results.length} STEPS PASSED`)
 } catch {
   exitCode = 1
@@ -437,8 +775,10 @@ try {
   console.error(`\nFAILED: ${failed.map((f) => f.name).join(', ')}`)
   console.error(`artifacts: ${ARTIFACTS}`)
 } finally {
-  // never leave the working tree dirty
-  writeFileSync(FIGURE, originalSvg)
+  // leave the example copy's figure pristine for whoever opens it next
+  if (FIGURE && originalSvg !== null && existsSync(FIGURE)) {
+    writeFileSync(FIGURE, originalSvg)
+  }
   cleanup()
 }
 process.exit(exitCode)

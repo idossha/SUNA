@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkManuscript,
   countWords,
+  scanFigureReferences,
   WORDS_PER_REFERENCE_ESTIMATE,
   type ManuscriptCheckInput,
 } from './manuscript';
@@ -273,6 +274,223 @@ describe('checkManuscript — display items and reference count', () => {
         'ms.max-references',
       ),
     ).toEqual([]);
+  });
+});
+
+describe('scanFigureReferences — own vs foreign figures', () => {
+  it('collects plain references in all spellings', () => {
+    const scan = scanFigureReferences(['Figure 1 shows X. See also Fig. 2 and fig 3b.']);
+    expect([...scan.cited].sort()).toEqual([1, 2, 3]);
+    expect(scan.foreign.size).toBe(0);
+  });
+
+  it('expands lists and ranges: "Figs. 2, 3 and 5" and "Figures 1–3"', () => {
+    expect([...scanFigureReferences(['Figs. 2, 3 and 5 agree.']).cited].sort()).toEqual([2, 3, 5]);
+    expect([...scanFigureReferences(['Figures 1–3 agree.']).cited].sort()).toEqual([1, 2, 3]);
+  });
+
+  it('a bare capitalized surname before the figure word is author-adjacent (Gao Figure 2D)', () => {
+    const scan = scanFigureReferences(['This mirrors the morphology in Gao Figure 2D.']);
+    expect(scan.cited.size).toBe(0);
+    expect([...scan.foreign]).toEqual([2]);
+  });
+
+  it('"(Author et al. Figure 3)" is foreign', () => {
+    const scan = scanFigureReferences(['The excess was reported before (Nandra et al. Figure 3).']);
+    expect(scan.cited.size).toBe(0);
+    expect([...scan.foreign]).toEqual([3]);
+  });
+
+  it('the tricky trailing form "as shown in Figure 2 of Gao et al." is foreign', () => {
+    const scan = scanFigureReferences(['The bar is prominent, as shown in Figure 2 of Gao et al.']);
+    expect(scan.cited.size).toBe(0);
+    expect([...scan.foreign]).toEqual([2]);
+  });
+
+  it('"Figure 3 in Smith (2020)" and "Figure 4 from Zhang" are foreign', () => {
+    const scan = scanFigureReferences(['Compare Figure 3 in Smith (2020) and Figure 4 from Zhang.']);
+    expect(scan.cited.size).toBe(0);
+    expect([...scan.foreign].sort()).toEqual([3, 4]);
+  });
+
+  it('sentence-start and common capitalized words are NOT author-adjacent', () => {
+    const scan = scanFigureReferences([
+      'Figure 1 shows the field. See Figure 2. In Figure 3 we mark the bar. Compare Figure 4.',
+    ]);
+    expect([...scan.cited].sort()).toEqual([1, 2, 3, 4]);
+    expect(scan.foreign.size).toBe(0);
+  });
+
+  it('a sentence-ending period breaks author adjacency ("...of Gao. Figure 2 shows")', () => {
+    const scan = scanFigureReferences(['We follow the cuts of Gao. Figure 2 shows the result.']);
+    expect([...scan.cited]).toEqual([2]);
+    expect(scan.foreign.size).toBe(0);
+  });
+
+  it('once a number is author-adjacent it stays foreign for the whole document, in either order', () => {
+    const forward = scanFigureReferences([
+      'A bar appears in Gao Figure 3.',
+      'Figure 3 is striking in that regard.',
+    ]);
+    expect(forward.cited.size).toBe(0);
+    expect([...forward.foreign]).toEqual([3]);
+
+    const backward = scanFigureReferences([
+      'Figure 3 is striking in that regard.',
+      'A bar appears in Gao Figure 3.',
+    ]);
+    expect(backward.cited.size).toBe(0);
+    expect([...backward.foreign]).toEqual([3]);
+  });
+
+  it("a possessive surname is author-adjacent even at sentence start (Gao's Figure 3)", () => {
+    const scan = scanFigureReferences(["Gao's Figure 3 shows a comparable bar."]);
+    expect(scan.cited.size).toBe(0);
+    expect([...scan.foreign]).toEqual([3]);
+  });
+
+  it('Extended Data and Supplementary figures are neither cited nor foreign', () => {
+    const scan = scanFigureReferences(['Extended Data Figure 7 and Supplementary Figure 9 expand on this.']);
+    expect(scan.cited.size).toBe(0);
+    expect(scan.foreign.size).toBe(0);
+  });
+});
+
+describe('checkManuscript — figure cross-references ignore foreign figures', () => {
+  function inputWithProse(prose: string, figureCount = 1): ManuscriptCheckInput {
+    const input = makeInput();
+    input.sectionTexts = { 'sections/intro.md': prose };
+    for (let i = 2; i <= figureCount; i++) {
+      input.manuscript.figures.push({
+        id: `fig${i}`,
+        namespace: 'main',
+        canvasRef: `figures/fig${i}/figure.svg`,
+        widthPreset: 'single',
+        caption: { title: words(3), body: words(4) },
+        panels: [],
+      });
+    }
+    return input;
+  }
+
+  it('a compliant prose citing every figure reports nothing', () => {
+    const input = inputWithProse('Figure 1 shows the field and Figure 2 the residuals.', 2);
+    expect(checkManuscript(input, apjProfile(), 'apj-article')).toEqual([]);
+  });
+
+  it('flags a prose reference to a figure that does not exist', () => {
+    const input = inputWithProse('Figure 1 shows the field; Figure 3 shows residuals.', 1);
+    const unknown = byId(checkManuscript(input, apjProfile(), 'apj-article'), 'ms.figure-ref-unknown');
+    expect(unknown).toHaveLength(1);
+    expect(unknown[0]?.severity).toBe('error');
+    expect(unknown[0]?.message).toContain('Figure 3');
+    expect(unknown[0]?.message).toContain('only 1 main figure');
+  });
+
+  it("does NOT flag other papers' figures: 'Gao Figure 2D' with a single own figure", () => {
+    const input = inputWithProse('Our map matches Gao Figure 2D closely.', 1);
+    expect(byId(checkManuscript(input, apjProfile(), 'apj-article'), 'ms.figure-ref-unknown')).toEqual([]);
+  });
+
+  it("the trailing form 'as shown in Figure 2 of Gao et al.' does not count as citing our Figure 2", () => {
+    const input = inputWithProse(
+      'Figure 1 shows the disc, as shown in Figure 2 of Gao et al. for their sample.',
+      2,
+    );
+    const diags = checkManuscript(input, apjProfile(), 'apj-article');
+    expect(byId(diags, 'ms.figure-ref-unknown')).toEqual([]);
+    const uncited = byId(diags, 'ms.figure-uncited');
+    expect(uncited).toHaveLength(1);
+    expect(uncited[0]?.severity).toBe('warning');
+    expect(uncited[0]?.target).toEqual({ figureId: 'fig2' });
+    expect(uncited[0]?.message).toContain('author names');
+  });
+
+  it('a number stays foreign document-wide: later bare "Figure 3" is not flagged as unknown', () => {
+    const input = inputWithProse(
+      'Figure 1 shows the field. A bar appears in Gao Figure 3. Figure 3 is striking.',
+      1,
+    );
+    expect(byId(checkManuscript(input, apjProfile(), 'apj-article'), 'ms.figure-ref-unknown')).toEqual([]);
+  });
+
+  it('warns on an uncited own figure once the prose cites figures at all', () => {
+    const input = inputWithProse('Only Figure 1 is discussed here.', 2);
+    const uncited = byId(checkManuscript(input, apjProfile(), 'apj-article'), 'ms.figure-uncited');
+    expect(uncited).toHaveLength(1);
+    expect(uncited[0]?.message).toContain('Figure 2');
+    expect(uncited[0]?.target).toEqual({ figureId: 'fig2' });
+  });
+
+  it('stays silent on uncited figures while the prose has no figure references (early draft)', () => {
+    expect(checkManuscript(makeInput(), apjProfile(), 'apj-article')).toEqual([]);
+  });
+
+  it('Extended Data references neither satisfy nor break main-figure checks', () => {
+    const input = inputWithProse('Figure 1 shows the field; Extended Data Figure 9 expands it.', 1);
+    expect(checkManuscript(input, apjProfile(), 'apj-article')).toEqual([]);
+  });
+});
+
+describe('checkManuscript — stageSeverity remaps limit severities by submission stage', () => {
+  function stagedProfile() {
+    const profile = apjProfile();
+    profile.manuscript.stageSeverity = { 'initial-submission': 'warning', accepted: 'error' };
+    return profile;
+  }
+
+  it('downgrades limit errors to warnings at the default initial-submission stage', () => {
+    const input = makeInput();
+    input.manuscript.abstract.content = words(300);
+    const abs = byId(checkManuscript(input, stagedProfile(), 'apj-article'), 'ms.abstract-words');
+    expect(abs).toHaveLength(1);
+    expect(abs[0]?.severity).toBe('warning');
+  });
+
+  it('downgrades even a hard word limit at initial submission, and restores it when accepted', () => {
+    const initial = byId(checkManuscript(makeInput(), stagedProfile(), 'rnaas'), 'ms.word-limit');
+    expect(initial).toHaveLength(1);
+    expect(initial[0]?.severity).toBe('warning');
+
+    const accepted = byId(
+      checkManuscript(makeInput(), stagedProfile(), 'rnaas', 'accepted'),
+      'ms.word-limit',
+    );
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0]?.severity).toBe('error');
+  });
+
+  it('a stage without an entry keeps intrinsic severities', () => {
+    const input = makeInput();
+    input.manuscript.abstract.content = words(300);
+    const abs = byId(
+      checkManuscript(input, stagedProfile(), 'apj-article', 'revision'),
+      'ms.abstract-words',
+    );
+    expect(abs[0]?.severity).toBe('error');
+  });
+
+  it('never remaps structural checks: a missing required section stays an error', () => {
+    const input = makeInput();
+    input.manuscript.backMatter.acknowledgements = null;
+    const missing = byId(
+      checkManuscript(input, stagedProfile(), 'apj-article'),
+      'ms.section-missing',
+    );
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.severity).toBe('error');
+  });
+
+  it('profiles without stageSeverity behave identically at every stage', () => {
+    const input = makeInput();
+    input.manuscript.abstract.content = words(300);
+    for (const stage of ['initial-submission', 'revision', 'accepted'] as const) {
+      const abs = byId(
+        checkManuscript(input, apjProfile(), 'apj-article', stage),
+        'ms.abstract-words',
+      );
+      expect(abs[0]?.severity).toBe('error');
+    }
   });
 });
 

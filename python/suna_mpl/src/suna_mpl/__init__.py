@@ -13,11 +13,14 @@ Typical use in a figure script::
 
 The exported SVG has deterministic element ids (``ax0.line.halpha``) that the
 SUNA canvas and its provenance overlay address, and all text remains editable
-text.
+text. The export is byte-reproducible, writes a ``<out>.suna.json`` sidecar
+mapping data<->SVG coordinates, and auto-rasterizes over-dense artists.
 """
 
 from .export import save_svg
 from .gid import autogid
+from .manifest import build_manifest, sidecar_path, verify_manifest, write_manifest
+from .raster import autorasterize
 from .sizes import MM_PER_INCH, PROFILE_WIDTHS_MM, WIDTH_PRESETS_MM, resolve_width_mm, set_size
 from .style import WONG_PALETTE, journal_rc
 
@@ -27,10 +30,15 @@ __all__ = [
     "WIDTH_PRESETS_MM",
     "WONG_PALETTE",
     "autogid",
+    "autorasterize",
+    "build_manifest",
     "journal_rc",
     "resolve_width_mm",
     "save_svg",
     "set_size",
+    "sidecar_path",
+    "verify_manifest",
+    "write_manifest",
 ]
 
 __version__ = "0.1.0"

@@ -17,7 +17,7 @@ export function words(n: number): string {
 
 export function apjProfile(): PublisherProfile {
   return PublisherProfileSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'apj-aas',
     journalName: 'The Astrophysical Journal',
     publisher: 'AAS / IOP',

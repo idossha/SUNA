@@ -241,6 +241,25 @@ describe('checkFigureSvg — raster dpi', () => {
     expect(byId(diags, 'fig.raster-dpi')).toEqual([]);
   });
 
+  it('passes a PNG exported at exactly minDpi despite pixel rounding', () => {
+    // 152.9 user units = 2.1236in; round(2.1236 × 300) = 637px → 299.96 dpi.
+    // Half a pixel of tolerance keeps an exactly-at-minimum export clean.
+    const diags = checkFigureSvg(
+      svg(`<image x="0" y="0" width="152.9" height="48" xlink:href="${pngDataUri(637)}"/>`),
+      apjProfile(),
+    );
+    expect(byId(diags, 'fig.raster-dpi')).toEqual([]);
+  });
+
+  it('still flags a PNG a full pixel under minDpi', () => {
+    // 299px over exactly 1in stays flagged: 299 + 0.5 tolerance < 300.
+    const diags = checkFigureSvg(
+      svg(`<image x="0" y="0" width="72" height="48" xlink:href="${pngDataUri(299)}"/>`),
+      apjProfile(),
+    );
+    expect(byId(diags, 'fig.raster-dpi')).toHaveLength(1);
+  });
+
   it('emits nothing when the image is not cheaply decodable', () => {
     const notPng = `data:image/png;base64,${btoa('this is not a png header, truly')}`;
     const diags = checkFigureSvg(

@@ -1,0 +1,66 @@
+/* ---- explorer: inline edit rows ------------------------------------------ */
+
+.tree__row--edit {
+  cursor: default;
+}
+
+.tree__edit-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--s-text-md);
+  color: var(--s-ink);
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-accent);
+  border-radius: 3px;
+  padding: 1px 5px;
+  outline: none;
+}
+
+/* ---- explorer: context menu ---------------------------------------------- */
+
+.ctxmenu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.ctxmenu {
+  position: fixed;
+  z-index: 41;
+  min-width: 168px;
+  padding: 4px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+.ctxmenu__item {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  text-align: left;
+}
+
+.ctxmenu__item:hover {
+  background: var(--s-bg-hover);
+}
+
+.ctxmenu__item--danger {
+  color: var(--s-err);
+}
+
+.ctxmenu__item--armed {
+  background: rgba(217, 123, 108, 0.14);
+  font-weight: 600;
+}
+
+.ctxmenu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--s-border);
+}
