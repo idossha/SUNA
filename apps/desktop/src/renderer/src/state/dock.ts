@@ -21,6 +21,17 @@ export function openFileTab(path: string): void {
   })
 }
 
+/** Open (or focus) the global Settings tab. */
+export function openSettingsTab(): void {
+  if (!dockApi) return
+  const existing = dockApi.getPanel('settings')
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({ id: 'settings', component: 'settings', title: 'Settings' })
+}
+
 /** Open (or focus) the combined manuscript document tab for a project. */
 export function openManuscriptTab(rootDir: string): void {
   if (!dockApi) return

@@ -4,6 +4,14 @@ import { persist } from 'zustand/middleware'
 export type EditorFontFamily = 'serif' | 'sans' | 'mono'
 export type EditorThemeName = 'suna-dark' | 'suna-light' | 'high-contrast'
 
+/**
+ * Two surfaces on one editable CodeMirror instance: 'source' is plain
+ * markdown, 'reading' adds live-preview decorations. Defined here (not in
+ * EditorTab) so the settings store can hold the app-global default mode
+ * without a component import cycle.
+ */
+export type EditorViewMode = 'source' | 'reading'
+
 export interface EditorSettings {
   /** Reading-mode content column width, in ch. */
   contentWidthCh: number

@@ -1,0 +1,33 @@
+/* ---------------------------------------------------------------------------
+   Agent view — CLI collaborators section (subscription-auth CLIs over MCP).
+   Complements views.css; tokens only.
+   --------------------------------------------------------------------------- */
+
+.agent-cli {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.agent-cli__buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-cli__buttons .btn {
+  padding: 5px 12px;
+  font-size: var(--s-text-sm);
+}
+
+.agent-cli__note {
+  font-size: var(--s-text-xs);
+  line-height: 1.6;
+  color: var(--s-ink-faint);
+}
+
+.agent-cli__note--ok {
+  color: var(--s-ok);
+}

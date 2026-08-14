@@ -30,3 +30,5 @@ coverage/
 .env.*
 .claude/settings.local.json
 scripts/e2e/.artifacts/
+packages/agent/dist-mcp/
+.playwright-mcp/

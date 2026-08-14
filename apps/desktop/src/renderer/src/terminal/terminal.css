@@ -1,0 +1,145 @@
+/* ---------------------------------------------------------------------------
+   Terminal panel — bottom strip below the dock area. Tokens only.
+   Also defines .dock-stage, the column that stacks the dock host above the
+   strip inside the workbench's editor cell (App.tsx).
+   --------------------------------------------------------------------------- */
+
+.dock-stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dock-stage > .dock-host {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+.termpanel {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--s-bg-chrome);
+  border-top: 1px solid var(--s-border);
+}
+
+.termpanel__resizer {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 10;
+}
+
+.termpanel__resizer:hover {
+  background: var(--s-bg-active);
+}
+
+.termpanel__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--s-border);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.termpanel__caption {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.termpanel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.termpanel__tab {
+  display: flex;
+  align-items: center;
+  border-radius: var(--s-radius);
+  color: var(--s-ink-muted);
+  flex-shrink: 0;
+}
+
+.termpanel__tab:hover {
+  background: var(--s-bg-hover);
+}
+
+.termpanel__tab--active {
+  background: var(--s-bg-active);
+  color: var(--s-accent);
+}
+
+.termpanel__tab-name {
+  padding: 3px 2px 3px 8px;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: inherit;
+  white-space: nowrap;
+}
+
+.termpanel__tab-note {
+  color: var(--s-ink-faint);
+}
+
+.termpanel__tab-close {
+  padding: 3px 6px;
+  color: var(--s-ink-faint);
+  border-radius: var(--s-radius);
+  line-height: 1;
+}
+
+.termpanel__tab-close:hover {
+  color: var(--s-err);
+}
+
+.termpanel__new,
+.termpanel__hide {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--s-radius);
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-md);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.termpanel__new:hover,
+.termpanel__hide:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.termpanel__hide {
+  margin-left: auto;
+}
+
+.termpanel__mount {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 10px 6px;
+}
+
+.termpanel__host {
+  height: 100%;
+}
+
+.termpanel__host .xterm {
+  height: 100%;
+}

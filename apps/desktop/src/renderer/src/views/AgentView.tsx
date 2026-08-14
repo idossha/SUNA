@@ -1,6 +1,65 @@
 import { useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react'
 import { AGENT_PROVIDERS, useAgentChatStore, type AgentProvider } from '../state/agentChat'
+import { useProjectStore } from '../state/project'
+import { openTerminalWithCommand } from '../terminal/sessions'
 import './views.css'
+import './agent-cli.css'
+
+const CLI_COLLABORATORS = [
+  { command: 'claude', label: 'Claude Code' },
+  { command: 'codex', label: 'Codex CLI' }
+] as const
+
+/**
+ * Subscription-path CLI launcher (flux pattern): write the project's MCP
+ * config, then launch the CLI in a terminal tab at the project cwd, so the
+ * user's own subscription login applies — no API key involved.
+ */
+function CliCollaborators(): JSX.Element {
+  const rootDir = useProjectStore((s) => s.rootDir)
+  const [note, setNote] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const launch = async (command: string, label: string): Promise<void> => {
+    setError(null)
+    if (rootDir === null) {
+      setError('Open a project first — the CLI runs in the project folder.')
+      return
+    }
+    try {
+      await window.suna.invoke('agent:write-mcp-config', { dir: rootDir })
+    } catch (err) {
+      setError(
+        `Could not write the MCP config: ${err instanceof Error ? err.message : String(err)}`
+      )
+      return
+    }
+    openTerminalWithCommand(command)
+    setNote(
+      `${label} is starting in the terminal with SUNA's manuscript tools exposed over MCP. ` +
+        `Sign-in and billing use your own ${label} subscription.`
+    )
+  }
+
+  return (
+    <div className="agent-cli">
+      <div className="view__section-title">CLI collaborators</div>
+      <div className="agent-cli__buttons">
+        {CLI_COLLABORATORS.map(({ command, label }) => (
+          <button key={command} className="btn" onClick={() => void launch(command, label)}>
+            Open {label} here
+          </button>
+        ))}
+      </div>
+      {error !== null && <div className="view__error">{error}</div>}
+      {note !== null && <p className="agent-cli__note agent-cli__note--ok">{note}</p>}
+      <p className="agent-cli__note">
+        Launches the CLI in the project folder using your own subscription login. SUNA&#39;s
+        manuscript tools (sections, references, figures) are exposed to it via MCP.
+      </p>
+    </div>
+  )
+}
 
 export function AgentView(): JSX.Element {
   const provider = useAgentChatStore((s) => s.provider)
@@ -45,7 +104,9 @@ export function AgentView(): JSX.Element {
 
   return (
     <div className="view agent">
+      <CliCollaborators />
       <div className="agent__setup">
+        <div className="view__section-title">API providers</div>
         <div className="agent__provider-row">
           <select
             className="view__select"
