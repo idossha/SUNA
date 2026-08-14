@@ -40,7 +40,7 @@ describe('bundled publisher profiles', () => {
 
       it('validates against PublisherProfileSchema', () => {
         const parsed = PublisherProfileSchema.parse(readProfileJson(id));
-        expect(parsed.schemaVersion).toBe(2);
+        expect(parsed.schemaVersion).toBe(3);
       });
 
       it('id matches its filename and lastVerified is the extraction date', () => {
@@ -206,6 +206,70 @@ describe('mnras facts from the OUP instructions to authors', () => {
       mnras.manuscript.requiredSections.some((s) => s.id === 'data-availability' && s.required),
     ).toBe(true);
     expect(mnras.manuscript.submissionFormat.doubleSpacing).toBe(false);
+  });
+});
+
+describe('provenance annotations on the bundled profiles', () => {
+  it('every bundled profile annotates all three sections', () => {
+    for (const id of BUNDLED_PROFILE_IDS) {
+      const p = profiles[id];
+      for (const section of [p.citations, p.figures, p.manuscript]) {
+        expect(section.provenance, `${id} section missing provenance`).toBeDefined();
+        expect(section.provenance?.length).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it("documented entries carry a source URL; inferred entries may carry null", () => {
+    for (const id of BUNDLED_PROFILE_IDS) {
+      const p = profiles[id];
+      for (const section of [p.citations, p.figures, p.manuscript]) {
+        for (const entry of section.provenance ?? []) {
+          if (entry.basis === 'documented') {
+            expect(entry.source, `${id}: "${entry.claim}"`).toMatch(/^https?:\/\//);
+          }
+        }
+      }
+    }
+  });
+
+  it('nature-astronomy marks collapseRanges as inferred (not stated on official pages)', () => {
+    const entry = profiles['nature-astronomy'].citations.provenance?.find((e) =>
+      e.claim.startsWith('collapseRanges'),
+    );
+    expect(entry?.basis).toBe('inferred');
+    expect(entry?.source).toBeNull();
+  });
+
+  it('science records BOTH sides of the official column-width and line-weight conflicts', () => {
+    const claims = (profiles['science'].figures.provenance ?? []).map((e) => e.claim);
+    expect(claims.some((c) => c.startsWith('widthPresetsMm'))).toBe(true);
+    expect(claims.some((c) => c.includes('conflicting official widths'))).toBe(true);
+    expect(claims.some((c) => c.startsWith('lineWeightPt'))).toBe(true);
+    expect(claims.some((c) => c.includes('conflicting official line-weight'))).toBe(true);
+  });
+
+  it('apj-aas documents its stated figure minima from the graphics guide', () => {
+    const figures = profiles['apj-aas'].figures.provenance ?? [];
+    const minFont = figures.find((e) => e.claim.startsWith('minFontPt'));
+    expect(minFont?.basis).toBe('documented');
+    expect(minFont?.source).toBe('https://journals.aas.org/graphics-guide/');
+  });
+
+  it('nature-astronomy states the initial-submission stage severity downgrade', () => {
+    const nat = profiles['nature-astronomy'];
+    expect(nat.manuscript.stageSeverity).toEqual({
+      'initial-submission': 'warning',
+      accepted: 'error',
+    });
+    const entry = nat.manuscript.provenance?.find((e) => e.claim.startsWith('stageSeverity'));
+    expect(entry?.basis).toBe('inferred');
+  });
+
+  it('the other bundled profiles state no stage severity mapping', () => {
+    for (const id of ['apj-aas', 'mnras', 'science'] as const) {
+      expect(profiles[id].manuscript.stageSeverity).toBeUndefined();
+    }
   });
 });
 

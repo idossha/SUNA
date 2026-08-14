@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "science",
   "journalName": "Science",
   "publisher": "American Association for the Advancement of Science (AAAS)",
@@ -29,6 +29,28 @@
     "sources": [
       "https://www.science.org/content/page/instructions-preparing-initial-manuscript",
       "https://www.science.org/content/page/science-information-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "mode: parenthetical-numeric — citation numbers are placed within parentheses and italicized",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "collapseRanges: true — '(18, 19) (18–20) (18, 20–22)': commas for collation, en dashes for ranges",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "authorTruncation.etAlAllowed: false — 'Do not use ... et al. (in place of the complete list of authors' names)'",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "per-type maxReferences: Research Articles about 50, extended format up to 100, Reviews up to 150, Perspectives 15",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/science-information-authors"
+      }
     ]
   },
   "figures": {
@@ -55,6 +77,38 @@
       "https://www.science.org/content/page/instructions-preparing-initial-manuscript",
       "https://www.science.org/content/page/instructions-preparing-revised-manuscript",
       "https://www.science.org/cms/asset/67f37ac8-4d02-4625-8a05-230568cb8323/author_prep_guide_2025.pdf"
+    ],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm: single 90 / double 183 — the 2025 Guide to Preparing Figures fit box: '1 column = 21p3 picas (9 cm)', '2 column = 43p4 picas (18.3 cm)'",
+        "basis": "documented",
+        "source": "https://www.science.org/cms/asset/67f37ac8-4d02-4625-8a05-230568cb8323/author_prep_guide_2025.pdf"
+      },
+      {
+        "claim": "conflicting official widths (recorded, not encoded): the instruction pages state 5.7/12.1/18.4 cm for 1/2/3 columns; the 2025 guide reflects the current layout",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "lineWeightPt.min: 0.28 — 2025 guide: 'At final print size, minimum line weight is 0.28 pt (~0.10 mm)'",
+        "basis": "documented",
+        "source": "https://www.science.org/cms/asset/67f37ac8-4d02-4625-8a05-230568cb8323/author_prep_guide_2025.pdf"
+      },
+      {
+        "claim": "conflicting official line-weight minimum (recorded, not encoded): the instruction pages state 0.5 pt at the final reduced size",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "fonts: sans-serif (preferably Arial or Helvetica), labels 6–9 pt, panel letters 10 pt bold uppercase",
+        "basis": "documented",
+        "source": "https://www.science.org/cms/asset/67f37ac8-4d02-4625-8a05-230568cb8323/author_prep_guide_2025.pdf"
+      },
+      {
+        "claim": "redGreenDiscouraged: 'Avoid using combinations of red and green'",
+        "basis": "documented",
+        "source": "https://www.science.org/cms/asset/67f37ac8-4d02-4625-8a05-230568cb8323/author_prep_guide_2025.pdf"
+      }
     ]
   },
   "manuscript": {
@@ -120,6 +174,28 @@
       "https://www.science.org/content/page/instructions-preparing-initial-manuscript",
       "https://www.science.org/content/page/science-information-authors",
       "https://www.science.org/content/page/instructions-preparing-revised-manuscript"
+    ],
+    "provenance": [
+      {
+        "claim": "titleLimitChars: 96 — 'Titles should be no more than 96 characters (including spaces)'",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "research-article: main text up to 3000 words, abstract 125 words or less, 3 to 5 display items, about 50 main-text references",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/science-information-authors"
+      },
+      {
+        "claim": "doubleSpacing: false — 'Use single spacing throughout the text, tables, figure captions, and reference list'",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      },
+      {
+        "claim": "availabilityStatements data+code: Acknowledgments must end with 'Data, code, and materials availability:'",
+        "basis": "documented",
+        "source": "https://www.science.org/content/page/instructions-preparing-initial-manuscript"
+      }
     ]
   },
   "notes": [

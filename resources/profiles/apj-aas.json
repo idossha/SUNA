@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "apj-aas",
   "journalName": "The Astrophysical Journal (AAS Journals)",
   "publisher": "American Astronomical Society / IOP Publishing",
@@ -34,6 +34,38 @@
     "sources": [
       "https://journals.aas.org/manuscript-preparation/",
       "https://journals.aas.org/references/"
+    ],
+    "provenance": [
+      {
+        "claim": "mode: author-year — 'References should be cited in text by the last name of the author(s) and the date of publication', with first initials per current style",
+        "basis": "documented",
+        "source": "https://journals.aas.org/references/"
+      },
+      {
+        "claim": "authorYear: initials included, '&' joins two authors, 'et al.' from 3 authors, no comma before the date",
+        "basis": "documented",
+        "source": "https://journals.aas.org/references/"
+      },
+      {
+        "claim": "authorTruncation: articles with more than five authors list the first three followed by 'et al.'",
+        "basis": "documented",
+        "source": "https://journals.aas.org/references/"
+      },
+      {
+        "claim": "journalAbbreviation: ADS bibliographic codes 'except in rare instances (e.g., Icarus)'",
+        "basis": "documented",
+        "source": "https://journals.aas.org/references/"
+      },
+      {
+        "claim": "doiPolicy: DOIs written in full with either a 'doi:' or an 'https://doi.org/' prefix",
+        "basis": "documented",
+        "source": "https://journals.aas.org/references/"
+      },
+      {
+        "claim": "collapseRanges: false — no collating rules are stated; numeric ranges are not applicable to author-year citations",
+        "basis": "inferred",
+        "source": null
+      }
     ]
   },
   "figures": {
@@ -56,7 +88,39 @@
       "minDpi": 300
     },
     "panelLabel": { "letterCase": null, "weight": null, "wrapper": null },
-    "sources": ["https://journals.aas.org/graphics-guide/"]
+    "sources": ["https://journals.aas.org/graphics-guide/"],
+    "provenance": [
+      {
+        "claim": "minFontPt: 6 — 'A minimum of 6 pt. font size is acceptable' at final size",
+        "basis": "documented",
+        "source": "https://journals.aas.org/graphics-guide/"
+      },
+      {
+        "claim": "lineWeightPt.min: 0.5 — 'Lines in figures should be at minimum 0.5 points'",
+        "basis": "documented",
+        "source": "https://journals.aas.org/graphics-guide/"
+      },
+      {
+        "claim": "formats.minDpi: 300, with at least 1000 px of horizontal resolution for raster figures",
+        "basis": "documented",
+        "source": "https://journals.aas.org/graphics-guide/"
+      },
+      {
+        "claim": "colorAsSoleDelimiter: forbidden — 'the use of color as the only distinguishing delimiter in a figure should be generally avoided'",
+        "basis": "documented",
+        "source": "https://journals.aas.org/graphics-guide/"
+      },
+      {
+        "claim": "widthPresetsMm: all null — column widths in mm are not stated on the official Graphics Guide",
+        "basis": "documented",
+        "source": "https://journals.aas.org/graphics-guide/"
+      },
+      {
+        "claim": "panelLabel: all null — only placement (letter inside the box) is stated; case/weight/punctuation are not",
+        "basis": "documented",
+        "source": "https://journals.aas.org/graphics-guide/"
+      }
+    ]
   },
   "manuscript": {
     "articleTypes": [
@@ -113,6 +177,33 @@
       "https://journals.aas.org/the-astrophysical-journal-letters/",
       "https://journals.aas.org/research-note-preparation-guidelines/",
       "https://journals.aas.org/aastexguide/"
+    ],
+    "provenance": [
+      {
+        "claim": "abstractWordLimit: 'not more than 250 words' for main AAS journals; 150 for RNAAS",
+        "basis": "documented",
+        "source": "https://journals.aas.org/manuscript-preparation/"
+      },
+      {
+        "claim": "runningHeadLimitChars: 44 — short title 'not more than 44 characters'",
+        "basis": "documented",
+        "source": "https://journals.aas.org/manuscript-preparation/"
+      },
+      {
+        "claim": "apj-letter wordLimit: 3500 words soft — limits 'are no longer intended to be compulsory'",
+        "basis": "documented",
+        "source": "https://journals.aas.org/the-astrophysical-journal-letters/"
+      },
+      {
+        "claim": "rnaas wordLimit: hard 1500-word total including references and captions",
+        "basis": "documented",
+        "source": "https://journals.aas.org/research-note-preparation-guidelines/"
+      },
+      {
+        "claim": "submissionFormat.lineNumbers: true — required for submission and revision (RNAAS excepted)",
+        "basis": "documented",
+        "source": "https://journals.aas.org/manuscript-preparation/"
+      }
     ]
   },
   "notes": [

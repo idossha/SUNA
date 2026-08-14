@@ -1,4 +1,4 @@
-import { EditorState, type Extension } from '@codemirror/state'
+import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
   EditorView,
   keymap,
@@ -9,63 +9,62 @@ import {
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { searchKeymap } from '@codemirror/search'
 import { markdown } from '@codemirror/lang-markdown'
-import { syntaxHighlighting, HighlightStyle } from '@codemirror/language'
-import { tags } from '@lezer/highlight'
+import { json } from '@codemirror/lang-json'
+import { python } from '@codemirror/lang-python'
+import { javascript } from '@codemirror/lang-javascript'
+import { linter, lintGutter } from '@codemirror/lint'
+import { livePreview } from './livePreview'
+import { sunaJsonLinter } from './jsonLint'
+import { editorTheme } from './themes'
+import type { EditorThemeName } from './settings'
 
-const sunaEditorTheme = EditorView.theme(
-  {
-    '&': {
-      height: '100%',
-      fontSize: '13px',
-      backgroundColor: 'var(--s-bg-editor)',
-      color: 'var(--s-ink)'
-    },
-    '.cm-content': {
-      fontFamily: 'var(--s-font-mono)',
-      caretColor: 'var(--s-accent)',
-      padding: '12px 0',
-      lineHeight: '1.65'
-    },
-    '.cm-line': { padding: '0 16px' },
-    '&.cm-focused': { outline: 'none' },
-    '.cm-cursor': { borderLeftColor: 'var(--s-accent)' },
-    '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-      backgroundColor: 'rgba(232, 180, 92, 0.18)'
-    },
-    '.cm-activeLine': { backgroundColor: 'rgba(255, 255, 255, 0.03)' },
-    '.cm-gutters': {
-      backgroundColor: 'var(--s-bg-editor)',
-      color: 'var(--s-ink-faint)',
-      border: 'none',
-      paddingLeft: '6px'
-    },
-    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--s-ink-muted)' }
-  },
-  { dark: true }
-)
-
-const sunaHighlight = HighlightStyle.define([
-  { tag: tags.heading, color: 'var(--s-accent)', fontWeight: '600' },
-  { tag: tags.emphasis, fontStyle: 'italic', color: '#c9c6f0' },
-  { tag: tags.strong, fontWeight: '700', color: '#f0ede8' },
-  { tag: tags.link, color: '#8ab4d8' },
-  { tag: tags.url, color: '#8ab4d8' },
-  { tag: tags.monospace, color: '#a8d8b8' },
-  { tag: tags.quote, color: 'var(--s-ink-muted)', fontStyle: 'italic' },
-  { tag: tags.meta, color: 'var(--s-ink-faint)' },
-  { tag: tags.processingInstruction, color: 'var(--s-ink-faint)' },
-  { tag: tags.labelName, color: '#d8a8c8' }
-])
+/** Extension-based language pick. `.bib` (and anything unknown) stays plain
+ *  and falls back to the shared highlight style. */
+export function languageExtensions(fileName: string): Extension[] {
+  const lower = fileName.toLowerCase()
+  const dot = lower.lastIndexOf('.')
+  const ext = dot >= 0 ? lower.slice(dot) : ''
+  switch (ext) {
+    case '.md':
+    case '.markdown':
+      return [markdown()]
+    case '.json':
+      return [json(), lintGutter(), linter(sunaJsonLinter(lower))]
+    case '.py':
+      return [python()]
+    case '.js':
+    case '.mjs':
+      return [javascript()]
+    case '.ts':
+      return [javascript({ typescript: true })]
+    default:
+      return []
+  }
+}
 
 export interface CreateEditorOptions {
   parent: HTMLElement
   doc: string
-  isMarkdown: boolean
+  fileName: string
+  theme: EditorThemeName
+  live: boolean
   onDocChanged: () => void
   onSave: () => void
 }
 
-export function createEditor(options: CreateEditorOptions): EditorView {
+export interface EditorHandle {
+  view: EditorView
+  /** Toggle Obsidian-style live preview decorations (markdown only). */
+  setLive: (on: boolean) => void
+  /** Swap the editor-surface theme without losing document state. */
+  setTheme: (name: EditorThemeName) => void
+  destroy: () => void
+}
+
+export function createEditor(options: CreateEditorOptions): EditorHandle {
+  const themeCompartment = new Compartment()
+  const liveCompartment = new Compartment()
+
   const extensions: Extension[] = [
     lineNumbers(),
     history(),
@@ -83,17 +82,28 @@ export function createEditor(options: CreateEditorOptions): EditorView {
       ...historyKeymap,
       ...searchKeymap
     ]),
-    sunaEditorTheme,
-    syntaxHighlighting(sunaHighlight, { fallback: true }),
+    themeCompartment.of(editorTheme(options.theme)),
+    liveCompartment.of(options.live ? livePreview() : []),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) options.onDocChanged()
-    })
+    }),
+    ...languageExtensions(options.fileName)
   ]
-  if (options.isMarkdown) extensions.push(markdown())
 
-  return new EditorView({
+  const view = new EditorView({
     state: EditorState.create({ doc: options.doc, extensions }),
     parent: options.parent
   })
+
+  return {
+    view,
+    setLive: (on) => {
+      view.dispatch({ effects: liveCompartment.reconfigure(on ? livePreview() : []) })
+    },
+    setTheme: (name) => {
+      view.dispatch({ effects: themeCompartment.reconfigure(editorTheme(name)) })
+    },
+    destroy: () => view.destroy()
+  }
 }

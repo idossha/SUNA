@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "nature-astronomy",
   "journalName": "Nature Astronomy",
   "publisher": "Springer Nature (Nature Portfolio)",
@@ -30,6 +30,33 @@
       "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting",
       "https://www.nature.com/natastron/content",
       "https://www.nature.com/nature/for-authors/formatting-guide"
+    ],
+    "provenance": [
+      {
+        "claim": "collapseRanges: true — collation/range formatting for in-text citation numbers is NOT stated on official pages; follows standard Nature-family typeset practice",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "mode: numeric-superscript — Nature Astronomy mandates numerical references; the superscript form is stated on the flagship Nature formatting guide",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "authorTruncation: more than 5 authors -> first author + 'et al.' (flagship guide; not restated by Nature Astronomy)",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "article maxReferences: 'up to 50 for the main text and another 50 for the Methods section'",
+        "basis": "documented",
+        "source": "https://www.nature.com/natastron/content"
+      },
+      {
+        "claim": "reference numbering order: Main Text, Methods, Data Availability, Tables, Figure Legends, Box, Extended Data Figures",
+        "basis": "documented",
+        "source": "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting"
+      }
     ]
   },
   "figures": {
@@ -67,6 +94,38 @@
       "http://research-figure-guide.nature.com/figures/preparing-figures-our-specifications/",
       "http://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/",
       "http://research-figure-guide.nature.com/figures/extended-data-formatting-guidelines/"
+    ],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm: single 88 / double 180 — branded-journals final-artwork guide; the journal's own AIP page caps panels at 180 mm width",
+        "basis": "documented",
+        "source": "https://www.nature.com/documents/NRJs-guide-to-preparing-final-artwork.pdf"
+      },
+      {
+        "claim": "conflicting umbrella widths (recorded, not encoded): the flagship figure-guide site quotes 89/183 mm and 170 mm max height for Nature itself",
+        "basis": "documented",
+        "source": "http://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/"
+      },
+      {
+        "claim": "minFontPt/maxFontPt: 'Use a 5–7 pt san serif font for standard text labelling'",
+        "basis": "documented",
+        "source": "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting"
+      },
+      {
+        "claim": "lineWeightPt: 0.25–1 — 'Our line range is between 0.25 pt and 1 pt' (Nature-family figure guide; not restated on the journal's own pages)",
+        "basis": "documented",
+        "source": "http://research-figure-guide.nature.com/figures/extended-data-formatting-guidelines/"
+      },
+      {
+        "claim": "suggestedHex: the Wong colour-blind-safe palette (Wong, Nature Methods 8, 441; 2011) required by the Nature-family figure guide",
+        "basis": "documented",
+        "source": "http://research-figure-guide.nature.com/figures/preparing-figures-our-specifications/"
+      },
+      {
+        "claim": "panelLabel: 8-pt bold, upright (not italic), lowercase a, b, c",
+        "basis": "documented",
+        "source": "http://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/"
+      }
     ]
   },
   "manuscript": {
@@ -132,11 +191,34 @@
       "lineNumbers": null,
       "acceptedFileTypes": ["pdf", "docx", "tex"]
     },
+    "stageSeverity": { "initial-submission": "warning", "accepted": "error" },
     "sources": [
       "https://www.nature.com/natastron/content",
       "https://www.nature.com/natastron/submission-guidelines/initial-formatting",
       "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting",
       "https://www.nature.com/natastron/editorial-policies/reporting-standards"
+    ],
+    "provenance": [
+      {
+        "claim": "article: 3000-word main text excluding abstract, Methods, references and figure captions; 200-word abstract; up to 6 display items",
+        "basis": "documented",
+        "source": "https://www.nature.com/natastron/content"
+      },
+      {
+        "claim": "availabilityStatements.data: true — a data availability statement is mandatory for all original research (Nature Portfolio policy)",
+        "basis": "documented",
+        "source": "https://www.nature.com/natastron/editorial-policies/reporting-standards"
+      },
+      {
+        "claim": "titleLimitChars: null — the 75-character limit is flagship-Nature-only and not restated by Nature Astronomy",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "stageSeverity: limits downgraded to warnings at initial submission — 'Your initial submission does not need to be specially formatted'; the stage-to-severity mapping itself is our interpretation",
+        "basis": "inferred",
+        "source": "https://www.nature.com/natastron/submission-guidelines/initial-formatting"
+      }
     ]
   },
   "notes": [
@@ -160,6 +242,7 @@
     "Figure legends: brief title plus short description of each panel; verbal cues rather than symbols; describe centre values, error bars, sample size n, statistical tests and P values; legend must not exceed the article-type word limit.",
     "Flagship-Nature-only numbers not restated by Nature Astronomy: 75-character title limit, double-spaced text with line numbers, legends <300 words.",
     "Analysis section headings must be fewer than 60 characters including spaces; Article subheadings are required in Results and Methods, none in Discussion; equations referred to as 'equation (1)'; Matters Arising allows up to 3 Extended Data items and starts with a summary paragraph in place of an abstract.",
-    "Supplementary Information as a single combined PDF (complex tables as Excel/.csv, software as .zip/.tar); generative-AI images not permitted for cover artwork; ORCID must be linked before final acceptance."
+    "Supplementary Information as a single combined PDF (complex tables as Excel/.csv, software as .zip/.tar); generative-AI images not permitted for cover artwork; ORCID must be linked before final acceptance.",
+    "stageSeverity: because initial submissions need no special formatting, limit checks report as warnings at the initial-submission stage and as errors once accepted; the revision stage keeps each limit's intrinsic severity."
   ]
 }

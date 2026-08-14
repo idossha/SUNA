@@ -2,7 +2,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { canvasToolsSeam } from './canvas/dev-seam'
+import { editorDevSeam } from './editor/devSeam'
 import { openFileTab } from './state/dock'
+import { useAgentChatStore } from './state/agentChat'
+import { useExplorerStore } from './state/explorer'
+import { useManuscriptStore } from './state/manuscript'
 import { useProjectStore } from './state/project'
 import { useUiStore } from './state/ui'
 import './styles/app.css'
@@ -15,7 +19,11 @@ if (import.meta.env.DEV) {
       openFileTab,
       projectStore: useProjectStore,
       uiStore: useUiStore,
-      canvasTools: canvasToolsSeam
+      canvasTools: canvasToolsSeam,
+      editorSettings: editorDevSeam.settingsStore,
+      explorerStore: useExplorerStore,
+      manuscriptStore: useManuscriptStore,
+      agentChatStore: useAgentChatStore
     }
   })
 }

@@ -1,8 +1,12 @@
 Galaxies falling into dense cluster environments experience ram pressure
 from the intracluster medium [@gunn1972], a process now observed in rich
-detail across the nearby universe [@cortese2021; @boselli2022]. Molecular
-gas has been found surviving deep into stripped tails [@jachym2019],
-raising the question of how quickly star formation actually shuts down.
+detail across the nearby universe [@cortese2021; @boselli2022], most
+spectacularly in the "jellyfish" galaxies revealed by integral-field
+surveys [@poggianti2017]. Molecular gas has been found surviving deep into
+stripped tails [@jachym2019], raising the question of how quickly star
+formation actually shuts down. Disentangling this environmental channel
+from the mass-driven quenching that operates everywhere is a central
+problem of galaxy evolution [@peng2010].
 
 The classical stripping condition compares ram pressure with the disk's
 restoring force per unit area:

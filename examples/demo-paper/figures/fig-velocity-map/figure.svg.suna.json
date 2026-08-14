@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "svgSha256": "84ec3d2b267e8d7a920525a9acb54affd23e89f0d8c54121aeb13b7a76d7d91e",
+  "widthMm": 88.0,
+  "heightMm": 70.0,
+  "axes": [
+    {
+      "gid": "ax0",
+      "xscale": "linear",
+      "yscale": "linear",
+      "anchors": {
+        "x": [
+          [
+            -12.0,
+            36.64913385826772
+          ],
+          [
+            12.0,
+            189.57796309055112
+          ]
+        ],
+        "y": [
+          [
+            -12.0,
+            163.67701304133857
+          ],
+          [
+            12.0,
+            10.74818380905515
+          ]
+        ]
+      }
+    },
+    {
+      "gid": "ax1",
+      "xscale": "linear",
+      "yscale": "linear",
+      "anchors": {
+        "x": [
+          [
+            0.0,
+            199.13601491756887
+          ],
+          [
+            1.0,
+            206.30474877583657
+          ]
+        ],
+        "y": [
+          [
+            -160.0,
+            158.89993700787403
+          ],
+          [
+            160.0,
+            15.525259842519688
+          ]
+        ]
+      }
+    }
+  ],
+  "generator": {
+    "script": "figures/fig-velocity-map/source/plot.py",
+    "mpl_version": "3.11.1"
+  }
+}

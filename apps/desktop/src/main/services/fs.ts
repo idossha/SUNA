@@ -1,4 +1,5 @@
-import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises'
+import { shell } from 'electron'
+import { readdir, readFile, writeFile, mkdir, rename } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { FsNode } from '@suna/core'
 import { assertInsideAllowedRoot } from './roots'
@@ -15,6 +16,34 @@ export async function writeText(path: string, content: string): Promise<number> 
   await mkdir(dirname(abs), { recursive: true })
   await writeFile(abs, content, 'utf8')
   return Buffer.byteLength(content, 'utf8')
+}
+
+/** Rename within the same directory; the new basename must not contain separators. */
+export async function renameEntry(path: string, newName: string): Promise<string> {
+  if (/[/\\]/.test(newName) || newName === '.' || newName === '..') {
+    throw new Error(`invalid file name: ${newName}`)
+  }
+  const abs = assertInsideAllowedRoot(path)
+  const target = join(dirname(abs), newName)
+  assertInsideAllowedRoot(target)
+  await rename(abs, target)
+  return target
+}
+
+/** Move to the OS trash — never a hard unlink, so users can recover. */
+export async function trashEntry(path: string): Promise<void> {
+  await shell.trashItem(assertInsideAllowedRoot(path))
+}
+
+export async function makeDir(path: string): Promise<void> {
+  await mkdir(assertInsideAllowedRoot(path), { recursive: true })
+}
+
+/** Create a new file; fails if it already exists (wx flag). */
+export async function createFile(path: string, content: string): Promise<void> {
+  const abs = assertInsideAllowedRoot(path)
+  await mkdir(dirname(abs), { recursive: true })
+  await writeFile(abs, content, { encoding: 'utf8', flag: 'wx' })
 }
 
 export async function listTree(dir: string): Promise<FsNode> {

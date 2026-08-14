@@ -77,6 +77,25 @@ export function AgentIcon(): JSX.Element {
   )
 }
 
+export function NewFileIcon(): JSX.Element {
+  return (
+    <Icon>
+      <path d="M7 3.5h6.5L18 8v12.5H7z" />
+      <path d="M13.5 3.5V8H18" />
+      <path d="M12.5 11.5v5M10 14h5" />
+    </Icon>
+  )
+}
+
+export function NewFolderIcon(): JSX.Element {
+  return (
+    <Icon>
+      <path d="M4 6.5C4 5.7 4.7 5 5.5 5h4l2 2.5h7c.8 0 1.5.7 1.5 1.5V18c0 .8-.7 1.5-1.5 1.5h-13c-.8 0-1.5-.7-1.5-1.5v-11.5z" />
+      <path d="M12 11v5M9.75 13.5h4.5" />
+    </Icon>
+  )
+}
+
 export const VIEW_ICONS: Record<SidebarView, () => JSX.Element> = {
   explorer: ExplorerIcon,
   manuscript: ManuscriptIcon,

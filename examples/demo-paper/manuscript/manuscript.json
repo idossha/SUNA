@@ -71,15 +71,34 @@
       "panels": []
     }
   ],
-  "tables": [],
+  "tables": [
+    {
+      "id": "tab-observed",
+      "namespace": "main",
+      "source": "native",
+      "caption": {
+        "title": "Observed and derived properties of the stripped galaxy.",
+        "body": "Fitted quantities are read from results/spectrum_fit.json; the stripping radius is computed by code/stripping_model.py."
+      },
+      "footnotes": [
+        {
+          "mark": "a",
+          "text": "Gaussian centroid of the H\\alpha line from analysis/fit_spectrum.py."
+        }
+      ]
+    }
+  ],
   "availability": {
     "data": "The demo data underlying this example are included in the project's data/ directory.",
-    "code": "All figure-generating scripts are stored beside their figures under figures/*/source/ and run with suna_mpl."
+    "code": "Figure-generating scripts live beside their figures under figures/*/source/; the analysis pipeline is in analysis/, reusable model code in code/, and derived products in results/. Everything runs with suna_mpl via uv."
   },
   "backMatter": {
     "acknowledgements": "We thank the SUNA platform for existing.",
     "authorContributions": "A.R. wrote the example. B.C. reviewed it.",
-    "funding": [],
+    "funding": [
+      { "funder": "Example Science Foundation", "grant": "ESF-2026-0042" },
+      { "funder": "Cosmic Discovery Trust", "grant": null }
+    ],
     "competingInterests": "The authors declare no competing interests.",
     "peerReview": null,
     "supplementaryInfo": null

@@ -260,7 +260,11 @@ function checkRasterDpi(doc: CanvasDocument, ctx: Ctx): void {
     const widthIn = (widthUser * mmPerUser) / 25.4;
     if (widthIn <= 0) continue;
     const dpi = pxWidth / widthIn;
-    if (dpi < minDpi) {
+    // Exporters emit round(inches × dpi) pixels, so an image rendered at
+    // exactly minDpi can measure a hair under it. Half a pixel of tolerance
+    // absorbs that rounding without excusing genuinely low-res rasters.
+    const tolerance = 0.5 / widthIn;
+    if (dpi + tolerance < minDpi) {
       ctx.out.push({
         id: 'fig.raster-dpi',
         severity: 'error',

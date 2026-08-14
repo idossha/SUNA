@@ -1,3 +1,9 @@
+A stripping radius of 8.4 kpc with an intact inner disk places the demo
+galaxy squarely in the outside-in quenching regime seen in resolved
+observations of jellyfish systems [@poggianti2017], while its position
+relative to the main sequence is consistent with environment acting on top
+of, not instead of, mass quenching [@peng2010].
+
 The demo results are synthetic, but the workflow is the point: edits made
 to a figure on the SUNA canvas are recorded against the generating script,
 citations renumber themselves per the active journal profile, and the

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "mnras",
   "journalName": "Monthly Notices of the Royal Astronomical Society",
   "publisher": "Royal Astronomical Society / Oxford University Press",
@@ -31,7 +31,34 @@
       "sortOrder": "alphabetical"
     },
     "maxReferences": null,
-    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"]
+    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"],
+    "provenance": [
+      {
+        "claim": "mode: author-year (Harvard); the current official page's examples include first initials — '(J. Brown 1999)', 'J. Brown & P. Jones (1991)'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "etAlFromNAuthors: 4 — three authors are all named at first mention; four or more are always first author 'et al.'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "authorTruncation: 'List all of the authors if there are eight or fewer, otherwise give just the first author followed by et al.'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "doiPolicy: null — no DOI-printing requirement is stated; links are generated from reference details",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "collapseRanges: false — same-author years collate as '(J. Brown 1992, 1995)'; numeric ranges are not applicable to author-year citations",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
   },
   "figures": {
     "widthPresetsMm": { "single": 80, "onehalf": null, "double": null },
@@ -53,7 +80,34 @@
       "minDpi": 300
     },
     "panelLabel": { "letterCase": "lower", "weight": null, "wrapper": "parens" },
-    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"]
+    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm.single: 80 — 'approx. 80 mm wide, or 3.15 inches'; no two-column width is stated",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "lineWeightPt.min: 0.3 — 'the weight should not be less than 0.3 pt at final size'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "redGreenDiscouraged: 'The use of red and green in the same figure is particularly problematic for some readers'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "panelLabel: lowercase letters in parentheses — 'labels (a), (b) etc.', embedded in the graphics file itself",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "minFontPt: null — only a target of 'around font size 8 point' at likely final size is stated, not a minimum",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      }
+    ]
   },
   "manuscript": {
     "articleTypes": [
@@ -92,7 +146,29 @@
       "lineNumbers": null,
       "acceptedFileTypes": ["tex", "pdf", "ps", "doc", "docx", "rtf", "txt"]
     },
-    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"]
+    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"],
+    "provenance": [
+      {
+        "claim": "abstractWordLimit: Papers 'normally of not more than 250 words'; Letters not more than 200",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "availabilityStatements.data: true — a Data Availability Statement 'is a requirement for articles published in MNRAS'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "doubleSpacing: false — 'formatted with two columns (except the abstract) and single line spaced'",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      },
+      {
+        "claim": "titleLimitChars and runningHeadLimitChars: null — no numeric limits are stated on the official page",
+        "basis": "documented",
+        "source": "https://academic.oup.com/mnras/pages/general_instructions"
+      }
+    ]
   },
   "notes": [
     "In-text citation examples on the current official page include first initials — '(J. Brown 1999)', 'J. Brown & P. Jones (1991)' — which differs from the traditional mnras.bst BibTeX output (no initials); verified verbatim on the Instructions to Authors page.",

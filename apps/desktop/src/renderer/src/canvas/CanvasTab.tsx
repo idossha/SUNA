@@ -557,6 +557,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     flushTx()
     try {
       await window.suna.invoke('fs:write-text', { path, content: session.doc.serialize() })
+      useProjectStore.getState().noteFileSaved(path)
       savedRevRef.current = revRef.current
       api.setTitle(fileName)
       note(`Saved ${fileName}`)
