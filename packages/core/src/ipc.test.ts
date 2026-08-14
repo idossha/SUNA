@@ -3,12 +3,24 @@ import { CHANNELS, FsNodeSchema, type FsNode, type RequestOf, type ResponseOf } 
 import { DEFAULT_PROJECT_DIRS } from './project';
 
 describe('CHANNELS', () => {
-  it('declares exactly the M1 channel set', () => {
+  it('declares exactly the workspace channel set', () => {
     expect(Object.keys(CHANNELS).sort()).toEqual([
+      'agent:chat',
+      'agent:provider-status',
+      'agent:set-key',
       'dialog:pick-directory',
+      'fs:create-file',
+      'fs:delete',
       'fs:list',
+      'fs:mkdir',
       'fs:read-text',
+      'fs:rename',
       'fs:write-text',
+      'git:commit',
+      'git:diff-file',
+      'git:init',
+      'git:log',
+      'git:status',
       'project:create',
       'project:open',
       'project:open-example',
