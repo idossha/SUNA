@@ -1,0 +1,83 @@
+/**
+ * Framework-free interaction core (canvas-editing-suite.md): tool FSM,
+ * transform-handle geometry, snapping, shape factories, keyboard helpers.
+ * World-space coordinates in; engine commands + ephemeral state out.
+ */
+export type {
+  CreationToolId,
+  EditorEvent,
+  GestureState,
+  HandleId,
+  KeyInput,
+  PointerInput,
+  SnapGuide,
+  ToolContext,
+  ToolId,
+  WorldPoint,
+  WorldRect,
+} from './types';
+export {
+  applyMatrixToRect,
+  constrainSquare,
+  cursorForHandle,
+  DRAG_THRESHOLD,
+  distance,
+  HANDLE_HIT_RADIUS,
+  HANDLE_IDS,
+  handleLayout,
+  handlePoint,
+  hitHandle,
+  IDENTITY_MATRIX,
+  isIdentityMatrix,
+  marqueeHits,
+  normalizeRect,
+  oppositeHandle,
+  rectCenter,
+  rectFromPoints,
+  rectsIntersect,
+  resizeMatrix,
+  ROTATE_HANDLE_OFFSET,
+  ROTATION_SNAP_DEGREES,
+  rotationDelta,
+  rotationMatrix,
+  snapRotation,
+  snapTo45,
+  translateRect,
+  unionRects,
+  type HandleLayout,
+  type ResizeOptions,
+} from './geometry';
+export {
+  MAX_SNAP_CANDIDATES,
+  SNAP_THRESHOLD,
+  SnapEngine,
+  type SnapPointResult,
+  type SnapRectResult,
+} from './snap';
+export {
+  ARROW_MARKER_ID,
+  arrowMarkerDefSnippet,
+  arrowSnippet,
+  DEFAULT_SHAPE_DEFAULTS,
+  ellipseSnippet,
+  escapeXml,
+  formatNumber,
+  lineSnippet,
+  rectSnippet,
+  textSnippet,
+  type ShapeDefaults,
+} from './factories';
+export {
+  DUPLICATE_OFFSET,
+  duplicateCommand,
+  NUDGE_STEP,
+  NUDGE_STEP_LARGE,
+  nudgeCommand,
+  nudgeDirectionForKey,
+  zOrderCommand,
+  zOrderModeForKey,
+  type DuplicateSource,
+  type NudgeDirection,
+  type ZOrderMode,
+} from './nudge';
+export { ToolController } from './tools';

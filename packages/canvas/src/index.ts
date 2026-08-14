@@ -10,3 +10,4 @@ export { CanvasDocument, lengthToMm, type Artboard, type ViewBox } from './docum
 export { ensureId, mintId, resolveTarget, type EnsuredId } from './address';
 export { dispatch } from './commands';
 export { CommandHistory, type HistoryEntry } from './history';
+export * as interact from './interact/index';
