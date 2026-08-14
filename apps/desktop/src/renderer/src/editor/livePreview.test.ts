@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { type DecorationSet, EditorView } from '@codemirror/view'
-import { extractSpans, livePreview } from './livePreview'
+import { extractSpans, livePreview, renderTableHtml } from './livePreview'
 
 describe('extractSpans', () => {
   it('finds display math with an equation label at exact offsets', () => {
@@ -126,6 +126,29 @@ describe('extractSpans', () => {
     expect(marks).toContainEqual({ from, to, cls: 'cm-lp-em' })
   })
 
+  it('finds a GFM table as a block span covering whole lines', () => {
+    const source = 'Intro.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nAfter.\n'
+    const { blocks } = extractSpans(source)
+    expect(blocks).toHaveLength(1)
+    const block = blocks[0]
+    if (block?.kind !== 'table') throw new Error('expected table span')
+    expect(block.md).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |')
+    expect(source.charAt(block.from - 1)).toBe('\n')
+    expect(source.charAt(block.to)).toBe('\n')
+  })
+
+  it('does not emit inline spans for citations inside table cells', () => {
+    const source = '| ref |\n| --- |\n| [@smith2020] |\n'
+    const { blocks, inline } = extractSpans(source)
+    expect(blocks[0]?.kind).toBe('table')
+    expect(inline).toHaveLength(0)
+  })
+
+  it('does not treat a pipe table inside a code fence as a table', () => {
+    const { blocks } = extractSpans('```\n| a | b |\n| --- | --- |\n| 1 | 2 |\n```\n')
+    expect(blocks).toHaveLength(0)
+  })
+
   it('returns sorted, non-overlapping replace spans for mixed content', () => {
     const source =
       '# Title\n\nSee [@a2020] and $y$ near @fig:one{b}.\n\n$$\nz\n$$\n\n![[fig:two]]\n'
@@ -174,6 +197,26 @@ describe('livePreview block decorations (headless state field)', () => {
     expect(countBlockDecorations(inside)).toBe(0)
     const outside = inside.update({ selection: EditorSelection.cursor(0) }).state
     expect(countBlockDecorations(outside)).toBe(1)
+  })
+
+  it('replaces a table, and reveals its source while the cursor is inside it', () => {
+    const doc = 'Intro.\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nAfter.\n'
+    const outside = EditorState.create({ doc, extensions: [livePreview()] })
+    expect(countBlockDecorations(outside)).toBe(1)
+    const inside = outside.update({
+      selection: EditorSelection.cursor(doc.indexOf('| 1 |') + 2)
+    }).state
+    expect(countBlockDecorations(inside)).toBe(0)
+    const left = inside.update({ selection: EditorSelection.cursor(0) }).state
+    expect(countBlockDecorations(left)).toBe(1)
+  })
+
+  it('renders table markdown to an HTML table through @suna/markdown', () => {
+    const html = renderTableHtml('| a | b |\n| --- | --- |\n| 1 | 2 |')
+    expect(html).toContain('<table')
+    expect(html).toContain('<th')
+    expect(html).toContain('<td')
+    expect(html).toContain('</table>')
   })
 
   it('rebuilds spans when the document changes', () => {

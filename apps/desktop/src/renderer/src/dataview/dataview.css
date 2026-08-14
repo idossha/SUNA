@@ -1,0 +1,142 @@
+/* ---------------------------------------------------------------------------
+   CSV/TSV data grid. The root also carries `.editor-tab`, which supplies the
+   --ed-* palette and the column flex layout; everything here is grid-specific.
+   --------------------------------------------------------------------------- */
+
+.dataview__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: none;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--ed-border);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+}
+
+.dataview__count {
+  margin-right: auto;
+  color: var(--ed-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.dataview__toggle {
+  padding: 3px 12px;
+  color: var(--ed-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.dataview__toggle:hover {
+  color: var(--ed-accent);
+  border-color: var(--s-border-strong);
+}
+
+.dataview__notice {
+  flex: none;
+  padding: 5px 16px;
+  color: var(--ed-ink-muted);
+  background: var(--s-bg-panel);
+  border-bottom: 1px solid var(--ed-border);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+}
+
+.dataview__notice--warn {
+  color: var(--s-err, #e0806a);
+}
+
+/* the single scroll box: vertical for rows, horizontal for wide tables */
+.dataview__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dataview__text {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dataview__text .cm-editor {
+  height: 100%;
+}
+
+.dataview__empty {
+  padding: 24px 16px;
+  color: var(--ed-ink-faint);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+}
+
+.dataview__table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  color: var(--ed-ink);
+  white-space: nowrap;
+}
+
+.dataview__table th,
+.dataview__table td {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--ed-border);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.dataview__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--s-bg-panel);
+  color: var(--ed-ink-muted);
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* sticky cells do not paint the table's own border, so draw our own */
+  box-shadow: inset 0 -1px 0 var(--ed-border);
+}
+
+.dataview__table tbody tr:nth-child(even) {
+  background: var(--ed-active-line);
+}
+
+.dataview__table tbody tr:hover {
+  background: var(--ed-selection);
+}
+
+/* row numbers stay pinned while the table scrolls sideways */
+.dataview__table .dataview__gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 3.5ch;
+  padding-right: 14px;
+  background: var(--ed-bg);
+  color: var(--ed-ink-faint);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  user-select: none;
+}
+
+.dataview__table thead .dataview__gutter {
+  z-index: 3;
+  background: var(--s-bg-panel);
+}
+
+.dataview__table .dataview__num {
+  font-family: var(--s-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

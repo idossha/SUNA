@@ -1,4 +1,5 @@
 import { useEffect, useRef, type JSX } from 'react'
+import { useSettingsStore } from '../state/settings'
 import {
   EDITOR_SETTINGS_LIMITS,
   EDITOR_THEME_LABELS,
@@ -20,6 +21,10 @@ interface SettingsPopoverProps {
 export function SettingsPopover({ onClose }: SettingsPopoverProps): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const settings = useEditorSettings()
+  // vim lives in the app-wide settings (shared with the Settings tab), not in
+  // the editor-local appearance store
+  const vimMotions = useSettingsStore((s) => s.settings['editor.vimMotions'])
+  const updateGlobal = useSettingsStore((s) => s.update)
 
   useEffect(() => {
     const onMouseDown = (event: MouseEvent): void => {
@@ -112,6 +117,15 @@ export function SettingsPopover({ onClose }: SettingsPopoverProps): JSX.Element 
             </option>
           ))}
         </select>
+      </div>
+      <div className="editor-settings__row editor-settings__row--toggle">
+        <label htmlFor="ed-set-vim">Vim motions</label>
+        <input
+          id="ed-set-vim"
+          type="checkbox"
+          checked={vimMotions}
+          onChange={(event) => void updateGlobal('editor.vimMotions', event.target.checked)}
+        />
       </div>
       <div className="editor-settings__footer">
         <button className="editor-settings__reset" onClick={() => settings.reset()}>

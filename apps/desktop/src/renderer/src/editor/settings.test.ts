@@ -1,10 +1,39 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   clampSetting,
+  editorSurfaceStyle,
   EDITOR_SETTINGS_DEFAULTS,
   FONT_FAMILY_STACKS,
   useEditorSettings
 } from './settings'
+
+describe('editorSurfaceStyle', () => {
+  it('publishes every --ed-* custom property the editor surface reads', () => {
+    const style = editorSurfaceStyle({
+      contentWidthCh: 72,
+      fontSizePx: 18,
+      fontFamily: 'mono',
+      lineHeight: 1.55,
+      editorTheme: 'suna-dark'
+    }) as Record<string, string>
+    // --ed-content-width is the one editor.css puts on .cm-content as a
+    // max-width, so a ch value here is what makes the slider change the measure
+    expect(style['--ed-content-width']).toBe('72ch')
+    expect(style['--ed-font-size']).toBe('18px')
+    expect(style['--ed-line-height']).toBe('1.55')
+    expect(style['--ed-body-font']).toBe(FONT_FAMILY_STACKS.mono)
+  })
+
+  it('tracks the width setting across its whole range', () => {
+    for (const width of [50, 68, 150]) {
+      const style = editorSurfaceStyle({
+        ...EDITOR_SETTINGS_DEFAULTS,
+        contentWidthCh: width
+      }) as Record<string, string>
+      expect(style['--ed-content-width']).toBe(`${width}ch`)
+    }
+  })
+})
 
 describe('clampSetting', () => {
   it('clamps to the documented ranges', () => {
@@ -58,6 +87,12 @@ describe('useEditorSettings store', () => {
     useEditorSettings.getState().reset()
     expect(useEditorSettings.getState().fontFamily).toBe('serif')
     expect(useEditorSettings.getState().editorTheme).toBe('suna-dark')
+  })
+
+  it('feeds the surface style from the store', () => {
+    useEditorSettings.getState().setContentWidthCh(92)
+    const style = editorSurfaceStyle(useEditorSettings.getState()) as Record<string, string>
+    expect(style['--ed-content-width']).toBe('92ch')
   })
 
   it('maps every font family to a token stack', () => {

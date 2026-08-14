@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { devSeam } from '../state/devSeam'
+import { useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
 import { createEditor, type EditorHandle } from './codemirror'
-import { FONT_FAMILY_STACKS, useEditorSettings } from './settings'
+import { editorSurfaceStyle, useEditorSettings } from './settings'
 import { EDITOR_THEME_CLASS } from './themes'
 import { SettingsPopover } from './SettingsPopover'
 import './editor.css'
@@ -45,15 +46,28 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<EditorHandle | null>(null)
   const dirtyRef = useRef(false)
-  const [mode, setMode] = useState<EditorViewMode>('source')
+
+  // App-wide defaults (persisted by the main process); the editor-local
+  // appearance store stays separate and is not written from here.
+  const defaultMode = useSettingsStore((s) => s.settings['editor.defaultMode'])
+  const vimMotions = useSettingsStore((s) => s.settings['editor.vimMotions'])
+
+  // Markdown opens in the app-wide default mode (reading unless overridden);
+  // everything else is source-only.
+  const [mode, setMode] = useState<EditorViewMode>(() =>
+    isMarkdown ? useSettingsStore.getState().settings['editor.defaultMode'] : 'source'
+  )
   const [loadError, setLoadError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const contentWidthCh = useEditorSettings((s) => s.contentWidthCh)
-  const fontSizePx = useEditorSettings((s) => s.fontSizePx)
-  const fontFamily = useEditorSettings((s) => s.fontFamily)
-  const lineHeight = useEditorSettings((s) => s.lineHeight)
-  const editorTheme = useEditorSettings((s) => s.editorTheme)
+  // Read by the async editor-creation effect, which resolves after mount.
+  const modeRef = useRef(mode)
+  const vimRef = useRef(vimMotions)
+  vimRef.current = vimMotions
+  const userPickedModeRef = useRef(false)
+
+  const editorSettings = useEditorSettings()
+  const editorTheme = editorSettings.editorTheme
 
   const markDirty = (dirty: boolean): void => {
     if (dirtyRef.current === dirty) return
@@ -83,6 +97,9 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
 
   useEffect(() => {
     let disposed = false
+    // idempotent; guarantees the default mode is known even if a tab mounts
+    // before the status bar's load
+    void useSettingsStore.getState().load()
     void (async () => {
       try {
         const { content } = await window.suna.invoke('fs:read-text', { path })
@@ -92,7 +109,8 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           doc: content,
           fileName,
           theme: useEditorSettings.getState().editorTheme,
-          live: false,
+          live: isMarkdown && modeRef.current === 'reading',
+          vim: vimRef.current,
           onDocChanged: () => markDirty(true),
           onSave: () => void save()
         })
@@ -115,8 +133,23 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     handleRef.current?.setTheme(editorTheme)
   }, [editorTheme])
 
+  // vim applies to both modes; the compartment swap keeps document state
+  useEffect(() => {
+    handleRef.current?.setVim(vimMotions)
+  }, [vimMotions])
+
+  // adopt the persisted default once settings arrive, unless ⌘E already ran
+  useEffect(() => {
+    if (!isMarkdown || userPickedModeRef.current) return
+    modeRef.current = defaultMode
+    setMode(defaultMode)
+    handleRef.current?.setLive(defaultMode === 'reading')
+  }, [defaultMode, isMarkdown])
+
   const toggleMode = (): void => {
     const next: EditorViewMode = mode === 'source' ? 'reading' : 'source'
+    userPickedModeRef.current = true
+    modeRef.current = next
     handleRef.current?.setLive(next === 'reading')
     setMode(next)
   }
@@ -149,18 +182,11 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     )
   }
 
-  const settingsStyle = {
-    '--ed-content-width': `${contentWidthCh}ch`,
-    '--ed-font-size': `${fontSizePx}px`,
-    '--ed-line-height': String(lineHeight),
-    '--ed-body-font': FONT_FAMILY_STACKS[fontFamily]
-  } as CSSProperties
-
   return (
     <div
       ref={rootRef}
       className={`editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
-      style={settingsStyle}
+      style={editorSurfaceStyle(editorSettings)}
     >
       <div className="editor-tab__toolbar editor-tab__toolbar--row">
         {isMarkdown && (

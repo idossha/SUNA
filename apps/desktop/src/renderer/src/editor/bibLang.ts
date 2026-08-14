@@ -1,3 +1,4 @@
+import { autocompletion } from '@codemirror/autocomplete'
 import { StreamLanguage, type StringStream } from '@codemirror/language'
 import type { Extension } from '@codemirror/state'
 import type { Diagnostic } from '@codemirror/lint'
@@ -359,7 +360,8 @@ function token(stream: StringStream, state: BibStreamState): string | null {
     return 'comment'
   }
 
-  const ch = stream.peek()
+  // never empty: CodeMirror only calls the tokenizer while !stream.eol()
+  const ch = stream.peek() ?? ''
 
   if (ch === '}' || ch === ')') {
     stream.next()
@@ -402,11 +404,11 @@ function token(stream: StringStream, state: BibStreamState): string | null {
     stream.eat('"')
     return 'string'
   }
-  if (ch !== null && /\d/.test(ch)) {
+  if (/\d/.test(ch)) {
     stream.eatWhile(/\d/)
     return 'number'
   }
-  if (ch !== null && /[A-Za-z]/.test(ch)) {
+  if (/[A-Za-z]/.test(ch)) {
     stream.eatWhile(/[\w-]/)
     // A bare word in value position is a @string macro reference.
     return state.inValue ? 'atom' : 'propertyName'
@@ -432,5 +434,6 @@ export const bibStreamParser = {
 }
 
 export function bibLanguage(): Extension {
-  return StreamLanguage.define(bibStreamParser)
+  // autocompletion() activates the source registered as language data above
+  return [StreamLanguage.define(bibStreamParser), autocompletion()]
 }

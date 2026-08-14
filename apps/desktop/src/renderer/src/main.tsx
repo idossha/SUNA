@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { canvasToolsSeam } from './canvas/dev-seam'
+import { dataviewDevSeam } from './dataview/devSeam'
 import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
 import { openFileTab } from './state/dock'
@@ -23,6 +24,8 @@ if (import.meta.env.DEV) {
       canvasTools: canvasToolsSeam,
       editorSettings: editorDevSeam.settingsStore,
       editorViewModes: editorDevSeam.viewModes,
+      editorBibDiagnostics: editorDevSeam.bibDiagnostics,
+      dataGrid: dataviewDevSeam,
       explorerStore: useExplorerStore,
       manuscriptStore: useManuscriptStore,
       manuscriptDocStore: manuscriptDevSeam.docStore,
