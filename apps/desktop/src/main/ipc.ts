@@ -3,12 +3,24 @@ import { access, cp, writeFile } from 'node:fs/promises'
 import { basename, join, relative, resolve, sep } from 'node:path'
 import {
   CHANNELS,
+  LIT_PROVIDER_IDS,
+  LIT_PROVIDER_META,
   type ChannelName,
   type RequestOf,
   type ResponseOf
 } from '@suna/core'
 import { getProvider } from '@suna/agent'
-import { getKey, hasKey, setKey } from './services/agent-keys'
+import {
+  getKey,
+  getLitKey,
+  hasKey,
+  hasLitKey,
+  setKey,
+  setLitKey
+} from './services/agent-keys'
+import { readCommentsFile, writeCommentsFile } from './services/comments'
+import { duplicateFigure } from './services/figure-duplicate'
+import { exportFigure } from './services/figure-export'
 import {
   createFile,
   listTree,
@@ -16,8 +28,11 @@ import {
   readText,
   renameEntry,
   trashEntry,
+  writeBinary,
   writeText
 } from './services/fs'
+import { lookupByDoi, searchLiterature } from './services/lit'
+import { updateManuscript } from './services/manuscript'
 import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
 import { createProject, openProject, scaffoldStatus } from './services/project'
 import { allowRoot } from './services/roots'
@@ -41,6 +56,19 @@ function mcpServerPath(): string {
 }
 
 const AGENT_PROVIDER_IDS = ['anthropic', 'openai', 'ollama'] as const
+
+/**
+ * Contact address for the Crossref/OpenAlex polite pools. Settings own it; the
+ * renderer writes either key with `settings:set`.
+ */
+async function politeMailto(): Promise<string | null> {
+  const settings = await readSettings()
+  for (const key of ['lit.mailto', 'user.email']) {
+    const value = settings[key]
+    if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  }
+  return null
+}
 
 /** The demo paper shipped with the repo (dev) or app resources (packaged). */
 async function exampleProjectDir(): Promise<string> {
@@ -139,6 +167,51 @@ export function registerIpcHandlers(): void {
     await createFile(path, content)
     return {}
   })
+
+  // manuscript.json / comments.json: read fresh, merge, validate, write atomically.
+  handle('manuscript:update', async ({ dir, patch }) => ({
+    manuscript: await updateManuscript(dir, patch)
+  }))
+  handle('comments:read', async ({ dir }) => ({ file: await readCommentsFile(dir) }))
+  handle('comments:write', async ({ dir, file }) => {
+    await writeCommentsFile(dir, file)
+    return {}
+  })
+
+  handle('lit:search', async ({ provider, query, limit }) =>
+    searchLiterature(provider, query, {
+      limit,
+      apiKey: await getLitKey(provider),
+      mailto: await politeMailto()
+    })
+  )
+  handle('lit:by-doi', async ({ provider, doi }) =>
+    lookupByDoi(provider, doi, {
+      apiKey: await getLitKey(provider),
+      mailto: await politeMailto()
+    })
+  )
+  handle('lit:set-key', async ({ provider, key }) => {
+    await setLitKey(provider, key)
+    return {}
+  })
+  handle('lit:providers', async () => ({
+    providers: await Promise.all(
+      LIT_PROVIDER_IDS.map(async (id) => ({
+        id,
+        hasKey: await hasLitKey(id),
+        keyless: LIT_PROVIDER_META[id].keyless
+      }))
+    )
+  }))
+
+  handle('figure:export', ({ dir, figureId, format, widthMm, dpi, transparent }) =>
+    exportFigure({ dir, figureId, format, widthMm, dpi, transparent })
+  )
+  handle('figure:write-binary', async ({ path, base64 }) => ({
+    path: await writeBinary(path, base64)
+  }))
+  handle('figure:duplicate', ({ dir, figureId, newId }) => duplicateFigure(dir, figureId, newId))
 
   handle('git:status', ({ dir }) => gitStatus(dir))
   handle('git:log', ({ dir, limit }) => gitLog(dir, limit))

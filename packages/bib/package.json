@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@retorquere/bibtex-parser": "^10.0.1"
+    "@retorquere/bibtex-parser": "^10.0.1",
+    "@suna/core": "workspace:*"
   }
 }

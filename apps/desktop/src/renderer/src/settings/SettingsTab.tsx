@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX } from 'react'
+import { LIT_PROVIDER_IDS, LIT_PROVIDER_META, type LitProviderId } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import {
   UI_SCALE_CHOICES,
@@ -19,6 +20,118 @@ const THEME_LABELS: Record<EditorThemeSetting, string> = {
   'high-contrast': 'High Contrast'
 }
 
+/** Only these providers accept a stored key server-side (agent-keys `lit:<id>` slots). */
+const KEY_CAPABLE_PROVIDERS = new Set<LitProviderId>(['openalex', 'ads'])
+
+interface LitProviderStatus {
+  id: LitProviderId
+  hasKey: boolean
+  keyless: boolean
+}
+
+function errMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** "Literature providers" settings section: key management for search/lookup. */
+function LitProvidersSection(): JSX.Element {
+  const [providers, setProviders] = useState<LitProviderStatus[]>([])
+  const [drafts, setDrafts] = useState<Partial<Record<LitProviderId, string>>>({})
+  const [busy, setBusy] = useState<LitProviderId | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const refresh = async (): Promise<void> => {
+    try {
+      const res = await window.suna.invoke('lit:providers', {})
+      setProviders(res.providers)
+    } catch (err) {
+      setError(errMessage(err))
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+  }, [])
+
+  const setKey = async (id: LitProviderId, key: string): Promise<void> => {
+    setBusy(id)
+    setError(null)
+    try {
+      await window.suna.invoke('lit:set-key', { provider: id, key })
+      setDrafts((d) => ({ ...d, [id]: '' }))
+      await refresh()
+    } catch (err) {
+      setError(errMessage(err))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <>
+      {error !== null && <div className="settings-tab__error">{error}</div>}
+      {LIT_PROVIDER_IDS.map((id) => {
+        const meta = LIT_PROVIDER_META[id]
+        const status = providers.find((p) => p.id === id)
+        const statusText =
+          status === undefined
+            ? '…'
+            : status.hasKey
+              ? 'Key saved.'
+              : status.keyless
+                ? 'No key needed.'
+                : 'No key set.'
+        return (
+          <div className="settings-tab__row" key={id}>
+            <label htmlFor={KEY_CAPABLE_PROVIDERS.has(id) ? `lit-key-${id}` : undefined}>
+              {meta.label}
+              <span className="settings-tab__hint">
+                {meta.note}{' '}
+                <span
+                  className={
+                    status?.hasKey === true
+                      ? 'settings-tab__status settings-tab__status--ok'
+                      : status?.keyless === false
+                        ? 'settings-tab__status settings-tab__status--warn'
+                        : 'settings-tab__status'
+                  }
+                >
+                  {statusText}
+                </span>
+              </span>
+            </label>
+            {KEY_CAPABLE_PROVIDERS.has(id) && (
+              <div className="settings-tab__keyrow">
+                <input
+                  id={`lit-key-${id}`}
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={status?.hasKey === true ? '••••••••' : 'API key'}
+                  value={drafts[id] ?? ''}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [id]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (drafts[id] ?? '') !== '') void setKey(id, drafts[id] ?? '')
+                  }}
+                />
+                <button
+                  disabled={busy === id || (drafts[id] ?? '') === ''}
+                  onClick={() => void setKey(id, drafts[id] ?? '')}
+                >
+                  Save
+                </button>
+                <button disabled={busy === id || status?.hasKey !== true} onClick={() => void setKey(id, '')}>
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
 /** Global Settings dock tab, persisted app-wide via settings:get/set. */
 export function SettingsTab(): JSX.Element {
   const settings = useSettingsStore((s) => s.settings)
@@ -29,6 +142,7 @@ export function SettingsTab(): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
 
   const [shellDraft, setShellDraft] = useState(settings['terminal.shell'])
+  const [mailtoDraft, setMailtoDraft] = useState(settings['lit.mailto'])
 
   useEffect(() => {
     void load()
@@ -37,11 +151,17 @@ export function SettingsTab(): JSX.Element {
   // adopt the persisted value once it arrives (or after another writer changes it)
   useEffect(() => {
     setShellDraft(settings['terminal.shell'])
+    setMailtoDraft(settings['lit.mailto'])
   }, [settings])
 
   const commitShell = (): void => {
     const value = shellDraft.trim()
     if (value !== settings['terminal.shell']) void update('terminal.shell', value)
+  }
+
+  const commitMailto = (): void => {
+    const value = mailtoDraft.trim()
+    if (value !== settings['lit.mailto']) void update('lit.mailto', value)
   }
 
   return (
@@ -153,6 +273,30 @@ export function SettingsTab(): JSX.Element {
             }}
           />
         </div>
+
+        <h2 className="settings-tab__section">Literature providers</h2>
+        <div className="settings-tab__row">
+          <label htmlFor="set-lit-mailto">
+            Contact email
+            <span className="settings-tab__hint">
+              Sent to Crossref/OpenAlex as a polite-pool contact (their preferred practice, not a
+              login). Falls back to none if empty.
+            </span>
+          </label>
+          <input
+            id="set-lit-mailto"
+            type="text"
+            spellCheck={false}
+            placeholder="you@university.edu"
+            value={mailtoDraft}
+            onChange={(e) => setMailtoDraft(e.target.value)}
+            onBlur={commitMailto}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitMailto()
+            }}
+          />
+        </div>
+        <LitProvidersSection />
 
         <h2 className="settings-tab__section">About</h2>
         <div className="settings-tab__info">

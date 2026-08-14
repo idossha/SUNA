@@ -2,6 +2,7 @@ import { shell } from 'electron'
 import { readdir, readFile, writeFile, mkdir, rename } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { FsNode } from '@suna/core'
+import { writeFileAtomic } from './atomic'
 import { assertInsideAllowedRoot } from './roots'
 
 const IGNORED_NAMES = new Set(['.git', 'node_modules', '.DS_Store', '__pycache__'])
@@ -16,6 +17,16 @@ export async function writeText(path: string, content: string): Promise<number> 
   await mkdir(dirname(abs), { recursive: true })
   await writeFile(abs, content, 'utf8')
   return Buffer.byteLength(content, 'utf8')
+}
+
+/**
+ * Write renderer-produced bytes (base64) inside the project — the raster half
+ * of figure export, where the canvas lives in the renderer.
+ */
+export async function writeBinary(path: string, base64: string): Promise<string> {
+  const abs = assertInsideAllowedRoot(path)
+  await writeFileAtomic(abs, Buffer.from(base64, 'base64'))
+  return abs
 }
 
 /** Rename within the same directory; the new basename must not contain separators. */

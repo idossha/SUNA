@@ -7,6 +7,7 @@ import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
 import { openFileTab } from './state/dock'
 import { useAgentChatStore } from './state/agentChat'
+import { useCommentsStore } from './state/comments'
 import { useExplorerStore } from './state/explorer'
 import { useManuscriptStore } from './state/manuscript'
 import { useProjectStore } from './state/project'
@@ -38,7 +39,12 @@ if (import.meta.env.DEV) {
       // 'Rendered as' preview profile, shared by the References view and the
       // combined manuscript tab (work items 3–5).
       renderProfileStore: useRenderProfileStore,
-      agentChatStore: useAgentChatStore
+      agentChatStore: useAgentChatStore,
+      // manuscript/comments.json state — a driver reloads it after an
+      // out-of-band write (an MCP add_comment) instead of restarting the app,
+      // and reads `comments` to assert anchoring/detached flips
+      // (docs/design/feature-plan-2.md §2).
+      commentsStore: useCommentsStore
     }
   })
 }

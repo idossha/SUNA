@@ -113,6 +113,62 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     above) and reopen — canvas edits saved to the SVG are currently
     overwritten by regeneration; the provenance overlay that replays them
     lands next.
+17. **Editable title page**: in the combined manuscript tab, click the
+    title, the running title, the abstract, the significance statement,
+    or a highlight — each becomes an inline editor in place, at the same
+    typography (Escape cancels, blur/⌘⏎ commits). Clicking the author
+    line or the affiliation list swaps that block for a compact row
+    editor with add/remove/reorder, per-author ORCID/e-mail, the
+    corresponding and equal-contribution flags, and an affiliation
+    multi-select; *Done* (or a click outside) returns to the journal
+    rendering. **Affiliation superscripts are derived, never stored** —
+    move an author up and the numbering follows, because it comes from
+    first appearance in author order. Every commit re-reads
+    `manuscript.json` from disk, merges, validates, and writes
+    atomically; type a malformed ORCID and you get an inline error with
+    the file left byte-identical.
+18. **Comments** (activity bar): select any text in a section of the
+    combined manuscript tab and press **⌘⇧M** — the Comments view opens
+    with a composer quoting your selection. Post it and the text carries
+    a subtle highlight plus a dot at the start of its line, and
+    `manuscript/comments.json` gains a W3C-style quote anchor (prefix /
+    quote / suffix). The prose itself is never touched. Edit the
+    sentence around the quote and the comment stays attached; delete the
+    quoted words and it is marked **detached** rather than dropped —
+    paste them back and it re-attaches. Filter all/open/resolved/mine,
+    reply, resolve, delete; click a card to scroll to and flash its
+    anchor. Agent-authored comments carry the model name in accent.
+    Agents reach the same file over MCP (`list_comments`, `add_comment`,
+    `reply_comment`, `resolve_comment`).
+19. **Canvas parity rail** (right panel of a figure tab): **Align**
+    (6 buttons + Distribute H/V, disabled with a hint under 2/3 selected),
+    **Figure** (artboard W/H mm with a live `= W × H mm` readout,
+    background colour, *Duplicate figure*, *Auto-letter panels* — one
+    batch, so one ⌘Z reverts the whole lettering pass, at the active
+    profile's case/weight/wrapper), **Palette** (Fill/Stroke toggle, a
+    *No fill* chip, ramps seeded from the profile's suggested palette,
+    *Import palette…*), and **Export** (SVG — a byte-identical copy of
+    the source — plus PDF, and a journal-spec raster block whose width
+    presets come from the *active profile*: for Nature Astronomy
+    *Single column (88 mm) / 1.5 column (120 mm) / Double column
+    (180 mm)*, with 300/600/1200 dpi, a transparent-background box, a
+    live `W × H mm @ N dpi · P×Q px` readout, and PNG/TIFF). The
+    **Rulers** toggle in the toolbar puts mm rulers around the viewport:
+    1 mm minor ticks, labels every 10 mm, origin at the artboard's
+    top-left, and a live cursor marker — they track pan and zoom.
+    Everything lands in the project's `output/`.
+20. **Literature search**: References view → **Search** tab. Crossref is
+    the default and needs no key; type a query and result cards show
+    title, authors, year, venue, citation count, with *Add to
+    references.bib* (generated `firstauthorYEARword` cite key, deduped),
+    *Copy DOI* and *Open*. The added entry shows up in the Library tab
+    and counts as **Uncited** until you cite it. *Find similar* on a
+    selected library entry seeds the search from that entry. OpenAlex now
+    meters requests: without budget or a key it answers **HTTP 429**, and
+    the panel says so verbatim with "try Crossref instead" inline rather
+    than showing an empty list. NASA ADS asks for its free key; arXiv is
+    best-effort. Agents get `search_literature`, `lookup_doi` and
+    `add_reference` over MCP.
 
 ## Agent / CI smoke test
 
@@ -121,7 +177,7 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
 Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
-default 9321) and drives 33 steps end to end. The userData example copy
+default 9321) and drives 43 steps end to end. The userData example copy
 is **deleted before launch**, so every run exercises the pristine
 copy-on-open path (fresh git repo, exactly one initial commit); the two
 *persisted view preferences* — the editor appearance store and the
@@ -201,12 +257,94 @@ it:
     spilling out of its row, titles clamped to two lines; and the
     manuscript summary title renders KaTeX with no raw `$`.
 
+Steps 34–43 are the acceptance criteria of
+`docs/design/feature-plan-2.md`, measured the same way:
+
+34. **title-page-edits-manuscript-json** — the title page renders the
+    journal author line with *derived* affiliation superscripts and is
+    click-to-edit (`role="button"`). Rename author 2 in the row editor →
+    `manuscript/manuscript.json` on disk carries the new family name and
+    nothing else moved. Type a malformed ORCID → a visible
+    `.tp__field-error` naming the author, the input marked
+    `--invalid`, and the file **byte-identical** (compared as buffers).
+    Move author 2 up → the rendered line starts `Ben Kowalczyk1`, the
+    affiliation list reorders so *his* institute is superscript 1, disk
+    order is `[a2, a1]`, and no number was persisted.
+35. **comments-select-create-anchor** — drag-select *"best-fit
+    centroid"* in the Results editor with real mouse events, press
+    **⌘⇧M**: the draft carries a prefix/quote/suffix anchor for
+    `sections/02-results.md` and the Comments view opens. Post it →
+    `comments.json` holds exactly that anchor, the section prose contains
+    no marker, and the editor paints one `.cmt-anchor` over the quote
+    plus one `.cmt-line-dot`.
+36. **comments-survive-edits-then-detach** — insert *"carefully
+    measured"* before the quote and ⌘S: still attached, still
+    highlighted. Delete the quoted words and ⌘S: the comment is
+    **kept** and flipped to `detached` (chip in the panel, highlight
+    gone, still in the file). Type the words back: it re-attaches.
+37. **comments-mcp-add-shows-in-app** — the *bundled* MCP server
+    (`packages/agent/dist-mcp/server.mjs`, built on demand) is driven
+    over real stdio JSON-RPC to `add_comment` on the same example copy;
+    reloading the store in the app shows two comments, one badged as the
+    agent, with both anchors highlighted.
+38. **canvas-align-and-rulers** — scoped to the *visible* canvas tab (two
+    figures are open by now, and dockview keeps the hidden one mounted at
+    zero size). Rulers: 181 horizontal and 59 vertical 1 mm ticks for the
+    180 × 58 mm artboard, labels `0,10,…,180`, and the 0 mm and max ticks
+    land within 1 px of the artboard's on-screen edges — with a
+    non-degenerate-geometry guard so a hidden panel cannot pass it
+    vacuously. Align: two rects drawn inside the artboard, shift-click to
+    select both (Distribute stays disabled at 2 with its "at least 3"
+    hint), *Align left* puts both left edges at the same world x
+    (< 0.01 user units apart, at the leftmost of the two), **one ⌘Z**
+    restores the moved one, and two more undos remove the scratch rects.
+39. **canvas-auto-letter-panels** — *Auto-letter panels* inserts exactly
+    two bold `a` / `b` labels in reading order (Nature Astronomy:
+    lowercase, bold, unwrapped) and **one** ⌘Z removes both, proving the
+    single `batch` command.
+40. **canvas-png-export-matches-readout** — the width dropdown is
+    profile-driven (`double | Double column (180 mm)`); at double column
+    / 300 dpi the readout reads `180 × 58 mm @ 300 dpi · 2126×685 px`
+    (2126 = 180 mm ⁄ 25.4 × 300, computed not hardcoded), and the PNG
+    written to `output/` is decoded from its **IHDR bytes**: the file's
+    real pixel dimensions must equal the readout's.
+41. **literature-search-and-add** — a **live** keyless Crossref search
+    for "ram pressure stripping". If the network answers, the first
+    result's *Add to references.bib* grows the file without rewriting the
+    existing entries, the generated key matches `firstauthorYEARword`,
+    and the Library tab counts 12 entries with the new one **uncited**.
+    If Crossref is unreachable the step still asserts the honest failure
+    (a visible error, never a silent empty list) and says so in the log.
+42. **literature-openalex-is-honest** — OpenAlex keyless is *expected* to
+    answer HTTP 429 here. The step requires either results (someone has
+    budget/a key) or an error naming the rate limit/budget/key **plus**
+    the inline "try Crossref" switch. A silent empty list fails.
+43. **mcp-server-exposes-all-verbs** — the bundled server is probed over
+    stdio for `tools/list`: all 15 verbs (including the four comment and
+    three literature tools) with JSON Schemas.
+
 Exit code 0 = pass. Screenshots (each sidebar view as `views-*.png`,
 `reading-mode.png`, `manuscript-doc.png`, `manuscript-outline-active.png`,
 the canvas/editing shots, plus `fix-code-fullwidth.png`,
 `fix-prose-widths.png`, `fix-manuscript-settings.png`,
-`fix-crossrefs.png` and `fix-authoryear.png` from the five steps above)
-land in `scripts/e2e/.artifacts/`; failures add `FAIL-<step>.png`.
+`fix-crossrefs.png` and `fix-authoryear.png` from the five steps above,
+plus `20-title-page-edit.png`, `21-comments.png`, `22-canvas-rail.png`
+and `23-lit-search.png` from steps 34–41) land in
+`scripts/e2e/.artifacts/`; failures add `FAIL-<step>.png`.
+
+### Probing the MCP server on its own
+
+```bash
+cd packages/agent && node build-mcp.mjs        # dist-mcp/server.mjs
+node scripts/e2e/mcp-probe.mjs --project examples/demo-paper
+node scripts/e2e/mcp-probe.mjs --project <dir> --call add_comment \
+  '{"path":"sections/02-results.md","quote":"…","body":"…"}'
+```
+
+`scripts/e2e/mcp-probe.mjs` speaks the same stdio JSON-RPC an agent CLI
+does: `--tools-only` checks the verb list and schemas, `--call` runs one
+tool and prints exactly its text (what the smoke test uses), `--json`
+makes the output machine-readable.
 
 Ad-hoc driving during development: run `SUNA_DEBUG_PORT=9310 pnpm dev`,
 then evaluate JS in the page — dev builds expose `window.__sunaDev` with
@@ -214,7 +352,9 @@ then evaluate JS in the page — dev builds expose `window.__sunaDev` with
 `editorSettings`, `editorViewModes`, `editorBibDiagnostics`,
 `editorContentKindFor`, `editorContentKindClass`, `dataGrid`,
 `explorerStore`, `manuscriptStore`, `manuscriptDocStore`,
-`renderProfileStore`, and `agentChatStore`.
+`renderProfileStore`, `agentChatStore`, and `commentsStore`.
+`canvasTools` always steers the canvas tab that is **visible**, not the
+last one mounted, so it stays usable with several figures open.
 
 ## Unit gates
 
