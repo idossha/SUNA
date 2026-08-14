@@ -1,10 +1,22 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { StateEffect } from '@codemirror/state'
+import type { Comment } from '@suna/core'
 import { createEditor, type EditorHandle } from '../editor/codemirror'
 import { useEditorSettings } from '../editor/settings'
+import { locate, makeAnchor } from '../comments/anchor'
+import {
+  applySectionComments,
+  commentAnchorExtension,
+  flashAnchor
+} from '../comments/anchorExtension'
+import '../comments/comments.css'
+import { commentsByPath, useCommentsStore } from '../state/comments'
 import { devSeam } from '../state/devSeam'
 import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useUiStore } from '../state/ui'
 import { applyCiteChips, applyCrossRefChips, applyEquationLabels } from './citeChips'
+
+const NO_COMMENTS: Comment[] = []
 
 interface SectionEditorProps {
   rootDir: string
@@ -46,6 +58,26 @@ export function SectionEditor({
   onDirtyChangeRef.current = onDirtyChange
   const onSettledRef = useRef(onSettled)
   onSettledRef.current = onSettled
+
+  // Comments targeting this section, for the anchor decorations below. This
+  // section editor is also what triggers the initial comments:read load —
+  // the anchor highlight/gutter dot should appear whether or not the human
+  // has ever opened the Comments sidebar view.
+  const allComments = useCommentsStore((s) => s.comments)
+  const commentsForPath = useMemo(
+    () => commentsByPath(allComments).get(contentPath) ?? NO_COMMENTS,
+    [allComments, contentPath]
+  )
+  const commentsForPathRef = useRef(commentsForPath)
+  commentsForPathRef.current = commentsForPath
+  const flashRequest = useCommentsStore((s) => s.flashRequest)
+
+  useEffect(() => {
+    const state = useCommentsStore.getState()
+    if (state.rootDir !== rootDir || (!state.loaded && !state.loading)) {
+      void useCommentsStore.getState().load(rootDir)
+    }
+  }, [rootDir])
 
   useEffect(() => {
     const fileName = contentPath.split('/').pop() ?? contentPath
@@ -111,6 +143,19 @@ export function SectionEditor({
           },
           onSave: () => void save()
         })
+        const view = handleRef.current.view
+        view.dispatch({
+          effects: StateEffect.appendConfig.of(
+            commentAnchorExtension((from, to) => {
+              const anchor = makeAnchor(view.state.doc.toString(), from, to)
+              useCommentsStore
+                .getState()
+                .startDraft({ kind: 'section', path: contentPath, anchor }, anchor.quote)
+              useUiStore.setState({ activeView: 'comments', sidebarVisible: true })
+            })
+          )
+        })
+        applySectionComments(view, commentsForPathRef.current)
         reportCount()
         onSettledRef.current(contentPath, true)
       } catch (error) {
@@ -142,6 +187,26 @@ export function SectionEditor({
   useEffect(() => {
     handleRef.current?.setTheme(editorTheme)
   }, [editorTheme])
+
+  // push comment-list changes (new/resolved/deleted comments anywhere) into
+  // this editor's live anchor decorations
+  useEffect(() => {
+    const view = handleRef.current?.view
+    if (view) applySectionComments(view, commentsForPath)
+  }, [commentsForPath])
+
+  // "scroll to and flash the anchor" requests from the Comments sidebar
+  // (views/CommentsView.tsx); a no-op unless the flashed comment targets
+  // this section and its quote still resolves in the live document.
+  useEffect(() => {
+    if (flashRequest === null) return
+    const view = handleRef.current?.view
+    const comment = commentsForPathRef.current.find((c) => c.id === flashRequest.commentId)
+    if (!view || comment === undefined || comment.target.kind !== 'section') return
+    const range = locate(view.state.doc.toString(), comment.target.anchor)
+    if (range === null) return
+    flashAnchor(view, range.from, range.to)
+  }, [flashRequest])
 
   // Resolve reading-mode citation and cross-reference chips against the
   // render data the References block publishes (numbers + preview-profile

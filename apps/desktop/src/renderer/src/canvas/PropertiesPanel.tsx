@@ -1,7 +1,13 @@
 import { useEffect, useState, type JSX } from 'react'
 import { interact, type CanvasDocument } from '@suna/canvas'
 import type { CanvasCommand, PublisherProfile } from '@suna/core'
+import { AlignSection } from './AlignSection'
 import { firstNumber, fmt, styleValue, toHexColor, type WorldRect } from './canvas-util'
+import { ExportSection } from './ExportSection'
+import { NumberField } from './fields'
+import { FigureSection } from './FigureSection'
+import { PaletteSection } from './PaletteSection'
+import type { Diagnostic } from '@suna/formatter'
 
 /** 1 pt = 0.3528 mm (canvas-engine.md §2). */
 const MM_PER_PT = 0.3528
@@ -20,51 +26,13 @@ interface PropertiesPanelProps {
   apply: (command: CanvasCommand, label: string) => boolean
   /** Continuous control gesture → debounced into one history transaction. */
   gestureApply: (command: CanvasCommand, label: string) => void
-}
-
-/** Number input that commits on Enter/blur (never per keystroke). */
-function NumberField(props: {
-  label: string
-  value: number | null
-  onCommit: (n: number) => void
-  step?: number
-  invalid?: string | null
-  disabled?: boolean
-}): JSX.Element {
-  const shown = props.value === null ? '' : fmt(props.value)
-  const [text, setText] = useState(shown)
-  const [editing, setEditing] = useState(false)
-  useEffect(() => {
-    if (!editing) setText(shown)
-  }, [shown, editing])
-  const commit = (): void => {
-    setEditing(false)
-    const n = Number(text)
-    if (text.trim() === '' || Number.isNaN(n)) return
-    if (props.value !== null && Math.abs(n - props.value) < 1e-6) return
-    props.onCommit(n)
-  }
-  return (
-    <label
-      className={`canvas-props__field${props.invalid ? ' canvas-props__field--invalid' : ''}`}
-      title={props.invalid ?? undefined}
-    >
-      <span>{props.label}</span>
-      <input
-        type="number"
-        value={text}
-        step={props.step ?? 1}
-        disabled={props.disabled ?? false}
-        onFocus={() => setEditing(true)}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          e.stopPropagation()
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-        }}
-      />
-    </label>
-  )
+  /** Project + figure identity, for Duplicate/Export/Palette persistence. */
+  rootDir: string | null
+  figureId: string | null
+  diagnostics: Diagnostic[]
+  note: (text: string) => void
+  /** Ensures figure.svg on disk matches the editor before an export reads it. */
+  save: () => Promise<void>
 }
 
 /** Color control: swatch + hex field + none toggle (+ optional palette row). */
@@ -159,9 +127,9 @@ export function PropertiesPanel(props: PropertiesPanelProps): JSX.Element {
   const el = doc && firstId !== undefined ? doc.getById(firstId) : null
   const single = selectedIds.length === 1
 
-  const body = ((): JSX.Element => {
+  const body = ((): JSX.Element | null => {
     if (!doc || !el || firstId === undefined) {
-      return <div className="canvas-props__empty">No selection</div>
+      return null
     }
 
     const bboxes = selectedIds
@@ -427,7 +395,38 @@ export function PropertiesPanel(props: PropertiesPanelProps): JSX.Element {
         </button>
         <span>Properties</span>
       </div>
-      <div className="canvas-props__body">{body}</div>
+      <div className="canvas-props__body">
+        <AlignSection selectedIds={selectedIds} apply={apply} />
+        <FigureSection
+          doc={doc}
+          mmPerUser={mmPerUser}
+          profile={profile}
+          rootDir={props.rootDir}
+          figureId={props.figureId}
+          apply={apply}
+          worldBboxOf={props.worldBboxOf}
+          note={props.note}
+        />
+        <PaletteSection
+          profile={profile}
+          rootDir={props.rootDir}
+          selectedIds={selectedIds}
+          apply={apply}
+          note={props.note}
+        />
+        <ExportSection
+          doc={doc}
+          rootDir={props.rootDir}
+          figureId={props.figureId}
+          profile={profile}
+          diagnostics={props.diagnostics}
+          note={props.note}
+          save={props.save}
+        />
+        {body !== null && <div className="canvas-props__divider" />}
+        {body}
+        {body === null && <div className="canvas-props__empty">No selection</div>}
+      </div>
     </div>
   )
 }

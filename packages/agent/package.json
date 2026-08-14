@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@suna/bib": "workspace:*",
     "@suna/core": "workspace:*",
     "@suna/formatter": "workspace:*",
     "jsdom": "^30.0.1",

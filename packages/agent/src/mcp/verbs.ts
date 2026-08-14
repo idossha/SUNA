@@ -2,6 +2,24 @@ import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { loadProjectContext, resolveInside, type ProjectContext } from './project'
+import {
+  addComment,
+  addCommentInput,
+  listComments,
+  listCommentsInput,
+  replyComment,
+  replyCommentInput,
+  resolveComment,
+  resolveCommentInput
+} from './comments'
+import {
+  addReference,
+  addReferenceInput,
+  lookupDoiInput,
+  lookupDoiTool,
+  searchLiteratureInput,
+  searchLiteratureTool
+} from './lit'
 
 /**
  * File-level manuscript verbs. These operate directly on the project on disk
@@ -163,7 +181,14 @@ export const TOOLS = [
   { name: 'list_figures', description: 'List figures with their caption titles', schema: listFiguresInput },
   { name: 'read_figure_svg', description: 'Read a figure SVG source', schema: readFigureSvgInput },
   { name: 'read_bib', description: 'Read the BibTeX bibliography', schema: readBibInput },
-  { name: 'check_figure_compliance', description: "Check a figure against the journal's author guidelines", schema: checkFigureComplianceInput }
+  { name: 'check_figure_compliance', description: "Check a figure against the journal's author guidelines", schema: checkFigureComplianceInput },
+  { name: 'list_comments', description: 'List review comments, optionally filtered by resolved status or section path', schema: listCommentsInput },
+  { name: 'add_comment', description: 'Add a review comment anchored to an exact quote in a manuscript section', schema: addCommentInput },
+  { name: 'reply_comment', description: 'Reply to an existing review comment thread', schema: replyCommentInput },
+  { name: 'resolve_comment', description: 'Mark a review comment resolved or open', schema: resolveCommentInput },
+  { name: 'search_literature', description: 'Search a literature provider (default Crossref, keyless)', schema: searchLiteratureInput },
+  { name: 'lookup_doi', description: 'Look up one work by DOI on a literature provider', schema: lookupDoiInput },
+  { name: 'add_reference', description: 'Look up a DOI and append it to references.bib', schema: addReferenceInput }
 ] as const
 
 export type ToolName = (typeof TOOLS)[number]['name']
@@ -194,6 +219,20 @@ export async function callTool(
       return readBib(ctx)
     case 'check_figure_compliance':
       return checkFigureCompliance(ctx, checkFigureComplianceInput.parse(args).figureId)
+    case 'list_comments':
+      return listComments(ctx, listCommentsInput.parse(args))
+    case 'add_comment':
+      return addComment(ctx, addCommentInput.parse(args))
+    case 'reply_comment':
+      return replyComment(ctx, replyCommentInput.parse(args))
+    case 'resolve_comment':
+      return resolveComment(ctx, resolveCommentInput.parse(args))
+    case 'search_literature':
+      return searchLiteratureTool(searchLiteratureInput.parse(args))
+    case 'lookup_doi':
+      return lookupDoiTool(lookupDoiInput.parse(args))
+    case 'add_reference':
+      return addReference(ctx, addReferenceInput.parse(args))
     default:
       throw new Error(`unknown tool: ${name}`)
   }

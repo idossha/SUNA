@@ -7,3 +7,8 @@ export type { CitationCluster, CitationMode, CitationStyleConfig, CiteRendering 
 export { assignNumbers, renderCluster } from './cite.js';
 export type { BibFormatConfig } from './format.js';
 export { formatReference } from './format.js';
+export { generateCiteKey, litResultToBibEntry } from './lit-entry.js';
+export type { LitLookupOutcome, LitRequestOptions, LitSearchOutcome } from './providers.js';
+export { lookupByDoi, searchLiterature } from './providers.js';
+export type { AppendLitResultOutcome } from './bib-write.js';
+export { appendLitResultToBib } from './bib-write.js';

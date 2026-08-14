@@ -240,7 +240,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
         )}
         {!stale && manuscript !== null && (
           <>
-            <TitlePage manuscript={manuscript} />
+            <TitlePage manuscript={manuscript} editable rootDir={rootDir} />
             <div className="msdoc__rule" />
             {rows.map((row, index) => (
               <section

@@ -9,10 +9,15 @@ describe('CHANNELS', () => {
       'agent:provider-status',
       'agent:set-key',
       'agent:write-mcp-config',
+      'comments:read',
+      'comments:write',
       'dialog:pick-directory',
       'env:detect',
       'env:select',
       'env:selected',
+      'figure:duplicate',
+      'figure:export',
+      'figure:write-binary',
       'fs:create-file',
       'fs:delete',
       'fs:list',
@@ -25,6 +30,11 @@ describe('CHANNELS', () => {
       'git:init',
       'git:log',
       'git:status',
+      'lit:by-doi',
+      'lit:providers',
+      'lit:search',
+      'lit:set-key',
+      'manuscript:update',
       'project:create',
       'project:open',
       'project:open-example',
@@ -89,6 +99,60 @@ describe('CHANNELS', () => {
     expect(CHANNELS['fs:write-text'].request.parse(req)).toEqual(req);
     const res: ResponseOf<'fs:write-text'> = { bytesWritten: 12 };
     expect(CHANNELS['fs:write-text'].response.parse(res)).toEqual(res);
+  });
+
+  it('passes a manuscript:update patch through untouched', () => {
+    const req = { dir: '/work/my-paper', patch: { authors: [{ id: 'a1' }] } };
+    expect(CHANNELS['manuscript:update'].request.parse(req)).toEqual(req);
+  });
+
+  it('rejects a lit:search with an unknown provider or a zero limit', () => {
+    const good = { provider: 'crossref', query: 'ram pressure stripping', limit: 20 };
+    expect(CHANNELS['lit:search'].request.parse(good)).toEqual(good);
+    expect(
+      CHANNELS['lit:search'].request.safeParse({ ...good, provider: 'scholar' }).success,
+    ).toBe(false);
+    expect(CHANNELS['lit:search'].request.safeParse({ ...good, limit: 0 }).success).toBe(false);
+  });
+
+  it('keeps the lit:search error channel open alongside results', () => {
+    const res: ResponseOf<'lit:search'> = { results: [], error: 'OpenAlex is rate-limited' };
+    expect(CHANNELS['lit:search'].response.parse(res)).toEqual(res);
+    expect(CHANNELS['lit:search'].response.safeParse({ results: [] }).success).toBe(false);
+  });
+
+  it('validates figure:export requests and pixel-dimension responses', () => {
+    const req: RequestOf<'figure:export'> = {
+      dir: '/work/my-paper',
+      figureId: 'fig-spectrum',
+      format: 'png',
+      widthMm: 180,
+      dpi: 300,
+      transparent: false,
+    };
+    expect(CHANNELS['figure:export'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['figure:export'].request.safeParse({ ...req, format: 'eps' }).success).toBe(
+      false,
+    );
+    const res: ResponseOf<'figure:export'> = {
+      path: '/work/my-paper/output/fig-spectrum.png',
+      widthPx: 2126,
+      heightPx: 685,
+    };
+    expect(CHANNELS['figure:export'].response.parse(res)).toEqual(res);
+    expect(
+      CHANNELS['figure:export'].response.safeParse({ ...res, widthPx: 2126.5 }).success,
+    ).toBe(false);
+  });
+
+  it('validates the lit:providers capability list', () => {
+    const res: ResponseOf<'lit:providers'> = {
+      providers: [
+        { id: 'crossref', hasKey: false, keyless: true },
+        { id: 'ads', hasKey: true, keyless: false },
+      ],
+    };
+    expect(CHANNELS['lit:providers'].response.parse(res)).toEqual(res);
   });
 });
 

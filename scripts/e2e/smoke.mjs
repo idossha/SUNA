@@ -20,7 +20,7 @@
  * Usage:  node scripts/e2e/smoke.mjs        (or: pnpm smoke)
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
  */
-import { spawn, execSync } from 'node:child_process'
+import { spawn, execSync, execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -130,6 +130,127 @@ const clickMenuItem = (label) =>
     if (!item) throw new Error('menu item missing: ${label}');
     item.click();
   })()`)
+
+/**
+ * Show a sidebar view without the toggle trap: clicking an already-active
+ * activity item HIDES the sidebar, so set the store instead.
+ */
+const showView = (view) =>
+  evalJs(
+    `window.__sunaDev.uiStore.setState({ activeView: ${JSON.stringify(view)}, sidebarVisible: true })`
+  )
+
+/** Set a React-controlled <input>/<textarea>/<select> the way a user would. */
+const setFieldJs = (selectorJs, value, tag = 'HTMLInputElement') =>
+  `(() => {
+    const el = ${selectorJs};
+    if (!el) throw new Error('field missing: ' + ${JSON.stringify(selectorJs)});
+    const set = Object.getOwnPropertyDescriptor(window.${tag}.prototype, 'value').set;
+    el.focus();
+    set.call(el, ${JSON.stringify(value)});
+    el.dispatchEvent(new Event('${tag === 'HTMLSelectElement' ? 'change' : 'input'}', { bubbles: true }));
+    return true;
+  })()`
+
+/**
+ * Drag-select `phrase` inside a manuscript section editor with real mouse
+ * events (a synthetic DOM Selection is discarded by CodeMirror). Returns the
+ * text CodeMirror ended up with selected.
+ */
+async function dragSelectInSection(phrase) {
+  // Scroll the phrase into view first: an off-screen rect would send the
+  // mouse press to whatever else happens to sit at those coordinates.
+  const locate = `(() => {
+    const P = ${JSON.stringify(phrase)};
+    for (const host of document.querySelectorAll('.msdoc__editor')) {
+      const content = host.querySelector('.cm-content');
+      if (!content || !content.textContent.includes(P)) continue;
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = node.textContent.indexOf(P);
+        if (i < 0) continue;
+        const r = document.createRange();
+        r.setStart(node, i); r.setEnd(node, i + P.length);
+        return { range: r, node };
+      }
+    }
+    return null;
+  })()`
+  const scrolled = await evalJs(`(() => {
+    const hit = ${locate};
+    if (hit === null) return false;
+    const el = hit.node.parentElement;
+    if (el) el.scrollIntoView({ block: 'center' });
+    return true;
+  })()`)
+  if (!scrolled) return null
+  await sleep(400)
+  const rect = await evalJs(`(() => {
+    const hit = ${locate};
+    if (hit === null) return null;
+    const b = hit.range.getBoundingClientRect();
+    const onScreen = b.width > 0 && b.top > 40 && b.bottom < window.innerHeight - 40;
+    return { x: b.x, y: b.y, w: b.width, h: b.height, onScreen };
+  })()`)
+  if (rect === null) return null
+  if (!rect.onScreen) {
+    throw new Error(
+      `"${phrase}" is not on screen (top ${Math.round(rect.y)}, height ${Math.round(rect.h)})`
+    )
+  }
+  const y = rect.y + rect.h / 2
+  await send('Input.dispatchMouseEvent', {
+    type: 'mousePressed', x: rect.x + 0.5, y, button: 'left', clickCount: 1
+  })
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: rect.x + rect.w / 2, y, button: 'left', buttons: 1
+  })
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x: rect.x + rect.w - 0.5, y, button: 'left', buttons: 1
+  })
+  await send('Input.dispatchMouseEvent', {
+    type: 'mouseReleased', x: rect.x + rect.w - 0.5, y, button: 'left', clickCount: 1
+  })
+  await sleep(220)
+  return evalJs(`window.getSelection().toString()`)
+}
+
+/** Re-run the comments store's load — what a refresh does — and read it back. */
+const reloadComments = () =>
+  evalJs(`(async () => {
+    const root = window.__sunaDev.projectStore.getState().rootDir;
+    window.__sunaDev.commentsStore.setState({ loaded: false, loading: false });
+    await window.__sunaDev.commentsStore.getState().load(root);
+    const s = window.__sunaDev.commentsStore.getState();
+    return {
+      count: s.comments.length,
+      detached: s.comments.map((c) => c.detached),
+      authors: s.comments.map((c) => c.author.kind),
+      bodies: s.comments.map((c) => c.body),
+      anchorsInDom: document.querySelectorAll('.cm-content .cmt-anchor').length,
+      lineDots: document.querySelectorAll('.cm-line.cmt-line-dot').length,
+      detachedChips: document.querySelectorAll('.cmt__detached').length
+    };
+  })()`)
+
+const MCP_PROBE = join(ROOT, 'scripts', 'e2e', 'mcp-probe.mjs')
+
+/** Build the standalone MCP bundle if it is not there yet (esbuild, ~50 ms). */
+function ensureMcpBundle() {
+  if (existsSync(join(ROOT, 'packages', 'agent', 'dist-mcp', 'server.mjs'))) return
+  execSync('node build-mcp.mjs', { cwd: join(ROOT, 'packages', 'agent'), stdio: 'ignore' })
+}
+
+/** Call one tool on the bundled MCP server over real stdio JSON-RPC. */
+function mcpCall(projectDir, name, args) {
+  ensureMcpBundle()
+  return execFileSync(
+    process.execPath,
+    [MCP_PROBE, '--project', projectDir, '--call', name, JSON.stringify(args)],
+    { cwd: ROOT, encoding: 'utf8' }
+  )
+}
 
 // ---------------------------------------------------------------- run
 console.log('SUNA smoke test')
@@ -1654,6 +1775,671 @@ try {
     })()`)
     assert(title.katex, 'sidebar manuscript title does not render KaTeX')
     assert(!title.text.includes('$'), `sidebar title still shows raw TeX: ${title.text}`)
+  })
+
+  // ======================= feature-plan-2.md acceptance =====================
+  // docs/design/feature-plan-2.md §1–4. Everything below asserts on real
+  // files inside the example copy, or on measured DOM boxes.
+
+  const MANUSCRIPT_JSON = join(COPY_DIR, 'manuscript', 'manuscript.json')
+  const COMMENTS_JSON = join(COPY_DIR, 'manuscript', 'comments.json')
+  const RESULTS_MD = join(COPY_DIR, 'manuscript', 'sections', '02-results.md')
+  const BIB = join(COPY_DIR, 'manuscript', 'references.bib')
+
+  /** Make the combined manuscript tab the active dock panel. */
+  const openManuscriptDoc = async () => {
+    const focused = await evalJs(`(() => {
+      const tab = [...document.querySelectorAll('.dv-tab')]
+        .find((t) => t.textContent.trim().replace(/\\s*[•✕×]\\s*$/, '') === 'Manuscript');
+      if (!tab) return false;
+      tab.click();
+      return true;
+    })()`)
+    if (!focused) {
+      await showView('manuscript')
+      await sleep(700)
+      await evalJs(`document.querySelector('.ms__open').click()`)
+    }
+    await sleep(2000)
+    assert(
+      await evalJs(`!!document.querySelector('.msdoc__titlepage')`),
+      'combined manuscript tab did not come up'
+    )
+  }
+
+  await step('title-page-edits-manuscript-json', async () => {
+    await openManuscriptDoc()
+    const shape = await evalJs(`({
+      titlepage: !!document.querySelector('.msdoc__titlepage'),
+      authorLine: document.querySelector('.msdoc__authors')?.textContent ?? '',
+      affs: [...document.querySelectorAll('.msdoc__affiliation')].map((d) => d.textContent),
+      clickToEdit: document.querySelector('.msdoc__authors')?.getAttribute('role') ?? null
+    })`)
+    assert(shape.titlepage, 'combined manuscript tab has no title page')
+    // The journal rendering — with DERIVED superscripts — is what you see
+    // until you click; the editors must never replace it permanently.
+    assert(
+      shape.authorLine.includes('Ada Researcher') && shape.authorLine.includes('Ben Collaborator'),
+      `author line: ${shape.authorLine}`
+    )
+    assert(
+      shape.affs.length === 2 && shape.affs[0].startsWith('1') && shape.affs[1].startsWith('2'),
+      `affiliation superscripts: ${JSON.stringify(shape.affs)}`
+    )
+    assert(shape.clickToEdit === 'button', 'authors block is not click-to-edit')
+
+    // --- rename an author -> manuscript.json on disk, still schema-valid ----
+    await evalJs(`document.querySelector('.msdoc__authors').click()`)
+    await sleep(250)
+    await evalJs(
+      setFieldJs(
+        `[...document.querySelectorAll('.tp__author-row')][1].querySelector('.tp__author-family')`,
+        'Kowalczyk'
+      )
+    )
+    await evalJs(
+      `[...document.querySelectorAll('.tp__author-row')][1].querySelector('.tp__author-family').blur()`
+    )
+    await sleep(1000)
+    const renamed = JSON.parse(readFileSync(MANUSCRIPT_JSON, 'utf8'))
+    assert(
+      renamed.authors[1].family === 'Kowalczyk',
+      `manuscript.json author 2: ${renamed.authors[1].family}`
+    )
+    assert(renamed.authors[0].family === 'Researcher', 'the other author was disturbed')
+    assert(Array.isArray(renamed.affiliations) && renamed.affiliations.length === 2,
+      'affiliations were disturbed by an author rename')
+
+    // --- an invalid ORCID: inline error, file byte-identical ---------------
+    const before = readFileSync(MANUSCRIPT_JSON)
+    await evalJs(
+      setFieldJs(
+        `[...document.querySelectorAll('.tp__author-row')][0].querySelector('.tp__author-orcid')`,
+        '1234-nope'
+      )
+    )
+    await evalJs(
+      `[...document.querySelectorAll('.tp__author-row')][0].querySelector('.tp__author-orcid').blur()`
+    )
+    await sleep(1200)
+    const rejected = await evalJs(`({
+      error: document.querySelector('.tp__authors-editor .tp__field-error')?.textContent ?? null,
+      invalidInput: !!document.querySelector('.tp__author-orcid--invalid')
+    })`)
+    assert(rejected.error !== null && /ORCID/i.test(rejected.error),
+      `no visible ORCID error, got: ${rejected.error}`)
+    assert(rejected.invalidInput, 'the offending ORCID input is not marked invalid')
+    assert(
+      readFileSync(MANUSCRIPT_JSON).equals(before),
+      'an invalid ORCID reached manuscript.json — the file changed'
+    )
+
+    // put a valid ORCID back so the doc is writable again
+    await evalJs(
+      setFieldJs(
+        `[...document.querySelectorAll('.tp__author-row')][0].querySelector('.tp__author-orcid')`,
+        '0000-0002-1825-0097'
+      )
+    )
+    await evalJs(
+      `[...document.querySelectorAll('.tp__author-row')][0].querySelector('.tp__author-orcid').blur()`
+    )
+    await sleep(900)
+
+    // --- reorder authors -> derived superscripts renumber -------------------
+    await evalJs(
+      `[...document.querySelectorAll('.tp__author-row')][1].querySelector('.tp__author-move-up').click()`
+    )
+    await sleep(900)
+    await evalJs(`document.querySelector('.tp__group-done')?.click()`)
+    await sleep(500)
+    const reordered = await evalJs(`({
+      authorLine: document.querySelector('.msdoc__authors')?.textContent ?? '',
+      affs: [...document.querySelectorAll('.msdoc__affiliation')].map((d) => d.textContent)
+    })`)
+    // Ben now leads, so HIS affiliation becomes superscript 1 — numbering is
+    // derived from author order, never stored.
+    assert(
+      reordered.authorLine.startsWith('Ben Kowalczyk1'),
+      `author line after reorder: ${reordered.authorLine}`
+    )
+    assert(
+      reordered.affs[0].includes('Institute for Cosmic Discovery') &&
+        reordered.affs[1].includes('Department of Astronomy'),
+      `affiliations did not renumber: ${JSON.stringify(reordered.affs)}`
+    )
+    const onDisk = JSON.parse(readFileSync(MANUSCRIPT_JSON, 'utf8'))
+    assert(onDisk.authors[0].id === 'a2', `author order on disk: ${onDisk.authors.map((a) => a.id)}`)
+    // superscripts are derived: nothing numeric is persisted
+    assert(
+      !JSON.stringify(onDisk.affiliations).includes('"number"'),
+      'affiliation numbers were persisted — they must stay derived'
+    )
+    await screenshot('20-title-page-edit.png')
+  })
+
+  await step('comments-select-create-anchor', async () => {
+    await openManuscriptDoc()
+    const selected = await dragSelectInSection('best-fit centroid')
+    assert(selected === 'best-fit centroid', `selection in the section editor: ${selected}`)
+    await key('m', 'KeyM', 12) // ⌘⇧M
+    await sleep(700)
+    const draft = await evalJs(`(() => {
+      const d = window.__sunaDev.commentsStore.getState().draft;
+      return {
+        path: d?.target?.path ?? null,
+        quote: d?.target?.anchor?.quote ?? null,
+        view: window.__sunaDev.uiStore.getState().activeView,
+        composer: !!document.querySelector('.cmt__draft')
+      };
+    })()`)
+    assert(draft.quote === 'best-fit centroid', `draft anchor quote: ${draft.quote}`)
+    assert(draft.path === 'sections/02-results.md', `draft target: ${draft.path}`)
+    assert(draft.view === 'comments', `selection did not open the Comments view: ${draft.view}`)
+    assert(draft.composer, 'no comment composer appeared')
+
+    await evalJs(
+      setFieldJs(
+        `document.querySelector('.cmt__draft .view__textarea')`,
+        'Should this be the vacuum wavelength?',
+        'HTMLTextAreaElement'
+      )
+    )
+    await sleep(150)
+    await evalJs(`[...document.querySelectorAll('.cmt__draft .cmt__btn')]
+      .find((b) => b.textContent.trim() === 'Comment').click()`)
+    await sleep(1200)
+
+    const file = JSON.parse(readFileSync(COMMENTS_JSON, 'utf8'))
+    assert(file.schemaVersion === 1, `comments.json schemaVersion: ${file.schemaVersion}`)
+    assert(file.comments.length === 1, `comments.json entries: ${file.comments.length}`)
+    assert(
+      file.comments[0].target.anchor.quote === 'best-fit centroid',
+      `stored anchor: ${JSON.stringify(file.comments[0].target.anchor)}`
+    )
+    assert(file.comments[0].author.kind === 'human', 'comment is not attributed to the human')
+    // sidecar only: the prose must be untouched
+    assert(
+      !readFileSync(RESULTS_MD, 'utf8').includes(file.comments[0].id),
+      'a comment marker leaked into the section prose'
+    )
+    const ui = await evalJs(`({
+      cards: document.querySelectorAll('.cmt__card').length,
+      anchors: [...document.querySelectorAll('.cm-content .cmt-anchor')].map((a) => a.textContent),
+      lineDots: document.querySelectorAll('.cm-line.cmt-line-dot').length
+    })`)
+    assert(ui.cards === 1, `comment cards in the panel: ${ui.cards}`)
+    assert(
+      ui.anchors.length === 1 && ui.anchors[0] === 'best-fit centroid',
+      `anchor highlight: ${JSON.stringify(ui.anchors)}`
+    )
+    assert(ui.lineDots === 1, `anchor line dots: ${ui.lineDots}`)
+  })
+
+  await step('comments-survive-edits-then-detach', async () => {
+    await openManuscriptDoc()
+    // edit AROUND the quote -> still attached
+    const sel = await dragSelectInSection('with a ')
+    assert(sel === 'with a ', `could not select the surrounding text: ${sel}`)
+    await insertText('with a carefully measured ')
+    await sleep(300)
+    await key('s', 'KeyS', 4)
+    await sleep(1200)
+    let state = await reloadComments()
+    assert(state.count === 1, `comment count after editing around it: ${state.count}`)
+    assert(state.detached[0] === false, 'editing around the anchor detached the comment')
+    assert(state.anchorsInDom === 1, 'anchor highlight lost after an edit around it')
+
+    // delete the quoted text -> detached, NEVER dropped
+    const quote = await dragSelectInSection('best-fit centroid')
+    assert(quote === 'best-fit centroid', `could not select the quote: ${quote}`)
+    await key('Backspace', 'Backspace')
+    await sleep(300)
+    await key('s', 'KeyS', 4)
+    await sleep(1200)
+    state = await reloadComments()
+    assert(state.count === 1, `deleting the quote dropped the comment (count ${state.count})`)
+    assert(state.detached[0] === true, 'deleting the quoted text did not mark the comment detached')
+    assert(state.detachedChips === 1, 'the panel does not show a "detached" chip')
+    assert(state.anchorsInDom === 0, 'a detached comment still paints an anchor highlight')
+    assert(
+      JSON.parse(readFileSync(COMMENTS_JSON, 'utf8')).comments.length === 1,
+      'comments.json lost the detached comment'
+    )
+
+    // restore the quote -> it re-attaches (re-locate, never delete)
+    const gap = await dragSelectInSection('carefully measured  of')
+    assert(gap === 'carefully measured  of', `could not select the gap: ${gap}`)
+    await insertText('best-fit centroid of')
+    await sleep(300)
+    await key('s', 'KeyS', 4)
+    await sleep(1200)
+    state = await reloadComments()
+    assert(state.detached[0] === false, 'the comment did not re-attach once its quote came back')
+  })
+
+  await step('comments-mcp-add-shows-in-app', async () => {
+    await openManuscriptDoc()
+    const out = mcpCall(COPY_DIR, 'add_comment', {
+      path: 'sections/02-results.md',
+      quote: 'regular rotation pattern',
+      body: 'The kinematic asymmetry needs an uncertainty here.'
+    })
+    assert(/^added c-/.test(out.trim()), `MCP add_comment said: ${out.trim()}`)
+    const state = await reloadComments()
+    assert(state.count === 2, `comments after the MCP call: ${state.count}`)
+    assert(state.authors.includes('agent'), 'the agent-authored comment is missing')
+    assert(state.anchorsInDom === 2, `anchors after the MCP comment: ${state.anchorsInDom}`)
+    const agentBadge = await evalJs(
+      `document.querySelectorAll('.cmt__badge--agent').length`
+    )
+    assert(agentBadge === 1, 'the agent comment is not visually distinct in the panel')
+    await screenshot('21-comments.png')
+  })
+
+  // Two figures get canvas tabs during this run, and dockview keeps the
+  // hidden one in the DOM with zero-size boxes — a plain `document.
+  // querySelector('.canvas-viewport')` would measure the wrong (invisible)
+  // panel and make geometry assertions pass vacuously. Always scope to the
+  // one canvas tab that is actually on screen.
+  const CANVAS = `[...document.querySelectorAll('.canvas-tab')]
+    .find((t) => t.getBoundingClientRect().width > 0)`
+  const canvasJs = (body) =>
+    `(() => { const CT = ${CANVAS}; if (!CT) throw new Error('no visible canvas tab'); ${body} })()`
+
+  await step('canvas-align-and-rulers', async () => {
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(FIGURE)})`)
+    await sleep(2000)
+    const which = await evalJs(canvasJs(`return CT.closest('.dv-content-container') ?
+      'ok' : 'ok';`))
+    assert(which === 'ok', 'no canvas tab is visible')
+
+    // --- rulers: mm ticks whose 0 and max land on the artboard's edges -----
+    const ruler = await evalJs(canvasJs(`
+      const vp = CT.querySelector('.canvas-viewport').getBoundingClientRect();
+      const svg = CT.querySelector('.canvas-world svg').getBoundingClientRect();
+      const h = [...CT.querySelectorAll('.canvas-ruler--h .canvas-ruler__tick')];
+      const v = [...CT.querySelectorAll('.canvas-ruler--v .canvas-ruler__tick')];
+      const px = (el, prop) => parseFloat(el.style[prop]);
+      return {
+        artboardLabel: CT.querySelector('.canvas-tab__meta').textContent,
+        hCount: h.length,
+        vCount: v.length,
+        hLabels: [...CT.querySelectorAll('.canvas-ruler--h .canvas-ruler__label')].map((l) => l.textContent),
+        hFirst: px(h[0], 'left'),
+        hLast: px(h[h.length - 1], 'left'),
+        hLastMm: h[h.length - 1].dataset.mm,
+        vFirst: px(v[0], 'top'),
+        vLast: px(v[v.length - 1], 'top'),
+        vLastMm: v[v.length - 1].dataset.mm,
+        artLeft: svg.left - vp.left,
+        artRight: svg.right - vp.left,
+        artTop: svg.top - vp.top,
+        artBottom: svg.bottom - vp.top,
+        artWidthPx: svg.width,
+        artHeightPx: svg.height
+      };
+    `))
+    // guard against a degenerate (hidden/zero-size) measurement making the
+    // alignment comparisons below trivially true
+    assert(ruler.artWidthPx > 100 && ruler.artHeightPx > 20,
+      `artboard is not really on screen: ${ruler.artWidthPx}×${ruler.artHeightPx} px`)
+    assert(ruler.hLast - ruler.hFirst > 100,
+      `ruler spans ${ruler.hLast - ruler.hFirst} px — it is not tracking the artboard`)
+    // 180 mm artboard -> 1 mm minor ticks 0..180 and labels every 10 mm
+    assert(ruler.hCount === 181, `horizontal mm ticks: ${ruler.hCount} (want 181 for 180 mm)`)
+    assert(ruler.vCount === 59, `vertical mm ticks: ${ruler.vCount} (want 59 for 58 mm)`)
+    assert(ruler.hLabels[0] === '0' && ruler.hLabels[1] === '10' && ruler.hLabels.at(-1) === '180',
+      `major labels: ${ruler.hLabels.join(',')}`)
+    assert(ruler.artboardLabel.includes('180.0'), `artboard readout: ${ruler.artboardLabel}`)
+    // origin at the artboard's top-left, max tick at its far edge (±1 px)
+    assert(Math.abs(ruler.hFirst - ruler.artLeft) < 1,
+      `ruler 0 mm at ${ruler.hFirst}px, artboard left edge at ${ruler.artLeft}px`)
+    assert(Math.abs(ruler.hLast - ruler.artRight) < 1,
+      `ruler ${ruler.hLastMm} mm at ${ruler.hLast}px, artboard right edge at ${ruler.artRight}px`)
+    assert(Math.abs(ruler.vFirst - ruler.artTop) < 1,
+      `ruler 0 mm at ${ruler.vFirst}px, artboard top edge at ${ruler.artTop}px`)
+    assert(Math.abs(ruler.vLast - ruler.artBottom) < 1,
+      `ruler ${ruler.vLastMm} mm at ${ruler.vLast}px, artboard bottom edge at ${ruler.artBottom}px`)
+
+    // --- align: two shapes, one click, one undo ----------------------------
+    await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
+    // Draw inside the ARTBOARD: the SVG clips anything outside its viewBox,
+    // so a shape created next to the artboard would exist but be unhittable.
+    const box = await evalJs(canvasJs(`
+      const r = CT.querySelector('.canvas-world svg').getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    `))
+    assert(box.w > 100 && box.h > 40, `artboard is only ${box.w}×${box.h} px on screen`)
+    const dragRect = async (x0, y0, x1, y1) => {
+      await evalJs(`window.__sunaDev.canvasTools.setTool('rect')`)
+      assert(
+        (await evalJs(`window.__sunaDev.canvasTools.getToolState().tool`)) === 'rect',
+        'the rect tool did not activate'
+      )
+      await mouse('mousePressed', x0, y0)
+      for (let i = 1; i <= 5; i++) {
+        await send('Input.dispatchMouseEvent', {
+          type: 'mouseMoved', x: x0 + ((x1 - x0) * i) / 5, y: y0 + ((y1 - y0) * i) / 5,
+          button: 'left', buttons: 1
+        })
+        await sleep(25)
+      }
+      await mouse('mouseReleased', x1, y1)
+      await sleep(350)
+    }
+    const rectIds = () =>
+      evalJs(canvasJs(`return [...CT.querySelectorAll('.canvas-world svg rect[id^="suna-e"]')].map((e) => e.id);`))
+    const idsBefore = await rectIds()
+    await dragRect(box.x + box.w * 0.10, box.y + box.h * 0.15, box.x + box.w * 0.22, box.y + box.h * 0.40)
+    await dragRect(box.x + box.w * 0.40, box.y + box.h * 0.50, box.x + box.w * 0.55, box.y + box.h * 0.75)
+    await evalJs(`window.__sunaDev.canvasTools.setTool('select')`)
+
+    const all = await rectIds()
+    const ids = all.filter((id) => !idsBefore.includes(id))
+    assert(ids.length === 2, `expected 2 new rects, got ${ids.length} (all: ${all.join(',')})`)
+
+    const centerOf = (elId) =>
+      evalJs(canvasJs(`
+        const r = CT.querySelector('.canvas-world svg [id="${elId}"]').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      `))
+    /** Left edge of an element in world (user) units — the engine's own space. */
+    const worldX = (elId) =>
+      evalJs(canvasJs(`
+        const el = CT.querySelector('.canvas-world svg [id="${elId}"]');
+        const b = el.getBBox();
+        return new DOMPoint(b.x, b.y).matrixTransform(el.getCTM()).x;
+      `))
+
+    const c0 = await centerOf(ids[0])
+    await click(c0.x, c0.y)
+    await sleep(200)
+    const c1 = await centerOf(ids[1])
+    await send('Input.dispatchMouseEvent', {
+      type: 'mousePressed', x: c1.x, y: c1.y, button: 'left', clickCount: 1, modifiers: 8
+    })
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x: c1.x, y: c1.y, button: 'left', clickCount: 1, modifiers: 8
+    })
+    await sleep(300)
+    const selection = await evalJs(`window.__sunaDev.canvasTools.getSelection()`)
+    assert(selection.length === 2, `selection after shift-click: ${selection.length}`)
+
+    const alignState = await evalJs(canvasJs(`
+      const b = [...CT.querySelectorAll('.canvas-align__button')];
+      const left = b.find((x) => x.getAttribute('aria-label') === 'Align left');
+      const dist = b.find((x) => x.getAttribute('aria-label') === 'Distribute horizontally');
+      return { alignDisabled: left.disabled, distDisabled: dist.disabled, distTitle: dist.title };
+    `))
+    assert(!alignState.alignDisabled, 'Align left is disabled with 2 objects selected')
+    assert(alignState.distDisabled, 'Distribute is enabled with only 2 objects selected')
+    assert(/at least 3/.test(alignState.distTitle), `distribute hint: ${alignState.distTitle}`)
+
+    const beforeX = [await worldX(ids[0]), await worldX(ids[1])]
+    assert(Math.abs(beforeX[0] - beforeX[1]) > 10, 'the two rects already share a left edge')
+    await evalJs(canvasJs(`
+      [...CT.querySelectorAll('.canvas-align__button')]
+        .find((x) => x.getAttribute('aria-label') === 'Align left').click();
+      return true;
+    `))
+    await sleep(500)
+    const afterX = [await worldX(ids[0]), await worldX(ids[1])]
+    assert(Math.abs(afterX[0] - afterX[1]) < 0.01,
+      `align left left them at x=${afterX[0]} and x=${afterX[1]}`)
+    assert(Math.abs(afterX[0] - Math.min(...beforeX)) < 0.01,
+      `aligned to ${afterX[0]}, expected the leftmost edge ${Math.min(...beforeX)}`)
+
+    await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
+    await key('z', 'KeyZ', 4)
+    await sleep(500)
+    const undoneX = [await worldX(ids[0]), await worldX(ids[1])]
+    assert(Math.abs(undoneX[1] - beforeX[1]) < 0.01,
+      `one undo did not restore x (${undoneX[1]} vs ${beforeX[1]})`)
+
+    // clean the two scratch rects back out of the document
+    for (let i = 0; i < 2; i++) {
+      await key('z', 'KeyZ', 4)
+      await sleep(350)
+    }
+    const leftover = await rectIds()
+    assert(
+      leftover.filter((id) => !idsBefore.includes(id)).length === 0,
+      `scratch rects survived the undo chain: ${leftover.join(',')}`
+    )
+  })
+
+  await step('canvas-auto-letter-panels', async () => {
+    const boldCount = () =>
+      evalJs(canvasJs(`return CT.querySelectorAll('.canvas-world svg text[font-weight="bold"]').length;`))
+    const before = await boldCount()
+    await evalJs(canvasJs(`
+      [...CT.querySelectorAll('.canvas-figure__action')]
+        .find((b) => b.textContent.includes('Auto-letter')).click();
+      return true;
+    `))
+    await sleep(1000)
+    const labels = await evalJs(canvasJs(`
+      return [...CT.querySelectorAll('.canvas-world svg text[font-weight="bold"]')]
+        .map((t) => ({
+          text: t.textContent.trim(),
+          x: Number(t.getAttribute('x')),
+          size: Number(t.getAttribute('font-size')),
+          family: t.getAttribute('font-family')
+        }))
+        .sort((a, b) => a.x - b.x);
+    `))
+    assert(labels.length === before + 2,
+      `auto-letter inserted ${labels.length - before} labels (want 2 for the two-panel demo figure)`)
+    // Nature Astronomy's convention: lowercase, bold, no wrapper
+    assert(labels[0].text === 'a' && labels[1].text === 'b',
+      `panel letters: ${labels.map((l) => l.text).join(',')}`)
+    assert(labels[0].x < labels[1].x, 'panel letters are not in reading order')
+    assert(labels.every((l) => l.size > 0 && l.family), 'panel letters carry no font')
+    // ONE batch command -> ONE undo reverts the whole lettering pass
+    await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
+    await key('z', 'KeyZ', 4)
+    await sleep(600)
+    const afterUndo = await boldCount()
+    assert(afterUndo === before, `one undo left ${afterUndo - before} panel letters behind`)
+  })
+
+  await step('canvas-png-export-matches-readout', async () => {
+    // journal-spec raster: the width presets come from the ACTIVE profile
+    const selectJs = (i) => `[...CT.querySelectorAll('.canvas-props__field--wide select')][${i}]`
+    const optionText = await evalJs(canvasJs(`return [...${selectJs(0)}.options].map((o) => o.value + '|' + o.text);`))
+    assert(
+      optionText.some((o) => o.startsWith('double|') && o.includes('180 mm')),
+      `width presets are not profile-driven: ${optionText.join(', ')}`
+    )
+    const setSelect = (i, value) =>
+      evalJs(canvasJs(`
+        const el = ${selectJs(i)};
+        const set = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+        set.call(el, ${JSON.stringify(value)});
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return el.value;
+      `))
+    assert((await setSelect(0, 'double')) === 'double', 'width preset did not switch to double column')
+    await sleep(300)
+    assert((await setSelect(1, '300')) === '300', 'resolution did not switch to 300 dpi')
+    await sleep(400)
+    const readout = await evalJs(canvasJs(`
+      return [...CT.querySelectorAll('.canvas-props__mm')].map((e) => e.textContent).find((t) => t.includes('dpi')) ?? '';
+    `))
+    const m = /(\d+)×(\d+) px/.exec(readout)
+    assert(m, `no pixel readout: ${readout}`)
+    assert(/180 × 58 mm @ 300 dpi/.test(readout), `readout: ${readout}`)
+    const wantW = Number(m[1])
+    const wantH = Number(m[2])
+    // 180 mm at 300 dpi is 2126 px — the arithmetic, not a magic number
+    assert(wantW === Math.round((180 / 25.4) * 300), `readout width ${wantW} px is not 180 mm @ 300 dpi`)
+
+    const png = join(COPY_DIR, 'output', 'fig-spectrum.png')
+    rmSync(png, { force: true })
+    await evalJs(canvasJs(`
+      [...CT.querySelectorAll('.canvas-figure__action')].find((b) => b.textContent.trim() === 'PNG').click();
+      return true;
+    `))
+    const deadline = Date.now() + 40_000
+    while (Date.now() < deadline && !existsSync(png)) await sleep(400)
+    assert(existsSync(png), `PNG export produced no file at ${png}`)
+    await sleep(600)
+    const bytes = readFileSync(png)
+    assert(
+      bytes.subarray(0, 8).toString('hex') === '89504e470d0a1a0a',
+      'exported file is not a PNG'
+    )
+    assert(bytes.subarray(12, 16).toString('ascii') === 'IHDR', 'PNG has no IHDR chunk')
+    const gotW = bytes.readUInt32BE(16)
+    const gotH = bytes.readUInt32BE(20)
+    assert(
+      gotW === wantW && gotH === wantH,
+      `PNG IHDR says ${gotW}×${gotH}, the readout promised ${wantW}×${wantH}`
+    )
+    await screenshot('22-canvas-rail.png')
+  })
+
+  await step('literature-search-and-add', async () => {
+    await showView('references')
+    await sleep(900)
+    await evalJs(`[...document.querySelectorAll('.refs__tab')]
+      .find((b) => b.textContent.trim() === 'Search').click()`)
+    await sleep(400)
+    const providers = await evalJs(
+      `[...document.querySelectorAll('.lit-search__providers .refs__style')].map((b) => b.textContent)`
+    )
+    assert(providers.length === 4, `provider buttons: ${providers.join(' | ')}`)
+    assert(providers[0].includes('Crossref'), 'Crossref is not the default provider')
+
+    await evalJs(setFieldJs(`document.querySelector('.lit-search__query .view__input')`, 'ram pressure stripping'))
+    await sleep(200)
+    await evalJs(`document.querySelector('.lit-search__go').click()`)
+    const searchDeadline = Date.now() + 30_000
+    let outcome = null
+    while (Date.now() < searchDeadline) {
+      outcome = await evalJs(`({
+        loading: [...document.querySelectorAll('.view__hint')].some((h) => h.textContent.startsWith('Searching')),
+        results: document.querySelectorAll('.lit-search__results > li').length,
+        error: document.querySelector('.view__error')?.textContent ?? null
+      })`)
+      if (!outcome.loading && (outcome.results > 0 || outcome.error !== null)) break
+      await sleep(500)
+    }
+    // LIVE network. Either it answered, or the failure is surfaced honestly —
+    // never an empty list pretending nothing matched.
+    if (outcome.results === 0) {
+      assert(
+        outcome.error !== null && outcome.error.trim().length > 0,
+        'Crossref returned nothing AND showed no error — a silent empty result'
+      )
+      console.log(`    (Crossref unavailable right now: ${outcome.error.slice(0, 120)})`)
+      return
+    }
+
+    const cards = await evalJs(`
+      [...document.querySelectorAll('.lit-search__results > li')].slice(0, 3).map((li) => ({
+        title: li.querySelector('.lit-card__title')?.textContent ?? li.textContent.slice(0, 60),
+        actions: [...li.querySelectorAll('button')].map((b) => b.textContent.trim())
+      }))
+    `)
+    assert(
+      cards[0].actions.some((a) => a.includes('Add to references.bib')),
+      `result card actions: ${cards[0].actions.join(', ')}`
+    )
+
+    const bibBefore = readFileSync(BIB, 'utf8')
+    await evalJs(`(() => {
+      const li = document.querySelector('.lit-search__results > li');
+      const btn = [...li.querySelectorAll('button')].find((b) => b.textContent.includes('Add to references.bib'));
+      if (!btn) throw new Error('no add button on the first result');
+      btn.click();
+    })()`)
+    await sleep(2500)
+    const bibAfter = readFileSync(BIB, 'utf8')
+    assert(bibAfter.length > bibBefore.length, 'references.bib did not grow after Add')
+    assert(bibAfter.startsWith(bibBefore.trimEnd().slice(0, 200)), 'existing bib entries were rewritten')
+    const addedKey = /@\w+\{([^,]+),/.exec(bibAfter.slice(bibBefore.trimEnd().length))
+    assert(addedKey, `no new BibTeX entry found:\n${bibAfter.slice(bibBefore.length)}`)
+    assert(
+      /^[a-z]+\d{4}[a-z0-9]*$/.test(addedKey[1]),
+      `generated cite key is not firstauthorYEARword: ${addedKey[1]}`
+    )
+
+    // parseBibtex round-trips it, and the Library tab counts it as UNCITED
+    await evalJs(`[...document.querySelectorAll('.refs__tab')]
+      .find((b) => b.textContent.trim() === 'Library').click()`)
+    await sleep(1500)
+    const usage = await evalJs(`(() => {
+      const btns = [...document.querySelectorAll('.refs__usage-btn')];
+      return {
+        counts: btns.map((b) => b.textContent),
+        parseErrors: document.querySelector('.refs__missing')?.textContent ?? null
+      };
+    })()`)
+    const uncited = /Uncited\s+(\d+)/.exec(usage.counts.join(' '))
+    const all = /All\s+(\d+)/.exec(usage.counts.join(' '))
+    assert(uncited && Number(uncited[1]) >= 1,
+      `the added entry is not counted as uncited: ${usage.counts.join(' | ')}`)
+    assert(all && Number(all[1]) === 12,
+      `library entry count after the add: ${usage.counts.join(' | ')}`)
+    await screenshot('23-lit-search.png')
+  })
+
+  await step('literature-openalex-is-honest', async () => {
+    await evalJs(`[...document.querySelectorAll('.refs__tab')]
+      .find((b) => b.textContent.trim() === 'Search').click()`)
+    await sleep(400)
+    await evalJs(`[...document.querySelectorAll('.lit-search__providers .refs__style')]
+      .find((b) => b.textContent.includes('OpenAlex')).click()`)
+    await sleep(400)
+    await evalJs(`document.querySelector('.lit-search__go').click()`)
+    const deadline = Date.now() + 30_000
+    let state = null
+    while (Date.now() < deadline) {
+      state = await evalJs(`({
+        loading: [...document.querySelectorAll('.view__hint')].some((h) => h.textContent.startsWith('Searching')),
+        results: document.querySelectorAll('.lit-search__results > li').length,
+        error: document.querySelector('.view__error')?.textContent ?? null,
+        suggestion: document.querySelector('.lit-search__suggestion')?.textContent ?? null
+      })`)
+      if (!state.loading && (state.results > 0 || state.error !== null)) break
+      await sleep(500)
+    }
+    // OpenAlex now meters requests: a keyless search is EXPECTED to 429 here.
+    // Either it answered (someone added budget/a key) or the 429 is spelled
+    // out with the provider switch inline — never a silent empty list.
+    if (state.results > 0) {
+      console.log('    (OpenAlex answered — this machine has budget or a key)')
+      return
+    }
+    assert(state.error !== null, 'OpenAlex returned nothing and said nothing')
+    assert(
+      /rate-limit|429|budget|key/i.test(state.error),
+      `OpenAlex error is not the honest rate-limit message: ${state.error}`
+    )
+    assert(
+      state.suggestion !== null && /Crossref/.test(state.suggestion),
+      `no inline provider switch offered: ${state.suggestion}`
+    )
+  })
+
+  await step('mcp-server-exposes-all-verbs', async () => {
+    ensureMcpBundle()
+    const out = execFileSync(
+      process.execPath,
+      [MCP_PROBE, '--project', COPY_DIR, '--tools-only', '--json'],
+      { cwd: ROOT, encoding: 'utf8' }
+    )
+    const probe = JSON.parse(out.trim().split('\n').at(-1))
+    assert(probe.ok, `MCP probe failed: ${out}`)
+    for (const name of [
+      'list_comments', 'add_comment', 'reply_comment', 'resolve_comment',
+      'search_literature', 'lookup_doi', 'add_reference'
+    ]) {
+      assert(probe.tools.includes(name), `bundled MCP server is missing ${name}`)
+    }
+    assert(probe.tools.length === 15, `MCP tool count: ${probe.tools.length}`)
   })
 
   console.log(`\nALL ${results.length} STEPS PASSED`)

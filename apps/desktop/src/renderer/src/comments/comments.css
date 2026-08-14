@@ -1,0 +1,233 @@
+/* ---------------------------------------------------------------------------
+   Comments — sidebar view (CommentsView) + in-editor anchor UI
+   (anchorExtension.ts, used from manuscript/SectionEditor.tsx).
+   Complements views.css; only tokens from tokens.css.
+   --------------------------------------------------------------------------- */
+
+/* ---- in-editor anchor decorations ----------------------------------------- */
+
+.cmt-anchor {
+  background: rgba(232, 180, 92, 0.1);
+  border-bottom: 2px solid color-mix(in srgb, var(--s-accent) 55%, transparent);
+  border-radius: 2px;
+}
+
+.cmt-anchor--flash {
+  background: rgba(232, 180, 92, 0.4);
+  transition: background 900ms ease;
+}
+
+/* "Gutter dot": a small dot just left of any line holding an anchor start.
+   See anchorExtension.ts's header comment for why this is a line-decoration
+   pseudo-element rather than a real CodeMirror gutter() column. */
+.cmt-line-dot {
+  position: relative;
+}
+
+.cmt-line-dot::before {
+  content: '';
+  position: absolute;
+  left: -13px;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--s-accent);
+}
+
+/* ---- sidebar view ----------------------------------------------------------- */
+
+.cmt {
+  gap: 10px;
+}
+
+.cmt__filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cmt__filter-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.cmt__filter-btn:hover {
+  border-color: var(--s-border-strong);
+  color: var(--s-ink);
+}
+
+.cmt__filter-btn[aria-pressed='true'] {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+.cmt__filter-count {
+  color: var(--s-ink-faint);
+}
+
+.cmt__filter-btn[aria-pressed='true'] .cmt__filter-count {
+  color: var(--s-accent);
+}
+
+.cmt__author-row {
+  align-self: flex-start;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.cmt__author-row:hover {
+  color: var(--s-ink-muted);
+}
+
+.cmt__author-row strong {
+  color: var(--s-ink-muted);
+  font-weight: 600;
+}
+
+.cmt__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmt__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--s-bg-shell);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.cmt__card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.cmt__card-main:disabled {
+  cursor: default;
+}
+
+.cmt__card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cmt__badge {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.cmt__badge--agent {
+  color: var(--s-accent);
+}
+
+.cmt__badge--agent::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--s-accent);
+}
+
+.cmt__time {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.cmt__detached {
+  font-size: var(--s-text-xs);
+  color: var(--s-warn);
+  border: 1px solid var(--s-warn);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.cmt__target {
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.cmt__body {
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  color: var(--s-ink);
+  white-space: pre-wrap;
+}
+
+.cmt__replies {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--s-border);
+}
+
+.cmt__reply {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cmt__actions,
+.cmt__draft-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmt__confirm-label {
+  font-size: var(--s-text-xs);
+  color: var(--s-warn);
+}
+
+.cmt__btn {
+  padding: 3px 8px;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.cmt__btn:hover {
+  border-color: var(--s-border-strong);
+  color: var(--s-ink);
+}
+
+.cmt__btn--primary {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+.cmt__btn--danger:hover {
+  border-color: var(--s-err);
+  color: var(--s-err);
+}
+
+.cmt__replybox,
+.cmt__draft {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cmt__draft {
+  padding: 8px;
+  background: var(--s-bg-active);
+  border: 1px solid var(--s-accent);
+  border-radius: var(--s-radius);
+}

@@ -117,3 +117,58 @@
   width: 84px;
   color: var(--s-ink-faint);
 }
+
+/* ---- literature providers -------------------------------------------------- */
+
+.settings-tab__status {
+  font-weight: 500;
+}
+
+.settings-tab__status--ok {
+  color: var(--s-ok);
+}
+
+.settings-tab__status--warn {
+  color: var(--s-warn);
+}
+
+.settings-tab__keyrow {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.settings-tab__keyrow input[type='password'] {
+  width: 150px;
+  padding: 5px 8px;
+  font: inherit;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  outline: none;
+}
+
+.settings-tab__keyrow input[type='password']:focus {
+  border-color: var(--s-accent);
+}
+
+.settings-tab__keyrow button {
+  padding: 5px 10px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.settings-tab__keyrow button:hover:not(:disabled) {
+  color: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.settings-tab__keyrow button:disabled {
+  opacity: 0.4;
+}

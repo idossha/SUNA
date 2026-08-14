@@ -19,6 +19,9 @@ import { create } from 'zustand'
  *
  * The main process consumes:
  *   'terminal.shell'      string  shell override for new ptys ('' = default).
+ *   'lit.mailto'          string  polite-pool contact for Crossref/OpenAlex
+ *                                 lit:search and lit:by-doi requests; falls
+ *                                 back to 'user.email' when empty ('' = none).
  */
 export type EditorModeSetting = 'reading' | 'source'
 export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'high-contrast'
@@ -32,6 +35,8 @@ export interface GlobalSettings {
   'appearance.uiScale': number
   /** Shell override for new terminals; '' means the platform default. */
   'terminal.shell': string
+  /** Polite-pool contact for Crossref/OpenAlex; '' falls back to 'user.email'. */
+  'lit.mailto': string
 }
 
 export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
@@ -40,7 +45,8 @@ export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
   'editor.theme': 'suna-dark',
   'editor.autosave': false,
   'appearance.uiScale': 1,
-  'terminal.shell': ''
+  'terminal.shell': '',
+  'lit.mailto': ''
 }
 
 export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
@@ -72,6 +78,9 @@ export function coerceSettings(raw: Record<string, unknown>): GlobalSettings {
   }
   if (typeof raw['terminal.shell'] === 'string') {
     out['terminal.shell'] = raw['terminal.shell']
+  }
+  if (typeof raw['lit.mailto'] === 'string') {
+    out['lit.mailto'] = raw['lit.mailto']
   }
   return out
 }

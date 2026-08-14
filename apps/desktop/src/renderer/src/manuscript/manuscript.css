@@ -336,3 +336,400 @@
   border-bottom: 1px dashed var(--s-err);
   cursor: help;
 }
+
+/* ---- editable title page (manuscript/titlepage-edit) -----------------------
+   Click-to-edit scalar fields (title/shortTitle/abstract/significance/each
+   highlight) reuse the class the static element already carries — box
+   metrics (font/size/margin) come from that shared class alone, never from
+   the tag or from a `tp__*` class, so entering/leaving edit mode never
+   shifts layout. `tp__*` classes here only add non-metric affordances
+   (outline, cursor) plus the compact row-editor grids for authors/
+   affiliations, which have no static-mode equivalent to match. */
+
+.tp__field--editing {
+  outline: 1px dashed var(--s-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+  cursor: text;
+}
+
+/* static (click-to-edit) targets: title/shortTitle/abstract/significance/
+   highlight text, and the affiliation-text/author-name inputs' row wrapper */
+[role='button'].msdoc__title,
+[role='button'].tp__short-title,
+[role='button'].msdoc__front-text,
+[role='button'].tp__highlight-text {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.1s ease;
+}
+
+[role='button'].msdoc__title:hover,
+[role='button'].tp__short-title:hover,
+[role='button'].msdoc__front-text:hover,
+[role='button'].tp__highlight-text:hover {
+  background: var(--s-bg-hover);
+}
+
+[role='button'].msdoc__title:focus-visible,
+[role='button'].tp__short-title:focus-visible,
+[role='button'].msdoc__front-text:focus-visible,
+[role='button'].tp__highlight-text:focus-visible {
+  outline: 1px solid var(--s-accent);
+  outline-offset: 2px;
+}
+
+.tp__placeholder {
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+  font-style: italic;
+}
+
+.tp__field-error {
+  margin: 4px 16px 0;
+  padding: 4px 8px;
+  border-left: 2px solid var(--s-err);
+  color: var(--s-err);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+}
+
+/* title-page meta row: running title (editable, previously unshown) +
+   article type select — only rendered when editable, so it never disturbs
+   the read-only look */
+.tp__meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  margin: -0.3em 0 0.9em;
+  padding: 0 16px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+}
+
+.tp__meta-field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tp__meta-label {
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+}
+
+.tp__short-title {
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+}
+
+.tp__article-type {
+  background: var(--s-bg-raised);
+  color: var(--ed-ink, var(--s-ink));
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  padding: 2px 6px;
+}
+
+/* ---- authors / affiliations compact row editors --------------------------- */
+
+.tp__authors-editor,
+.tp__affiliations-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 16px 0.4em;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+}
+
+.tp__author-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.tp__affiliation-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.tp__affiliation-num {
+  flex-shrink: 0;
+  min-width: 1.4em;
+  text-align: right;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+  font-variant-numeric: tabular-nums;
+  font-size: var(--s-text-xs);
+}
+
+.tp__authors-editor input[type='text'],
+.tp__author-given,
+.tp__author-family,
+.tp__author-orcid,
+.tp__author-email,
+.tp__affiliation-text {
+  background: var(--s-bg-editor);
+  color: var(--ed-ink, var(--s-ink));
+  border: 1px solid var(--s-border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+}
+
+.tp__author-given,
+.tp__author-family {
+  width: 9ch;
+}
+
+.tp__author-orcid {
+  width: 15ch;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+}
+
+.tp__author-email {
+  width: 15ch;
+}
+
+.tp__affiliation-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tp__author-orcid--invalid,
+.tp__author-email--invalid {
+  border-color: var(--s-err);
+}
+
+.tp__author-flag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+  font-size: var(--s-text-xs);
+  white-space: nowrap;
+}
+
+.tp__author-order,
+.tp__affiliation-controls,
+.tp__highlight-controls {
+  display: flex;
+  gap: 2px;
+}
+
+.tp__author-move-up,
+.tp__author-move-down,
+.tp__author-remove,
+.tp__affiliation-move-up,
+.tp__affiliation-move-down,
+.tp__affiliation-remove,
+.tp__move-highlight-up,
+.tp__move-highlight-down,
+.tp__remove-highlight {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+  border: 1px solid var(--s-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: var(--s-text-xs);
+  line-height: 1;
+  padding: 0;
+}
+
+.tp__author-move-up:not(:disabled):hover,
+.tp__author-move-down:not(:disabled):hover,
+.tp__author-remove:not(:disabled):hover,
+.tp__affiliation-move-up:not(:disabled):hover,
+.tp__affiliation-move-down:not(:disabled):hover,
+.tp__affiliation-remove:not(:disabled):hover,
+.tp__move-highlight-up:not(:disabled):hover,
+.tp__move-highlight-down:not(:disabled):hover,
+.tp__remove-highlight:not(:disabled):hover {
+  background: var(--s-bg-hover);
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.tp__author-move-up:disabled,
+.tp__author-move-down:disabled,
+.tp__author-remove:disabled,
+.tp__affiliation-move-up:disabled,
+.tp__affiliation-move-down:disabled,
+.tp__move-highlight-up:disabled,
+.tp__move-highlight-down:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tp__author-affiliations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+
+.tp__author-affiliation-chip {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+  border: 1px solid var(--s-border);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: var(--s-text-xs);
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+}
+
+.tp__author-affiliation-chip--active {
+  background: var(--s-bg-active);
+  color: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.tp__hint-inline {
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+  font-size: var(--s-text-xs);
+  font-style: italic;
+}
+
+.tp__add-author,
+.tp__add-affiliation,
+.tp__add-highlight {
+  align-self: flex-start;
+  background: transparent;
+  color: var(--s-accent);
+  border: 1px dashed var(--s-border-strong);
+  border-radius: var(--s-radius);
+  padding: 4px 10px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  cursor: pointer;
+}
+
+.tp__add-author:hover,
+.tp__add-affiliation:hover,
+.tp__add-highlight:not(:disabled):hover {
+  background: var(--s-bg-hover);
+}
+
+.tp__add-highlight:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- highlights list (editable) -------------------------------------------- */
+
+.tp__highlights-list {
+  margin: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tp__highlight-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tp__highlight-row .tp__highlight-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tp__highlight-controls {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.tp__add-highlight-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tp__add-highlight-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--s-bg-editor);
+  color: var(--ed-ink, var(--s-ink));
+  border: 1px solid var(--s-border);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+}
+
+/* ---- click-to-edit list groups (authors, affiliations) --------------------
+   The journal rendering — including the derived affiliation superscripts —
+   stays on screen until the block is clicked, matching the scalar fields'
+   click-to-edit behaviour (titlepage-edit/EditableGroup). Padding is kept
+   on the group in BOTH states so opening the editor does not shift the
+   page. */
+
+.tp__group {
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  margin-right: -4px;
+}
+
+[role='button'].tp__group {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+[role='button'].tp__group:hover {
+  background: var(--s-bg-hover);
+}
+
+[role='button'].tp__group:focus-visible {
+  outline: 1px solid var(--s-accent);
+  outline-offset: 2px;
+}
+
+.tp__group--editing {
+  outline: 1px dashed var(--s-accent);
+  outline-offset: 3px;
+}
+
+.tp__group-done {
+  margin: 6px 16px 0;
+  padding: 3px 14px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  background: transparent;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+}
+
+.tp__group-done:hover {
+  background: var(--s-bg-hover);
+}

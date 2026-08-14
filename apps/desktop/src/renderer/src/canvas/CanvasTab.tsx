@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -31,6 +32,8 @@ import { registerCanvasToolsProvider } from './dev-seam'
 import { ToolRail } from './ToolRail'
 import { LayersPanel } from './LayersPanel'
 import { PropertiesPanel } from './PropertiesPanel'
+import { rulerTicks } from './ruler-ticks'
+import { Rulers, type RulersHandle } from './Rulers'
 import { TextEditOverlay, type TextEditLayout } from './TextEditOverlay'
 
 /**
@@ -86,6 +89,10 @@ const HANDLE_POS: { id: interact.HandleId; fx: number; fy: number }[] = [
 export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const path = String(params['path'] ?? '')
   const fileName = path.split('/').pop() ?? path
+  // Figures live at <rootDir>/figures/<figureId>/figure.svg (figures-scan.ts);
+  // the parent directory name IS the figure's id regardless of file naming.
+  const pathSegments = path.split('/')
+  const figureId = pathSegments.length >= 2 ? (pathSegments[pathSegments.length - 2] ?? null) : null
 
   const viewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
@@ -115,9 +122,12 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const [textEdit, setTextEdit] = useState<TextEditState | null>(null)
   const [layersOpen, setLayersOpen] = useState(() => window.innerWidth >= 1200)
   const [propsOpen, setPropsOpen] = useState(() => window.innerWidth >= 1200)
+  const [rulersOn, setRulersOn] = useState(true)
+  const rulersRef = useRef<RulersHandle | null>(null)
 
   const note = (text: string): void => useUiStore.getState().setStatusNote(text)
 
+  const rootDir = useProjectStore((s) => s.rootDir)
   const activeProfileId = useProjectStore((s) => s.manifest?.activeProfileId ?? null)
   const profile = useMemo(
     () => (activeProfileId ? getBundledProfile(activeProfileId) : null),
@@ -545,7 +555,9 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     return registerCanvasToolsProvider({
       setTool: (t) => selectTool(t),
       getSelection: () => selectedIdsRef.current,
-      getToolState: () => ({ tool: controller.tool, gesture: controller.gesture })
+      getToolState: () => ({ tool: controller.tool, gesture: controller.gesture }),
+      // dockview keeps inactive panels mounted at zero size
+      isVisible: () => (viewportRef.current?.getBoundingClientRect().width ?? 0) > 0
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -651,6 +663,36 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textEdit, rev])
 
+  // ---- rulers ---------------------------------------------------------------
+  // Which ticks exist is pure mm math off the artboard; WHERE they sit on
+  // screen comes from the artboard's live CTM, which only reflects the new
+  // pan/zoom after React has committed it — hence a layout effect, never a
+  // render-time read (that leaves the ruler one frame behind the canvas).
+  const artboardForRulers = sessionRef.current?.doc.artboard ?? null
+  const rulerWidthMm = artboardForRulers?.widthMm ?? 0
+  const rulerHeightMm = artboardForRulers?.heightMm ?? 0
+  const hTicks = useMemo(
+    () => (rulersOn ? rulerTicks(rulerWidthMm) : []),
+    [rulersOn, rulerWidthMm]
+  )
+  const vTicks = useMemo(
+    () => (rulersOn ? rulerTicks(rulerHeightMm) : []),
+    [rulersOn, rulerHeightMm]
+  )
+  const rulersActive = rulersOn && hTicks.length > 0 && vTicks.length > 0
+
+  useLayoutEffect(() => {
+    if (!rulersActive) return
+    const artboard = sessionRef.current?.doc.artboard
+    const vb = artboard?.viewBox
+    const mmPer = artboard?.mmPerUser ?? null
+    if (!vb || mmPer === null || mmPer <= 0) return
+    const hPx = hTicks.map((t) => worldToScreen(vb.minX + t.mm / mmPer, vb.minY)?.x ?? 0)
+    const vPx = vTicks.map((t) => worldToScreen(vb.minX, vb.minY + t.mm / mmPer)?.y ?? 0)
+    rulersRef.current?.setTickPx(hPx, vPx)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulersActive, hTicks, vTicks, view, rev])
+
   // ---- pointer interactions ------------------------------------------------
   const onPointerDown = (event: ReactPointerEvent): void => {
     if (event.button !== 0 || !sessionRef.current || !mirrorRef.current) return
@@ -670,7 +712,15 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
+  /** Ruler cursor marker: imperative DOM update, never React state (every mousemove). */
+  const updateRulerCursor = (event: ReactPointerEvent): void => {
+    const vp = viewportRef.current?.getBoundingClientRect()
+    if (!vp) return
+    rulersRef.current?.setCursorPx(event.clientX - vp.left, event.clientY - vp.top)
+  }
+
   const onPointerMove = (event: ReactPointerEvent): void => {
+    updateRulerCursor(event)
     const point = screenToWorld(event.clientX, event.clientY)
     if (!point) return
     if (pointerActiveRef.current) {
@@ -710,6 +760,10 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const onPointerCancel = (): void => {
     pointerActiveRef.current = false
     applyEvents(controller.cancelGesture())
+  }
+
+  const onPointerLeaveViewport = (): void => {
+    rulersRef.current?.setCursorPx(null, null)
   }
 
   /** Double-click a <text> (or a unit containing the click point) → edit it. */
@@ -971,6 +1025,14 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
               {diagnostics.length} {diagnostics.length === 1 ? 'issue' : 'issues'}
             </button>
           )}
+          <button
+            className="canvas-tab__rulers-toggle"
+            aria-pressed={rulersOn}
+            title={rulersOn ? 'Hide rulers' : 'Show rulers'}
+            onClick={() => setRulersOn((on) => !on)}
+          >
+            Rulers
+          </button>
           {Math.round(view.scale * 100)}%
         </span>
       </div>
@@ -1001,87 +1063,96 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           rename={renameElement}
           note={note}
         />
-        <div
-          ref={viewportRef}
-          className={`canvas-viewport${toolId !== 'select' ? ' canvas-viewport--create' : ''}`}
-          tabIndex={0}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerCancel}
-          onDoubleClick={onDoubleClick}
-          onWheel={onWheel}
-          onKeyDown={onKeyDown}
-        >
+        <div className={`canvas-canvasarea${rulersActive ? ' canvas-canvasarea--rulers' : ''}`}>
+          {rulersActive && (
+            <>
+              <div className="canvas-ruler-corner" />
+              <Rulers ref={rulersRef} hTicks={hTicks} vTicks={vTicks} />
+            </>
+          )}
           <div
-            ref={worldRef}
-            className="canvas-world"
-            style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})` }}
-          />
-          <div className="canvas-overlay">
-            {overlayBoxes.map((box) => (
-              <div
-                key={box.id}
-                className="canvas-overlay__box"
-                style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
-              />
-            ))}
-            {guideSegments.map((s) => (
-              <div
-                key={s.key}
-                className="canvas-overlay__guide"
-                style={{ left: s.left, top: s.top, width: s.width, height: s.height }}
-              />
-            ))}
-            {marqueeBox && (
-              <div
-                className="canvas-overlay__marquee"
-                style={{
-                  left: marqueeBox.left,
-                  top: marqueeBox.top,
-                  width: marqueeBox.width,
-                  height: marqueeBox.height
-                }}
-              />
-            )}
-            {ghostShape && (
-              <svg className="canvas-overlay__ghost" aria-hidden="true">
-                {ghostShape}
-              </svg>
-            )}
-            {handleFrame && (
-              <>
+            ref={viewportRef}
+            className={`canvas-viewport${toolId !== 'select' ? ' canvas-viewport--create' : ''}`}
+            tabIndex={0}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
+            onPointerLeave={onPointerLeaveViewport}
+            onDoubleClick={onDoubleClick}
+            onWheel={onWheel}
+            onKeyDown={onKeyDown}
+          >
+            <div
+              ref={worldRef}
+              className="canvas-world"
+              style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})` }}
+            />
+            <div className="canvas-overlay">
+              {overlayBoxes.map((box) => (
                 <div
-                  className="canvas-overlay__rotate"
+                  key={box.id}
+                  className="canvas-overlay__box"
+                  style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
+                />
+              ))}
+              {guideSegments.map((s) => (
+                <div
+                  key={s.key}
+                  className="canvas-overlay__guide"
+                  style={{ left: s.left, top: s.top, width: s.width, height: s.height }}
+                />
+              ))}
+              {marqueeBox && (
+                <div
+                  className="canvas-overlay__marquee"
                   style={{
-                    left: handleFrame.left + handleFrame.width / 2,
-                    top: handleFrame.top - interact.ROTATE_HANDLE_OFFSET
+                    left: marqueeBox.left,
+                    top: marqueeBox.top,
+                    width: marqueeBox.width,
+                    height: marqueeBox.height
                   }}
                 />
-                {HANDLE_POS.map((h) => (
+              )}
+              {ghostShape && (
+                <svg className="canvas-overlay__ghost" aria-hidden="true">
+                  {ghostShape}
+                </svg>
+              )}
+              {handleFrame && (
+                <>
                   <div
-                    key={h.id}
-                    className="canvas-overlay__handle"
-                    data-handle={h.id}
+                    className="canvas-overlay__rotate"
                     style={{
-                      left: handleFrame.left + handleFrame.width * h.fx,
-                      top: handleFrame.top + handleFrame.height * h.fy
+                      left: handleFrame.left + handleFrame.width / 2,
+                      top: handleFrame.top - interact.ROTATE_HANDLE_OFFSET
                     }}
                   />
-                ))}
-              </>
+                  {HANDLE_POS.map((h) => (
+                    <div
+                      key={h.id}
+                      className="canvas-overlay__handle"
+                      data-handle={h.id}
+                      style={{
+                        left: handleFrame.left + handleFrame.width * h.fx,
+                        top: handleFrame.top + handleFrame.height * h.fy
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+            {textEdit && textEditView && (
+              <TextEditOverlay
+                key={textEdit.target}
+                layout={textEditView.layout}
+                initialText={textEditView.initialText}
+                selectAll={textEdit.isNew}
+                onCommit={commitTextEdit}
+                onCancel={cancelTextEdit}
+              />
             )}
           </div>
-          {textEdit && textEditView && (
-            <TextEditOverlay
-              key={textEdit.target}
-              layout={textEditView.layout}
-              initialText={textEditView.initialText}
-              selectAll={textEdit.isNew}
-              onCommit={commitTextEdit}
-              onCancel={cancelTextEdit}
-            />
-          )}
         </div>
         <PropertiesPanel
           doc={doc}
@@ -1095,6 +1166,11 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           rotationOf={rotationOf}
           apply={applyCommand}
           gestureApply={gestureApplyCommand}
+          rootDir={rootDir}
+          figureId={figureId}
+          diagnostics={diagnostics}
+          note={note}
+          save={save}
         />
       </div>
     </div>

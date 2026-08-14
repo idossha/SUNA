@@ -140,3 +140,4 @@ export function toHexColor(value: string | null): string | null {
 }
 
 export type WorldRect = interact.WorldRect
+export type WorldPoint = interact.WorldPoint

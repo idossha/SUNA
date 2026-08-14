@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LitProviderIdSchema } from './lit';
 import { ProjectDirKeySchema, SunaProjectManifestSchema } from './project';
 
 export interface FsFileNode {
@@ -235,6 +236,106 @@ export const CHANNELS = {
         .min(1),
     }),
     response: z.object({ text: z.string() }),
+  },
+
+  /**
+   * Read-merge-validate-write on manuscript.json. Main re-reads the file from
+   * disk, deep-merges `patch` into it (objects merge key by key, arrays and
+   * scalars replace wholesale, `undefined` values are ignored), validates with
+   * ManuscriptSchema and writes atomically. The response carries the manuscript
+   * as it now exists on disk; parse it with ManuscriptSchema in the renderer.
+   */
+  'manuscript:update': {
+    request: z.object({ dir: z.string().min(1), patch: z.unknown() }),
+    response: z.object({ manuscript: z.unknown() }),
+  },
+  /** Missing comments.json reads as `{ schemaVersion: 1, comments: [] }`. */
+  'comments:read': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ file: z.unknown() }),
+  },
+  /** Validated with CommentsFileSchema, then written atomically. */
+  'comments:write': {
+    request: z.object({ dir: z.string().min(1), file: z.unknown() }),
+    response: z.object({}),
+  },
+
+  /** Results are LitResult shaped; `error` is a human message, never swallowed. */
+  'lit:search': {
+    request: z.object({
+      provider: LitProviderIdSchema,
+      query: z.string().min(1),
+      limit: z.number().int().positive().max(100),
+    }),
+    response: z.object({
+      results: z.array(z.unknown()),
+      error: z.string().nullable(),
+    }),
+  },
+  /** `result` is a LitResult or null when the DOI is unknown to the provider. */
+  'lit:by-doi': {
+    request: z.object({ provider: LitProviderIdSchema, doi: z.string().min(1) }),
+    response: z.object({
+      result: z.unknown(),
+      error: z.string().nullable(),
+    }),
+  },
+  /** An empty key clears the stored entry. Keys never leave the main process. */
+  'lit:set-key': {
+    request: z.object({ provider: LitProviderIdSchema, key: z.string() }),
+    response: z.object({}),
+  },
+  'lit:providers': {
+    request: z.object({}),
+    response: z.object({
+      providers: z.array(
+        z.object({
+          id: LitProviderIdSchema,
+          hasKey: z.boolean(),
+          /** Callable without a key (OpenAlex is keyless but metered). */
+          keyless: z.boolean(),
+        }),
+      ),
+    }),
+  },
+
+  /**
+   * Export the current figure into the project's output/ dir.
+   * Main handles 'svg' (byte copy) and 'pdf' (hidden window → printToPDF).
+   * 'png'/'tiff' are rasterized in the renderer and written with
+   * 'figure:write-binary'; asking main for them is an error.
+   */
+  'figure:export': {
+    request: z.object({
+      dir: z.string().min(1),
+      figureId: z.string().min(1),
+      format: z.enum(['svg', 'png', 'pdf', 'tiff']),
+      widthMm: z.number().positive(),
+      dpi: z.number().int().positive(),
+      transparent: z.boolean(),
+    }),
+    response: z.object({
+      path: z.string().min(1),
+      widthPx: z.number().int().positive(),
+      heightPx: z.number().int().positive(),
+    }),
+  },
+  /** Write renderer-produced bytes (PNG/TIFF) to a path inside the project. */
+  'figure:write-binary': {
+    request: z.object({ path: z.string().min(1), base64: z.string() }),
+    response: z.object({ path: z.string().min(1) }),
+  },
+  /**
+   * Copy figures/<figureId> to figures/<newId>. The RENDERER registers the new
+   * id in manuscript.json via 'manuscript:update'; this never touches it.
+   */
+  'figure:duplicate': {
+    request: z.object({
+      dir: z.string().min(1),
+      figureId: z.string().min(1),
+      newId: z.string().min(1),
+    }),
+    response: z.object({ figureId: z.string().min(1) }),
   },
 } as const satisfies Record<string, ChannelContract>;
 

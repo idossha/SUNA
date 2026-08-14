@@ -7,7 +7,10 @@ import { usePreviewProfileId, useRenderProfileStore } from '../state/renderProfi
 import { useUiStore } from '../state/ui'
 import { citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor } from './refs'
 import { useCitedKeys } from './useCitedKeys'
+import { SearchTab, type FindSimilarSeed } from './lit/SearchTab'
 import './views.css'
+
+type RefsTab = 'library' | 'search'
 
 type UsageFilter = 'all' | 'cited' | 'uncited'
 
@@ -50,6 +53,8 @@ export function ReferencesView(): JSX.Element {
   const [filter, setFilter] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<RefsTab>('library')
+  const [findSimilarSeed, setFindSimilarSeed] = useState<FindSimilarSeed | null>(null)
   const cited = useCitedKeys()
   // Shared with the combined manuscript tab (state/renderProfile) — this is
   // the one 'Rendered as' control, so switching it here also switches the
@@ -135,170 +140,205 @@ export function ReferencesView(): JSX.Element {
     setStatusNote(`Copied [@${key}]`)
   }
 
-  if (entries.length === 0) {
-    return (
-      <div className="view refs">
-        {loadError !== null ? (
-          <div className="view__error">{loadError}</div>
-        ) : (
-          <p className="view__hint">references.bib has no entries yet.</p>
-        )}
-      </div>
-    )
+  const findSimilar = (entry: BibEntry): void => {
+    setFindSimilarSeed({ nonce: Date.now(), doi: entry.doi ?? null, title: entry.title })
+    setActiveTab('search')
   }
 
   return (
     <div className="view refs">
-      <input
-        className="view__input"
-        type="search"
-        placeholder={`Filter ${entries.length} references…`}
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
-      {loadError !== null && <div className="view__error">{loadError}</div>}
-
-      <div className="refs__usage" role="group" aria-label="Filter by use in the manuscript">
-        {(
-          [
-            ['all', 'All', entries.length],
-            ['cited', 'Cited', citedCount],
-            ['uncited', 'Uncited', entries.length - citedCount]
-          ] as const
-        ).map(([id, label, count]) => (
-          <button
-            key={id}
-            className="refs__usage-btn"
-            aria-pressed={usage === id}
-            onClick={() => setUsage(id)}
-          >
-            {label} <span className="refs__usage-count">{count}</span>
-          </button>
-        ))}
+      <div className="refs__tabs" role="tablist" aria-label="References">
+        <button
+          role="tab"
+          className="refs__tab"
+          aria-selected={activeTab === 'library'}
+          onClick={() => setActiveTab('library')}
+        >
+          Library
+        </button>
+        <button
+          role="tab"
+          className="refs__tab"
+          aria-selected={activeTab === 'search'}
+          onClick={() => setActiveTab('search')}
+        >
+          Search
+        </button>
       </div>
 
-      {missing.length > 0 && (
-        <div className="refs__missing">
-          {missing.length === 1 ? '1 citation has' : `${missing.length} citations have`} no bib
-          entry: {missing.join(', ')}
-        </div>
-      )}
-
-      <div className="refs__list">
-        {displayRows.map((row) => {
-          const entry = row.entry
-          if (entry === undefined) return null
-          return (
-            <button
-              key={row.key}
-              className="refs__row"
-              aria-selected={selected !== undefined && selected.key === row.key}
-              onClick={() => setSelectedKey(row.key)}
-            >
-              {numbered && <span className="refs__num">{row.number}.</span>}
-              <span className="refs__row-main">
-                <span className="refs__row-line">
-                  <span className="refs__key">
-                    {entry.key}
-                    {!cited.set.has(entry.key) && (
-                      <span className="refs__uncited-dot" title="Not cited in the manuscript" />
-                    )}
-                  </span>
-                  <span className="refs__authoryear">
-                    {firstAuthorOf(entry)}
-                    {entry.year !== undefined ? ` · ${entry.year}` : ''}
-                  </span>
-                </span>
-                <span className="refs__title">{entry.title}</span>
-              </span>
-              <span
-                className="refs__copy"
-                role="button"
-                title={`Copy [@${entry.key}]`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  copyKey(entry.key)
-                }}
-              >
-                [@]
-              </span>
-            </button>
+      <div className={activeTab === 'library' ? 'refs__tabpanel' : 'refs__tabpanel refs__tabpanel--hidden'}>
+        {entries.length === 0 ? (
+          loadError !== null ? (
+            <div className="view__error">{loadError}</div>
+          ) : (
+            <p className="view__hint">
+              references.bib has no entries yet. Use the Search tab to find and add one.
+            </p>
           )
-        })}
-        {displayRows.length === 0 && (
-          <p className="view__hint" style={{ padding: 8 }}>
-            No matches.
-          </p>
+        ) : (
+          <>
+            <input
+              className="view__input"
+              type="search"
+              placeholder={`Filter ${entries.length} references…`}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            {loadError !== null && <div className="view__error">{loadError}</div>}
+
+            <div className="refs__usage" role="group" aria-label="Filter by use in the manuscript">
+              {(
+                [
+                  ['all', 'All', entries.length],
+                  ['cited', 'Cited', citedCount],
+                  ['uncited', 'Uncited', entries.length - citedCount]
+                ] as const
+              ).map(([id, label, count]) => (
+                <button
+                  key={id}
+                  className="refs__usage-btn"
+                  aria-pressed={usage === id}
+                  onClick={() => setUsage(id)}
+                >
+                  {label} <span className="refs__usage-count">{count}</span>
+                </button>
+              ))}
+            </div>
+
+            {missing.length > 0 && (
+              <div className="refs__missing">
+                {missing.length === 1 ? '1 citation has' : `${missing.length} citations have`} no bib
+                entry: {missing.join(', ')}
+              </div>
+            )}
+
+            <div className="refs__list">
+              {displayRows.map((row) => {
+                const entry = row.entry
+                if (entry === undefined) return null
+                return (
+                  <button
+                    key={row.key}
+                    className="refs__row"
+                    aria-selected={selected !== undefined && selected.key === row.key}
+                    onClick={() => setSelectedKey(row.key)}
+                  >
+                    {numbered && <span className="refs__num">{row.number}.</span>}
+                    <span className="refs__row-main">
+                      <span className="refs__row-line">
+                        <span className="refs__key">
+                          {entry.key}
+                          {!cited.set.has(entry.key) && (
+                            <span className="refs__uncited-dot" title="Not cited in the manuscript" />
+                          )}
+                        </span>
+                        <span className="refs__authoryear">
+                          {firstAuthorOf(entry)}
+                          {entry.year !== undefined ? ` · ${entry.year}` : ''}
+                        </span>
+                      </span>
+                      <span className="refs__title">{entry.title}</span>
+                    </span>
+                    <span
+                      className="refs__copy"
+                      role="button"
+                      title={`Copy [@${entry.key}]`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        copyKey(entry.key)
+                      }}
+                    >
+                      [@]
+                    </span>
+                  </button>
+                )
+              })}
+              {displayRows.length === 0 && (
+                <p className="view__hint" style={{ padding: 8 }}>
+                  No matches.
+                </p>
+              )}
+            </div>
+
+            {selected !== undefined && profile !== null && (
+              <div>
+                <div className="refs__preview-header">
+                  <div className="view__section-title">Rendered as</div>
+                  <button className="refs__find-similar" onClick={() => findSimilar(selected)}>
+                    Find similar
+                  </button>
+                </div>
+                <div className="refs__styles">
+                  {BUNDLED_PROFILE_IDS.map((id) => (
+                    <button
+                      key={id}
+                      className="refs__style"
+                      aria-pressed={id === previewProfileId}
+                      onClick={() => {
+                        if (rootDir !== null) useRenderProfileStore.getState().setPreviewProfile(rootDir, id)
+                      }}
+                    >
+                      {PROFILE_LABELS[id]}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="refs__preview" style={{ marginTop: 8 }}>
+                  <div className="refs__preview-label">In text — {profile.citations.mode}</div>
+                  <div className="refs__rendered">
+                    {(() => {
+                      const rendering = renderCluster(
+                        { keys: [selected.key], narrative: false },
+                        numbers,
+                        citeStyleOf(profile.citations),
+                        entryMap
+                      )
+                      return rendering.form === 'superscript' ? (
+                        <>
+                          …as shown in earlier work
+                          <sup>
+                            <RunSpans runs={rendering.inline} />
+                          </sup>
+                          .
+                        </>
+                      ) : (
+                        <>
+                          …as shown in earlier work <RunSpans runs={rendering.inline} />.
+                        </>
+                      )
+                    })()}
+                  </div>
+
+                  <div className="refs__preview-label">Reference list</div>
+                  <div className="refs__rendered">
+                    {numbered && numbers.get(selected.key) !== undefined && (
+                      <span className="refs__cite-link">{numbers.get(selected.key)}. </span>
+                    )}
+                    <RunSpans
+                      runs={formatReference(selected, {
+                        maxAuthors: maxAuthorsFor(
+                          profile.citations.referenceList.authorTruncation,
+                          selected.authors.length
+                        )
+                      })}
+                    />
+                  </div>
+                </div>
+                <p className="view__hint" style={{ marginTop: 6 }}>
+                  {profile.journalName} · et al.{' '}
+                  {profile.citations.referenceList.authorTruncation.truncateWhenMoreThan !== null
+                    ? `after ${profile.citations.referenceList.authorTruncation.truncateWhenMoreThan} authors`
+                    : 'not applied'}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {selected !== undefined && profile !== null && (
-        <div>
-          <div className="view__section-title">Rendered as</div>
-          <div className="refs__styles">
-            {BUNDLED_PROFILE_IDS.map((id) => (
-              <button
-                key={id}
-                className="refs__style"
-                aria-pressed={id === previewProfileId}
-                onClick={() => {
-                  if (rootDir !== null) useRenderProfileStore.getState().setPreviewProfile(rootDir, id)
-                }}
-              >
-                {PROFILE_LABELS[id]}
-              </button>
-            ))}
-          </div>
-
-          <div className="refs__preview" style={{ marginTop: 8 }}>
-            <div className="refs__preview-label">In text — {profile.citations.mode}</div>
-            <div className="refs__rendered">
-              {(() => {
-                const rendering = renderCluster(
-                  { keys: [selected.key], narrative: false },
-                  numbers,
-                  citeStyleOf(profile.citations),
-                  entryMap
-                )
-                return rendering.form === 'superscript' ? (
-                  <>
-                    …as shown in earlier work
-                    <sup>
-                      <RunSpans runs={rendering.inline} />
-                    </sup>
-                    .
-                  </>
-                ) : (
-                  <>
-                    …as shown in earlier work <RunSpans runs={rendering.inline} />.
-                  </>
-                )
-              })()}
-            </div>
-
-            <div className="refs__preview-label">Reference list</div>
-            <div className="refs__rendered">
-              {numbered && numbers.get(selected.key) !== undefined && (
-                <span className="refs__cite-link">{numbers.get(selected.key)}. </span>
-              )}
-              <RunSpans
-                runs={formatReference(selected, {
-                  maxAuthors: maxAuthorsFor(
-                    profile.citations.referenceList.authorTruncation,
-                    selected.authors.length
-                  )
-                })}
-              />
-            </div>
-          </div>
-          <p className="view__hint" style={{ marginTop: 6 }}>
-            {profile.journalName} · et al.{' '}
-            {profile.citations.referenceList.authorTruncation.truncateWhenMoreThan !== null
-              ? `after ${profile.citations.referenceList.authorTruncation.truncateWhenMoreThan} authors`
-              : 'not applied'}
-          </p>
-        </div>
-      )}
+      <div className={activeTab === 'search' ? 'refs__tabpanel' : 'refs__tabpanel refs__tabpanel--hidden'}>
+        <SearchTab seed={findSimilarSeed} />
+      </div>
     </div>
   )
 }
