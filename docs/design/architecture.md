@@ -141,20 +141,22 @@ reproducible.
    the overlay. The figure is now reproducible from code alone.
 5. Figures drawn from scratch have no provenance block; they're plain SVG.
 
-## 7. Formatter — publisher-aware output
+## 7. Formatter — author-guideline compliance (see ADR-002)
 
-- **Publisher profile** = declarative JSON (schema per reference-analysis §1):
-  page geometry, typography tokens, page templates, section-ordering rules,
-  caption/table/equation/citation styling, brand tokens, numbering namespaces.
+- **Publisher profile** = declarative JSON encoding the journal's *author
+  guidelines* (not its typeset page design): citation/reference formats,
+  figure design rules (width presets mm, min font pt, line-weight range,
+  palette guidance), manuscript limits (abstract/title length, required
+  sections, availability statements). Each field carries its source URL from
+  the journal's guidelines page.
+- **Compliance checker**: profiles drive diagnostics across manuscript and
+  figures (abstract too long, figure text below minimum, off-palette
+  colors, missing sections) — flag, never silently reformat.
 - **Export path**: manuscript.json + sections + bib + figures → SUNA AST →
-  LaTeX emitter renders through the profile's template → **Tectonic**
-  (self-contained XeTeX engine, auto-downloaded per platform) → PDF into
-  `output/`.
-- **Journal preview**: the same profile drives a paged HTML preview
-  (CSS @page emulation) for fast in-app "how it will look" rendering; the PDF
-  is the ground truth.
-- **DOCX**: final-stage export via Pandoc from the SUNA AST (submission
-  convenience only).
+  clean *submission manuscript* LaTeX (standard article class, spacing/line
+  numbers per profile) → **Tectonic** (self-contained, auto-downloaded) →
+  PDF into `output/`. DOCX via final-stage conversion when a journal wants
+  it. No journal facsimile rendering.
 - Citation engine: cite-key → cluster → profile processor (numeric-superscript
   with range collapsing / author-year / parenthetical) → inline node + ordered
   bibliography with journal abbreviation table. Numbering is always derived at
