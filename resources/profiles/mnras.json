@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 2,
+  "id": "mnras",
+  "journalName": "Monthly Notices of the Royal Astronomical Society",
+  "publisher": "Royal Astronomical Society / Oxford University Press",
+  "lastVerified": "2026-08-13",
+  "citations": {
+    "mode": "author-year",
+    "collapseRanges": false,
+    "textualTokens": { "ref": "ref.", "refs": "refs" },
+    "authorYear": {
+      "includeInitials": true,
+      "twoAuthorJoiner": "&",
+      "etAlFromNAuthors": 4,
+      "sameYearSuffixes": true
+    },
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors}, {year}, {journalAbbrev}, {volume}, {firstPage}",
+        "book": "{authors}, {year}, {title}. {publisher}, {place}",
+        "preprint": "{authors}, {year}, preprint (arXiv:{id})",
+        "software": "{authors}, {year}, Astrophysics Source Code Library, record ascl:{id}"
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 8,
+        "keepFirstN": 1
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": null,
+      "sortOrder": "alphabetical"
+    },
+    "maxReferences": null,
+    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"]
+  },
+  "figures": {
+    "widthPresetsMm": { "single": 80, "onehalf": null, "double": null },
+    "maxHeightMm": null,
+    "minFontPt": null,
+    "maxFontPt": null,
+    "lineWeightPt": { "min": 0.3, "max": null },
+    "preferredFontFamilies": ["Times", "Arial", "Helvetica"],
+    "palette": {
+      "requirement": "colorblind-safe-recommended",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": true
+    },
+    "formats": {
+      "vectorPreferred": ["eps", "pdf"],
+      "rasterAccepted": ["tiff"],
+      "minDpi": 300
+    },
+    "panelLabel": { "letterCase": "lower", "weight": null, "wrapper": "parens" },
+    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "mnras-paper",
+        "name": "Paper",
+        "wordLimit": null,
+        "abstractWordLimit": 250,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "mnras-letter",
+        "name": "Letter",
+        "wordLimit": null,
+        "abstractWordLimit": 200,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      { "id": "abstract", "label": "Abstract", "required": true },
+      { "id": "keywords", "label": "Key words", "required": true },
+      { "id": "introduction", "label": "Introduction", "required": true },
+      { "id": "conclusions", "label": "Conclusions", "required": true },
+      { "id": "acknowledgements", "label": "Acknowledgements", "required": true },
+      { "id": "data-availability", "label": "Data Availability", "required": true },
+      { "id": "references", "label": "References", "required": true }
+    ],
+    "availabilityStatements": { "data": true, "code": null },
+    "submissionFormat": {
+      "doubleSpacing": false,
+      "lineNumbers": null,
+      "acceptedFileTypes": ["tex", "pdf", "ps", "doc", "docx", "rtf", "txt"]
+    },
+    "sources": ["https://academic.oup.com/mnras/pages/general_instructions"]
+  },
+  "notes": [
+    "In-text citation examples on the current official page include first initials — '(J. Brown 1999)', 'J. Brown & P. Jones (1991)' — which differs from the traditional mnras.bst BibTeX output (no initials); verified verbatim on the Instructions to Authors page.",
+    "Three authors: give all three names at first mention, then first author et al. (roman, not italic); four or more: first author et al. always.",
+    "Multiple citations in one bracket are separated by semicolons; same-author years collate '(J. Brown 1992, 1995)'; same-year papers as 'A. Smith et al. (2000a,b)'.",
+    "Reference list: no bold/italic, no commas after surnames, no ampersand between the final two names; private communications and papers in preparation are cited in text only and omitted from the list.",
+    "Journal abbreviations: journal's own simplified list of ~20 frequent journals (A&A, ApJ, AJ, MNRAS, Nature, Science, ...); IAU standard abbreviations for journals not on the list.",
+    "No DOI-printing requirement stated; online links are generated from reference details, so details must be accurate.",
+    "Figure labelling should suit the likely final size of around 8 pt; all fonts and logos must be embedded in the figure file.",
+    "TIFF resolution at final size: 300 ppi for grey-scale/half-tone (photographs), 800 ppi for combined line/tone; bitmapped elements inside vector files need >=400 dpi effective resolution.",
+    "Panel labels (a), (b) must be embedded in the graphics file itself — not added via LaTeX (figures are processed separately from the LaTeX code).",
+    "Plots should have borders on all sides, fiducial marks on every border, and labelled axes including units; refer to figures as 'Fig. 1' and tables as 'Table 1'.",
+    "Letters must not exceed five pages; title, author list, affiliations, abstract, keywords, data availability statement, acknowledgements and references are excluded from that limit.",
+    "Papers have no page limits but should be concise; abstract is a single unstructured paragraph followed by 1-6 key words from the official MNRAS list.",
+    "Layout: two columns (except the abstract), single line spaced; British English spellings ('centre', 'sulphur', 'acknowledgements'); 'km s^-1' not 'km/s'; SI plus astronomy-recognized units.",
+    "Initial submission: a single file (PDF, PS, Word, RTF or plain text) <=10 MB with figures included; supplementary material <=350 MB combined; LaTeX with the official mnras class (CTAN) is recommended; revisions highlight changes; accepted 'First Look' files as .zip/.tar.gz source archives.",
+    "Colour-blind-friendly figures requested 'where possible'; red and green in the same figure is particularly problematic; recommended tools: ColorBrewer and Color Oracle; coloured/shaded table cells are unsupported in the web version.",
+    "Long lists of citations should be avoided unless the articles cited are directly relevant.",
+    "Line weights must withstand significant reduction in size (minimum 0.3 pt at final size); no line-numbering requirement is stated."
+  ]
+}

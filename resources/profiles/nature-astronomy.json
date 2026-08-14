@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "id": "nature-astronomy",
+  "journalName": "Nature Astronomy",
+  "publisher": "Springer Nature (Nature Portfolio)",
+  "lastVerified": "2026-08-13",
+  "citations": {
+    "mode": "numeric-superscript",
+    "collapseRanges": true,
+    "textualTokens": { "ref": "ref.", "refs": "refs" },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors} {title}. {journalAbbrev} {volume}, {firstPage}–{lastPage} ({year}).",
+        "book": "{authors} {title} Ch. {chapter} ({publisher}, {year}).",
+        "preprint": "{authors} {title}. Preprint at {url} ({year}).",
+        "software": "{authors} {title}. {repository} {doiUrl} ({year})."
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 5,
+        "keepFirstN": 1
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": "Cited datasets and code must have a DOI, expressed in the reference as a full URL",
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting",
+      "https://www.nature.com/natastron/content",
+      "https://www.nature.com/nature/for-authors/formatting-guide"
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": { "single": 88, "onehalf": null, "double": 180 },
+    "maxHeightMm": null,
+    "minFontPt": 5,
+    "maxFontPt": 7,
+    "lineWeightPt": { "min": 0.25, "max": 1 },
+    "preferredFontFamilies": ["Helvetica", "Arial"],
+    "palette": {
+      "requirement": "colorblind-safe-required",
+      "suggestedRamps": [],
+      "suggestedHex": [
+        "#000000",
+        "#e69f00",
+        "#56b4e9",
+        "#009e73",
+        "#f0e442",
+        "#0072b2",
+        "#d55e00",
+        "#cc79a7"
+      ],
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": true
+    },
+    "formats": {
+      "vectorPreferred": ["ai", "eps", "pdf"],
+      "rasterAccepted": ["jpg", "tiff"],
+      "minDpi": 300
+    },
+    "panelLabel": { "letterCase": "lower", "weight": "bold", "wrapper": "none" },
+    "sources": [
+      "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting",
+      "https://www.nature.com/documents/NRJs-guide-to-preparing-final-artwork.pdf",
+      "http://research-figure-guide.nature.com/figures/preparing-figures-our-specifications/",
+      "http://research-figure-guide.nature.com/figures/building-and-exporting-figure-panels/",
+      "http://research-figure-guide.nature.com/figures/extended-data-formatting-guidelines/"
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "article",
+        "name": "Article",
+        "wordLimit": {
+          "max": 3000,
+          "scope": "main text (introduction, results, discussion), excluding abstract, Methods, references and figure captions",
+          "hard": false
+        },
+        "abstractWordLimit": 200,
+        "titleLimitChars": null,
+        "maxDisplayItems": 6,
+        "maxReferences": 50
+      },
+      {
+        "id": "review",
+        "name": "Review",
+        "wordLimit": { "max": 4000, "scope": "main text (3,000–4,000 words)", "hard": false },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": 100
+      },
+      {
+        "id": "perspective",
+        "name": "Perspective",
+        "wordLimit": { "max": 3000, "scope": "main text", "hard": false },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": 50
+      },
+      {
+        "id": "matters-arising",
+        "name": "Matters Arising",
+        "wordLimit": {
+          "max": 1200,
+          "scope": "as concise as possible, ideally not exceeding 1,200 words",
+          "hard": false
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": 2,
+        "maxReferences": 15
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      { "id": "abstract", "label": "Abstract", "required": true },
+      { "id": "introduction", "label": "Introduction (unheaded)", "required": true },
+      { "id": "results", "label": "Results", "required": true },
+      { "id": "discussion", "label": "Discussion", "required": true },
+      { "id": "methods", "label": "Methods", "required": true },
+      { "id": "data-availability", "label": "Data Availability", "required": true },
+      { "id": "references", "label": "References", "required": true }
+    ],
+    "availabilityStatements": { "data": true, "code": null },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": null,
+      "acceptedFileTypes": ["pdf", "docx", "tex"]
+    },
+    "sources": [
+      "https://www.nature.com/natastron/content",
+      "https://www.nature.com/natastron/submission-guidelines/initial-formatting",
+      "https://www.nature.com/natastron/submission-guidelines/aip-and-formatting",
+      "https://www.nature.com/natastron/editorial-policies/reporting-standards"
+    ]
+  },
+  "notes": [
+    "The superscript form of in-text numbers and the >5-author 'et al.' truncation are stated on the flagship Nature formatting guide; Nature Astronomy's own AIP page mandates numerical references and gives the same reference-style examples.",
+    "Collation/range formatting for in-text citation numbers is NOT stated on official pages; collapseRanges: true (a non-nullable schema field) follows standard Nature-family typeset practice rather than a stated rule.",
+    "References are numbered sequentially in order of appearance through: Main Text, Methods, Data Availability, Tables, Figure Legends, Box, Extended Data Figures; Methods-only references continue the numbering and are listed at the end; only one publication per reference number.",
+    "Long-form types (Articles, Letters, Reviews, Perspectives) REQUIRE article titles in references; short types (Comment, Correspondence, News & Views) omit them.",
+    "Reference typography (flagship guide): article titles upright, first word capitalized, ending with a full stop; book titles italic; journal titles italic and abbreviated according to common usage; volume numbers bold; publisher and city required for books; authors surname first, comma, then initials.",
+    "Website URLs are cited parenthetically in the main text, not in the reference list; unpublished abstracts / in-preparation / under-review work without an available preprint must not appear in the reference list; grant details and acknowledgements are not permitted as references; footnotes are not supported.",
+    "Article reference guideline: up to 50 for the main text and another 50 for the Methods section; Review annotations encouraged for key studies (<=10% of references).",
+    "Maximum figure height depends on caption length (branded-journals artwork guide): 1-column ~130/180/220 mm and 2-column ~185/210/225 mm for captions of <300/<150/<50 words; non-research content columns are 58/121/185 mm.",
+    "The flagship figure-guide site quotes 89/183 mm widths and 170 mm max height for Nature itself; the branded-journals artwork guide's 88/180 mm applies to Nature Astronomy (AIP page: panels saved at a maximum width of 180 mm).",
+    "An accessible colour palette is required; suggestedHex is the Wong colour-blind-safe palette (Wong, Nature Methods 8, 441; 2011); avoid red/green combinations and rainbow scales; WCAG 2.1 AA; text contrast ratio >4.5; avoid coloured text, patterns, gridlines, drop shadows, decorative icons.",
+    "Graphs/charts/schematics must be vector with editable layers (.ai/.eps/.pdf preferred; layered Photoshop, PowerPoint-saved-PDF, .svg, Excel, .ps acceptable); .jpeg/.tiff/.png are NOT accepted for main-figure vector art; do not outline text; embed fonts (TrueType 2/42, e.g. matplotlib pdf.fonttype=42).",
+    "Photographs/complex illustrations as bitmaps at minimum 300 dpi (online proofs render at up to 450 dpi); do not artificially upsample; each final figure <=50 MB; do not flatten labels or scale/error bars onto images.",
+    "Extended Data: max 10 items, each fitting a single page (180 mm x 170 mm including legend), .jpeg preferred (.tiff/.eps allowed), RGB, max 300 dpi, <=10 MB, named Surname_EDfig1.jpg; legends collected in an Inventory of Supporting Information.",
+    "RGB colour mode for original research content; CMYK for all other content including Perspectives, Progress and Review articles (final-artwork guide); colour charges apply only to primary subscription content in print journals.",
+    "Initial submissions need no special formatting: PDF, Word or TeX/LaTeX (compiled PDFs for LaTeX); after Acceptance In Principle: Word or TeX/LaTeX only — no PDFs; LaTeX must use standard classes, default Computer Modern fonts, no personal macros, .bbl pasted into the .tex, compiling with no errors or warnings.",
+    "A data availability statement is mandatory for all original research (Nature Portfolio policy); repository datasets must be formally cited in the reference list; code availability is covered by the reporting-standards policy.",
+    "Panel labels: 8-pt bold, upright (not italic), lowercase a, b, c; panels arranged alphabetically minimizing white space; figures cited in sequence as 'Fig. 1'; use scale bars, not magnification factors.",
+    "Figure legends: brief title plus short description of each panel; verbal cues rather than symbols; describe centre values, error bars, sample size n, statistical tests and P values; legend must not exceed the article-type word limit.",
+    "Flagship-Nature-only numbers not restated by Nature Astronomy: 75-character title limit, double-spaced text with line numbers, legends <300 words.",
+    "Analysis section headings must be fewer than 60 characters including spaces; Article subheadings are required in Results and Methods, none in Discussion; equations referred to as 'equation (1)'; Matters Arising allows up to 3 Extended Data items and starts with a summary paragraph in place of an abstract.",
+    "Supplementary Information as a single combined PDF (complex tables as Excel/.csv, software as .zip/.tar); generative-AI images not permitted for cover artwork; ORCID must be linked before final acceptance."
+  ]
+}
