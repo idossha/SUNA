@@ -4,7 +4,10 @@ import { getBundledProfile, BUNDLED_PROFILE_IDS, type BundledProfileId } from '@
 import { useProjectStore } from '../state/project'
 import { useUiStore } from '../state/ui'
 import { citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor } from './refs'
+import { useCitedKeys } from './useCitedKeys'
 import './views.css'
+
+type UsageFilter = 'all' | 'cited' | 'uncited'
 
 const PROFILE_LABELS: Record<BundledProfileId, string> = {
   'nature-astronomy': 'Nat. Astron.',
@@ -43,7 +46,9 @@ export function ReferencesView(): JSX.Element {
   const [entries, setEntries] = useState<BibEntry[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
+  const [usage, setUsage] = useState<UsageFilter>('all')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const cited = useCitedKeys()
   const [profileId, setProfileId] = useState<BundledProfileId>('nature-astronomy')
 
   useEffect(() => {
@@ -74,9 +79,24 @@ export function ReferencesView(): JSX.Element {
     }
   }, [rootDir, saveBump])
 
+  const citedCount = useMemo(
+    () => entries.filter((e) => cited.set.has(e.key)).length,
+    [entries, cited.set]
+  )
   const filtered = useMemo(
-    () => entries.filter((e) => entryMatches(e, filter)),
-    [entries, filter]
+    () =>
+      entries.filter((e) => {
+        if (!entryMatches(e, filter)) return false
+        if (usage === 'cited') return cited.set.has(e.key)
+        if (usage === 'uncited') return !cited.set.has(e.key)
+        return true
+      }),
+    [entries, filter, usage, cited.set]
+  )
+  /** Keys cited in prose with no matching bib entry — a real manuscript bug. */
+  const missing = useMemo(
+    () => cited.keys.filter((key) => !entries.some((e) => e.key === key)),
+    [cited.keys, entries]
   )
   const numbers = useMemo(() => assignNumbers(entries.map((e) => [e.key])), [entries])
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries])
@@ -116,6 +136,32 @@ export function ReferencesView(): JSX.Element {
       />
       {loadError !== null && <div className="view__error">{loadError}</div>}
 
+      <div className="refs__usage" role="group" aria-label="Filter by use in the manuscript">
+        {(
+          [
+            ['all', 'All', entries.length],
+            ['cited', 'Cited', citedCount],
+            ['uncited', 'Uncited', entries.length - citedCount]
+          ] as const
+        ).map(([id, label, count]) => (
+          <button
+            key={id}
+            className="refs__usage-btn"
+            aria-pressed={usage === id}
+            onClick={() => setUsage(id)}
+          >
+            {label} <span className="refs__usage-count">{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {missing.length > 0 && (
+        <div className="refs__missing">
+          {missing.length === 1 ? '1 citation has' : `${missing.length} citations have`} no bib
+          entry: {missing.join(', ')}
+        </div>
+      )}
+
       <div className="refs__list">
         {filtered.map((entry) => (
           <button
@@ -125,7 +171,12 @@ export function ReferencesView(): JSX.Element {
             onClick={() => setSelectedKey(entry.key)}
           >
             <span className="refs__row-main">
-              <span className="refs__key">{entry.key}</span>
+              <span className="refs__key">
+                {entry.key}
+                {!cited.set.has(entry.key) && (
+                  <span className="refs__uncited-dot" title="Not cited in the manuscript" />
+                )}
+              </span>
               <span className="refs__authoryear">
                 {firstAuthorOf(entry)}
                 {entry.year !== undefined ? ` · ${entry.year}` : ''}
