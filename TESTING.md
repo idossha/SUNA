@@ -30,48 +30,62 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
 1. `pnpm install && pnpm dev`
 2. Welcome screen → **Open example**. The explorer shows the project;
    the intro section opens; the status bar shows *Nature Astronomy*.
-3. **Editor modes**: the intro tab's mode button (or **⌘E**) cycles
-   *Source → Live → Reading*. Live is Obsidian-style: math renders as
-   KaTeX in place, citations/cross-refs become chips, heading/emphasis
-   syntax dims — click into a rendered equation and its `$$` source
-   reappears at the cursor; move the cursor away and it re-renders.
-   Reading is the static rendered article (labelled display equation,
-   gold citation superscripts, blue cross-refs). ⌘S saves in any mode.
-   The gear button tunes width/font/line-height/theme per your taste.
+   Drag the sidebar's right edge (it glows gold) to resize it
+   (180–560 px); double-click the edge to reset to 272 px. The width
+   persists across restarts.
+3. **Editor modes**: the intro tab's mode button (or **⌘E**) toggles
+   *Source ⇄ Reading*. Reading is the **editable** live preview,
+   Obsidian-style: math renders as KaTeX in place, citations/cross-refs
+   become chips, heading/emphasis syntax dims — click into a rendered
+   equation and its `$$` source reappears at the cursor; move the cursor
+   away and it re-renders. You can type in either mode; ⌘S saves in any
+   mode. The gear button tunes width/font/line-height/theme per your
+   taste (content width now goes up to 150 ch).
 4. **Explorer**: right-click any file or folder — New File…, New
    Folder…, Rename… (inline input, basename pre-selected), Delete
    (two-step *Confirm delete?*; files go to the system trash, never
    `rm`). The header buttons create at the project root.
 5. **Manuscript view** (activity bar): title, author count, abstract
-   word count, the ordered outline (level chips; the intro shows as
-   *untitled* since it precedes the first heading), figure/table counts.
-   Clicking an outline row opens that section.
-6. **Figures view**: one card per `figures/*/figure.svg` with a live SVG
+   word count, the ordered outline (level chips + per-section word
+   counts; the intro shows as *untitled* since it precedes the first
+   heading), figure/table counts. *Open full manuscript* — or any
+   outline row — opens the combined document tab.
+6. **Manuscript document**: one scrollable page. The rendered title page
+   (KaTeX in the title, affiliation superscripts derived from author
+   order, `*` + e-mail for the corresponding author, small-caps
+   Abstract/Significance blocks) is followed by one live-preview editor
+   per body section — ⌘S inside a section saves just that section's
+   `sections/*.md`, and the tab title shows an aggregated dirty dot —
+   then the profile-driven reference list (numbered by first appearance
+   under numeric profiles; `gunn1972` is entry 1). Scrolling the
+   document moves the outline's active row in the sidebar; clicking an
+   outline row smooth-scrolls the document to that section.
+7. **Figures view**: one card per `figures/*/figure.svg` with a live SVG
    thumbnail, caption title, and width-preset chip. Clicking a card opens
    the figure on the canvas.
-7. **Canvas**: `figures/fig-spectrum/figure.svg` reads *180.0 × 58.0 mm*.
+8. **Canvas**: `figures/fig-spectrum/figure.svg` reads *180.0 × 58.0 mm*.
    Click a panel title or legend text — the selection names the semantic
    element (`ax0.title`, `ax0.legend`). Drag it; **⌘Z** undoes; **⌘S**
    saves. Scroll pans, ⌘-scroll (or pinch) zooms. The tool rail adds
    rects/ellipses/lines/arrows/text; layers + properties panels sit
    left/right.
-8. **References view**: filter the 11 entries, click one, and flip the
+9. **References view**: filter the 11 entries, click one, and flip the
    rendered preview between the four bundled journal styles — the in-text
    sample switches between numeric superscript and author–year live. The
    `[@]` button copies a citation key for pasting into a section.
-9. **Source control view**: the example copy is already a repo (branch
-   `main`, one *Initial commit*). Edit any file, and the view lists it
-   with a status letter; clicking shows the colored diff; *Commit all*
-   with a message grows the history.
-10. **Agent view**: pick Anthropic/OpenAI (paste an API key — stored
+10. **Source control view**: the example copy is already a repo (branch
+    `main`, one *Initial commit*). Edit any file, and the view lists it
+    with a status letter; clicking shows the colored diff; *Commit all*
+    with a message grows the history.
+11. **Agent view**: pick Anthropic/OpenAI (paste an API key — stored
     encrypted via safeStorage, never written in plain text) or Ollama
     (local, no key). Chat runs with the manuscript title in the system
     prompt. ⌘⏎ sends.
-11. **Compliance**: the example figures are clean. To see diagnostics,
+12. **Compliance**: the example figures are clean. To see diagnostics,
     edit a figure's text to a large size — an *N issues* chip appears in
     the canvas toolbar; click it for the list (rule id, measured value vs
     the journal's stated rule).
-12. **Reproducibility**: rerun a figure's `source/plot.py` (command
+13. **Reproducibility**: rerun a figure's `source/plot.py` (command
     above) and reopen — canvas edits saved to the SVG are currently
     overwritten by regeneration; the provenance overlay that replays them
     lands next.
@@ -83,35 +97,46 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
 Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
-default 9321) and drives 21 steps end to end. The userData example copy
+default 9321) and drives 22 steps end to end. The userData example copy
 is **deleted before launch**, so every run exercises the pristine
 copy-on-open path (fresh git repo, exactly one initial commit):
 
 1. welcome renders → 2. example opens **as the userData copy** (profile
-chip, tree, git-inited) → 3. intro section in CodeMirror → 4. **live
-mode**: KaTeX widget in the CM DOM, click into the math reveals the raw
-`$$` source at the cursor, moving away re-renders it → 5. **reading
-mode**: KaTeX + citation chips + equation anchor, then back to source →
-6. figure mounts on canvas at 180 mm → 7. zero compliance issues →
+chip, tree, git-inited) → 3. intro section in CodeMirror → 4. **sidebar
+resize**: pointer-drag the handle +60 px, width + localStorage
+persistence asserted, double-click resets to 272 → 5. **reading mode**
+(two-state toggle): KaTeX widget in the CM DOM, click into the math
+reveals the raw `$$` source at the cursor, moving away re-renders it,
+and the surface stays **editable** (type → doc changes → undo reverts)
+→ 6. figure mounts on canvas at 180 mm → 7. zero compliance issues →
 8. trusted-input drag + ⌘S produces a **one-line transform diff** →
 9. ⌘Z + ⌘S restores the file **byte-identical** → 10–15. editing suite
 (rect create with profile-default fill, palette fill edit, SE-handle
 resize, text tool, panels screenshot, undo chain back to byte-identical)
 → 16. **explorer** create/rename/delete via the context menu, asserted
-on disk → 17. **manuscript view** outline (4 sections, click opens tab)
-→ 18. **figures view** (two thumbnails; velocity map opens at 88 mm,
-compliant) → 19. **references view** (11 entries; style toggle re-renders
-the reference) → 20. **git view** (clean repo → edit → diff → commit →
-history grows) → 21. **agent view** (three providers; Ollama needs no
+on disk → 17. **manuscript view** outline (4 sections; an outline click
+opens the combined document and scroll-spies to that section) →
+18. **manuscript document**: title page (KaTeX title, `1,*` author
+superscripts, affiliations, correspondence e-mail, Abstract +
+Significance), 4 section editors, 11 references numbered by first
+appearance (entry 1 = `gunn1972`), outline click scrolls to Methods
+(active row + live word counts asserted), and a per-section ⌘S
+save/undo/save round-trip on `sections/04-methods.md` → 19. **figures
+view** (two thumbnails; velocity map opens at 88 mm, compliant) →
+20. **references view** (11 entries; style toggle re-renders the
+reference) → 21. **git view** (clean repo → edit → diff → commit →
+history grows) → 22. **agent view** (three providers; Ollama needs no
 key — no live chat).
 
 Exit code 0 = pass. Screenshots (each sidebar view as `views-*.png`,
-`live-mode.png`, plus the canvas/editing shots) land in
-`scripts/e2e/.artifacts/`; failures add `FAIL-<step>.png`. Ad-hoc driving
-during development: run `SUNA_DEBUG_PORT=9310 pnpm dev`, then evaluate JS
-in the page — dev builds expose `window.__sunaDev` with `openFileTab`,
-`projectStore`, `uiStore`, `canvasTools`, `editorSettings`,
-`explorerStore`, `manuscriptStore`, and `agentChatStore`.
+`reading-mode.png`, `manuscript-doc.png`, `manuscript-outline-active.png`,
+plus the canvas/editing shots) land in `scripts/e2e/.artifacts/`;
+failures add `FAIL-<step>.png`. Ad-hoc driving during development: run
+`SUNA_DEBUG_PORT=9310 pnpm dev`, then evaluate JS in the page — dev
+builds expose `window.__sunaDev` with `openFileTab`, `projectStore`,
+`uiStore`, `canvasTools`, `editorSettings`, `editorViewModes`,
+`explorerStore`, `manuscriptStore`, `manuscriptDocStore`, and
+`agentChatStore`.
 
 ## Unit gates
 

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
-import { parseSciMark, renderHtml } from '@suna/markdown'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { devSeam } from '../state/devSeam'
 import { useUiStore } from '../state/ui'
@@ -9,12 +8,18 @@ import { EDITOR_THEME_CLASS } from './themes'
 import { SettingsPopover } from './SettingsPopover'
 import './editor.css'
 
-type ViewMode = 'source' | 'live' | 'reading'
+/**
+ * Two surfaces on one editable CodeMirror instance: 'source' is plain
+ * markdown, 'reading' adds live-preview decorations (widgets with
+ * cursor-reveal) plus reading typography. There is no static render here —
+ * renderHtml stays in @suna/markdown for other consumers.
+ */
+export type EditorViewMode = 'source' | 'reading'
 
-const MODE_ORDER: readonly ViewMode[] = ['source', 'live', 'reading']
-const MODE_LABEL: Record<ViewMode, string> = {
+export const EDITOR_VIEW_MODES: readonly EditorViewMode[] = ['source', 'reading']
+
+const MODE_LABEL: Record<EditorViewMode, string> = {
   source: 'Source',
-  live: 'Live',
   reading: 'Reading'
 }
 
@@ -38,11 +43,9 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
 
   const rootRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
-  const readingRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<EditorHandle | null>(null)
   const dirtyRef = useRef(false)
-  const [mode, setMode] = useState<ViewMode>('source')
-  const [renderedHtml, setRenderedHtml] = useState('')
+  const [mode, setMode] = useState<EditorViewMode>('source')
   const [loadError, setLoadError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -112,50 +115,26 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     handleRef.current?.setTheme(editorTheme)
   }, [editorTheme])
 
-  const applyMode = (next: ViewMode): void => {
-    if (next === mode) return
-    if (next === 'reading') {
-      const doc = handleRef.current?.view.state.doc.toString() ?? ''
-      try {
-        setRenderedHtml(renderHtml(parseSciMark(doc)))
-      } catch (error) {
-        useUiStore
-          .getState()
-          .setStatusNote(
-            `Render failed: ${error instanceof Error ? error.message : String(error)}`
-          )
-        return
-      }
-    }
-    handleRef.current?.setLive(next === 'live')
+  const toggleMode = (): void => {
+    const next: EditorViewMode = mode === 'source' ? 'reading' : 'source'
+    handleRef.current?.setLive(next === 'reading')
     setMode(next)
   }
 
-  const cycleMode = (): void => {
-    const index = MODE_ORDER.indexOf(mode)
-    applyMode(MODE_ORDER[(index + 1) % MODE_ORDER.length] ?? 'source')
-  }
-
-  // focus follows the visible surface so ⌘E/⌘S keep working after a switch
+  // keep focus on the editor so ⌘E/⌘S keep working after a switch
   useEffect(() => {
-    if (mode === 'reading') readingRef.current?.focus()
-    else handleRef.current?.view.focus()
+    handleRef.current?.view.focus()
   }, [mode])
 
-  // ⌘E cycles source → live → reading; ⌘S saves from reading mode too
-  // (source/live handle ⌘S inside CodeMirror's keymap)
+  // ⌘E toggles source ⇄ reading; ⌘S is handled inside CodeMirror's keymap
+  // (the editable surface is mounted in both modes)
   useEffect(() => {
     const node = rootRef.current
-    if (!node) return
+    if (!node || !isMarkdown) return
     const onKey = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey)) return
-      if (event.key === 'e' && isMarkdown) {
-        event.preventDefault()
-        cycleMode()
-      } else if (event.key === 's' && mode === 'reading') {
-        event.preventDefault()
-        void save()
-      }
+      if (!(event.metaKey || event.ctrlKey) || event.key !== 'e') return
+      event.preventDefault()
+      toggleMode()
     }
     node.addEventListener('keydown', onKey)
     return () => node.removeEventListener('keydown', onKey)
@@ -187,8 +166,8 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
         {isMarkdown && (
           <button
             className="editor-tab__mode"
-            onClick={cycleMode}
-            title="Cycle source / live / reading (⌘E)"
+            onClick={toggleMode}
+            title="Toggle reading / source (⌘E)"
           >
             {MODE_LABEL[mode]}
           </button>
@@ -205,14 +184,8 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
       </div>
       <div
         ref={hostRef}
-        className={`editor-tab__source${mode === 'live' ? ' editor-tab__source--live' : ''}`}
-        style={{ display: mode === 'reading' ? 'none' : 'block' }}
+        className={`editor-tab__source${mode === 'reading' ? ' editor-tab__source--reading' : ''}`}
       />
-      {mode === 'reading' && (
-        <div ref={readingRef} className="editor-tab__rendered" tabIndex={-1}>
-          <article className="scimark" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
-        </div>
-      )}
     </div>
   )
 }

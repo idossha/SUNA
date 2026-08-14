@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { canvasToolsSeam } from './canvas/dev-seam'
 import { editorDevSeam } from './editor/devSeam'
+import { manuscriptDevSeam } from './manuscript/devSeam'
 import { openFileTab } from './state/dock'
 import { useAgentChatStore } from './state/agentChat'
 import { useExplorerStore } from './state/explorer'
@@ -21,8 +22,10 @@ if (import.meta.env.DEV) {
       uiStore: useUiStore,
       canvasTools: canvasToolsSeam,
       editorSettings: editorDevSeam.settingsStore,
+      editorViewModes: editorDevSeam.viewModes,
       explorerStore: useExplorerStore,
       manuscriptStore: useManuscriptStore,
+      manuscriptDocStore: manuscriptDevSeam.docStore,
       agentChatStore: useAgentChatStore
     }
   })
