@@ -1,0 +1,717 @@
+- generic [ref=f23e3]:
+  - generic [ref=f23e4]:
+    - link "Skip to main content" [ref=f23e5] [cursor=pointer]:
+      - /url: "#main-content-focus"
+    - generic [ref=f23e12]:
+      - generic [ref=f23e13]: Advertisement
+      - iframe [ref=f23e17]:
+        - link [ref=f32e2] [cursor=pointer]:
+          - /url: https://googleads.g.doubleclick.net/pcs/click?xai=AKAOjsttHR1ebs8vTc78ZERfmrGsW_EcS_TE7g1af6STg9NgKqaoZ_NsV5-27cgILJjYaVGDGR1SQ6AS5JU7s66yrLdU7KR9dTECfoyPMeZcvuiC499dk-KwwvGH_6CD8gYxJuOUY4c2emPYZCuu-kHrOGY_Ya1OKeoe706Pz4ABPfBMJrCeOQxOZTOHJNJTobAqRo5_XdLzKgqFvKSeU6A8RovrRO_KINlLUkqUDoCwkz2VFdwkGbkeGhTRIB0mlHQhfXiuh4_Kgli-v7sBofoSN_u_Nl_650i3JVWpV3sXj0wXa13BQ6rHPMLApRtyK5xtOlCtnvhObrbWij4CC8F8OwDfS5SeH_9jkWa2bh-3jnoUXi9Fgu8IK-j67U43p3ZNk2HeELnd7N5RCn2Y1Q&sai=AMfl-YSUj17NGriILSbcinnvsNcINs9kHhS6sqtVud2cUNHRfyqVaGmI707NJiC936cSX4Z6MERK4Lxz4beLLSzT9TR8Hz6XUB2YUrlNtWqsRt8jibCC9-34LtOuGZovCowY_hFTufqtIq-zkwCjFJpGJfv2nKQDFOvP1oNEpNGMW3EaJcZiI9rf46aZ1JKlFZH6pLS5pFnvtY5cBynELhD3uPY4iVPkztFnNwIf_2SBuGVAQpGsvdoyYotT-b7u0_jVhK92YnvDGgOmQheLbOGCDi-0BbUqLulo1rI5uS13BukA7lfnn9PMcfamqIpzX6rzcEk1hn92nFi1HHAuKaBEGYLhe1NBL0L1RGKH_MSOTbbmpWrHkzAbIq_URrLYlwU2AoKRbkBedozPNxWqVDe4nw&sig=Cg0ArKJSzFJncsCxHhD0&fbs_aeid=%5Bgw_fbsaeid%5D&adurl=https://spj.science.org/doi/10.34133/hds.0128%3Futm_source%3Dsciencemag%26utm_medium%3Dwebbanner%26utm_campaign%3DHDSertoolHA26
+          - img "Advertisement for Health Data Science, a Science Partner Journal" [ref=f32e3]
+    - banner [ref=f23e18]:
+      - navigation [ref=f23e19]:
+        - generic [ref=f23e21]:
+          - list [ref=f23e23]:
+            - listitem [ref=f23e24]:
+              - button "Toggle navigation" [ref=f23e25] [cursor=pointer]:
+                - generic [ref=f23e26]: 
+            - listitem [ref=f23e27]:
+              - link "news" [ref=f23e28] [cursor=pointer]:
+                - /url: /news
+            - listitem [ref=f23e29]:
+              - link "careers" [ref=f23e30] [cursor=pointer]:
+                - /url: /careers
+            - listitem [ref=f23e31]:
+              - link "commentary" [ref=f23e32] [cursor=pointer]:
+                - /url: /commentary
+            - listitem [ref=f23e33]:
+              - button "Journals " [ref=f23e34] [cursor=pointer]:
+                - generic [ref=f23e35]: Journals
+                - generic [ref=f23e36]: 
+          - link [ref=f23e38] [cursor=pointer]:
+            - /url: /
+            - img "Science" [ref=f23e39]
+          - list [ref=f23e41]:
+            - listitem
+            - listitem [ref=f23e42]:
+              - link "Search" [ref=f23e43] [cursor=pointer]:
+                - /url: "#header-quick-search-wrapper"
+                - generic [ref=f23e44]: 
+            - listitem [ref=f23e45]:
+              - link "Cart" [ref=f23e47] [cursor=pointer]:
+                - /url: /action/showCart?FlowID=1
+                - generic [ref=f23e48]: 
+              - link "Log in" [ref=f23e51] [cursor=pointer]:
+                - /url: /action/ssostart?redirectUri=%2Fcontent%2Fpage%2Fscience-information-authors
+            - listitem [ref=f23e52]:
+              - tooltip "Become A Member" [ref=f23e56] [cursor=pointer]
+      - text: 
+    - generic [ref=f23e59]:
+      - link [ref=f23e60] [cursor=pointer]:
+        - /url: /journal/science
+        - img "logo" [ref=f23e61]
+      - generic [ref=f23e62]:
+        - list [ref=f23e64]:
+          - listitem [ref=f23e65]:
+            - link "Current Issue" [ref=f23e66] [cursor=pointer]:
+              - /url: /toc/science/current
+          - listitem [ref=f23e67]:
+            - link "First release papers" [ref=f23e68] [cursor=pointer]:
+              - /url: /toc/science/0/0
+          - listitem [ref=f23e69]:
+            - link "Archive" [ref=f23e70] [cursor=pointer]:
+              - /url: /loi/science
+          - listitem [ref=f23e71]:
+            - button "About" [ref=f23e73] [cursor=pointer]
+        - list [ref=f23e75]:
+          - listitem [ref=f23e76]:
+            - link "Submit manuscript" [ref=f23e77] [cursor=pointer]:
+              - /url: https://cts.sciencemag.org/
+      - link "GET OUR E-ALERTS" [ref=f23e78] [cursor=pointer]:
+        - /url: /action/showPreferences?menuTab=Alerts
+    - generic [ref=f23e79]: Main content starts here
+    - main [ref=f23e80]:
+      - generic [ref=f23e83]:
+        - generic [ref=f23e85]:
+          - navigation "breadcrumbs" [ref=f23e87]:
+            - list [ref=f23e88]:
+              - listitem [ref=f23e89]:
+                - link "Home" [ref=f23e90] [cursor=pointer]:
+                  - /url: https://www.science.org/
+                - generic [ref=f23e91]: 
+              - listitem [ref=f23e92]:
+                - link "Science" [ref=f23e93] [cursor=pointer]:
+                  - /url: /journal/science
+                - generic [ref=f23e94]: 
+              - listitem [ref=f23e95]:
+                - generic [ref=f23e96]: Information for authors
+            - text: 
+          - heading "Information for authors" [level=1] [ref=f23e98]
+        - generic [ref=f23e100]:
+          - generic [ref=f23e102]:
+            - text: 
+            - paragraph [ref=f23e103]:
+              - emphasis [ref=f23e104]: Science
+              - text: is a weekly, peer-reviewed journal that publishes significant original scientific research, plus reviews as well as commentary on current research, science policy, and issues of interest to the broad scientific community. We seek to publish papers that are influential in their fields or across fields and that will substantially advance scientific understanding. Selected papers should present novel and broadly important data, syntheses, or concepts. We welcome submissions from all fields of science and from any source.
+            - paragraph [ref=f23e105]:
+              - text: Manuscripts should be submitted at our
+              - link "manuscript submission and information portal" [ref=f23e106] [cursor=pointer]:
+                - /url: https://cts.sciencemag.org
+              - text: . The status of submitted manuscripts can also be tracked at this portal.
+            - paragraph [ref=f23e107]:
+              - text: Authors should familiarize themselves with the overall editorial policies for
+              - emphasis [ref=f23e108]: Science
+              - text: and the
+              - emphasis [ref=f23e109]: Science
+              - text: family of journals before submitting their paper. These policies spell out the rights and responsibilities that authors agree to when submitting and publishing their papers.
+              - link "Access this information here" [ref=f23e110] [cursor=pointer]:
+                - /url: /content/page/science-journals-editorial-policies
+              - text: .
+            - paragraph
+            - heading "Categories of manuscripts" [level=2] [ref=f23e111]
+            - heading "Research Articles (Peer-Reviewed)" [level=3] [ref=f23e112]
+            - paragraph [ref=f23e113]:
+              - strong [ref=f23e114]: Research Articles
+              - text: should not exceed 3000 words (for the main text), plus an abstract, 3 to 5 display items (figures or tables) with brief legends, about 50 main-text references, and a structured acknowledgments section. The main text should be divided into sections with brief subheadings. Materials and Methods should be included in
+              - link "supplementary materials" [ref=f23e115] [cursor=pointer]:
+                - /url: /content/page/instructions-preparing-initial-manuscript
+              - text: and must provide sufficient detail to allow replication of the study. This should be followed by additional data and figures needed to support the paper’s conclusions. All data must be available in either the main text or the supplementary materials or must be deposited at a publicly accessible repository and cited in the paper. For more on our open data policy, including information on our partnership with Dryad, please see the
+              - link "“Data and Code Deposition” section of our Editorial Policies" [ref=f23e116] [cursor=pointer]:
+                - /url: /content/page/science-journals-editorial-policies#data-and-code-deposition
+              - text: .Research Articles that are not a good fit for our print format (often those with more than 4 figures) will be included in all digital versions of
+              - emphasis [ref=f23e117]: Science
+              - text: ", and a one-page summary (~500 words, divided into four sections: “Introduction,” “Rationale,” “Results,” and “Conclusion”) plus a summary figure and caption (no more than 65 words) will be included in the print version. The methods section runs after the main text as part of the article, but other additional information to support the paper’s conclusions remains as supplementary material. A PDF of the full article can be downloaded."
+            - paragraph [ref=f23e118]:
+              - text: We constrain the length of Research Articles with the goal of accessibility for a broad audience. However, we appreciate that there are cases for which results cannot be fully presented within these constraints, and we allow an extended format for a few of the Research Articles that are presented online. For these, the main text can be up to 6000 words, with as many as 6 display items (which may include videos) and up to 100 main-text references. (If you have a meta-analysis that requires more than 250 total references, please contact the editors at
+              - link "science_editors@aaas.org" [ref=f23e119] [cursor=pointer]:
+                - /url: mailto:science_editors@aaas.org
+              - text: before submission.) The cover letter should indicate why the additional length is merited.
+            - heading "Reviews and Analysis (Peer-Reviewed)" [level=3] [ref=f23e120]
+            - paragraph [ref=f23e121]:
+              - strong [ref=f23e122]: Reviews
+              - text: must be novel, insightful, and authoritative syntheses of fields that have shown wide-reaching progress over the past 3 to 5 years. Reviews are not conference or workshop summaries and cannot contain analysis of unpublished data. (Reviews that include analyses of previously published data are considered as Analytical Reviews—see below.) Reviews are published both in print and online. Reviews can be up to 5000 words (for the main text) and may include up to 150 references and 4 display items (figures, boxes, or tables). Schematic figures should be produced by the authors and not reproduced from elsewhere. Ideally, Reviews have 1 to 3 authors; no more than 7 authors without editor permission. Less than 20% of the reference list should refer to the authors’ own work. Unsolicited offers of Reviews are considered. A few solicited Reviews are published both in print and online as part of special issues. These Reviews are shorter, but exact length is at the editors’ discretion.
+            - paragraph [ref=f23e123]:
+              - strong [ref=f23e124]: Analytical Reviews
+              - text: present original analyses of published research in fields that have shown wide-reaching progress over the past 3 to 5 years. They cannot contain new data but may contain original analysis of published data (formal meta-analyses are considered as original research). Analytical Reviews are published both in print and online. Analytical Reviews can be up to 6000 words (for the main text) and may include up to 200 references (requests for additional references must be discussed with the editor) and 4 to 6 display items (figures, boxes, or tables). Schematic figures should be produced by the authors and not reproduced from elsewhere. Ideally, Analytical Reviews have no more than 7 authors; a proposal with more than 7 authors must be discussed with the editor. Fewer than 20% of the references should refer to the authors’ own work.
+            - paragraph [ref=f23e125]:
+              - strong [ref=f23e126]: Policy Articles
+              - text: present new, unpublished data and analyses to explore issues at the intersections between science and society that have policy implications. These articles contain 2000 to 3000 words, 1 or 2 figures, and up to 15 references.
+            - heading "Commentary" [level=3] [ref=f23e127]
+            - paragraph [ref=f23e128]:
+              - emphasis [ref=f23e129]: Science
+              - text: ’s Commentary section presents opinions and analyses by scientists and other experts on issues of interest to
+              - emphasis [ref=f23e130]: Science
+              - text: readers. All articles are signed and reflect the individual views of the authors and not the official points of view adopted by AAAS or the institutions with which the authors are affiliated. With the exception of Letters and eLetters, most items in this section are commissioned by the editors, but unsolicited contributions are considered and should be submitted at
+              - link "CTS" [ref=f23e131] [cursor=pointer]:
+                - /url: https://cts.sciencemag.org/?adobe_mc=MCMID%3D83874154641293044782645157886276936075%7CMCORGID%3D242B6472541199F70A4C98A6%2540AdobeOrg%7CTS%3D1678987381
+              - text: . Commentary material may be peer-reviewed at the editors’ discretion.
+            - list [ref=f23e132]:
+              - listitem [ref=f23e133]:
+                - strong [ref=f23e134]: Perspectives
+                - text: highlight recent, exciting research and emerging themes that are of general interest but do not primarily discuss the author’s own work. With rare exceptions, Perspectives should have no more than two authors. All Perspectives that comment on papers in the same issue of
+                - emphasis [ref=f23e135]: Science
+                - text: are solicited. These pieces (~1000 words, 15 references maximum, 1 figure) should add a new dimension to the research and not only describe what was done in the paper. There are also a variety of Perspectives that can “stand alone” (i.e., that are not connected to a paper in
+                - emphasis [ref=f23e136]: Science
+                - text: ) and discuss emerging and important ideas in research. Stand-alone Perspectives are invited, but we welcome inquiries regarding new advances and fresh insights. These pieces (~1800 words, 15 references maximum, 1 figure or table) can be opinionated or reflect on the history of a finding; they are usually peer-reviewed.
+              - listitem [ref=f23e137]:
+                - strong [ref=f23e138]: Book or Media Reviews
+                - text: (up to 800 words) feature commentary on new books, films, exhibitions, performances, mobile applications, podcasts, and other media that are likely to be of broad interest to our readership. If you submit an unsolicited book or media review, please indicate why you believe the work would be of interest to
+                - emphasis [ref=f23e139]: Science
+                - text: readers and why you are well positioned to write the review.
+              - listitem [ref=f23e140]:
+                - strong [ref=f23e141]: Policy Forums
+                - text: (2000 to 3000 words, 1 or 2 figures, up to 15 references) draw upon already published work to explore issues related to the intersections between science and society that have policy implications.
+              - listitem [ref=f23e142]:
+                - strong [ref=f23e143]: Expert Voices
+                - text: (1200 words) present more conversational discussion to raise curiosity about issues arising in a particular field. These articles appear online only and are solicited by the editors.
+              - listitem [ref=f23e144]:
+                - strong [ref=f23e145]: Letters
+                - text: (up to 300 words) discuss material published in
+                - emphasis [ref=f23e146]: Science
+                - text: in the past 3 months or issues related to recent events that are of general interest. Letters should be submitted through our (
+                - link "manuscript submission and information portal" [ref=f23e147] [cursor=pointer]:
+                  - /url: https://cts.sciencemag.org/?adobe_mc=MCMID%3D83874154641293044782645157886276936075%7CMCORGID%3D242B6472541199F70A4C98A6%2540AdobeOrg%7CTS%3D1678987381
+                - text: ). Letters may be reviewed. The author of a paper in question is usually given an opportunity to reply. Letters are subject to editing for clarity and space, and authors may review changes before publication. A comment on a previously published
+                - emphasis [ref=f23e148]: Science
+                - text: paper may be invited as an eLetter.
+              - listitem [ref=f23e149]:
+                - strong [ref=f23e150]: eLetters
+                - text: are brief online comments submitted in response to articles published in
+                - emphasis [ref=f23e151]: Science
+                - text: . An eLetter should provide substantive and scholarly commentary but should not present new data. Embedded images are not allowed, but an eLetter may link to figures posted on public repositories such as Zenodo. eLetters are submitted on the relevant article page on the
+                - emphasis [ref=f23e152]: Science
+                - text: website, evaluated, and posted with the article if accepted. eLetter authors are identified and must agree to
+                - link "our terms and conditions" [ref=f23e153] [cursor=pointer]:
+                  - /url: /content/page/terms-service
+                - text: . Before submitting an eLetter of a technical nature, we encourage you to contact the authors of the article to share your critique. Concerns about misconduct or serious errors should not be submitted as eLetters; rather, these should be emailed to
+                - link "science_data@aaas.org" [ref=f23e154] [cursor=pointer]:
+                  - /url: mailto:science_data@aaas.org
+                - text: .
+              - listitem [ref=f23e155]:
+                - text: Letters features (200 to 300 words) are brief personal reflections about scientists’ experiences.
+                - strong [ref=f23e156]:
+                  - link "Life in Science" [ref=f23e157] [cursor=pointer]:
+                    - /url: https://scim.ag/LifeInScience
+                - text: highlights humorous or unusual day-to-day realities unique to the work of a scientist.
+                - strong [ref=f23e158]:
+                  - link "Outside the Tower" [ref=f23e159] [cursor=pointer]:
+                    - /url: https://scim.ag/OutsideTheTower
+                - text: highlights scientists’ advocacy experiences.
+                - strong [ref=f23e160]:
+                  - link "Past as Prologue" [ref=f23e161] [cursor=pointer]:
+                    - /url: https://scim.ag/PastAsPrologue
+                - text: highlights the role that family history plays in a scientist’s decision to pursue a particular career or field. Letters features can be submitted as Letters at
+                - link "CTS" [ref=f23e162] [cursor=pointer]:
+                  - /url: http://cts.sciencemag.org/?adobe_mc=MCMID%3D83874154641293044782645157886276936075%7CMCORGID%3D242B6472541199F70A4C98A6%2540AdobeOrg%7CTS%3D1678987381
+                - text: .
+                - strong [ref=f23e163]:
+                  - link "NextGen Voices" [ref=f23e164] [cursor=pointer]:
+                    - /url: https://scim.ag/NextGen
+                - text: is a survey in which young scientists have the opportunity to respond to a broad question related to the scientific community. Results, which are published in the first issue of January, April, July, and October—and occasionally in additional issues throughout the year—include excerpts from the respondents. To check for new calls for submissions, go to
+                - 'link "our website for NextGen Voices: National Assessments in Verse" [ref=f23e165] [cursor=pointer]':
+                  - /url: https://www.science.org/nextgen-voices?adobe_mc=MCMID%3D83874154641293044782645157886276936075%7CMCORGID%3D242B6472541199F70A4C98A6%2540AdobeOrg%7CTS%3D1678987381
+                - text: .
+              - listitem [ref=f23e166]:
+                - strong [ref=f23e167]: Editorials
+                - text: (up to 720 words) are signed pieces (up to 2 authors) and express a compelling opinion on a broadly interesting topic. With rare exceptions, they are solicited by the editors.
+              - listitem [ref=f23e168]:
+                - strong [ref=f23e169]: Editor’s blog
+                - text: reflects the thoughts of
+                - emphasis [ref=f23e170]: Science’s
+                - text: editor-in-chief or invited guests.
+            - heading "Careers" [level=3] [ref=f23e171]
+            - paragraph [ref=f23e172]:
+              - strong [ref=f23e173]: Working Life
+              - text: is a weekly essay in which scientists offer personal reflections on career challenges they have faced. Download our
+              - link "author guidelines and submission instructions" [ref=f23e174] [cursor=pointer]:
+                - /url: https://promo.aaas.org/images/careers19/submissions/working-life-submission-guidelines.pdf
+              - text: .
+            - paragraph
+            - heading "Preparing your manuscript" [level=2] [ref=f23e175]
+            - paragraph [ref=f23e176]:
+              - text: We accept submissions only online at
+              - link "CTS" [ref=f23e177] [cursor=pointer]:
+                - /url: https://cts.sciencemag.org
+              - text: . Preparing a manuscript that follows our guidelines concerning length, style, and acceptable file formats will facilitate the evaluation process. See
+              - link "Instructions for preparing an initial manuscript" [ref=f23e178] [cursor=pointer]:
+                - /url: /content/page/instructions-preparing-initial-manuscript
+              - text: .
+            - paragraph [ref=f23e179]:
+              - text: Revised manuscripts largely follow the same style guidelines; however, there are some differences, particularly in figure preparation. See
+              - link "Guidelines for preparing a revised manuscript" [ref=f23e180] [cursor=pointer]:
+                - /url: /content/page/instructions-preparing-revised-manuscript
+              - text: .
+            - paragraph [ref=f23e181]:
+              - text: The Editorial and Publishing teams at AAAS/
+              - emphasis [ref=f23e182]: Science
+              - text: Journals have evaluated the work of the companies listed below and have found them to be effective outlets for language editing services.
+            - paragraph [ref=f23e183]:
+              - link "Accdon LetPub" [ref=f23e184] [cursor=pointer]:
+                - /url: http://www.letpub.com/aaas/
+              - link "Edanz" [ref=f23e185] [cursor=pointer]:
+                - /url: https://www.edanz.com/english-editing
+              - link "Editage" [ref=f23e186] [cursor=pointer]:
+                - /url: https://www.editage.com/aaas
+              - link "Enago" [ref=f23e187] [cursor=pointer]:
+                - /url: https://www.enago.com/aaas
+            - paragraph [ref=f23e188]: Please note that AAAS takes no responsibility for and does not endorse these services. Use of these services shall have no influence on the acceptance of a manuscript for publication by AAAS. Further, any questions or concerns about the services provided by the companies above should be sent to the companies directly. Any editing services used in preparation of the manuscript should be disclosed in the acknowledgments.
+            - paragraph
+            - heading "Submitting your manuscript" [level=2] [ref=f23e189]
+            - paragraph [ref=f23e190]:
+              - text: Authors and reviewers must have an account to sign into our
+              - link "Content Tracking System (CTS)" [ref=f23e191] [cursor=pointer]:
+                - /url: https://cts.sciencemag.org/?adobe_mc=MCMID%3D83874154641293044782645157886276936075%7CMCORGID%3D242B6472541199F70A4C98A6%2540AdobeOrg%7CTS%3D1678987381
+              - text: . If you do not have an account, you will need to create one by following the prompts on the welcome page. Once you have an account, you can use it for submissions to any
+              - emphasis [ref=f23e192]: Science
+              - text: "journal, and it will serve as a record for your author and reviewer information. The steps outlined below will help you prepare and successfully submit your manuscript:"
+            - paragraph [ref=f23e193]:
+              - text: 1. Please follow our instructions for
+              - link "Preparing an Initial Manuscript" [ref=f23e194] [cursor=pointer]:
+                - /url: /content/page/instructions-preparing-initial-manuscript
+              - text: . We prefer files to be prepared using our updated
+              - link "Word template" [ref=f23e195] [cursor=pointer]:
+                - /url: /cms/asset/af4a2b0b-7e56-47f7-be10-dfb4b7441d06/science_manuscript_word_template_december2025.docx
+              - text: . LaTeX users should use our
+              - link "LaTeX template" [ref=f23e196] [cursor=pointer]:
+                - /url: /content/page/preparing-manuscripts-using-latex
+              - text: and, at the submission stage, either convert files to .docx format or submit a PDF. Use of these templates facilitates the process by which our submission system extracts author and article information from the manuscript file to auto-fill subsequent fields in the manuscript record within our system.
+            - paragraph [ref=f23e197]: 2. Once you have logged into CTS, you will see a pop-up asking if you wish to start a new submission. You can also start a new submission by clicking on “New Submission” in the top right corner. From there, you will be able to select the journal and article type from the drop-down menu. After making these selections, you will be taken to the Welcome tab where you will find information about our submission requirements and a link to our manuscript template. Once you begin a new submission, you will be assigned a manuscript ID consisting of three letters and four numbers; this ID will appear at the top left of the page followed by the status of your submission. Tabs for each step in the submission process display across the top of the page.
+            - paragraph [ref=f23e198]:
+              - text: 3. Once you have read the information on the Welcome tab, please click the red button to continue to the Terms and Conditions page. At this point, you will need to read and agree to terms regarding the submission and publication of a manuscript with
+              - emphasis [ref=f23e199]: Science
+              - text: . For details, please read our
+              - link "Editorial Policies" [ref=f23e200] [cursor=pointer]:
+                - /url: /content/page/science-journals-editorial-policies
+              - text: .
+            - paragraph [ref=f23e201]: 4. Upon acceptance of the Terms and Conditions, you will move to the Article tab. In the Manuscript section of this tab, you must upload a manuscript file containing the main text. We prefer that you upload your manuscript as a Word .docx file prepared using our template. In the Combined PDF section, you must upload a PDF file that contains the complete main manuscript, figures, tables, and supplementary materials. Uploads to both sections are required before you can proceed to the next tab.
+            - paragraph [ref=f23e202]:
+              - text: "5. Related Documents: The only required file on the Related Documents tab is the"
+              - strong [ref=f23e203]: Cover Letter
+              - text: ". Your cover letter should include:"
+            - list [ref=f23e204]:
+              - listitem [ref=f23e205]: The title of the paper and a statement of its main point.
+              - listitem [ref=f23e206]: Any information needed to ensure a fair review process, including related manuscripts submitted to other journals.
+              - listitem [ref=f23e207]: Reference to any pre-submission discussions with editors.
+              - listitem [ref=f23e208]: Names of colleagues with whom you have shared the paper prior to its submission.
+              - listitem [ref=f23e209]: A statement that none of the material has been published or is under consideration for publication elsewhere.
+              - listitem [ref=f23e210]: For investigations on humans, a statement indicating that informed consent was obtained after the nature and possible consequences of the studies were explained.
+              - listitem [ref=f23e211]: For studies using laboratory animals, wild or temporarily captive animals, and/or genetically modified animals, a statement that the animals’ care was in accordance with institutional guidelines.
+              - listitem [ref=f23e212]: Specification of where all data underlying the study are available, or will be deposited, and whether there are any restrictions on data availability, such as an MTA.
+              - listitem [ref=f23e213]: Information on any reference material or additional data files (see below for uploading items to the Auxiliary files section). Your editor will facilitate review of these items as necessary.
+            - paragraph [ref=f23e214]: "Additional related documents and/or files can be uploaded to three other sections: Supplementary Material, Auxiliary Supplementary Material and Other Supporting Files, and Movies."
+            - paragraph [ref=f23e215]:
+              - strong [ref=f23e216]: Supplementary Material
+              - text: may be submitted as a single file in .docx and/or PDF format, separate from the contents of the main text.
+            - paragraph [ref=f23e217]:
+              - text: Supplementary multimedia or large data files that cannot be included in the Supplementary Material file should be uploaded as
+              - strong [ref=f23e218]: Auxiliary Supplementary Materials
+              - text: (up to 10 files, total size limited to 25 MB) or
+              - strong [ref=f23e219]: Movies
+              - text: (limited to 50 MB each). Tabulated data underlying the figures should be uploaded as an additional supplementary data file (called “data S1”) in a standard machine-readable format (e.g., csv, tsv, json, or xml). Authors should submit video and audio files with clearly identifiable accompanying captions and credit information.
+            - list [ref=f23e220]:
+              - listitem [ref=f23e221]:
+                - text: For video clips, .mp4 files are preferred. Quicktime (.mov) files are acceptable provided that the h.264 compression setting is used. Where possible, please use HD frame size (1920 ´ 1080 pixels). Animated GIFs are
+                - emphasis [ref=f23e222]: not
+                - text: accepted.
+              - listitem [ref=f23e223]: For audio files, please use .wav, .mp3, or .m4a format, with a bit rate of at least 160 kb/s.
+            - paragraph [ref=f23e224]:
+              - text: Other items that are required at submission and should be uploaded to the
+              - strong [ref=f23e225]: Auxiliary files
+              - text: "section (if applicable) are:"
+            - list [ref=f23e226]:
+              - listitem [ref=f23e227]:
+                - text: Any papers by any subset of the authors that are related to the manuscript and are under consideration or in press at other journals. This applies throughout the evaluation process at
+                - emphasis [ref=f23e228]: Science
+                - text: . If a related paper is submitted elsewhere while the
+                - emphasis [ref=f23e229]: Science
+                - text: paper is under consideration, please contact your editor.
+              - listitem [ref=f23e230]:
+                - text: Data files required for review of your manuscript. This includes pdb validation reports for structure papers. We have partnered with Dryad so that data files can be deposited or accessed directly from our content tracking system and will be available to editors and reviewers (see step 9 below). Data can also be made accessible to reviewers at an independent repository. In either case, access details (preferably a DOI or other persistent identifier) must also be cited in the acknowledgements section of the manuscript. For more information, please refer to the
+                - link "Data and Code Deposition section of our Editorial Policies" [ref=f23e231] [cursor=pointer]:
+                  - /url: /content/page/science-journals-editorial-policies#data-and-code-deposition
+                - text: .
+              - listitem [ref=f23e232]: Written permission from any author who is not an author of your manuscript but whose work is cited as “in press.” Permission must allow for the distribution of in-press manuscripts or relevant data to reviewers. A copy of an email is sufficient. Please also note that we do not allow citation to in-press manuscripts at publication – these would need to be replaced by the published references.
+              - listitem [ref=f23e233]: Copies of any relevant MTAs.
+            - paragraph [ref=f23e234]: 6. After your Related Documents have been uploaded and saved, a list of institutions that were identified in the affiliations section of your manuscript will be presented. The system will lead you through a series of steps to resolve the discovered institutions and add any institutions that are missing. The top-level name, city, and country are required for each institution that is saved.
+            - paragraph [ref=f23e235]: 7. Next, the system will present a list of discovered authors. You may deselect authors from the list, correct spelling of names, and add missing information. A valid email address for each author must be provided. Missing author names can be added to the author grid. For papers with more than 50 authors, a template for bulk upload of author names and emails is available from this window. Each submission is required to have a first author and corresponding author (who can be the same individual). An ORCID iD will be required for first and corresponding authors of revised manuscripts and is strongly encouraged for all authors. The ORCID iD cannot be provided by another individual; instead, each author must sign into both their CTS and ORCID accounts to add this information to their individual accounts.
+            - paragraph [ref=f23e236]: 8. Once all author information has been resolved and extraneous or incorrect information removed, the system will guide you to the Manuscript Information tab. You will be asked to approve or modify the title, abstract text, cover letter, and funding source(s) extracted from your manuscript files. You may also add a short title and request an editor. Note that it is not mandatory to request a specific editor before submission. Editor assignment depends upon availability, relative loads, and other factors. If you are submitting a Research Article, you will also be asked whether your article should be considered for extended online format.
+            - paragraph [ref=f23e237]: We require you to list all funding sources, and we encourage you to add missing funding sources at this point. This can be done through a dropdown if your funder is included in Crossref’s Funder Registry controlled vocabulary list. If your funder is not included, you may add the funder’s name by typing it in directly. We also require that you select at least one subject area that pertains to your paper.
+            - paragraph [ref=f23e238]:
+              - text: On this tab you will have the opportunity to indicate your interest in having your manuscript transferred to another
+              - emphasis [ref=f23e239]: Science
+              - text: journal if your paper is not accepted at
+              - emphasis [ref=f23e240]: Science
+              - text: .
+            - paragraph [ref=f23e241]: 9. You will then move on to the Dataset tab, where you have the option to create a new Dryad dataset associated with your article, link an existing Dryad dataset to your article, and/or specify the repository and persistent identifier for datasets hosted elsewhere.
+            - paragraph [ref=f23e242]:
+              - text: If you elect to deposit your data in Dryad, you may do so by clicking on “Create New Dataset” and then following the system prompts. Note that you will be redirected to the Dryad site, where you will be guided through a series of steps to complete your deposit, after which you will be routed back to the
+              - emphasis [ref=f23e243]: Science
+              - text: content tracking system.
+            - paragraph [ref=f23e244]:
+              - text: Should your paper be accepted at
+              - emphasis [ref=f23e245]: Science
+              - text: ", we will cover the cost of publishing the data (up to 10 GB) publicly at Dryad, unless an author is affiliated with an institution that is a"
+              - link "Dryad partner" [ref=f23e246] [cursor=pointer]:
+                - /url: https://datadryad.org/about#our-partners
+              - text: . See
+              - link "sponsored rates" [ref=f23e247] [cursor=pointer]:
+                - /url: https://datadryad.org/help/requirements/costs
+              - text: for large (>10 GB) datasets.
+            - paragraph [ref=f23e248]: Please also note that one of the authors of your article must have an ORCID iD in our content tracking system that matches the ORCID iD of the dataset owner at Dryad.
+            - paragraph [ref=f23e249]: 10. The next step is to suggest up to 5 potential reviewers and indicate individuals that should be excluded as reviewers, along with the reason for exclusion (limit of 5). Name and email are required for all suggested and excluded reviewers.
+            - paragraph [ref=f23e250]:
+              - text: 11. A summary of the submission information is provided in the final validation step. Incomplete or missing information is indicated in red. Review and update information as needed. Complete the submission by clicking the
+              - strong [ref=f23e251]: Submit
+              - text: button. Once you’ve submitted your manuscript, a pop-up will appear on your CTS home page, asking you to verify your authorship. Please follow the prompts and, once you’ve verified your authorship, check that your home page lists the status of the manuscript as “Received.” All authors will receive email confirmation that the submission has been received. The email will provide a link for co-authors to confirm authorship in the system or to notify us if they are unaware of, or did not approve of, the submission. All authors must click the verification link in the email to verify authorship. If the link breaks or expires, an author should instead directly log into
+              - link "CTS" [ref=f23e252] [cursor=pointer]:
+                - /url: https://cts.sciencemag.org/
+              - text: to verify authorship. Authors must sign into CTS with the email address to which the link was sent. All authors are encouraged to update their demographic and expertise information during the confirmation step. Authors can return to the site at any time to track the status of the manuscript.
+            - heading "Manuscript selection" [level=2] [ref=f23e253]
+            - paragraph [ref=f23e254]:
+              - emphasis [ref=f23e255]: Science
+              - text: is committed to thorough and efficient evaluation of submitted manuscripts. Papers are assigned to a staff
+              - link "editor" [ref=f23e256] [cursor=pointer]:
+                - /url: /content/page/meet-editors
+              - text: who has knowledge of the manuscript’s field of study. Most submitted papers are rated for suitability by members of
+              - emphasis [ref=f23e257]: Science
+              - text: ’s
+              - link "Board of Reviewing Editors" [ref=f23e258] [cursor=pointer]:
+                - /url: /content/page/editors-and-advisory-boards
+              - text: . The editors at
+              - emphasis [ref=f23e259]: Science
+              - text: consider this advice in selecting papers for in-depth review. Authors of papers that are not selected for review are notified promptly, within about 2 weeks.
+            - paragraph [ref=f23e260]: Research papers that are selected for in-depth review are evaluated by at least two outside reviewers. These individuals are contacted before being sent a paper and are asked to return comments within 2 weeks, in most cases. Once all reviews are in, we initiate a cross-review process in which we invite all reviewers to read the other (still anonymous) reviews and make additional comments within 2 business days. Cross-review is encouraged but not required. We are able to expedite the review process significantly for papers that require rapid assessment. Manuscripts selected for publication are edited to improve accuracy and clarity, as well as for length. Rejected papers cannot be resubmitted over a disagreement on novelty, interest, or relative merit. If a paper was rejected on the basis of serious reviewer error, resubmission may be considered.
+            - paragraph [ref=f23e261]:
+              - text: Authors are notified of decisions by email, and the status of the manuscript can be tracked at our
+              - link "Content Tracking System (CTS)" [ref=f23e262] [cursor=pointer]:
+                - /url: https://cts.sciencemag.org/
+              - text: . Membership in AAAS is not a factor in selection of manuscripts for publication.
+              - emphasis [ref=f23e263]: Science
+              - text: treats all submitted manuscripts as confidential documents.
+              - emphasis [ref=f23e264]: Science
+              - text: also instructs and expects our Board of Reviewing Editors and reviewers to treat manuscripts as confidential material. Editors do not release the identities of reviewers; however, reviewers are free to reveal their own identity by signing their reviews. (Letters are sent to the authors of papers on which they comment, for response or rebuttal, but are otherwise treated in the same way as other contributions, with respect to confidentiality.)
+            - paragraph [ref=f23e265]:
+              - emphasis [ref=f23e266]: Science
+              - text: "publishes five other journals:"
+              - emphasis [ref=f23e267]: Science Signaling
+              - text: ","
+              - emphasis [ref=f23e268]: Science Translational Medicine
+              - text: ","
+              - emphasis [ref=f23e269]: Science Immunology
+              - text: ","
+              - emphasis [ref=f23e270]: Science Robotics
+              - text: ","
+              - emphasis [ref=f23e271]
+              - text: and our open access, interdisciplinary journal,
+              - emphasis [ref=f23e272]: Science Advances
+              - text: . Authors submitting to
+              - emphasis [ref=f23e273]: Science
+              - text: may indicate interest in transfer to another
+              - emphasis [ref=f23e274]: Science
+              - text: family journal, should the manuscript not be selected for publication at
+              - emphasis [ref=f23e275]: Science
+              - text: . Doing so will not influence the decision process at
+              - emphasis [ref=f23e276]: Science
+              - text: . If a manuscript is considered a good candidate for transfer, the authors will receive a transfer offer and have the opportunity to confirm the choice before transfer is initiated. Reformatting is not required, but authors may elect to update files before completing the transfer. Editors at the second journal may use the information gathered during evaluation at
+              - emphasis [ref=f23e277]: Science
+              - text: to expedite review; this includes reuse of the reviews. For manuscripts that were peer reviewed at
+              - emphasis [ref=f23e278]: Science
+              - text: ", the transfer package will include documents that were part of the review process, but authors will have the opportunity to respond to the reviews and revise the manuscript before finalizing transfer. Specific details regarding your transfer options will be provided in the original decision letter."
+            - heading "Publication" [level=2] [ref=f23e279]
+            - paragraph [ref=f23e280]:
+              - text: Most papers are published in print and online 4 to 8 weeks after acceptance. In addition,
+              - emphasis [ref=f23e281]: Science
+              - text: selects papers for earlier online publication in First Release, using the accepted version of the paper with minimal copyediting. The official publication date of these papers is the date of First Release
+              - emphasis [ref=f23e282]
+              - text: publication. Requests for accelerated online publication should be explained to the editors in the cover letter.
+            - paragraph [ref=f23e283]:
+              - text: The cost of color images in print is $650 for the first color figure and $450 for each additional color figure. In addition, there is a comparable charge for use of color in reprints. We ask that you submit your payment with your reprint order; you will receive instructions for doing so when you receive your galley proofs. We also provide a free electronic reprint (e-print) service through which you will receive a link for seamless access to the final published article up to 2000 times. This link, which may be posted to your personal or institutional website, will be emailed to you from
+              - link "aaas@alerts.sciencepubs.org" [ref=f23e284] [cursor=pointer]:
+                - /url: mailto:aaas@alerts.sciencepubs.org
+              - text: within 24 hours after your article is published.
+            - heading "Press Services" [level=2] [ref=f23e285]
+            - paragraph [ref=f23e286]:
+              - text: Our Press Office may identify specific
+              - emphasis [ref=f23e287]: Science
+              - text: articles as particularly newsworthy and may highlight them in our embargoed press package for registered journalists. If you are a journalist wishing to receive our embargoed press package or an author wanting information regarding press outreach on your embargoed
+              - emphasis [ref=f23e288]: Science
+              - text: paper, please contact the
+              - emphasis [ref=f23e289]: Science
+              - text: Press Package (“SciPak”) Team at
+              - link "scipak@aaas.org" [ref=f23e290] [cursor=pointer]:
+                - /url: mailto:scipak@aaas.org
+              - text: .
+          - complementary [ref=f23e292]:
+            - generic [ref=f23e295]:
+              - heading "Advertisement" [level=4] [ref=f23e296]
+              - iframe [ref=f23e299]:
+                - link [ref=f33e2] [cursor=pointer]:
+                  - /url: https://googleads.g.doubleclick.net/pcs/click?xai=AKAOjssOGF-n6nScTSz8edR99gwxmVCCOF-ilinGSwoQkn01uanSyNywZb_Folfnwig8LFQ-MMwD3IFRUpzHgFMaeZROa_klo6B3_P5OexZ5SQGJr29D2cJojecdAfzwzsdkVbWnlIHZ8Ry61DVM4ZGlNi38g32-K4owRIJaShXoEJH_PHYoqtQCWThmgcOsG93-rx73qtzQqu73laLArZ3POlaqwhpBMyj4XkC7UFiNZCSfImXc-Qr44owK9WpmxJdUhQAwEATdhd6912WNoMrIowgUDY2LE9JHDqtjPoW7pDgpUcEQghJKHNWrpRKDG3esPTYsOrMOvzl3oNgMrhP13V-dRwz8INwpUuKXoi8q0V6ei6WlpQDht1kqiB6bEUEhEuGJo1vnKnVoXf-sFA&sai=AMfl-YQdE8njuSQlU2NInOVMZTDRq1irPpmpH6BuVwJtoXs2yJrfxywl5HC93eEGXaSgBFIa9dCQQa7MMFGVxUdu8mWMmDN1hMeQRK5AyPaee59VLg9dAE9KBH7yd5YXFmNPt458HUZdcS1Hj89pdhwPkNtq5xjzTdFzDzJqjz37qDRH5rhSuYAe9gl-gHJQZLzoid9Wp982AMBylxxm8AJL_cDFmujPnBcrwODKKlMWGJaJ6Dw-joikpLgudTzHDhNpp90d_BMFwPvQSPqpGAJGWvuX4PmlPMLQGizgPhpwBkc0LvxPlC0wem4MXDqcOWoX3nrt1evkGPbvx_1mz7kpxihV8mGej4e-sd62ymvV11Kq36su_I53yAb4dKkoPjimUwfVZBu2XeGJ4on5r6k1CQ&sig=Cg0ArKJSzN6C2VPup6B5&fbs_aeid=%5Bgw_fbsaeid%5D&adurl=https://us02web.zoom.us/webinar/register/WN_ZV_xRYYGQ7KgYp0jAWOL-Q
+                  - img "Advertisement for Westlake University" [ref=f33e3]
+    - contentinfo [ref=f23e300]:
+      - generic [ref=f23e304]:
+        - link "Skip slideshow" [ref=f23e305] [cursor=pointer]:
+          - /url: "#afterSlideshow-j3n"
+        - generic [ref=f23e307]:
+          - link "Science Journal Logo" [ref=f23e309] [cursor=pointer]:
+            - /url: /journal/science
+          - link "Science Advances Journal Logo" [ref=f23e320] [cursor=pointer]:
+            - /url: /journal/sciadv
+          - link "Science Immunology Journal Logo" [ref=f23e327] [cursor=pointer]:
+            - /url: /journal/sciimmunol
+          - link "Science Robotics Journal Logo" [ref=f23e335] [cursor=pointer]:
+            - /url: /journal/scirobotics
+          - link "Science Signaling Journal Logo" [ref=f23e342] [cursor=pointer]:
+            - /url: /journal/signaling
+          - link "Science Translational Medicine Journal Logo" [ref=f23e349] [cursor=pointer]:
+            - /url: /journal/stm
+      - generic [ref=f23e360]:
+        - generic [ref=f23e361]:
+          - text:     󡀆    
+          - navigation [ref=f23e363]:
+            - list [ref=f23e364]:
+              - listitem [ref=f23e365]:
+                - link "NEWS" [ref=f23e366] [cursor=pointer]:
+                  - /url: /news
+              - listitem [ref=f23e367]:
+                - link "All News" [ref=f23e368] [cursor=pointer]:
+                  - /url: /news/all-news
+              - listitem [ref=f23e369]:
+                - link "ScienceInsider" [ref=f23e370] [cursor=pointer]:
+                  - /url: /news/scienceinsider
+              - listitem [ref=f23e371]:
+                - link "News Features" [ref=f23e372] [cursor=pointer]:
+                  - /url: /news/features
+              - listitem [ref=f23e373]:
+                - link "Subscribe to News from Science" [ref=f23e374] [cursor=pointer]:
+                  - /url: /content/page/news-science-subscriptions?intcmp=footer-subscribetonews&utm_id=recziGpGO7jMVeez2
+              - listitem [ref=f23e375]:
+                - link "News from Science FAQ" [ref=f23e376] [cursor=pointer]:
+                  - /url: /content/page/news-subscriber-faqs
+              - listitem [ref=f23e377]:
+                - link "About News from Science" [ref=f23e378] [cursor=pointer]:
+                  - /url: /content/page/about-news-science
+              - listitem [ref=f23e379]:
+                - link "Donate to News" [ref=f23e380] [cursor=pointer]:
+                  - /url: /news/donate?intcmp=footer-donate&utm_id=recVQVKKRRLdidlGT
+            - list [ref=f23e381]:
+              - listitem [ref=f23e382]:
+                - link "CAREERS" [ref=f23e383] [cursor=pointer]:
+                  - /url: /careers
+              - listitem [ref=f23e384]:
+                - link "Careers Articles" [ref=f23e385] [cursor=pointer]:
+                  - /url: /topic/article-type/careers-editorial
+              - listitem [ref=f23e386]:
+                - link "Find Jobs" [ref=f23e387] [cursor=pointer]:
+                  - /url: https://jobs.sciencecareers.org/
+              - listitem [ref=f23e388]:
+                - link "Employer Hubs" [ref=f23e389] [cursor=pointer]:
+                  - /url: /careers/employers
+            - list [ref=f23e390]:
+              - listitem [ref=f23e391]:
+                - link "COMMENTARY" [ref=f23e392] [cursor=pointer]:
+                  - /url: /commentary
+              - listitem [ref=f23e393]:
+                - link "Opinion" [ref=f23e394] [cursor=pointer]:
+                  - /url: /commentary/opinion
+              - listitem [ref=f23e395]:
+                - link "Analysis" [ref=f23e396] [cursor=pointer]:
+                  - /url: /commentary/analysis
+              - listitem [ref=f23e397]:
+                - link "Blogs" [ref=f23e398] [cursor=pointer]:
+                  - /url: /blogs
+            - list [ref=f23e399]:
+              - listitem [ref=f23e400]:
+                - link "JOURNALS" [ref=f23e401] [cursor=pointer]:
+                  - /url: /journals
+              - listitem [ref=f23e402]:
+                - link "Science" [ref=f23e403] [cursor=pointer]:
+                  - /url: /journal/science
+              - listitem [ref=f23e404]:
+                - link "Science Advances" [ref=f23e405] [cursor=pointer]:
+                  - /url: /journal/sciadv
+              - listitem [ref=f23e406]:
+                - link "Science Immunology" [ref=f23e407] [cursor=pointer]:
+                  - /url: /journal/sciimmunol
+              - listitem [ref=f23e408]:
+                - link "Science Robotics" [ref=f23e409] [cursor=pointer]:
+                  - /url: /journal/scirobotics
+              - listitem [ref=f23e410]:
+                - link "Science Signaling" [ref=f23e411] [cursor=pointer]:
+                  - /url: /journal/signaling
+              - listitem [ref=f23e412]:
+                - link "Science Translational Medicine" [ref=f23e413] [cursor=pointer]:
+                  - /url: /journal/stm
+              - listitem [ref=f23e414]:
+                - link "Science Partner Journals" [ref=f23e415] [cursor=pointer]:
+                  - /url: https://spj.sciencemag.org/
+            - list [ref=f23e416]:
+              - listitem [ref=f23e417]:
+                - link "AUTHORS & REVIEWERS" [ref=f23e418] [cursor=pointer]:
+                  - /url: /content/page/contributing-science-family-journals
+              - listitem [ref=f23e419]:
+                - link "Information for Authors" [ref=f23e420] [cursor=pointer]:
+                  - /url: /content/page/contributing-science-family-journals
+              - listitem [ref=f23e421]:
+                - link "Information for Reviewers" [ref=f23e422] [cursor=pointer]:
+                  - /url: /content/page/peer-review-science-publications
+            - list [ref=f23e423]:
+              - listitem [ref=f23e424]:
+                - link "LIBRARIANS" [ref=f23e425] [cursor=pointer]:
+                  - /url: /content/page/librarian-portal
+              - listitem [ref=f23e426]:
+                - link "Manage Your Institutional Subscription" [ref=f23e427] [cursor=pointer]:
+                  - /url: /action/institutionAccessEntitlements
+              - listitem [ref=f23e428]:
+                - link "Library Admin Portal" [ref=f23e429] [cursor=pointer]:
+                  - /url: /content/page/librarian-portal
+              - listitem [ref=f23e430]:
+                - link "Request a Quote" [ref=f23e431] [cursor=pointer]:
+                  - /url: https://scienceaaas.org/request
+              - listitem [ref=f23e432]:
+                - link "Librarian FAQs" [ref=f23e433] [cursor=pointer]:
+                  - /url: /content/page/librarian-portal-frequently-asked-questions
+            - list [ref=f23e434]:
+              - listitem [ref=f23e435]:
+                - link "ADVERTISERS" [ref=f23e436] [cursor=pointer]:
+                  - /url: https://advertising.sciencemag.org/
+              - listitem [ref=f23e437]:
+                - link "Advertising Kits" [ref=f23e438] [cursor=pointer]:
+                  - /url: https://advertising.sciencemag.org/
+              - listitem [ref=f23e439]:
+                - link "Custom Publishing Info" [ref=f23e440] [cursor=pointer]:
+                  - /url: /custom-publishing
+              - listitem [ref=f23e441]:
+                - link "Post a Job" [ref=f23e442] [cursor=pointer]:
+                  - /url: https://employers.sciencecareers.org/
+            - list [ref=f23e443]:
+              - listitem [ref=f23e444]:
+                - link "RELATED SITES" [ref=f23e445] [cursor=pointer]:
+                  - /url: /content/page/related-sites
+              - listitem [ref=f23e446]:
+                - link "AAAS.org" [ref=f23e447] [cursor=pointer]:
+                  - /url: //www.aaas.org/
+              - listitem [ref=f23e448]:
+                - link "AAAS Communities" [ref=f23e449] [cursor=pointer]:
+                  - /url: //members.aaas.org/home
+              - listitem [ref=f23e450]:
+                - link "EurekAlert!" [ref=f23e451] [cursor=pointer]:
+                  - /url: //www.eurekalert.org/
+              - listitem [ref=f23e452]:
+                - link "Science in the Classroom" [ref=f23e453] [cursor=pointer]:
+                  - /url: //www.scienceintheclassroom.org/
+            - list [ref=f23e454]:
+              - listitem [ref=f23e455]:
+                - link "ABOUT US" [ref=f23e456] [cursor=pointer]:
+                  - /url: /content/page/aboutus
+              - listitem [ref=f23e457]:
+                - link "Leadership" [ref=f23e458] [cursor=pointer]:
+                  - /url: /content/page/leadership-and-management
+              - listitem [ref=f23e459]:
+                - link "Work at AAAS" [ref=f23e460] [cursor=pointer]:
+                  - /url: //www.aaas.org/careers/workataaas
+              - listitem [ref=f23e461]:
+                - link "Prizes and Awards" [ref=f23e462] [cursor=pointer]:
+                  - /url: /content/page/prizes-and-awards
+            - list [ref=f23e463]:
+              - listitem [ref=f23e464]:
+                - link "HELP" [ref=f23e465] [cursor=pointer]:
+                  - /url: /content/page/help
+              - listitem [ref=f23e466]:
+                - link "FAQs" [ref=f23e467] [cursor=pointer]:
+                  - /url: /content/page/faqs
+              - listitem [ref=f23e468]:
+                - link "Access and Subscriptions" [ref=f23e469] [cursor=pointer]:
+                  - /url: /content/page/access-and-subscriptions
+              - listitem [ref=f23e470]:
+                - link "Order a Single Issue" [ref=f23e471] [cursor=pointer]:
+                  - /url: //backissues.science.org/
+              - listitem [ref=f23e472]:
+                - link "Reprints and Permissions" [ref=f23e473] [cursor=pointer]:
+                  - /url: /content/page/reprints-and-permissions
+              - listitem [ref=f23e474]:
+                - link "TOC Alerts and RSS Feeds" [ref=f23e475] [cursor=pointer]:
+                  - /url: /content/page/email-alerts-and-rss-feeds
+              - listitem [ref=f23e476]:
+                - link "Contact Us" [ref=f23e477] [cursor=pointer]:
+                  - /url: /content/page/contact-us
+        - generic [ref=f23e478]:
+          - generic [ref=f23e480]:
+            - heading [level=6] [ref=f23e481]:
+              - link "Follow Us" [ref=f23e482] [cursor=pointer]:
+                - /url: https://www.science.org/content/page/science-family-journals-social-media
+            - list [ref=f23e483]:
+              - listitem [ref=f23e484]:
+                - link "Facebook opens a new window" [ref=f23e485] [cursor=pointer]:
+                  - /url: https://www.facebook.com/ScienceMagazine
+                  - generic [ref=f23e486]: 
+              - listitem [ref=f23e487]:
+                - link "X opens a new window" [ref=f23e488] [cursor=pointer]:
+                  - /url: https://twitter.com/sciencemagazine
+                  - generic [ref=f23e489]: 
+              - listitem [ref=f23e490]:
+                - link "Instagram opens a new window" [ref=f23e491] [cursor=pointer]:
+                  - /url: https://www.instagram.com/ScienceMagazine
+                  - generic [ref=f23e492]: 
+              - listitem [ref=f23e493]:
+                - link "Youtube opens a new window" [ref=f23e494] [cursor=pointer]:
+                  - /url: https://www.youtube.com/user/ScienceMag
+                  - generic [ref=f23e495]: 
+              - listitem [ref=f23e496]:
+                - link "WeChat opens a new window" [ref=f23e497] [cursor=pointer]:
+                  - /url: https://mp.weixin.qq.com/s?__biz=MzI3NDY3NzQ2Mg==&mid=100002815&idx=1&sn=2949c025a553ac718b9612a0473b9f60&chksm=6b1120465c66a9508b01eaef1589b15d440e50b189106c8c594de8c6471f696a978de952fb15&mpshare=1&scene=1&srcid=0716JJQ5V4cKbgMMsya2MQ0n&sharer_sharetime=
+                  - generic [ref=f23e498]: 󡀆
+              - listitem [ref=f23e499]:
+                - link "linkedIn opens a new window" [ref=f23e500] [cursor=pointer]:
+                  - /url: https://www.linkedin.com/company/science-magazine
+                  - generic [ref=f23e501]: 
+              - listitem [ref=f23e502]:
+                - link "Threads opens a new window" [ref=f23e503] [cursor=pointer]:
+                  - /url: https://www.threads.net/@sciencemagazine
+                  - generic [ref=f23e504]: 
+              - listitem [ref=f23e505]:
+                - link "BlueSky opens a new window" [ref=f23e506] [cursor=pointer]:
+                  - /url: https://bsky.app/profile/science.org
+                  - generic [ref=f23e507]: 
+              - listitem [ref=f23e508]:
+                - link "RSS feeds opens a new window" [ref=f23e509] [cursor=pointer]:
+                  - /url: /content/page/email-alerts-and-rss-feeds
+                  - generic [ref=f23e510]: 
+            - link "Get our newsletter" [ref=f23e512] [cursor=pointer]:
+              - /url: /content/page/scienceadviser?intcmp=ftr-adviser&utm_id=recdExfxt1yeSJxzi
+          - generic [ref=f23e513]:
+            - link [ref=f23e515] [cursor=pointer]:
+              - /url: //www.aaas.org/
+              - img "AAAS logo" [ref=f23e516]
+            - paragraph [ref=f23e517]: © 2026 American Association for the Advancement of Science. All rights reserved. AAAS is a partner of HINARI, AGORA, OARE, CHORUS, CLOCKSS, CrossRef and COUNTER.
+      - list [ref=f23e522]:
+        - listitem [ref=f23e523]:
+          - link "Terms of Service" [ref=f23e524] [cursor=pointer]:
+            - /url: /content/page/terms-service
+        - listitem [ref=f23e525]:
+          - text: "|"
+          - link "Privacy Policy" [ref=f23e526] [cursor=pointer]:
+            - /url: /content/page/privacy-policy
+        - listitem [ref=f23e527]:
+          - text: "|"
+          - link "Cookie Preferences" [ref=f23e528] [cursor=pointer]:
+            - /url: "#cookie-preferences"
+        - listitem [ref=f23e529]:
+          - text: "|"
+          - link "Accessibility" [ref=f23e530] [cursor=pointer]:
+            - /url: /content/page/accessibility
+  - region "Sign up for ScienceAdviser" [ref=f23e531]:
+    - generic [ref=f23e533]:
+      - link [ref=f23e534] [cursor=pointer]:
+        - /url: "#"
+        - button [ref=f23e535]: 
+      - generic [ref=f23e536]:
+        - link [ref=f23e537] [cursor=pointer]:
+          - /url: https://bit.ly/ScienceMagPodcasts
+          - img "Science Podcasts" [ref=f23e538]
+        - paragraph [ref=f23e539]: Listen as Science staff delve into scientific discoveries and policy with researchers and writers from around the globe.
+      - generic [ref=f23e541]:
+        - link "Listen on Youtube" [ref=f23e542] [cursor=pointer]:
+          - /url: https://bit.ly/ScienceMagPodcasts
+        - link "Not Now" [ref=f23e543] [cursor=pointer]:
+          - /url: "#"

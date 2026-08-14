@@ -1,0 +1,45 @@
+[     653ms] [LOG] Widgets initialized! @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     655ms] [LOG] Cart Service initialized! @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     655ms] [LOG] Commerce Cart :: Registering service buyingList listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     655ms] [LOG] Commerce Cart :: Registering service savedItems listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     677ms] [LOG] OneSignal WebPush >> The browser vendor >> Chrome @ https://www.science.org/pb-assets/service/webpush/webpush-1765430089077.js:614
+[     677ms] [LOG] OneSignal WebPush >> Google Firebase is supported >> True @ https://www.science.org/pb-assets/service/webpush/webpush-1765430089077.js:614
+[     677ms] [LOG] OneSignal WebPush >> Ineligible page. Not a content page. @ https://www.science.org/pb-assets/service/webpush/webpush-1765430089077.js:614
+[     677ms] Uncaught TypeError: Cannot read properties of null (reading 'getAttribute')
+    at buildAdContext (https://assets.aaas.org/preCMP.js:556:18)
+    at loadGamComponent (https://assets.aaas.org/preCMP.js:775:16)
+    at <anonymous> (https://assets.aaas.org/preCMP.js:918:8)
+[     683ms] [LOG] Commerce Cart :: Registering service buyingList listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service savedItems listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service buyingList listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service savedItems listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     683ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[     721ms] [WARNING] [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#170 @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202608100101/pubads_impl.js?cb=122880346:18
+[     722ms] [LOG] slotName /21824331052/author-portal/page @ https://assets.aaas.org/preCMP.js:783
+[     722ms] [LOG] slot_sizes [Array(2), Array(2), Array(2), Array(2), Array(2)] @ https://assets.aaas.org/preCMP.js:784
+[     722ms] [LOG] environment prod @ https://assets.aaas.org/preCMP.js:789
+[     722ms] [LOG] domain_subdomain www.science.org @ https://assets.aaas.org/preCMP.js:790
+[     722ms] [LOG] tq human @ https://assets.aaas.org/preCMP.js:794
+[     723ms] [WARNING] [GPT] Slot.setTargeting is deprecated, use Slot.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#171 @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202608100101/pubads_impl.js?cb=122880346:18
+[     725ms] [LOG] slotName /21824331052/author-portal/page @ https://assets.aaas.org/preCMP.js:783
+[     725ms] [LOG] slot_sizes [Array(2), Array(2)] @ https://assets.aaas.org/preCMP.js:784
+[     725ms] [LOG] environment prod @ https://assets.aaas.org/preCMP.js:789
+[     725ms] [LOG] domain_subdomain www.science.org @ https://assets.aaas.org/preCMP.js:790
+[     725ms] [LOG] tq human @ https://assets.aaas.org/preCMP.js:794
+[     725ms] [LOG] slotName /21824331052/author-portal/page @ https://assets.aaas.org/preCMP.js:783
+[     725ms] [LOG] slot_sizes [Array(2), Array(2)] @ https://assets.aaas.org/preCMP.js:784
+[     725ms] [LOG] environment prod @ https://assets.aaas.org/preCMP.js:789
+[     726ms] [LOG] domain_subdomain www.science.org @ https://assets.aaas.org/preCMP.js:790
+[     726ms] [LOG] tq human @ https://assets.aaas.org/preCMP.js:794
+[    1012ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[    1015ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[    1042ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[    1072ms] [WARNING] [Meta Pixel] - Duplicate Pixel ID: 2654080238088440. @ https://connect.facebook.net/en_US/fbevents.js:197
+[    1235ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.science.org/cdn-cgi/rum?:0

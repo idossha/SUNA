@@ -1,0 +1,42 @@
+[    1343ms] [LOG] Widgets initialized! @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1344ms] [LOG] Cart Service initialized! @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1344ms] [LOG] Commerce Cart :: Registering service buyingList listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1344ms] [LOG] Commerce Cart :: Registering service savedItems listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service buyingList listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service savedItems listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service buyingList listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service savedItems listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1443ms] [LOG] Commerce Cart :: Registering service undefined listener... @ https://www.science.org/products/aaas/releasedAssets/js/main.bundle-b9434625ee8f8fdf49dd.js:50
+[    1675ms] [WARNING] [GPT] PubAdsService.setTargeting is deprecated, use googletag.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#170 @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202608100101/pubads_impl.js?cb=122880346:18
+[    1677ms] [LOG] slotName /21824331052/author-portal/page @ https://assets.aaas.org/preCMP.js:783
+[    1677ms] [LOG] slot_sizes [Array(2), Array(2), Array(2), Array(2), Array(2)] @ https://assets.aaas.org/preCMP.js:784
+[    1677ms] [LOG] environment prod @ https://assets.aaas.org/preCMP.js:789
+[    1677ms] [LOG] domain_subdomain www.science.org @ https://assets.aaas.org/preCMP.js:790
+[    1677ms] [LOG] tq unknown @ https://assets.aaas.org/preCMP.js:794
+[    1679ms] [WARNING] [GPT] Slot.setTargeting is deprecated, use Slot.setConfig({targeting: ...}) instead.
+https://goo.gle/gpt-message#171 @ https://securepubads.g.doubleclick.net/pagead/managed/js/gpt/m202608100101/pubads_impl.js?cb=122880346:18
+[    1680ms] [LOG] slotName /21824331052/author-portal/page @ https://assets.aaas.org/preCMP.js:783
+[    1680ms] [LOG] slot_sizes [Array(2), Array(2)] @ https://assets.aaas.org/preCMP.js:784
+[    1680ms] [LOG] environment prod @ https://assets.aaas.org/preCMP.js:789
+[    1680ms] [LOG] domain_subdomain www.science.org @ https://assets.aaas.org/preCMP.js:790
+[    1680ms] [LOG] tq unknown @ https://assets.aaas.org/preCMP.js:794
+[    1681ms] [LOG] slotName /21824331052/author-portal/page @ https://assets.aaas.org/preCMP.js:783
+[    1681ms] [LOG] slot_sizes [Array(2), Array(2)] @ https://assets.aaas.org/preCMP.js:784
+[    1681ms] [LOG] environment prod @ https://assets.aaas.org/preCMP.js:789
+[    1681ms] [LOG] domain_subdomain www.science.org @ https://assets.aaas.org/preCMP.js:790
+[    1681ms] [LOG] tq unknown @ https://assets.aaas.org/preCMP.js:794
+[    1714ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://fcm.googleapis.com/:0
+[    1714ms] [LOG] OneSignal WebPush >> The browser vendor >> Chrome @ https://www.science.org/pb-assets/service/webpush/webpush-1765430089077.js:614
+[    1714ms] [LOG] OneSignal WebPush >> Google Firebase is supported >> True @ https://www.science.org/pb-assets/service/webpush/webpush-1765430089077.js:614
+[    1715ms] [LOG] OneSignal WebPush >> Ineligible page. Not a content page. @ https://www.science.org/pb-assets/service/webpush/webpush-1765430089077.js:614
+[    2467ms] [WARNING] [Meta Pixel] - Duplicate Pixel ID: 2654080238088440. @ https://connect.facebook.net/en_US/fbevents.js:197
+[    2559ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[    2562ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[    2563ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[    2769ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://www.science.org/cdn-cgi/rum?:0
