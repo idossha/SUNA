@@ -157,6 +157,9 @@ export const ManuscriptSchema = z.object({
   affiliations: z.array(AffiliationSchema),
   history: HistorySchema,
   abstract: z.object({ content: z.string().min(1) }),
+  /** Title-page extras; present or not depending on the user's needs. */
+  significance: z.string().min(1).nullable().optional(),
+  highlights: z.array(z.string().min(1)).nullable().optional(),
   body: z.array(BodyNodeSchema).min(1),
   figures: z.array(ManuscriptFigureSchema),
   tables: z.array(ManuscriptTableSchema),

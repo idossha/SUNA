@@ -100,14 +100,14 @@
   border-color: var(--s-border-strong);
 }
 
-/* ---- live mode ------------------------------------------------------------ */
+/* ---- reading mode (editable live preview) --------------------------------- */
 
-/* body font + readable measure only in live mode; source stays mono/full-width */
-.editor-tab__source--live {
+/* body font + readable measure only in reading mode; source stays mono/full-width */
+.editor-tab__source--reading {
   --ed-content-font: var(--ed-body-font, var(--s-font-serif));
 }
 
-.editor-tab__source--live .cm-content {
+.editor-tab__source--reading .cm-content {
   max-width: var(--ed-content-width, 68ch);
   margin: 0 auto;
 }
@@ -195,19 +195,6 @@
   font-family: var(--s-font-ui);
   font-size: var(--s-text-sm);
   text-align: center;
-}
-
-/* ---- reading mode: visualization settings override app.css defaults ------ */
-
-.editor-tab .editor-tab__rendered .scimark {
-  max-width: var(--ed-content-width, 62ch);
-  font-size: var(--ed-font-size, 16px);
-  line-height: var(--ed-line-height, 1.75);
-  font-family: var(--ed-body-font, var(--s-font-serif));
-}
-
-.editor-tab .editor-tab__rendered {
-  outline: none;
 }
 
 /* ---- settings popover ----------------------------------------------------- */

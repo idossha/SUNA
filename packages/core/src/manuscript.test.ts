@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import demoManuscript from '../../../examples/demo-paper/manuscript/manuscript.json';
 import { ManuscriptSchema, type Manuscript } from './manuscript';
 
 const fixture = {
@@ -226,6 +227,37 @@ describe('ManuscriptSchema', () => {
     expect(ManuscriptSchema.safeParse(bad).success).toBe(false);
   });
 
+  it('leaves significance and highlights absent when not provided (backward compatible)', () => {
+    const parsed = ManuscriptSchema.parse(fixture);
+    expect(parsed.significance).toBeUndefined();
+    expect(parsed.highlights).toBeUndefined();
+  });
+
+  it('accepts a significance paragraph and a highlights list', () => {
+    const withExtras: unknown = {
+      ...fixture,
+      significance: 'Ram-pressure stripping quenches star formation within ~300 Myr.',
+      highlights: ['A massive protocluster at $z = 2.51$', 'Stripping traced in H$\\alpha$'],
+    };
+    const parsed = ManuscriptSchema.parse(withExtras);
+    expect(parsed.significance).toBe(
+      'Ram-pressure stripping quenches star formation within ~300 Myr.',
+    );
+    expect(parsed.highlights).toHaveLength(2);
+  });
+
+  it('accepts explicit null significance and highlights', () => {
+    const withNulls: unknown = { ...fixture, significance: null, highlights: null };
+    const parsed = ManuscriptSchema.parse(withNulls);
+    expect(parsed.significance).toBeNull();
+    expect(parsed.highlights).toBeNull();
+  });
+
+  it('rejects an empty significance string and non-string highlights', () => {
+    expect(ManuscriptSchema.safeParse({ ...fixture, significance: '' }).success).toBe(false);
+    expect(ManuscriptSchema.safeParse({ ...fixture, highlights: [42] }).success).toBe(false);
+  });
+
   it('accepts a box node in the body flow', () => {
     const withBox: unknown = {
       ...fixture,
@@ -244,5 +276,10 @@ describe('ManuscriptSchema', () => {
     const box = parsed.body[3];
     if (box?.kind !== 'box') throw new Error('expected box node');
     expect(box.figureRefs).toEqual(['figB1']);
+  });
+
+  it('keeps the shipped demo-paper example schema-valid', () => {
+    const parsed = ManuscriptSchema.parse(demoManuscript);
+    expect(parsed.significance).toBeTypeOf('string');
   });
 });

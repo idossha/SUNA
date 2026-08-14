@@ -8,13 +8,15 @@ import { DockHost, type DockPanelComponent } from './shell/dock/DockHost'
 import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
 import { CanvasTab } from './canvas/CanvasTab'
+import { ManuscriptTab } from './manuscript/ManuscriptTab'
 import { useUiStore } from './state/ui'
 import { setDockApi } from './state/dock'
 
 const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
   editor: EditorTab,
-  canvas: CanvasTab
+  canvas: CanvasTab,
+  manuscript: ManuscriptTab
 }
 
 export function App(): JSX.Element {

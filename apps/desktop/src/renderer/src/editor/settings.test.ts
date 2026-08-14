@@ -9,7 +9,8 @@ import {
 describe('clampSetting', () => {
   it('clamps to the documented ranges', () => {
     expect(clampSetting('contentWidthCh', 10)).toBe(50)
-    expect(clampSetting('contentWidthCh', 500)).toBe(100)
+    expect(clampSetting('contentWidthCh', 500)).toBe(150)
+    expect(clampSetting('contentWidthCh', 120)).toBe(120)
     expect(clampSetting('fontSizePx', 8)).toBe(12)
     expect(clampSetting('fontSizePx', 99)).toBe(22)
     expect(clampSetting('lineHeight', 1)).toBe(1.4)

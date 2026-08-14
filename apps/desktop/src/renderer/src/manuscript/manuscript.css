@@ -1,0 +1,252 @@
+/* ---------------------------------------------------------------------------
+   Combined manuscript document tab (manuscript/ManuscriptTab).
+
+   The root carries the .editor-tab theme classes so the --ed-* palette and
+   live-preview widget styles from editor.css apply to the embedded section
+   editors. Layout properties from app.css's .editor-tab are overridden here
+   with higher specificity (this file loads before app.css — order must never
+   be relied on).
+   --------------------------------------------------------------------------- */
+
+.msdoc.editor-tab {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  background: var(--ed-bg, var(--s-bg-editor));
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.msdoc__page {
+  max-width: var(--ed-content-width, 68ch);
+  margin: 0 auto;
+  padding: 56px 0 120px;
+  font-family: var(--ed-body-font, var(--s-font-serif));
+  font-size: var(--ed-font-size, 16px);
+  line-height: var(--ed-line-height, 1.7);
+}
+
+/* text blocks align with the CM line padding (16px) */
+.msdoc__block {
+  padding: 0 16px;
+}
+
+.msdoc__error {
+  margin: 0 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--s-border-strong);
+  border-left: 2px solid var(--s-err);
+  border-radius: var(--s-radius);
+  color: var(--s-err);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+}
+
+.msdoc__hint {
+  padding: 24px 16px;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+}
+
+/* ---- title page ----------------------------------------------------------- */
+
+.msdoc__titlepage {
+  user-select: text;
+}
+
+.msdoc__title {
+  margin: 0 0 0.7em;
+  font-family: var(--s-font-serif);
+  font-size: 1.55em;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.msdoc__authors {
+  margin-bottom: 0.5em;
+  font-size: 1.02em;
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.msdoc__author sup {
+  margin-left: 1px;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+  font-size: 0.68em;
+}
+
+.msdoc__affiliations {
+  margin-bottom: 0.4em;
+  font-size: 0.82em;
+  line-height: 1.55;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+}
+
+.msdoc__affiliations sup {
+  margin-right: 3px;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+}
+
+.msdoc__correspondence {
+  font-size: 0.82em;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+}
+
+/* quiet small-caps block labels: Abstract · Significance · Highlights · References */
+.msdoc__label {
+  margin: 2em 0 0.45em;
+  font-family: var(--s-font-ui);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ed-ink-faint, var(--s-ink-faint));
+}
+
+.msdoc__front-text {
+  margin: 0;
+  font-size: 0.95em;
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.msdoc__highlights {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.95em;
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.msdoc__highlights li {
+  margin-bottom: 0.3em;
+}
+
+.msdoc__rule {
+  height: 1px;
+  margin: 2.4em 16px;
+  background: var(--ed-border, var(--s-border-strong));
+  opacity: 0.6;
+}
+
+/* ---- body sections -------------------------------------------------------- */
+
+.msdoc__section {
+  position: relative;
+  scroll-margin-top: 24px;
+  margin-bottom: 0.6em;
+}
+
+.msdoc__h {
+  margin: 1.4em 0 0.2em;
+  padding: 0 16px;
+  font-family: var(--s-font-serif);
+  color: var(--ed-ink, var(--s-ink));
+  line-height: 1.35;
+}
+
+.msdoc__h--a {
+  font-size: 1.18em;
+  font-weight: 650;
+}
+
+.msdoc__h--b {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.msdoc__h--c {
+  font-size: 1em;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.msdoc__h--box {
+  font-size: 1.02em;
+  font-weight: 600;
+  padding-top: 10px;
+  border-top: 1px solid var(--ed-border, var(--s-border-strong));
+}
+
+/* per-section dirty dot — beside the heading, or floating for unheaded blocks */
+.msdoc__dirty {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--s-accent);
+}
+
+.msdoc__dirty--floating {
+  position: absolute;
+  top: 10px;
+  right: 16px;
+  margin: 0;
+  z-index: 3;
+}
+
+/* ---- embedded section editors: size to content, outer document scrolls ---- */
+
+.msdoc .msdoc__editor {
+  --ed-content-font: var(--ed-body-font, var(--s-font-serif));
+}
+
+.msdoc .msdoc__editor .cm-editor {
+  height: auto;
+}
+
+.msdoc .msdoc__editor .cm-scroller {
+  overflow: visible;
+}
+
+.msdoc .msdoc__editor .cm-gutters {
+  display: none;
+}
+
+/* ---- references ----------------------------------------------------------- */
+
+.msdoc__references {
+  user-select: text;
+}
+
+.msdoc__ref {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0.45em;
+  font-size: 0.88em;
+  line-height: 1.55;
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.msdoc__ref-num {
+  flex-shrink: 0;
+  min-width: 1.6em;
+  text-align: right;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+  font-variant-numeric: tabular-nums;
+}
+
+.msdoc__ref a {
+  color: var(--ed-syn-link, #8ab4d8);
+  text-decoration: none;
+}
+
+.msdoc__ref--unknown {
+  align-items: baseline;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+}
+
+.msdoc__ref-flag {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--s-err);
+  border-radius: 3px;
+  color: var(--s-err);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  line-height: 16px;
+}

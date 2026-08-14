@@ -1,0 +1,27 @@
+/* ---------------------------------------------------------------------------
+   Sidebar resize handle — owned by shell/SideBar.tsx. Base .sidebar layout
+   stays in styles/app.css (do not edit); this file only adds what the
+   handle needs. app.css does not set `position` on .sidebar, so declaring
+   it here is safe despite this file loading before app.css.
+   --------------------------------------------------------------------------- */
+
+.sidebar {
+  position: relative;
+}
+
+.sidebar__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  z-index: 5;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 90ms ease;
+}
+
+.sidebar__resize:hover,
+.sidebar__resize--active {
+  background: var(--s-accent);
+}

@@ -2,9 +2,11 @@
 /**
  * SUNA end-to-end smoke test. Launches the app with a CDP endpoint and
  * drives the full loop: open example project (a fresh COPY under userData)
- * → edit manuscript → live + reading modes → canvas editing suite → all six
- * sidebar views (explorer CRUD, manuscript outline, figures, references,
- * git commit, agent) — asserting on real files inside the copy.
+ * → sidebar resize → reading mode (editable live preview; two-state toggle)
+ * → canvas editing suite → sidebar views (explorer CRUD, manuscript outline
+ * + the combined manuscript document with title page/section editors/
+ * references/scroll-spy, figures, references, git commit, agent) —
+ * asserting on real files inside the copy.
  *
  * Reset strategy: the userData example copy is deleted before launch, so
  * every run starts from the pristine examples/demo-paper and the git repo
@@ -232,23 +234,76 @@ try {
     assert(text.includes('Galaxies falling'), 'intro section not in editor')
   })
 
-  await step('live-mode', async () => {
-    // mode button cycles Source → Live → Reading
+  await step('sidebar-resize', async () => {
+    // normalize (a previous aborted run may have left a persisted width)
+    await evalJs(`document.querySelector('.sidebar__resize')
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`)
+    await sleep(200)
+    const start = await evalJs(
+      `document.querySelector('.sidebar').getBoundingClientRect().width`
+    )
+    assert(Math.round(start) === 272, `sidebar default width: ${start} (want 272)`)
+
+    // drag the gold handle 60px right via real pointer input
+    const h = await evalJs(`(() => {
+      const el = document.querySelector('.sidebar__resize');
+      if (!el) throw new Error('sidebar resize handle missing');
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`)
+    await mouse('mousePressed', h.x, h.y)
+    for (let i = 1; i <= 6; i++) {
+      await mouse('mouseMoved', h.x + i * 10, h.y)
+      await sleep(30)
+    }
+    await mouse('mouseReleased', h.x + 60, h.y)
+    await sleep(300)
+    const after = await evalJs(`({
+      width: document.querySelector('.sidebar').getBoundingClientRect().width,
+      store: window.__sunaDev.uiStore.getState().sidebarWidth,
+      saved: window.localStorage.getItem('suna.sidebarWidth')
+    })`)
+    // release point is +60px from the handle CENTER (4px wide) → ±5px slack
+    assert(
+      Math.abs(after.width - (start + 60)) <= 5,
+      `drag +60px: width ${start} → ${after.width} (want ~${start + 60})`
+    )
+    assert(after.store === Math.round(after.width), `store width ${after.store} ≠ DOM ${after.width}`)
+    assert(
+      after.saved === String(after.store),
+      `localStorage suna.sidebarWidth = ${after.saved} (want ${after.store})`
+    )
+
+    // double-click resets to the 272px default, also persisted
+    await evalJs(`document.querySelector('.sidebar__resize')
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`)
+    await sleep(200)
+    const reset = await evalJs(`({
+      width: document.querySelector('.sidebar').getBoundingClientRect().width,
+      saved: window.localStorage.getItem('suna.sidebarWidth')
+    })`)
+    assert(Math.round(reset.width) === 272, `dblclick reset width: ${reset.width} (want 272)`)
+    assert(reset.saved === '272', `reset not persisted: ${reset.saved}`)
+  })
+
+  await step('reading-mode', async () => {
+    // modes are two-state: the button (or ⌘E) toggles Source ⇄ Reading,
+    // and Reading is the *editable* live preview (widgets with cursor-reveal)
     await evalJs(`document.querySelector('.editor-tab__mode').click()`)
     await sleep(500)
     const label = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(label === 'Live', `mode after first click: ${label} (want Live)`)
+    assert(label === 'Reading', `mode after click: ${label} (want Reading)`)
     const before = await evalJs(`({
       katex: !!document.querySelector('.cm-content .katex'),
       block: !!document.querySelector('.cm-content .cm-lp-math-block'),
       cite: !!document.querySelector('.cm-content .cm-lp-cite'),
       raw: (document.querySelector('.cm-content')?.textContent ?? '').includes('$$')
     })`)
-    assert(before.katex, 'KaTeX widget missing from CodeMirror DOM in live mode')
-    assert(before.block, 'display-math block widget missing in live mode')
-    assert(before.cite, 'citation chip missing in live mode')
+    assert(before.katex, 'KaTeX widget missing from CodeMirror DOM in reading mode')
+    assert(before.block, 'display-math block widget missing in reading mode')
+    assert(before.cite, 'citation chip missing in reading mode')
     assert(!before.raw, 'raw $$ visible while display math is rendered')
-    await screenshot('live-mode.png')
+    await screenshot('reading-mode.png')
 
     // click into the rendered math → decoration drops, raw $$ source at cursor
     const p = await evalJs(`(() => {
@@ -279,26 +334,25 @@ try {
     })`)
     assert(after.widget, 'math widget did not re-render after cursor left')
     assert(!after.raw, 'raw $$ still visible after cursor left the math range')
-  })
 
-  await step('reading-mode', async () => {
-    await evalJs(`document.querySelector('.editor-tab__mode').click()`) // Live → Reading
-    await sleep(400)
-    const r = await evalJs(`({
-      label: document.querySelector('.editor-tab__mode').textContent,
-      katex: !!document.querySelector('.scimark .katex'),
-      cite: !!document.querySelector('.scimark sup.cite'),
-      eqId: !!document.querySelector('.scimark [id="eq:stripping"]')
-    })`)
-    assert(r.label === 'Reading', `mode label: ${r.label} (want Reading)`)
-    assert(r.katex, 'KaTeX math missing in reading view')
-    assert(r.cite, 'citation chip missing in reading view')
-    assert(r.eqId, 'equation anchor missing in reading view')
-    await screenshot('02-rendered.png')
+    // the reading surface stays editable: type → doc changes → undo reverts
+    await insertText('QQSMOKE')
+    await sleep(300)
+    const typed = await evalJs(
+      `(document.querySelector('.cm-content')?.textContent ?? '').includes('QQSMOKE')`
+    )
+    assert(typed, 'typing in reading mode did not change the document')
+    await key('z', 'KeyZ', 4) // ⌘Z
+    await sleep(300)
+    const reverted = await evalJs(
+      `!(document.querySelector('.cm-content')?.textContent ?? '').includes('QQSMOKE')`
+    )
+    assert(reverted, 'undo did not revert the reading-mode edit')
+
     await evalJs(`document.querySelector('.editor-tab__mode').click()`) // Reading → Source
     await sleep(300)
-    const label = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(label === 'Source', `mode label after full cycle: ${label} (want Source)`)
+    const back = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
+    assert(back === 'Source', `mode label after toggle back: ${back} (want Source)`)
   })
 
   await step('canvas-opens-figure', async () => {
@@ -616,12 +670,155 @@ try {
     assert(meta.includes('2 authors'), `author count missing: ${meta}`)
     assert(meta.includes('2 figures') && meta.includes('1 table'), `figure/table counts: ${meta}`)
     await screenshot('views-manuscript.png')
-    // clicking an outline row opens its section in the editor
+    // clicking an outline row opens the combined document and scrolls to it
     await evalJs(`[...document.querySelectorAll('.ms__row')]
       .find((r) => r.textContent.includes('Results')).click()`)
-    await sleep(800)
-    const text = await evalJs(`document.querySelector('.cm-content')?.textContent ?? ''`)
-    assert(text.includes('infalling galaxy'), 'Results section did not open in the editor')
+    const spyDeadline = Date.now() + 8_000
+    let spy = null
+    while (Date.now() < spyDeadline) {
+      spy = await evalJs(`({
+        tab: !!document.querySelector('.msdoc'),
+        tabActive: window.__sunaDev.manuscriptDocStore.getState().tabActive,
+        active: window.__sunaDev.manuscriptDocStore.getState().activeSectionIndex
+      })`)
+      if (spy.tab && spy.tabActive && spy.active === 1) break
+      await sleep(300)
+    }
+    assert(spy.tab, 'combined manuscript tab did not open from the outline click')
+    assert(spy.tabActive, 'manuscript tab is not the frontmost dock panel')
+    assert(
+      spy.active === 1,
+      `outline click should scroll to Results (index 1), active is ${spy.active}`
+    )
+  })
+
+  await step('manuscript-doc', async () => {
+    // the view's button opens (here: refocuses) the combined document tab
+    // (Manuscript view is usually still active — re-activating would TOGGLE
+    // the sidebar closed, so only activate when the view is not showing)
+    if (!(await evalJs(`!!document.querySelector('.ms__open')`))) {
+      await activateView('Manuscript')
+      await sleep(400)
+    }
+    await evalJs(`document.querySelector('.ms__open').click()`)
+    // four live section editors, one CodeMirror per body section
+    const edDeadline = Date.now() + 10_000
+    let editors = 0
+    while (Date.now() < edDeadline && editors !== 4) {
+      editors = await evalJs(
+        `document.querySelectorAll('.msdoc__editor .cm-content').length`
+      )
+      if (editors !== 4) await sleep(300)
+    }
+    assert(editors === 4, `expected 4 section editors, got ${editors}`)
+
+    // title page: KaTeX title, authors with affiliation superscripts,
+    // numbered affiliations, Abstract + Significance front-matter blocks
+    const tp = await evalJs(`({
+      title: document.querySelector('.msdoc__title')?.textContent ?? '',
+      titleKatex: !!document.querySelector('.msdoc__title .katex'),
+      authors: [...document.querySelectorAll('.msdoc__author')].map((a) => a.textContent),
+      adaSup: document.querySelector('.msdoc__author sup')?.textContent ?? null,
+      affiliations: document.querySelectorAll('.msdoc__affiliations div').length,
+      correspondence: document.querySelector('.msdoc__correspondence')?.textContent ?? '',
+      labels: [...document.querySelectorAll('.msdoc__label')].map((e) => e.textContent)
+    })`)
+    assert(
+      tp.title.includes('Rapid quenching by ram-pressure stripping'),
+      `title page title: ${tp.title.slice(0, 80)}`
+    )
+    assert(tp.titleKatex, 'title math ($z = 1.7$) not rendered through KaTeX')
+    assert(
+      tp.authors.some((a) => a.includes('Ada Researcher')) &&
+        tp.authors.some((a) => a.includes('Ben Collaborator')),
+      `authors line: ${tp.authors.join(' | ')}`
+    )
+    assert(tp.adaSup === '1,*', `Ada's superscript markers: ${tp.adaSup} (want 1,*)`)
+    assert(tp.affiliations === 2, `affiliation lines: ${tp.affiliations} (want 2)`)
+    assert(
+      tp.correspondence.includes('ada@observatory.edu'),
+      `correspondence line: ${tp.correspondence}`
+    )
+    assert(
+      tp.labels.includes('Abstract') && tp.labels.includes('Significance'),
+      `front-matter labels: ${tp.labels.join(', ')}`
+    )
+    assert(tp.labels.includes('References'), 'References block missing from the document')
+
+    // references numbered by first appearance: gunn1972 is cited first (intro)
+    const refs = await evalJs(`({
+      count: document.querySelectorAll('.msdoc__ref').length,
+      unknown: document.querySelectorAll('.msdoc__ref--unknown').length,
+      firstNum: document.querySelector('.msdoc__ref .msdoc__ref-num')?.textContent ?? null,
+      firstText: document.querySelector('.msdoc__ref')?.textContent ?? ''
+    })`)
+    assert(refs.count === 11, `expected 11 references (all cited), got ${refs.count}`)
+    assert(refs.unknown === 0, `${refs.unknown} citation keys missing from references.bib`)
+    assert(refs.firstNum === '1.', `first reference number: ${refs.firstNum} (want 1.)`)
+    assert(
+      refs.firstText.includes('Gunn'),
+      `entry 1 should be gunn1972 (first-cited): ${refs.firstText.slice(0, 80)}`
+    )
+
+    // title page + first section screenshot from the top of the document
+    await evalJs(`document.querySelector('.msdoc').scrollTop = 0`)
+    await sleep(600)
+    await screenshot('manuscript-doc.png')
+
+    // outline click → smooth scroll to Methods; scroll-spy marks the row
+    await evalJs(`[...document.querySelectorAll('.ms__row')]
+      .find((r) => r.textContent.includes('Methods')).click()`)
+    const methodsDeadline = Date.now() + 8_000
+    let active = -1
+    while (Date.now() < methodsDeadline && active !== 3) {
+      active = await evalJs(
+        `window.__sunaDev.manuscriptDocStore.getState().activeSectionIndex`
+      )
+      if (active !== 3) await sleep(300)
+    }
+    assert(active === 3, `after Methods click, active section is ${active} (want 3)`)
+    const outline = await evalJs(`({
+      activeLabel: document.querySelector('.ms__row--active .ms__row-label')?.textContent ?? null,
+      counts: [...document.querySelectorAll('.ms__count')].map((e) => Number(e.textContent))
+    })`)
+    assert(
+      outline.activeLabel === 'Methods',
+      `outline active row: ${outline.activeLabel} (want Methods)`
+    )
+    assert(
+      outline.counts.length === 4 && outline.counts.every((c) => Number.isFinite(c) && c > 0),
+      `per-section word counts missing/empty: ${outline.counts.join(', ')}`
+    )
+    await screenshot('manuscript-outline-active.png')
+
+    // ⌘S routes to the focused section only: edit Methods, save, restore
+    const methodsPath = join(COPY_DIR, 'manuscript', 'sections', '04-methods.md')
+    const methodsOriginal = readFileSync(methodsPath, 'utf8')
+    const line = await evalJs(`(() => {
+      const ed = document.querySelectorAll('.msdoc__editor')[3];
+      const l = ed.querySelector('.cm-line');
+      if (!l) throw new Error('Methods section has no rendered lines');
+      const r = l.getBoundingClientRect();
+      return { x: r.left + Math.min(30, r.width / 2), y: r.top + r.height / 2 };
+    })()`)
+    await click(line.x, line.y)
+    await sleep(200)
+    await insertText('QQSMOKE ')
+    await sleep(200)
+    await key('s', 'KeyS', 4) // ⌘S
+    await sleep(700)
+    assert(
+      readFileSync(methodsPath, 'utf8').includes('QQSMOKE'),
+      '⌘S in the Methods editor did not save sections/04-methods.md'
+    )
+    await key('z', 'KeyZ', 4) // ⌘Z
+    await sleep(200)
+    await key('s', 'KeyS', 4)
+    await sleep(700)
+    assert(
+      readFileSync(methodsPath, 'utf8') === methodsOriginal,
+      'undo+save did not restore the Methods section byte-identical'
+    )
   })
 
   await step('figures-view', async () => {

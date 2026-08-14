@@ -20,3 +20,20 @@ export function openFileTab(path: string): void {
     params: { path }
   })
 }
+
+/** Open (or focus) the combined manuscript document tab for a project. */
+export function openManuscriptTab(rootDir: string): void {
+  if (!dockApi) return
+  const id = `manuscript:${rootDir}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'manuscript',
+    title: 'Manuscript',
+    params: { rootDir }
+  })
+}

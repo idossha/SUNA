@@ -5,20 +5,20 @@ export type EditorFontFamily = 'serif' | 'sans' | 'mono'
 export type EditorThemeName = 'suna-dark' | 'suna-light' | 'high-contrast'
 
 export interface EditorSettings {
-  /** Reading/live content column width, in ch. */
+  /** Reading-mode content column width, in ch. */
   contentWidthCh: number
-  /** Base editor font size, in px (applies to all three modes). */
+  /** Base editor font size, in px (applies to both modes). */
   fontSizePx: number
-  /** Body font for live + reading modes (source stays mono). */
+  /** Body font for reading mode (source stays mono). */
   fontFamily: EditorFontFamily
-  /** Line height for all three modes. */
+  /** Line height for both modes. */
   lineHeight: number
   /** Editor-surface theme; app chrome stays dark regardless. */
   editorTheme: EditorThemeName
 }
 
 export const EDITOR_SETTINGS_LIMITS = {
-  contentWidthCh: { min: 50, max: 100 },
+  contentWidthCh: { min: 50, max: 150 },
   fontSizePx: { min: 12, max: 22 },
   lineHeight: { min: 1.4, max: 2 }
 } as const
@@ -76,6 +76,17 @@ export const useEditorSettings = create<EditorSettingsState>()(
     {
       name: 'suna-editor-settings',
       version: 1,
+      // Clamp persisted numeric values on rehydrate so stored settings from
+      // older builds (or hand-edited storage) always land inside the limits.
+      merge: (persisted, current) => {
+        const merged = { ...current, ...((persisted ?? {}) as Partial<EditorSettings>) }
+        return {
+          ...merged,
+          contentWidthCh: clampSetting('contentWidthCh', Number(merged.contentWidthCh)),
+          fontSizePx: clampSetting('fontSizePx', Number(merged.fontSizePx)),
+          lineHeight: clampSetting('lineHeight', Number(merged.lineHeight))
+        }
+      },
       partialize: (state) => ({
         contentWidthCh: state.contentWidthCh,
         fontSizePx: state.fontSizePx,
