@@ -127,7 +127,18 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
-  packages/formatter: {}
+  packages/formatter:
+    dependencies:
+      '@suna/canvas':
+        specifier: workspace:*
+        version: link:../canvas
+      '@suna/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
 
   packages/markdown:
     dependencies:

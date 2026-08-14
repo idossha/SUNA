@@ -3,9 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@suna/canvas": "workspace:*",
+    "@suna/core": "workspace:*"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
   }
 }

@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 2,
+  "id": "science",
+  "journalName": "Science",
+  "publisher": "American Association for the Advancement of Science (AAAS)",
+  "lastVerified": "2026-08-13",
+  "citations": {
+    "mode": "parenthetical-numeric",
+    "collapseRanges": true,
+    "textualTokens": { "ref": "ref.", "refs": "refs" },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors}, {title}. {journal} {volume}, {firstPage}–{lastPage} ({year}).",
+        "book": "{authors}, {title} ({publisher}, {year}).",
+        "preprint": "{authors}, {title}. arXiv:{id} [{category}] ({year}).",
+        "software": "{authors}, {title}, version {version}, {repository} ({year}); {doiUrl}."
+      },
+      "authorTruncation": {
+        "etAlAllowed": false,
+        "truncateWhenMoreThan": null,
+        "keepFirstN": null
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": "Datasets need a DOI or persistent identifier, preferably in URL format; epub-ahead-of-print articles are cited with the DOI in place of volume and page numbers",
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.science.org/content/page/instructions-preparing-initial-manuscript",
+      "https://www.science.org/content/page/science-information-authors"
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": { "single": 90, "onehalf": null, "double": 183 },
+    "maxHeightMm": null,
+    "minFontPt": 6,
+    "maxFontPt": 9,
+    "lineWeightPt": { "min": 0.28, "max": null },
+    "preferredFontFamilies": ["Arial", "Helvetica"],
+    "palette": {
+      "requirement": "colorblind-safe-recommended",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": true
+    },
+    "formats": {
+      "vectorPreferred": ["pdf", "eps", "ai"],
+      "rasterAccepted": ["tiff"],
+      "minDpi": 300
+    },
+    "panelLabel": { "letterCase": "upper", "weight": "bold", "wrapper": "none" },
+    "sources": [
+      "https://www.science.org/content/page/instructions-preparing-initial-manuscript",
+      "https://www.science.org/content/page/instructions-preparing-revised-manuscript",
+      "https://www.science.org/cms/asset/67f37ac8-4d02-4625-8a05-230568cb8323/author_prep_guide_2025.pdf"
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "research-article",
+        "name": "Research Article",
+        "wordLimit": { "max": 3000, "scope": "main text", "hard": false },
+        "abstractWordLimit": 125,
+        "titleLimitChars": 96,
+        "maxDisplayItems": 5,
+        "maxReferences": 50
+      },
+      {
+        "id": "research-article-extended",
+        "name": "Research Article (extended online format)",
+        "wordLimit": { "max": 6000, "scope": "main text", "hard": false },
+        "abstractWordLimit": 125,
+        "titleLimitChars": 96,
+        "maxDisplayItems": 6,
+        "maxReferences": 100
+      },
+      {
+        "id": "review",
+        "name": "Review",
+        "wordLimit": { "max": 5000, "scope": "main text", "hard": false },
+        "abstractWordLimit": null,
+        "titleLimitChars": 96,
+        "maxDisplayItems": 4,
+        "maxReferences": 150
+      },
+      {
+        "id": "perspective",
+        "name": "Perspective",
+        "wordLimit": {
+          "max": 1800,
+          "scope": "stand-alone (~1000 words when linked to a paper)",
+          "hard": false
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": 96,
+        "maxDisplayItems": 1,
+        "maxReferences": 15
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      { "id": "title", "label": "Title", "required": true },
+      { "id": "authors-affiliations", "label": "Authors and Affiliations", "required": true },
+      { "id": "abstract", "label": "Abstract", "required": true },
+      { "id": "main-text", "label": "Main Text", "required": true },
+      { "id": "references-and-notes", "label": "References and Notes", "required": true },
+      { "id": "acknowledgments", "label": "Acknowledgments", "required": true },
+      { "id": "supplementary-list", "label": "List of Supplementary Materials", "required": true }
+    ],
+    "availabilityStatements": { "data": true, "code": true },
+    "submissionFormat": {
+      "doubleSpacing": false,
+      "lineNumbers": null,
+      "acceptedFileTypes": ["docx", "pdf"]
+    },
+    "sources": [
+      "https://www.science.org/content/page/instructions-preparing-initial-manuscript",
+      "https://www.science.org/content/page/science-information-authors",
+      "https://www.science.org/content/page/instructions-preparing-revised-manuscript"
+    ]
+  },
+  "notes": [
+    "Citation numbers are italicized inside parentheses: (18, 19), (18–20), (18, 20–22) — commas for collation, en dashes for ranges.",
+    "References are numbered in order of citation through: (i) main text, (ii) text boxes, (iii) figure and table captions, (iv) reference notes and acknowledgments, (v) supplementary materials; one single combined list covers paper + SM; each reference appears once with a unique number.",
+    "Do not use op. cit., ibid., or et al. — the complete author list is required in every reference (initials first, family names in full, commas between authors, no 'and').",
+    "Article titles are included and end with a period (shown in HTML, not print); journal titles italic; volume numbers bold (publication year substitutes when no volume); full page range with en dash; article number when pagination is not continuous; year in parentheses; entry ends with a period.",
+    "Personal communications may not be cited; 'in press' citations are not allowed at publication; preprints (arXiv, bioRxiv) may be cited (bioRxiv adds '[Preprint]' and the DOI, preferably as URL); any dataset with a DOI must be cited in the reference list; no citations in the Abstract.",
+    "Official sources conflict on column widths: instruction pages say 5.7/12.1/18.4 cm for 1/2/3 columns; the 2025 Guide to Preparing Figures gives 1 column = 9 cm and 2 columns = 18.3 cm (encoded here as the current layout).",
+    "Line-weight minimum likewise conflicts: instruction pages say 0.5 pt at final reduced size; the 2025 figure guide says 0.28 pt (~0.10 mm) at final print size (encoded).",
+    "Figure labels 6–9 pt sans-serif per the 2025 guide; web instructions add: lettering ~7 pt after reduction and not smaller than 5 pt, plot symbols 6 pt minimum, at most 3 type sizes per figure.",
+    "Panel letters: 10 pt bold uppercase A, B, C in the upper-left corner of each part (inside the perimeter for images); avoid subpart labels — if unavoidable use lowercase letters, primes, or lowercase roman numerals; numbers only for time sequences.",
+    "Full-color artwork must be provided in RGB; the figure of record is the RGB online version; print color charges: $650 for the first color figure, $450 each additional.",
+    "Avoid red and green together; avoid similar hues to identify different parts; avoid grayscale, light lines, and screen shading; use white (bold) type over dark/colored areas; no minor tick marks or grid lines; solid symbols preferred; SI units in parentheses; leading zeros on decimals.",
+    "colorAsSoleDelimiter is null: the official pages state no general color-as-sole-delimiter rule — the guidance is specific to red/green pairs (add strongly contrasting shades plus shapes or textures) and to colors similar in hue.",
+    "Figure captions: max 200 words each, single-spaced, begin with a short bold-face title; figure title belongs in the caption, not in the figure.",
+    "Research Articles carry 3 to 5 display items; extended format up to 6 (may include videos) and must be justified in the cover letter; meta-analyses needing more than 250 total references must contact the editors before submission; Reviews under 20% self-citation.",
+    "Initial submission: single .docx with figures/tables embedded (LaTeX users convert to .docx or use the Science LaTeX template and upload a PDF) plus a combined PDF; revised: one .docx WITHOUT embedded figures, each figure as a separate PDF/EPS/AI/TIFF file; PowerPoint not accepted.",
+    "Raster resolution: 300 dpi minimum at final size (photographic images 300–500 dpi per the 2025 guide); upsampling not permitted; do not rasterize, flatten, or outline text — keep labeling on editable layers.",
+    "Materials and Methods go in the supplementary materials and must allow replication; Acknowledgments must contain, in order: contributions, Funding, Author contributions (CRediT encouraged), Competing interests (declared even if none), and Data, code, and materials availability.",
+    "Single spacing throughout text, tables, captions, and references; US letter page; Times New Roman preferred for manuscript text; avoid Symbol fonts; ORCID iD required for first and corresponding authors at revision.",
+    "Titles: no more than 96 characters including spaces; no paragraph breaks in title, author list, or abstract; Research Article abstracts are unstructured with prescribed flow (background, objectives/methods, results, conclusions)."
+  ]
+}
