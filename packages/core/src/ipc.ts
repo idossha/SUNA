@@ -74,6 +74,13 @@ export const CHANNELS = {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({ root: FsNodeSchema }),
   },
+  'project:open-example': {
+    request: z.object({}),
+    response: z.object({
+      dir: z.string().min(1),
+      manifest: SunaProjectManifestSchema,
+    }),
+  },
   'dialog:pick-directory': {
     request: z.object({
       title: z.string().min(1),

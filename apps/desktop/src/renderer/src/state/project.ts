@@ -9,6 +9,7 @@ interface ProjectState {
   tree: FsNode | null
   createProject: () => Promise<void>
   openProject: () => Promise<void>
+  openExampleProject: () => Promise<void>
   refreshTree: () => Promise<void>
 }
 
@@ -55,6 +56,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       await openStarterSection(path)
     } catch (error) {
       reportError('Could not create project', error)
+    }
+  },
+
+  openExampleProject: async () => {
+    try {
+      const { dir, manifest } = await window.suna.invoke('project:open-example', {})
+      set({ rootDir: dir, manifest })
+      useUiStore.getState().setStatusNote(`Opened example project “${manifest.name}”`)
+      await get().refreshTree()
+      await openStarterSection(dir)
+    } catch (error) {
+      reportError('Could not open the example project', error)
     }
   },
 
