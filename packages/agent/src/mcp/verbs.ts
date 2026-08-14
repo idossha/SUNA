@@ -115,6 +115,22 @@ export async function readBib(ctx: ProjectContext): Promise<string> {
 }
 
 /**
+ * The figure checker parses SVG through the canvas engine, which needs DOM
+ * globals. Node has none, so a jsdom window supplies them once per process.
+ */
+async function ensureDom(): Promise<void> {
+  if ('DOMParser' in globalThis) return
+  const { JSDOM } = await import('jsdom')
+  const { window } = new JSDOM('')
+  const g = globalThis as unknown as Record<string, unknown>
+  g['DOMParser'] = window.DOMParser
+  g['XMLSerializer'] = window.XMLSerializer
+  g['Node'] = window.Node
+  g['Element'] = window.Element
+  g['Document'] = window.Document
+}
+
+/**
  * Compliance is checked against the project's active journal profile, so an
  * agent gets the same verdicts the app's canvas shows.
  */
@@ -122,6 +138,7 @@ export async function checkFigureCompliance(
   ctx: ProjectContext,
   figureId: string
 ): Promise<string> {
+  await ensureDom()
   const [{ checkFigureSvg, getBundledProfile }, svg] = await Promise.all([
     import('@suna/formatter'),
     readFigureSvg(ctx, figureId)

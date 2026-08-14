@@ -13,13 +13,15 @@ import { json } from '@codemirror/lang-json'
 import { python } from '@codemirror/lang-python'
 import { javascript } from '@codemirror/lang-javascript'
 import { linter, lintGutter } from '@codemirror/lint'
+import { vim } from '@replit/codemirror-vim'
 import { livePreview } from './livePreview'
 import { sunaJsonLinter } from './jsonLint'
+import { bibLanguage, bibLinter } from './bibLang'
 import { editorTheme } from './themes'
 import type { EditorThemeName } from './settings'
 
-/** Extension-based language pick. `.bib` (and anything unknown) stays plain
- *  and falls back to the shared highlight style. */
+/** Extension-based language pick. Anything unknown stays plain and falls
+ *  back to the shared highlight style. */
 export function languageExtensions(fileName: string): Extension[] {
   const lower = fileName.toLowerCase()
   const dot = lower.lastIndexOf('.')
@@ -30,6 +32,8 @@ export function languageExtensions(fileName: string): Extension[] {
       return [markdown()]
     case '.json':
       return [json(), lintGutter(), linter(sunaJsonLinter(lower))]
+    case '.bib':
+      return [bibLanguage(), lintGutter(), linter(bibLinter)]
     case '.py':
       return [python()]
     case '.js':
@@ -48,6 +52,10 @@ export interface CreateEditorOptions {
   fileName: string
   theme: EditorThemeName
   live: boolean
+  /** Vim motions/keymap; works in both source and reading mode. */
+  vim?: boolean
+  /** Read-only surfaces (e.g. the data grid's text view) skip the save keymap. */
+  readOnly?: boolean
   onDocChanged: () => void
   onSave: () => void
 }
@@ -58,14 +66,20 @@ export interface EditorHandle {
   setLive: (on: boolean) => void
   /** Swap the editor-surface theme without losing document state. */
   setTheme: (name: EditorThemeName) => void
+  /** Toggle the vim keymap without losing document state. */
+  setVim: (on: boolean) => void
   destroy: () => void
 }
 
 export function createEditor(options: CreateEditorOptions): EditorHandle {
   const themeCompartment = new Compartment()
   const liveCompartment = new Compartment()
+  const vimCompartment = new Compartment()
 
   const extensions: Extension[] = [
+    // vim() must precede every other keymap: it installs its own high-priority
+    // input handler and only wins if CM6 sees it first (per its README).
+    vimCompartment.of(options.vim === true ? vim() : []),
     lineNumbers(),
     history(),
     drawSelection(),
@@ -91,6 +105,8 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     ...languageExtensions(options.fileName)
   ]
 
+  if (options.readOnly === true) extensions.push(EditorState.readOnly.of(true))
+
   const view = new EditorView({
     state: EditorState.create({ doc: options.doc, extensions }),
     parent: options.parent
@@ -103,6 +119,9 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     },
     setTheme: (name) => {
       view.dispatch({ effects: themeCompartment.reconfigure(editorTheme(name)) })
+    },
+    setVim: (on) => {
+      view.dispatch({ effects: vimCompartment.reconfigure(on ? vim() : []) })
     },
     destroy: () => view.destroy()
   }

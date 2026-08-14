@@ -16,9 +16,11 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@suna/core": "workspace:*",
     "@suna/formatter": "workspace:*",
+    "jsdom": "^30.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/jsdom": "^30.0.0",
     "esbuild": "^0.28.2"
   }
 }

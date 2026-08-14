@@ -1,5 +1,5 @@
 import katex from 'katex'
-import { parseSciMark } from '@suna/markdown'
+import { parseSciMark, renderHtml } from '@suna/markdown'
 import {
   Decoration,
   type DecorationSet,
@@ -33,6 +33,8 @@ export type LiveSpan =
   | { kind: 'blockMath'; from: number; to: number; tex: string; label: string | undefined }
   | { kind: 'inlineMath'; from: number; to: number; tex: string }
   | { kind: 'figure'; from: number; to: number; figureId: string }
+  /** GFM table block; `md` is the raw source, re-rendered by the widget. */
+  | { kind: 'table'; from: number; to: number; md: string }
   | { kind: 'cite'; from: number; to: number; keys: string[] }
   | {
       kind: 'xref'
@@ -226,6 +228,20 @@ export function extractSpans(source: string): SpanIndex {
         }
         return
       }
+      case 'table': {
+        // Don't descend: cell content is re-rendered inside the widget, so
+        // top-level spans for it would overlap this block replacement.
+        if (range) {
+          blocks.push({
+            kind: 'table',
+            from: range.from,
+            to: range.to,
+            md: source.slice(range.from, range.to)
+          })
+          exclude.push(range)
+        }
+        return
+      }
       case 'code':
       case 'rawLatex':
       case 'inlineCode': {
@@ -381,6 +397,40 @@ class XrefWidget extends WidgetType {
   }
 }
 
+/**
+ * Tables go through the shared @suna/markdown pipeline rather than a local
+ * HTML builder so citations, crossrefs and math inside cells render exactly
+ * as they do in the reading view. Cached by source like the KaTeX output.
+ */
+const tableHtmlCache = new Map<string, string>()
+
+export function renderTableHtml(md: string): string {
+  const cached = tableHtmlCache.get(md)
+  if (cached !== undefined) return cached
+  const html = renderHtml(parseSciMark(md))
+  if (tableHtmlCache.size > 200) tableHtmlCache.clear()
+  tableHtmlCache.set(md, html)
+  return html
+}
+
+class TableWidget extends WidgetType {
+  constructor(readonly md: string) {
+    super()
+  }
+  override eq(other: TableWidget): boolean {
+    return other.md === this.md
+  }
+  override toDOM(): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'cm-lp-table'
+    el.innerHTML = renderTableHtml(this.md)
+    return el
+  }
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
 class FigureWidget extends WidgetType {
   constructor(readonly figureId: string) {
     super()
@@ -405,6 +455,8 @@ function decorationFor(span: LiveSpan): Decoration {
       return Decoration.replace({ widget: new BlockMathWidget(span.tex, span.label), block: true })
     case 'figure':
       return Decoration.replace({ widget: new FigureWidget(span.figureId), block: true })
+    case 'table':
+      return Decoration.replace({ widget: new TableWidget(span.md), block: true })
     case 'inlineMath':
       return Decoration.replace({ widget: new InlineMathWidget(span.tex) })
     case 'cite':

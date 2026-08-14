@@ -25,7 +25,9 @@ function chrome(dark: boolean): Extension {
         padding: '12px 0',
         lineHeight: 'var(--ed-line-height, 1.65)'
       },
-      '.cm-line': { padding: '0 16px' },
+      // editor.css adds this padding back into the content max-width so the
+      // content-width setting measures text, not text + gutters.
+      '.cm-line': { padding: '0 var(--ed-line-pad, 16px)' },
       '&.cm-focused': { outline: 'none' },
       '.cm-cursor': { borderLeftColor: 'var(--ed-accent, var(--s-accent))' },
       '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
