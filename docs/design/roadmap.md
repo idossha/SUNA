@@ -22,10 +22,11 @@ recorded manual check.
 | AI | Provider adapters (Anthropic/OpenAI/Ollama) + API-key chat; MCP server exposing manuscript verbs; "Open Claude Code here" launches a subscription-billed CLI wired to it |
 | Python | suna_mpl: semantic gids, journal presets, deterministic SVG, anchor manifests, auto-rasterization |
 
+| Editor | Reading default, working content-width (50–150ch), GFM tables in reading mode, vim motions, .bib language pack (highlight/lint/completion), CSV/TSV data grid |
+
 ## In progress
 
-- Editor batch: reading-default, content-width fix, table rendering, vim
-  motions, .bib language support, CSV/TSV data grid.
+Nothing — the last batch landed. `pnpm smoke` runs 28 steps green.
 
 ## Outstanding (next milestones)
 
@@ -49,4 +50,9 @@ recorded manual check.
   itself renders it).
 - Layers panel lists matplotlib's metadata/RDF nodes unfiltered.
 - Canvas align/distribute exist in the engine but have no UI buttons.
-- Agent chat has no streaming or tool use yet (single-turn text).
+- Agent chat has no streaming or tool use yet (single-turn text); the MCP
+  path (agent CLIs) is the richer route.
+- The MCP server externalizes zod/jsdom, so packaging must ship those
+  node_modules alongside dist-mcp/server.mjs.
+- Conda detection shells out to `conda env list`; a slow conda install
+  makes the env popover wait up to 8s on first open.
