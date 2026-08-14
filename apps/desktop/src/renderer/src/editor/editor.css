@@ -104,7 +104,7 @@
   border-color: var(--s-border-strong);
 }
 
-/* ---- content measure (both modes) ----------------------------------------- */
+/* ---- content measure (prose only) ------------------------------------------ */
 
 /*
    The measure has to sit on `.cm-content`, not on `.cm-scroller` or the host:
@@ -126,10 +126,42 @@
 
    Specificity (0,3,0) clears CodeMirror's own `.ͼ1 .cm-content` (0,2,0)
    without relying on stylesheet order (see the file header note).
+
+   Scoped to `.editor-tab--prose`: code/data tabs (`.editor-tab--code`) get
+   neither the max-width nor the centering below, so `.cm-content` fills the
+   scroller and starts flush against the gutter, matching plain CodeMirror.
 */
-.editor-tab .editor-tab__source .cm-content {
+.editor-tab--prose .editor-tab__source .cm-content {
   max-width: calc(var(--ed-content-width, 68ch) + 2 * var(--ed-line-pad));
+}
+
+/*
+   Alignment is mode-conditional, not a property of the width rule itself:
+   source mode leaves the block at its flex-start (Obsidian-like — hugs the
+   gutter while still wrapping at the measure); only reading mode centers it
+   with auto inline margins. Never remove the width to "left-align" — that
+   would also stop prose from wrapping at the chosen measure.
+*/
+.editor-tab--prose .editor-tab__source--reading .cm-content {
   margin-inline: auto;
+}
+
+/* ---- code/data tabs -------------------------------------------------------- */
+
+/*
+   Belt-and-suspenders: source mode already omits --ed-content-font (see
+   below), so `.cm-content` falls back to `var(--s-font-mono)` regardless of
+   the Font setting. This rule makes that explicit and holds even if a future
+   change starts publishing --ed-content-font outside reading mode — code
+   tabs must never take the body font.
+
+   Specificity (0,3,0), same reasoning as the measure rule above: CodeMirror's
+   own injected `.cm-content` font-family rule is also (0,2,0), and its
+   <style> tag is mounted after this stylesheet loads, so a same-specificity
+   rule here would lose the cascade tie. Three classes clears it reliably.
+*/
+.editor-tab.editor-tab--code .cm-content {
+  font-family: var(--s-font-mono);
 }
 
 /* ---- reading mode (editable live preview) --------------------------------- */

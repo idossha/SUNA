@@ -107,6 +107,47 @@ describe('cross-references', () => {
     const citation = narrow(inlineNodes('See @data:release for details.')[1], 'citation');
     expect(citation.keys).toEqual(['data:release']);
   });
+
+  it('parses a panel-suffix crossRef immediately inside parentheses', () => {
+    const nodes = inlineNodes('Panels show (@fig:x{a}) clearly.');
+    const xref = narrow(nodes[1], 'crossRef');
+    expect(xref.kind).toBe('fig');
+    expect(xref.id).toBe('x');
+    expect(xref.suffix).toBe('a');
+    expect(narrow(nodes[0], 'text').value).toBe('Panels show (');
+    expect(narrow(nodes[2], 'text').value).toBe(') clearly.');
+  });
+
+  it('parses a multi-item suffix after "see"', () => {
+    const xref = narrow(inlineNodes('see @fig:x{b,c} for both panels.')[1], 'crossRef');
+    expect(xref.kind).toBe('fig');
+    expect(xref.id).toBe('x');
+    expect(xref.suffix).toBe('b,c');
+  });
+
+  it('drops a trailing period from an eq crossRef with no suffix', () => {
+    const nodes = inlineNodes('This follows from @eq:y.');
+    const xref = narrow(nodes[1], 'crossRef');
+    expect(xref.kind).toBe('eq');
+    expect(xref.id).toBe('y');
+    expect(xref.suffix).toBeUndefined();
+    expect(narrow(nodes[2], 'text').value).toBe('.');
+  });
+
+  it('drops a trailing comma from a tbl crossRef with no suffix', () => {
+    const nodes = inlineNodes('As in @tbl:z, we list values.');
+    const xref = narrow(nodes[1], 'crossRef');
+    expect(xref.kind).toBe('tbl');
+    expect(xref.id).toBe('z');
+    expect(narrow(nodes[2], 'text').value).toBe(', we list values.');
+  });
+
+  it('parses a sec crossRef with suffix at the start of a sentence', () => {
+    const xref = narrow(inlineNodes('@sec:methods{2} covers the appendix case.')[0], 'crossRef');
+    expect(xref.kind).toBe('sec');
+    expect(xref.id).toBe('methods');
+    expect(xref.suffix).toBe('2');
+  });
 });
 
 describe('figure embeds', () => {

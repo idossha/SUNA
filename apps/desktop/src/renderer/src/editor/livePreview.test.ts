@@ -80,6 +80,53 @@ describe('extractSpans', () => {
     expect(xref.suffix).toBeUndefined()
   })
 
+  // The demo manuscript's Results section writes every figure reference as
+  // "(@fig:x{a})". A whitespace-only preceding gate skipped those entirely —
+  // the braces rendered literally (ui-fix-plan defect 9). Must stay in
+  // lockstep with PRECEDING_OK in packages/markdown/src/parse.ts.
+  it('finds a crossref with a panel suffix directly after an opening paren', () => {
+    const source = 'The line profile (@fig:fig-spectrum{a}) is broad.\n'
+    const { inline } = extractSpans(source)
+    const xref = inline.find((span) => span.kind === 'xref')
+    if (xref?.kind !== 'xref') throw new Error('expected crossref')
+    expect(xref.refKind).toBe('fig')
+    expect(xref.id).toBe('fig-spectrum')
+    expect(xref.suffix).toBe('a')
+    // the parens themselves stay in the prose — only the token is replaced
+    expect(source.slice(xref.from, xref.to)).toBe('@fig:fig-spectrum{a}')
+  })
+
+  it('finds a suffixless crossref directly after an opening paren', () => {
+    const source = 'in closed form (@eq:stripping) for a disk\n'
+    const { inline } = extractSpans(source)
+    const xref = inline.find((span) => span.kind === 'xref')
+    if (xref?.kind !== 'xref') throw new Error('expected crossref')
+    expect(xref.refKind).toBe('eq')
+    expect(xref.id).toBe('stripping')
+    expect(source.slice(xref.from, xref.to)).toBe('@eq:stripping')
+  })
+
+  // `[@key]` stays a *citation cluster* (the bracket branch of SCAN wins), so
+  // the bracket in PRECEDING_OK only matters for a crossref nested deeper in
+  // bracketed prose — asserted here so a future edit can't quietly turn
+  // "[@tbl:x]" into a cross-reference.
+  it('finds a crossref after an opening brace, and keeps [@key] a citation', () => {
+    const braced = extractSpans('see {@tbl:observed} above\n').inline
+    const xref = braced.find((span) => span.kind === 'xref')
+    if (xref?.kind !== 'xref') throw new Error('expected crossref after {')
+    expect(xref.refKind).toBe('tbl')
+    expect(xref.id).toBe('observed')
+
+    const bracketed = extractSpans('see [@tbl:observed] above\n').inline
+    expect(bracketed.filter((span) => span.kind === 'xref')).toHaveLength(0)
+    expect(bracketed.filter((span) => span.kind === 'cite')).toHaveLength(1)
+  })
+
+  it('still refuses a bare token glued to a word character', () => {
+    const { inline } = extractSpans('mail me a@fig:nope today\n')
+    expect(inline.filter((span) => span.kind === 'xref')).toHaveLength(0)
+  })
+
   it('does not scan citations inside code fences', () => {
     const { inline } = extractSpans('```\n[@nope] and @fig:x\n```\n')
     expect(inline).toHaveLength(0)

@@ -18,6 +18,29 @@
   color: var(--ed-ink, var(--s-ink));
 }
 
+/* ---- toolbar (settings gear) -----------------------------------------------
+   `.msdoc.editor-tab` above IS the scroll container (the e2e smoke suite
+   drives it directly: `document.querySelector('.msdoc').scrollTop = 0`), not
+   an outer non-scrolling wrapper around a separately-scrolling host the way
+   `.editor-tab__source`/its CodeMirror scroller is in EditorTab. An
+   EditorTab-style `position: absolute` toolbar would therefore be a child of
+   its own containing block's scroll content and scroll away with the
+   document. `position: sticky` keeps the gear reachable at the top of the
+   scrollport while `.msdoc__page` scrolls underneath it, without touching
+   what element the document scrolls on. */
+.msdoc__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--ed-bg, var(--s-bg-editor));
+  border-bottom: 1px solid var(--ed-border, var(--s-border-strong));
+}
+
 .msdoc__page {
   max-width: var(--ed-content-width, 68ch);
   margin: 0 auto;
@@ -205,6 +228,18 @@
   display: none;
 }
 
+/* ONE MEASURE: `.msdoc__page` alone sets the document's width from
+   --ed-content-width; section editors must fill that column edge to edge,
+   never impose a measure of their own. editor.css's own content-width rule
+   is scoped to `.editor-tab__source` (EditorTab's single-file host), which
+   `.msdoc__editor` never matches, so nothing there reaches in here — this
+   rule makes the "no second max-width" invariant explicit rather than
+   relying on that non-match, so a future rename can't silently break it. */
+.msdoc .msdoc__editor .cm-content {
+  max-width: none;
+  width: 100%;
+}
+
 /* ---- references ----------------------------------------------------------- */
 
 .msdoc__references {
@@ -271,4 +306,33 @@
   font-size: 0.95em;
   line-height: inherit;
   vertical-align: baseline;
+}
+
+/* ---- resolved cross-reference chips (manuscript/citeChips) ----------------- */
+
+/* A crossRef the label map could resolve reads as plain body text — no
+   underline, no warning color, same as looking at typeset output. */
+.msdoc.editor-tab .cm-lp-xref--resolved {
+  border-bottom: none;
+  color: inherit;
+}
+
+/* ---- numbered display-equation labels (manuscript/citeChips) -------------- */
+
+/* A display equation whose `{#eq:id}` the label map numbered reads as the
+   typeset "(1)" instead of the raw id — same number the body's
+   "equation (1)" crossRef resolves to. Tabular figures keep a column of
+   equation numbers aligned down the page. */
+.msdoc.editor-tab .cm-lp-eq-label--numbered {
+  font-variant-numeric: tabular-nums;
+  color: var(--ed-ink, var(--s-ink));
+}
+
+/* An unresolved @fig:/@tbl:/@eq:/@sec: id (bad or renamed target) keeps its
+   raw "kind:id" text — never blank — flagged so it reads as a manuscript
+   problem, not a typo the reader is meant to gloss over. */
+.msdoc.editor-tab .cm-lp-xref--unresolved {
+  color: var(--s-err);
+  border-bottom: 1px dashed var(--s-err);
+  cursor: help;
 }

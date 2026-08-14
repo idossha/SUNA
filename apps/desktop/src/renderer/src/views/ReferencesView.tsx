@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { assignNumbers, formatReference, parseBibtex, renderCluster, type BibEntry, type Run } from '@suna/bib'
-import { getBundledProfile, BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
+import { orderedReferences } from '../manuscript/citations'
 import { useProjectStore } from '../state/project'
+import { usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
 import { useUiStore } from '../state/ui'
 import { citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor } from './refs'
 import { useCitedKeys } from './useCitedKeys'
@@ -49,7 +51,10 @@ export function ReferencesView(): JSX.Element {
   const [usage, setUsage] = useState<UsageFilter>('all')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const cited = useCitedKeys()
-  const [profileId, setProfileId] = useState<BundledProfileId>('nature-astronomy')
+  // Shared with the combined manuscript tab (state/renderProfile) — this is
+  // the one 'Rendered as' control, so switching it here also switches the
+  // manuscript body's in-text citation style and reference-list order.
+  const previewProfileId = usePreviewProfileId()
 
   useEffect(() => {
     if (rootDir === null) return
@@ -101,12 +106,29 @@ export function ReferencesView(): JSX.Element {
   const numbers = useMemo(() => assignNumbers(entries.map((e) => [e.key])), [entries])
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries])
 
+  const profile = getBundledProfile(previewProfileId)
+
+  // Display order follows the profile's reference-list sortOrder: appearance
+  // (bib-file order here, since this view has no manuscript body to scan)
+  // for numeric profiles, alphabetical-by-first-author for author-year ones.
+  // orderedReferences also decides whether a row gets a number at all.
+  const orderedRows = useMemo(
+    () =>
+      profile === null
+        ? []
+        : orderedReferences(numbers, entryMap, profile.citations.referenceList.sortOrder),
+    [numbers, entryMap, profile]
+  )
+  const displayRows = useMemo(() => {
+    const filteredKeys = new Set(filtered.map((e) => e.key))
+    return orderedRows.filter((row) => filteredKeys.has(row.key))
+  }, [orderedRows, filtered])
+  const numbered = profile !== null && profile.citations.mode !== 'author-year'
+
   const selected =
     (selectedKey !== null ? entries.find((e) => e.key === selectedKey) : undefined) ??
-    filtered[0] ??
+    displayRows[0]?.entry ??
     entries[0]
-
-  const profile = getBundledProfile(profileId)
 
   const copyKey = (key: string): void => {
     void navigator.clipboard.writeText(`[@${key}]`)
@@ -163,40 +185,51 @@ export function ReferencesView(): JSX.Element {
       )}
 
       <div className="refs__list">
-        {filtered.map((entry) => (
-          <button
-            key={entry.key}
-            className="refs__row"
-            aria-selected={selected !== undefined && selected.key === entry.key}
-            onClick={() => setSelectedKey(entry.key)}
-          >
-            <span className="refs__row-main">
-              <span className="refs__key">
-                {entry.key}
-                {!cited.set.has(entry.key) && (
-                  <span className="refs__uncited-dot" title="Not cited in the manuscript" />
-                )}
-              </span>
-              <span className="refs__authoryear">
-                {firstAuthorOf(entry)}
-                {entry.year !== undefined ? ` · ${entry.year}` : ''}
-              </span>
-              <span className="refs__title">{entry.title}</span>
-            </span>
-            <span
-              className="refs__copy"
-              role="button"
-              title={`Copy [@${entry.key}]`}
-              onClick={(e) => {
-                e.stopPropagation()
-                copyKey(entry.key)
-              }}
+        {displayRows.map((row) => {
+          const entry = row.entry
+          if (entry === undefined) return null
+          return (
+            <button
+              key={row.key}
+              className="refs__row"
+              aria-selected={selected !== undefined && selected.key === row.key}
+              onClick={() => setSelectedKey(row.key)}
             >
-              [@]
-            </span>
-          </button>
-        ))}
-        {filtered.length === 0 && <p className="view__hint" style={{ padding: 8 }}>No matches.</p>}
+              {numbered && <span className="refs__num">{row.number}.</span>}
+              <span className="refs__row-main">
+                <span className="refs__row-line">
+                  <span className="refs__key">
+                    {entry.key}
+                    {!cited.set.has(entry.key) && (
+                      <span className="refs__uncited-dot" title="Not cited in the manuscript" />
+                    )}
+                  </span>
+                  <span className="refs__authoryear">
+                    {firstAuthorOf(entry)}
+                    {entry.year !== undefined ? ` · ${entry.year}` : ''}
+                  </span>
+                </span>
+                <span className="refs__title">{entry.title}</span>
+              </span>
+              <span
+                className="refs__copy"
+                role="button"
+                title={`Copy [@${entry.key}]`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  copyKey(entry.key)
+                }}
+              >
+                [@]
+              </span>
+            </button>
+          )
+        })}
+        {displayRows.length === 0 && (
+          <p className="view__hint" style={{ padding: 8 }}>
+            No matches.
+          </p>
+        )}
       </div>
 
       {selected !== undefined && profile !== null && (
@@ -207,8 +240,10 @@ export function ReferencesView(): JSX.Element {
               <button
                 key={id}
                 className="refs__style"
-                aria-pressed={id === profileId}
-                onClick={() => setProfileId(id)}
+                aria-pressed={id === previewProfileId}
+                onClick={() => {
+                  if (rootDir !== null) useRenderProfileStore.getState().setPreviewProfile(rootDir, id)
+                }}
               >
                 {PROFILE_LABELS[id]}
               </button>
@@ -243,7 +278,7 @@ export function ReferencesView(): JSX.Element {
 
             <div className="refs__preview-label">Reference list</div>
             <div className="refs__rendered">
-              {numbers.get(selected.key) !== undefined && (
+              {numbered && numbers.get(selected.key) !== undefined && (
                 <span className="refs__cite-link">{numbers.get(selected.key)}. </span>
               )}
               <RunSpans

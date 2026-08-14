@@ -1,5 +1,7 @@
 import { renderCluster } from '@suna/bib'
+import type { CrossRefKind } from '@suna/markdown'
 import type { CitationRender } from '../state/manuscriptDoc'
+import { resolveCrossRefLabel } from './citations'
 
 /**
  * Profile-resolved citation chips for the combined tab's section editors.
@@ -103,5 +105,145 @@ export function applyCiteChips(
       el.classList.toggle('cm-lp-cite--inline', resolved.form === 'inline')
     }
     el.dataset['sunaSig'] = signature
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Cross-reference chips (@fig:/@tbl:/@eq:/@sec:).
+
+   The live-preview extension (editor zone) renders every crossRef as a raw
+   `.cm-lp-xref` widget with textContent "kind:id" and, when a panel suffix
+   was parsed, a `title="panel <suffix>"` attribute (its only place to carry
+   that data without editor-zone changes). This is the same kind of
+   presentational DOM pass as applyCiteChips above, resolving those widgets
+   against the document's label map (manuscript/citations buildLabelMap).
+   Unresolved ids keep their raw "kind:id" text — never blank — flagged with
+   an 'unresolved' class instead.
+   ------------------------------------------------------------------------- */
+
+const PANEL_TITLE = /^panel (.+)$/
+
+function isCrossRefKind(value: string): value is CrossRefKind {
+  return value === 'fig' || value === 'tbl' || value === 'eq' || value === 'sec'
+}
+
+export interface RawXref {
+  kind: CrossRefKind
+  id: string
+  suffix: string | undefined
+}
+
+/** Parses a raw live-preview crossRef widget's "kind:id" text (+ panel title), or null. */
+export function parseRawXref(textContent: string | null, title: string): RawXref | null {
+  if (textContent === null) return null
+  const colon = textContent.indexOf(':')
+  if (colon <= 0) return null
+  const kind = textContent.slice(0, colon)
+  const id = textContent.slice(colon + 1)
+  if (!isCrossRefKind(kind) || id.length === 0) return null
+  const suffix = PANEL_TITLE.exec(title)?.[1]
+  return { kind, id, suffix }
+}
+
+/** Data shared by crossRef resolution. */
+export type XrefRenderData = Pick<CitationRender, 'labels'>
+
+/**
+ * One presentational pass over a host's rendered crossRef chips, mirroring
+ * applyCiteChips: idempotent per render.serial, raw text/suffix stashed in
+ * data attributes on first sight so later passes (and restoring to raw with
+ * `render: null`) don't need the original widget title.
+ */
+export function applyCrossRefChips(
+  host: HTMLElement,
+  render: (XrefRenderData & { serial: number }) | null
+): void {
+  const signature = render === null ? 'raw' : String(render.serial)
+  for (const el of host.querySelectorAll<HTMLElement>('.cm-lp-xref')) {
+    let parsed: RawXref | null
+    const storedKind = el.dataset['sunaXrefKind']
+    const storedId = el.dataset['sunaXrefId']
+    if (storedKind !== undefined && storedId !== undefined && isCrossRefKind(storedKind)) {
+      parsed = { kind: storedKind, id: storedId, suffix: el.dataset['sunaXrefSuffix'] }
+    } else {
+      parsed = parseRawXref(el.textContent, el.title)
+      if (parsed !== null) {
+        el.dataset['sunaXrefKind'] = parsed.kind
+        el.dataset['sunaXrefId'] = parsed.id
+        if (parsed.suffix !== undefined) el.dataset['sunaXrefSuffix'] = parsed.suffix
+        el.dataset['sunaXrefRaw'] = el.textContent ?? ''
+      }
+    }
+    if (parsed === null) continue
+    if (el.dataset['sunaXrefSig'] === signature) continue
+    if (render === null) {
+      const raw = el.dataset['sunaXrefRaw']
+      if (raw !== undefined && el.textContent !== raw) el.textContent = raw
+      el.classList.remove('cm-lp-xref--resolved', 'cm-lp-xref--unresolved')
+    } else {
+      const resolved = resolveCrossRefLabel(parsed.kind, parsed.id, parsed.suffix, render.labels)
+      if (el.textContent !== resolved.text) el.textContent = resolved.text
+      el.classList.toggle('cm-lp-xref--resolved', resolved.resolved)
+      el.classList.toggle('cm-lp-xref--unresolved', !resolved.resolved)
+    }
+    el.dataset['sunaXrefSig'] = signature
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Display-equation label chips.
+
+   The live-preview extension renders a `$$ … $$ {#eq:stripping}` block with a
+   right-margin `.cm-lp-eq-label` chip whose text is the *raw* label,
+   "(eq:stripping)" — the editor zone has no document-wide numbering, so that
+   is all it can know on its own. In the combined manuscript document the same
+   label map that turns `@eq:stripping` into "equation (1)" also knows the
+   bare number, so this pass replaces the raw chip with "(1)" and the two stop
+   contradicting each other on screen.
+   ------------------------------------------------------------------------- */
+
+const RAW_EQ_LABEL = /^\(eq:(.+)\)$/
+
+/** The `{#eq:<id>}` id behind a raw "(eq:<id>)" label chip, or null. */
+export function parseRawEqLabel(textContent: string | null): string | null {
+  const id = RAW_EQ_LABEL.exec(textContent ?? '')?.[1]
+  return id !== undefined && id.length > 0 ? id : null
+}
+
+/** Data shared by equation-label resolution. */
+export type EqLabelRenderData = Pick<CitationRender, 'labels'>
+
+/**
+ * One presentational pass over a host's display-equation label chips,
+ * mirroring applyCiteChips/applyCrossRefChips: idempotent per render.serial,
+ * raw text stashed on first sight, `render: null` restores it.
+ */
+export function applyEquationLabels(
+  host: HTMLElement,
+  render: (EqLabelRenderData & { serial: number }) | null
+): void {
+  const signature = render === null ? 'raw' : String(render.serial)
+  for (const el of host.querySelectorAll<HTMLElement>('.cm-lp-eq-label')) {
+    let id = el.dataset['sunaEqId'] ?? null
+    if (id === null) {
+      id = parseRawEqLabel(el.textContent)
+      if (id !== null) {
+        el.dataset['sunaEqId'] = id
+        el.dataset['sunaEqRaw'] = el.textContent ?? ''
+      }
+    }
+    if (id === null) continue
+    if (el.dataset['sunaEqSig'] === signature) continue
+    const number = render === null ? undefined : render.labels.equationNumbers.get(id)
+    if (number === undefined) {
+      const raw = el.dataset['sunaEqRaw']
+      if (raw !== undefined && el.textContent !== raw) el.textContent = raw
+      el.classList.remove('cm-lp-eq-label--numbered')
+    } else {
+      const text = `(${number})`
+      if (el.textContent !== text) el.textContent = text
+      el.classList.add('cm-lp-eq-label--numbered')
+    }
+    el.dataset['sunaEqSig'] = signature
   }
 }

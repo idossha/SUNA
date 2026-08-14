@@ -7,6 +7,7 @@ import { createEditor, type EditorHandle } from './codemirror'
 import { editorSurfaceStyle, useEditorSettings } from './settings'
 import { EDITOR_THEME_CLASS } from './themes'
 import { SettingsPopover } from './SettingsPopover'
+import { CONTENT_KIND_CLASS, contentKindFor } from './contentKind'
 import './editor.css'
 
 /**
@@ -40,7 +41,8 @@ function GearIcon(): JSX.Element {
 export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   const path = String(params['path'] ?? '')
   const fileName = path.split('/').pop() ?? path
-  const isMarkdown = /\.(md|markdown)$/.test(fileName)
+  const contentKind = contentKindFor(fileName)
+  const isMarkdown = contentKind === 'prose'
 
   const rootRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -185,7 +187,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   return (
     <div
       ref={rootRef}
-      className={`editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
+      className={`editor-tab ${CONTENT_KIND_CLASS[contentKind]} ${EDITOR_THEME_CLASS[editorTheme]}`}
       style={editorSurfaceStyle(editorSettings)}
     >
       <div className="editor-tab__toolbar editor-tab__toolbar--row">
@@ -206,7 +208,9 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
         >
           <GearIcon />
         </button>
-        {settingsOpen && <SettingsPopover onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && (
+          <SettingsPopover contentKind={contentKind} onClose={() => setSettingsOpen(false)} />
+        )}
       </div>
       <div
         ref={hostRef}

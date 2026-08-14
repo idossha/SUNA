@@ -97,6 +97,17 @@ const SCAN = /\[@[^\]]*\]|@[A-Za-z][\w:.-]+(\{[^}]*\})?/g
 const BRACKET_ITEM = /^@([A-Za-z][\w:.-]*)$/
 const BARE = /^@([A-Za-z][\w:.-]+)(\{([^}]*)\})?/
 const CROSSREF_KINDS = new Set(['fig', 'tbl', 'eq', 'sec'])
+/**
+ * Characters that may immediately precede a bare `@key`/`@kind:id{suffix}`
+ * token for it to count as a citation/cross-reference start, beyond
+ * start-of-string. Whitespace covers the common case; the opening brackets
+ * let a parenthetical crossref — "(@fig:fig-spectrum{a})", the form the demo
+ * manuscript's Results section uses throughout — be recognised even though
+ * the character before the `@` is not whitespace. Mirrors PRECEDING_OK in
+ * packages/markdown/src/parse.ts; the two scanners must stay in lockstep or
+ * live chips and rendered output disagree.
+ */
+const PRECEDING_OK = /[\s([{]/
 
 function trimTrailingPunctuation(key: string): string {
   let end = key.length
@@ -147,7 +158,7 @@ function scanCitations(
           out.push({ kind: 'cite', from: start, to: start + token.length, keys })
         }
       }
-    } else if (start === 0 || /\s/.test(source.charAt(start - 1))) {
+    } else if (start === 0 || PRECEDING_OK.test(source.charAt(start - 1))) {
       const bare = BARE.exec(token)
       const keyRaw = bare?.[1]
       const suffixGroup = bare?.[2]

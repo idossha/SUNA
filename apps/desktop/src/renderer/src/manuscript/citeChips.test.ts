@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assignNumbers, type BibEntry, type CitationStyleConfig } from '@suna/bib'
-import { citeChipText, parseRawCiteLabel } from './citeChips'
+import { citeChipText, parseRawCiteLabel, parseRawEqLabel, parseRawXref } from './citeChips'
 
 function entry(key: string, families: string[], year: string): BibEntry {
   return {
@@ -96,5 +96,52 @@ describe('citeChipText', () => {
   it('falls back to the key for author-year entries missing from the bib', () => {
     const chip = citeChipText(['missingKey'], { numbers, entries, style: authorYear })
     expect(chip).toEqual({ text: '(missingKey)', form: 'inline' })
+  })
+})
+
+describe('parseRawXref', () => {
+  it('parses a bare "kind:id" widget with no panel title', () => {
+    expect(parseRawXref('fig:fig-spectrum', '')).toEqual({
+      kind: 'fig',
+      id: 'fig-spectrum',
+      suffix: undefined
+    })
+  })
+
+  it('reads the panel suffix out of the widget title', () => {
+    expect(parseRawXref('fig:fig-spectrum', 'panel a')).toEqual({
+      kind: 'fig',
+      id: 'fig-spectrum',
+      suffix: 'a'
+    })
+  })
+
+  it('parses every crossRef kind', () => {
+    expect(parseRawXref('tbl:tab-observed', '')?.kind).toBe('tbl')
+    expect(parseRawXref('eq:stripping', '')?.kind).toBe('eq')
+    expect(parseRawXref('sec:methods', '')?.kind).toBe('sec')
+  })
+
+  it('rejects unknown kinds, resolved text, and null', () => {
+    expect(parseRawXref('data:release', '')).toBeNull()
+    expect(parseRawXref('Fig. 1', '')).toBeNull()
+    expect(parseRawXref(null, '')).toBeNull()
+  })
+})
+
+describe('parseRawEqLabel', () => {
+  it('reads the id out of a raw live-preview equation label chip', () => {
+    expect(parseRawEqLabel('(eq:stripping)')).toBe('stripping')
+  })
+
+  it('accepts ids with the punctuation the label grammar allows', () => {
+    expect(parseRawEqLabel('(eq:mass-loss.v2)')).toBe('mass-loss.v2')
+  })
+
+  it('rejects an already-numbered chip, a foreign chip, and null', () => {
+    expect(parseRawEqLabel('(1)')).toBeNull()
+    expect(parseRawEqLabel('(fig:spectrum)')).toBeNull()
+    expect(parseRawEqLabel('(eq:)')).toBeNull()
+    expect(parseRawEqLabel(null)).toBeNull()
   })
 })
