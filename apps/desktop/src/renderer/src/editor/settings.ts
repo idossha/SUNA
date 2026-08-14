@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -50,6 +51,23 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeName, string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
   'high-contrast': 'High Contrast'
+}
+
+/**
+ * The `--ed-*` custom properties the editor surface reads. Set on the tab
+ * container; `editor.css` and `themes.ts` consume them from there.
+ *
+ * `--ed-content-width` lands on `.cm-content` (see editor.css) so its `ch`
+ * unit resolves against the *editor's own* font — mono in source, the body
+ * font in reading — which is what makes the slider mean characters-per-line.
+ */
+export function editorSurfaceStyle(settings: EditorSettings): CSSProperties {
+  return {
+    '--ed-content-width': `${settings.contentWidthCh}ch`,
+    '--ed-font-size': `${settings.fontSizePx}px`,
+    '--ed-line-height': String(settings.lineHeight),
+    '--ed-body-font': FONT_FAMILY_STACKS[settings.fontFamily]
+  } as CSSProperties
 }
 
 type NumericSettingKey = 'contentWidthCh' | 'fontSizePx' | 'lineHeight'

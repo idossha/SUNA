@@ -10,6 +10,10 @@
 /* ---- theme palettes (editor surface only; chrome stays night-sky) -------- */
 
 .editor-tab {
+  /* Horizontal padding themes.ts puts on .cm-line. Declared here so the
+     measure rule below can add it back — see the --ed-content-width note. */
+  --ed-line-pad: 16px;
+
   /* suna-dark: the default, matches the app's dark-adapted instrument look */
   --ed-bg: var(--s-bg-editor);
   --ed-ink: var(--s-ink);
@@ -100,16 +104,39 @@
   border-color: var(--s-border-strong);
 }
 
-/* ---- reading mode (editable live preview) --------------------------------- */
+/* ---- content measure (both modes) ----------------------------------------- */
 
-/* body font + readable measure only in reading mode; source stays mono/full-width */
-.editor-tab__source--reading {
-  --ed-content-font: var(--ed-body-font, var(--s-font-serif));
+/*
+   The measure has to sit on `.cm-content`, not on `.cm-scroller` or the host:
+   `.cm-scroller` is the flex/scroll container CodeMirror owns, and the host
+   is a plain block, so capping either one only narrows the viewport — the
+   line box still fills it and characters-per-line never changes.
+
+   `.cm-content` is the flex item that *is* the line box (`flex: 2 1 auto`),
+   so `max-width` clamps it and the leftover free space goes to the auto
+   inline margins, centering the column.
+
+   Two details this rule depends on:
+   • `ch` resolves against the element the var() is used on, so putting it
+     here makes the unit follow the editor's own font — mono in source, the
+     reading body font in reading mode.
+   • `.cm-content` is border-box, and `.cm-line` adds --ed-line-pad on each
+     side *inside* it, so the padding is added back to keep the setting
+     honest: N ch of setting == N ch of text.
+
+   Specificity (0,3,0) clears CodeMirror's own `.ͼ1 .cm-content` (0,2,0)
+   without relying on stylesheet order (see the file header note).
+*/
+.editor-tab .editor-tab__source .cm-content {
+  max-width: calc(var(--ed-content-width, 68ch) + 2 * var(--ed-line-pad));
+  margin-inline: auto;
 }
 
-.editor-tab__source--reading .cm-content {
-  max-width: var(--ed-content-width, 68ch);
-  margin: 0 auto;
+/* ---- reading mode (editable live preview) --------------------------------- */
+
+/* body font only in reading mode; source stays mono */
+.editor-tab__source--reading {
+  --ed-content-font: var(--ed-body-font, var(--s-font-serif));
 }
 
 /* dimmed (not hidden) markdown syntax characters */
@@ -183,6 +210,45 @@
   color: var(--ed-ink-muted);
   font-family: var(--s-font-ui);
   font-size: 12px;
+}
+
+/* rendered GFM table — mirrors the reading view's .scimark table rules
+   (compact, horizontal rules only, sans-serif header) */
+.editor-tab .cm-lp-table {
+  margin: 6px 0;
+  padding: 0 var(--ed-line-pad);
+  overflow-x: auto;
+}
+
+.editor-tab .cm-lp-table table {
+  border-collapse: collapse;
+  font-size: 0.875em;
+}
+
+.editor-tab .cm-lp-table th,
+.editor-tab .cm-lp-table td {
+  padding: 5px 12px;
+  border-top: 1px solid var(--ed-border);
+  border-bottom: 1px solid var(--ed-border);
+  text-align: left;
+}
+
+.editor-tab .cm-lp-table th {
+  font-family: var(--s-font-ui);
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--ed-ink-muted);
+  white-space: nowrap;
+}
+
+.editor-tab .cm-lp-table .cite {
+  color: var(--ed-accent);
+  font-family: var(--s-font-ui);
+  font-size: 11px;
+}
+
+.editor-tab .cm-lp-table .xref {
+  color: var(--ed-syn-link);
 }
 
 /* figure embed placeholder — mirrors reading view's .figure--unresolved */

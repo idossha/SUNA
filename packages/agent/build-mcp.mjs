@@ -12,5 +12,6 @@ await build({
   target: 'node22',
   outfile: join(here, 'dist-mcp/server.mjs'),
   banner: { js: '#!/usr/bin/env node' },
+  external: ['zod', 'jsdom'],
   logLevel: 'info'
 })
