@@ -88,6 +88,95 @@ export const CHANNELS = {
     }),
     response: z.object({ path: z.string().min(1).nullable() }),
   },
+  'fs:rename': {
+    request: z.object({ path: z.string().min(1), newName: z.string().min(1) }),
+    response: z.object({ path: z.string().min(1) }),
+  },
+  'fs:delete': {
+    // moves to the OS trash, never a hard unlink
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({}),
+  },
+  'fs:mkdir': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({}),
+  },
+  'fs:create-file': {
+    request: z.object({ path: z.string().min(1), content: z.string() }),
+    response: z.object({}),
+  },
+  'git:status': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      isRepo: z.boolean(),
+      branch: z.string().nullable(),
+      changes: z.array(
+        z.object({
+          path: z.string().min(1),
+          status: z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked', 'conflicted']),
+        }),
+      ),
+    }),
+  },
+  'git:log': {
+    request: z.object({ dir: z.string().min(1), limit: z.number().int().positive().max(200) }),
+    response: z.object({
+      entries: z.array(
+        z.object({
+          hash: z.string().min(1),
+          subject: z.string(),
+          author: z.string(),
+          date: z.string(),
+        }),
+      ),
+    }),
+  },
+  'git:commit': {
+    request: z.object({
+      dir: z.string().min(1),
+      message: z.string().min(1),
+      stageAll: z.boolean(),
+    }),
+    response: z.object({ hash: z.string().min(1) }),
+  },
+  'git:diff-file': {
+    request: z.object({ dir: z.string().min(1), path: z.string().min(1) }),
+    response: z.object({ diff: z.string() }),
+  },
+  'git:init': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({}),
+  },
+  'agent:set-key': {
+    request: z.object({ provider: z.enum(['anthropic', 'openai', 'ollama']), key: z.string() }),
+    response: z.object({}),
+  },
+  'agent:provider-status': {
+    request: z.object({}),
+    response: z.object({
+      providers: z.array(
+        z.object({
+          id: z.enum(['anthropic', 'openai', 'ollama']),
+          hasKey: z.boolean(),
+        }),
+      ),
+    }),
+  },
+  'agent:chat': {
+    request: z.object({
+      provider: z.enum(['anthropic', 'openai', 'ollama']),
+      system: z.string(),
+      messages: z
+        .array(
+          z.object({
+            role: z.enum(['user', 'assistant']),
+            content: z.string().min(1),
+          }),
+        )
+        .min(1),
+    }),
+    response: z.object({ text: z.string() }),
+  },
 } as const satisfies Record<string, ChannelContract>;
 
 export type ChannelName = keyof typeof CHANNELS;
