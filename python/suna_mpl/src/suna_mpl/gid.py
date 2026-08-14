@@ -63,6 +63,12 @@ def autogid(fig: Figure) -> Figure:
         _tag(namer, ax, base)
         if ax.title.get_text():
             _tag(namer, ax.title, f"{base}.title")
+        left_title = getattr(ax, "_left_title", None)
+        if left_title is not None and left_title.get_text():
+            _tag(namer, left_title, f"{base}.title.left")
+        right_title = getattr(ax, "_right_title", None)
+        if right_title is not None and right_title.get_text():
+            _tag(namer, right_title, f"{base}.title.right")
         if ax.xaxis.label.get_text():
             _tag(namer, ax.xaxis.label, f"{base}.xlabel")
         if ax.yaxis.label.get_text():

@@ -16,6 +16,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @suna/desktop dev",
+    "smoke": "node scripts/e2e/smoke.mjs",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"

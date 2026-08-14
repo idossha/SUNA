@@ -4,6 +4,7 @@ import { useProjectStore } from '../state/project'
 export function WelcomeTab(): JSX.Element {
   const createProject = useProjectStore((s) => s.createProject)
   const openProject = useProjectStore((s) => s.openProject)
+  const openExampleProject = useProjectStore((s) => s.openExampleProject)
 
   return (
     <div className="welcome">
@@ -20,6 +21,9 @@ export function WelcomeTab(): JSX.Element {
           </button>
           <button className="btn" onClick={() => void openProject()}>
             Open project…
+          </button>
+          <button className="btn" onClick={() => void openExampleProject()}>
+            Open example
           </button>
         </div>
         <p className="welcome__hint">

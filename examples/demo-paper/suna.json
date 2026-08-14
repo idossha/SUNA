@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "name": "Ram-pressure stripping in a z=1.7 cluster (demo)",
+  "activeProfileId": "nature-astronomy",
+  "directories": {
+    "manuscript": "manuscript",
+    "figures": "figures",
+    "code": "code",
+    "data": "data",
+    "analysis": "analysis",
+    "results": "results",
+    "output": "output"
+  },
+  "createdAt": "2026-08-14T00:00:00.000Z"
+}

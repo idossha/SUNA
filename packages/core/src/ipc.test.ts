@@ -11,6 +11,7 @@ describe('CHANNELS', () => {
       'fs:write-text',
       'project:create',
       'project:open',
+      'project:open-example',
       'project:scaffold-status',
     ]);
   });
