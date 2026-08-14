@@ -250,6 +250,186 @@ try {
     assert(restored === originalSvg, 'undo+save did not restore byte-identical file')
   })
 
+  // ---- editing suite (canvas-editing-suite.md §10) --------------------------
+  const insertText = (text) => send('Input.insertText', { text })
+
+  const focusCanvas = () =>
+    evalJs(`(() => {
+      const vp = document.querySelector('.canvas-viewport');
+      if (!vp) throw new Error('canvas viewport missing');
+      vp.focus();
+      return document.activeElement === vp;
+    })()`)
+
+  /** The one tag carrying id="<id>" in an SVG string ([^>]* stays in-tag). */
+  function tagWithId(svg, id) {
+    const m = new RegExp('<([a-zA-Z]+)[^>]*\\bid="' + id + '"[^>]*>').exec(svg)
+    assert(m, `element id="${id}" not found in saved file`)
+    return { name: m[1], markup: m[0] }
+  }
+
+  /** Rendered width (screen px) of a mirror element — zoom is held constant. */
+  const mirrorWidth = (id) =>
+    evalJs(
+      `document.querySelector('.canvas-world svg [id="${id}"]').getBoundingClientRect().width`
+    )
+
+  let rectId = null
+
+  await step('create-rect', async () => {
+    await evalJs(`window.__sunaDev.canvasTools.setTool('rect')`)
+    const from = await evalJs(`(() => {
+      const r = document.querySelector('.canvas-world svg').getBoundingClientRect();
+      return { x: r.left + r.width * 0.16, y: r.top + r.height * 0.16 };
+    })()`)
+    await mouse('mousePressed', from.x, from.y)
+    for (let i = 1; i <= 5; i++) {
+      await mouse('mouseMoved', from.x + i * 12, from.y + i * 8)
+      await sleep(30)
+    }
+    await mouse('mouseReleased', from.x + 60, from.y + 40)
+    await sleep(400)
+    const state = await evalJs(`({
+      sel: window.__sunaDev.canvasTools.getSelection(),
+      tool: window.__sunaDev.canvasTools.getToolState().tool
+    })`)
+    assert(state.tool === 'select', `tool after creation: ${state.tool} (want select)`)
+    assert(
+      state.sel.length === 1 && /^suna-e\d+$/.test(state.sel[0]),
+      `expected one new suna-e* id selected, got ${JSON.stringify(state.sel)}`
+    )
+    rectId = state.sel[0]
+    await focusCanvas()
+    await key('s', 'KeyS', 4)
+    await sleep(600)
+    const el = tagWithId(readFileSync(FIGURE, 'utf8'), rectId)
+    assert(el.name === 'rect', `id="${rectId}" is a <${el.name}>, want <rect>`)
+    // Nature Astronomy palette[0] is #000000 (spec §4: profile defaults).
+    assert(
+      el.markup.includes('fill="#000000"'),
+      `new rect misses profile default fill: ${el.markup}`
+    )
+    assert(!el.markup.includes('stroke='), `new rect should carry no stroke: ${el.markup}`)
+  })
+
+  /** Panels default open only at ≥1200px windows; expand when collapsed. */
+  const expandPanel = async (probeSelector, expandTitle) => {
+    await evalJs(`(() => {
+      if (document.querySelector('${probeSelector}')) return;
+      const btn = [...document.querySelectorAll('.canvas-side__expand')]
+        .find((b) => b.title === '${expandTitle}');
+      if (!btn) throw new Error('${expandTitle} button missing');
+      btn.click();
+    })()`)
+    await sleep(250)
+  }
+
+  await step('style-edit', async () => {
+    await expandPanel('.canvas-props', 'Show properties')
+    // Rect is still selected: pick the Wong orange chip from the fill palette.
+    const clicked = await evalJs(`(() => {
+      const chip = [...document.querySelectorAll('.canvas-props__chip')]
+        .find((c) => c.title.toLowerCase() === '#e69f00');
+      if (!chip) return false;
+      chip.click();
+      return true;
+    })()`)
+    assert(clicked, 'fill palette chip #e69f00 not found in properties panel')
+    await sleep(300)
+    await focusCanvas()
+    await key('s', 'KeyS', 4)
+    await sleep(600)
+    const el = tagWithId(readFileSync(FIGURE, 'utf8'), rectId)
+    assert(
+      el.markup.includes('fill="#e69f00"'),
+      `set-style fill did not land in saved file: ${el.markup}`
+    )
+  })
+
+  await step('resize-handle', async () => {
+    const before = await mirrorWidth(rectId)
+    const h = await evalJs(`(() => {
+      const el = document.querySelector('.canvas-overlay__handle[data-handle="se"]');
+      if (!el) throw new Error('SE resize handle not rendered');
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`)
+    await mouse('mousePressed', h.x, h.y)
+    for (let i = 1; i <= 5; i++) {
+      await mouse('mouseMoved', h.x + i * 8, h.y + i * 5)
+      await sleep(30)
+    }
+    await mouse('mouseReleased', h.x + 40, h.y + 25)
+    await sleep(400)
+    const after = await mirrorWidth(rectId)
+    assert(after > before + 10, `SE handle drag did not grow width: ${before} → ${after}`)
+    await focusCanvas()
+    await key('s', 'KeyS', 4)
+    await sleep(600)
+    const el = tagWithId(readFileSync(FIGURE, 'utf8'), rectId)
+    assert(
+      el.markup.includes('transform="matrix('),
+      `resize transform missing from saved rect: ${el.markup}`
+    )
+  })
+
+  await step('text-tool', async () => {
+    await evalJs(`window.__sunaDev.canvasTools.setTool('text')`)
+    const at = await evalJs(`(() => {
+      const r = document.querySelector('.canvas-world svg').getBoundingClientRect();
+      return { x: r.left + r.width * 0.62, y: r.top + r.height * 0.2 };
+    })()`)
+    await mouse('mousePressed', at.x, at.y)
+    await mouse('mouseReleased', at.x, at.y)
+    await sleep(400)
+    const editing = await evalJs(`!!document.querySelector('.canvas-text-edit')`)
+    assert(editing, 'text edit overlay did not open after T-click')
+    await insertText('Halpha test') // replaces the select-all placeholder
+    await sleep(150)
+    await key('Enter', 'Enter')
+    await sleep(400)
+    await focusCanvas()
+    await key('s', 'KeyS', 4)
+    await sleep(600)
+    const saved = readFileSync(FIGURE, 'utf8')
+    assert(
+      /<text[^>]*>Halpha test<\/text>/.test(saved),
+      'committed text "Halpha test" not found in saved file'
+    )
+  })
+
+  await step('editing-ui-screenshot', async () => {
+    await expandPanel('.canvas-layers', 'Show layers')
+    await expandPanel('.canvas-props', 'Show properties')
+    const ui = await evalJs(`({
+      rail: !!document.querySelector('.canvas-toolrail'),
+      layers: !!document.querySelector('.canvas-layers'),
+      props: !!document.querySelector('.canvas-props'),
+      shape: !!document.querySelector('.canvas-world svg [id="${rectId}"]')
+    })`)
+    assert(ui.rail, 'tool rail missing from editing UI')
+    assert(ui.layers, 'layers panel missing from editing UI')
+    assert(ui.props, 'properties panel missing from editing UI')
+    assert(ui.shape, 'created rect not visible in mirror for screenshot')
+    await screenshot('editing-suite.png')
+  })
+
+  await step('undo-chain', async () => {
+    await focusCanvas()
+    // 5 history entries were created above; extra ⌘Z presses are no-ops.
+    for (let i = 0; i < 12; i++) {
+      await key('z', 'KeyZ', 4)
+      await sleep(120)
+    }
+    await key('s', 'KeyS', 4)
+    await sleep(700)
+    const restored = readFileSync(FIGURE, 'utf8')
+    assert(
+      restored === originalSvg,
+      'undo chain + save did not restore the byte-identical pre-editing file'
+    )
+  })
+
   console.log(`\nALL ${results.length} STEPS PASSED`)
 } catch {
   exitCode = 1

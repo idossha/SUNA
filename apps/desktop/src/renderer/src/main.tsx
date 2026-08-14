@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { canvasToolsSeam } from './canvas/dev-seam'
 import { openFileTab } from './state/dock'
 import { useProjectStore } from './state/project'
 import { useUiStore } from './state/ui'
@@ -10,7 +11,12 @@ import 'katex/dist/katex.min.css'
 // Dev-only seam for e2e drivers (CDP): bypasses native dialogs.
 if (import.meta.env.DEV) {
   Object.assign(window, {
-    __sunaDev: { openFileTab, projectStore: useProjectStore, uiStore: useUiStore }
+    __sunaDev: {
+      openFileTab,
+      projectStore: useProjectStore,
+      uiStore: useUiStore,
+      canvasTools: canvasToolsSeam
+    }
   })
 }
 

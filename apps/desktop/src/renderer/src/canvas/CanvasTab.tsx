@@ -1,16 +1,47 @@
-import { useEffect, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
-import { CanvasDocument, CommandHistory, createBrowserDomAdapter } from '@suna/canvas'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent
+} from 'react'
+import {
+  CanvasDocument,
+  CommandHistory,
+  createBrowserDomAdapter,
+  interact,
+  resolveTarget
+} from '@suna/canvas'
+import type { CanvasCommand } from '@suna/core'
 import { checkFigureSvg, getBundledProfile, type Diagnostic } from '@suna/formatter'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useUiStore } from '../state/ui'
 import { useProjectStore } from '../state/project'
+import {
+  collectUnitElements,
+  firstNumber,
+  fmt,
+  pickTarget,
+  styleValue,
+  targetForElement
+} from './canvas-util'
+import { registerCanvasToolsProvider } from './dev-seam'
+import { ToolRail } from './ToolRail'
+import { LayersPanel } from './LayersPanel'
+import { PropertiesPanel } from './PropertiesPanel'
+import { TextEditOverlay, type TextEditLayout } from './TextEditOverlay'
 
 /**
  * The engine's CanvasDocument stays OFF-DOM and pristine — it is the single
- * source of truth and the only thing serialized to disk (serializing a node
- * adopted into the page's HTML document reorders namespaces and destroys
- * matplotlib's attribute formatting). What the user sees is a mirror clone,
- * re-synced after every engine mutation; drag previews touch only the mirror.
+ * source of truth and the only thing serialized to disk. What the user sees
+ * is a mirror clone, re-synced after every engine mutation; gesture previews
+ * touch only the mirror (canvas-editing-suite.md §8). All interaction logic
+ * lives in the framework-free `interact` core: pointer/keyboard input is
+ * converted to world coordinates here, and the ToolController's EditorEvents
+ * (previews, guides, commits, selection) are applied back to the mirror, the
+ * overlay, and the CommandHistory.
  */
 interface Session {
   doc: CanvasDocument
@@ -23,36 +54,34 @@ interface ViewTransform {
   ty: number
 }
 
-interface DragState {
-  ids: string[]
-  startX: number
-  startY: number
-  moved: boolean
+/** Snap/marquee candidates, rebuilt at each pointer-down (gesture start). */
+interface GestureCache {
+  elements: { id: string; bbox: interact.WorldRect }[]
+  snap: interact.SnapEngine
+}
+
+/** Mirror-only preview bookkeeping for move/resize/rotate gestures. */
+interface PreviewState {
   originals: Map<string, string | null>
+  center: interact.WorldPoint | null
 }
 
-/** Semantic gids from suna_mpl ('ax0.legend', 'ax0', 'suptitle', 'legend'). */
-function isSemanticId(id: string): boolean {
-  return id.includes('.') || /^(ax\d+|suptitle|legend\d*)$/.test(id)
+interface TextEditState {
+  /** Engine target: element id or structural address ('#gid>nth:k'). */
+  target: string
+  isNew: boolean
 }
 
-/**
- * Selectable unit: nearest semantic-gid ancestor if one exists (matplotlib
- * internals like patch_2/text_5 are not units), else the deepest id'd element.
- */
-function pickTarget(eventTarget: EventTarget | null, svg: SVGSVGElement): string | null {
-  let el = eventTarget instanceof Element ? eventTarget : null
-  let fallback: string | null = null
-  while (el && el !== svg) {
-    const id = el.getAttribute('id')
-    if (id) {
-      if (isSemanticId(id)) return id
-      fallback ??= id
-    }
-    el = el.parentElement
-  }
-  return fallback
-}
+const HANDLE_POS: { id: interact.HandleId; fx: number; fy: number }[] = [
+  { id: 'nw', fx: 0, fy: 0 },
+  { id: 'n', fx: 0.5, fy: 0 },
+  { id: 'ne', fx: 1, fy: 0 },
+  { id: 'e', fx: 1, fy: 0.5 },
+  { id: 'se', fx: 1, fy: 1 },
+  { id: 's', fx: 0.5, fy: 1 },
+  { id: 'sw', fx: 0, fy: 1 },
+  { id: 'w', fx: 0, fy: 0.5 }
+]
 
 export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const path = String(params['path'] ?? '')
@@ -62,9 +91,16 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const worldRef = useRef<HTMLDivElement>(null)
   const sessionRef = useRef<Session | null>(null)
   const mirrorRef = useRef<SVGSVGElement | null>(null)
-  const dragRef = useRef<DragState | null>(null)
   const savedRevRef = useRef(0)
   const revRef = useRef(0)
+  const controllerRef = useRef<interact.ToolController | null>(null)
+  if (controllerRef.current === null) controllerRef.current = new interact.ToolController()
+  const controller = controllerRef.current
+  const gestureCacheRef = useRef<GestureCache | null>(null)
+  const previewRef = useRef<PreviewState | null>(null)
+  const selectedIdsRef = useRef<string[]>([])
+  const pointerActiveRef = useRef(false)
+  const txTimerRef = useRef<number | null>(null)
 
   const [view, setView] = useState<ViewTransform>({ scale: 1, tx: 0, ty: 0 })
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -73,18 +109,30 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const [artboardLabel, setArtboardLabel] = useState('')
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
+  const [toolId, setToolId] = useState<interact.ToolId>('select')
+  const [gesture, setGesture] = useState<interact.GestureState>({ kind: 'idle' })
+  const [guides, setGuides] = useState<interact.SnapGuide[]>([])
+  const [textEdit, setTextEdit] = useState<TextEditState | null>(null)
+  const [layersOpen, setLayersOpen] = useState(() => window.innerWidth >= 1200)
+  const [propsOpen, setPropsOpen] = useState(() => window.innerWidth >= 1200)
 
   const note = (text: string): void => useUiStore.getState().setStatusNote(text)
+
+  const activeProfileId = useProjectStore((s) => s.manifest?.activeProfileId ?? null)
+  const profile = useMemo(
+    () => (activeProfileId ? getBundledProfile(activeProfileId) : null),
+    [activeProfileId]
+  )
+  const profileRef = useRef(profile)
+  profileRef.current = profile
 
   /** Compliance check against the project's active journal profile. */
   const runCompliance = (): void => {
     const session = sessionRef.current
-    const profileId = useProjectStore.getState().manifest?.activeProfileId
-    if (!session || !profileId) return
-    const profile = getBundledProfile(profileId)
-    if (!profile) return
+    const p = profileRef.current
+    if (!session || !p) return
     try {
-      setDiagnostics(checkFigureSvg(session.doc.serialize(), profile, { figureId: fileName }))
+      setDiagnostics(checkFigureSvg(session.doc.serialize(), p, { figureId: fileName }))
     } catch {
       // compliance is advisory; never let it break the canvas
     }
@@ -95,6 +143,23 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     if (!mirror) return null
     if (mirror.getAttribute('id') === id) return mirror
     return mirror.querySelector(`[id="${CSS.escape(id)}"]`)
+  }
+
+  /** Resolve an engine target (id or structural address) in the mirror. */
+  const mirrorByTarget = (target: string): Element | null => {
+    const mirror = mirrorRef.current
+    if (!mirror) return null
+    if (!target.startsWith('#')) return mirrorById(target)
+    const segments = target.slice(1).split('>')
+    const anchor = segments.shift()
+    let el: Element | null = anchor === 'root' ? mirror : anchor ? mirrorById(anchor) : null
+    for (const seg of segments) {
+      if (el === null) return null
+      const m = /^nth:(\d+)$/.exec(seg)
+      if (!m) return null
+      el = el.children[Number(m[1])] ?? null
+    }
+    return el
   }
 
   /** Re-clone the pristine engine document into the visible world layer. */
@@ -111,6 +176,321 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     revRef.current += 1
     setRev(revRef.current)
     api.setTitle(revRef.current === savedRevRef.current ? fileName : `${fileName} •`)
+  }
+
+  // ---- coordinate spaces -----------------------------------------------------
+  const screenToWorld = (clientX: number, clientY: number): interact.WorldPoint | null => {
+    const ctm = mirrorRef.current?.getScreenCTM()
+    if (!ctm) return null
+    const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse())
+    return { x: p.x, y: p.y }
+  }
+
+  const worldToScreen = (x: number, y: number): { x: number; y: number } | null => {
+    const ctm = mirrorRef.current?.getScreenCTM()
+    const vp = viewportRef.current?.getBoundingClientRect()
+    if (!ctm || !vp) return null
+    const p = new DOMPoint(x, y).matrixTransform(ctm)
+    return { x: p.x - vp.left, y: p.y - vp.top }
+  }
+
+  /** Screen px per world unit. */
+  const zoomOf = (): number => {
+    const ctm = mirrorRef.current?.getScreenCTM()
+    return ctm ? Math.hypot(ctm.a, ctm.b) : 1
+  }
+
+  const worldRectFromClient = (rect: DOMRect): interact.WorldRect | null => {
+    const ctm = mirrorRef.current?.getScreenCTM()
+    if (!ctm) return null
+    const inv = ctm.inverse()
+    const p1 = new DOMPoint(rect.left, rect.top).matrixTransform(inv)
+    const p2 = new DOMPoint(rect.right, rect.bottom).matrixTransform(inv)
+    return interact.rectFromPoints({ x: p1.x, y: p1.y }, { x: p2.x, y: p2.y })
+  }
+
+  /** World-space bbox of an element, measured on the mirror (engine is off-DOM). */
+  const worldBboxOf = (id: string): interact.WorldRect | null => {
+    const el = mirrorById(id)
+    if (!el || !(el instanceof SVGGraphicsElement)) return null
+    return worldRectFromClient(el.getBoundingClientRect())
+  }
+
+  const unionWorldBbox = (ids: readonly string[]): interact.WorldRect | null =>
+    interact.unionRects(
+      ids.map(worldBboxOf).filter((b): b is interact.WorldRect => b !== null)
+    )
+
+  const artboardRect = (): interact.WorldRect => {
+    const vb = sessionRef.current?.doc.artboard.viewBox
+    if (vb) return { x: vb.minX, y: vb.minY, width: vb.width, height: vb.height }
+    const mirror = mirrorRef.current
+    if (mirror) {
+      const r = worldRectFromClient(mirror.getBoundingClientRect())
+      if (r) return r
+    }
+    return { x: 0, y: 0, width: 0, height: 0 }
+  }
+
+  /** Rotation (deg) baked into an element's transform, for the properties panel. */
+  const rotationOf = (id: string): number => {
+    const el = mirrorById(id)
+    if (!el || !(el instanceof SVGGraphicsElement)) return 0
+    const m = el.transform.baseVal.consolidate()?.matrix
+    if (!m) return 0
+    return Math.round(((Math.atan2(m.b, m.a) * 180) / Math.PI) * 10) / 10
+  }
+
+  // ---- interaction-core context ----------------------------------------------
+  /** Style defaults from the active publisher profile (spec §4). */
+  const shapeDefaults = (): interact.ShapeDefaults => {
+    const mmPerUser = sessionRef.current?.doc.artboard.mmPerUser ?? null
+    const fig = profileRef.current?.figures
+    const base = interact.DEFAULT_SHAPE_DEFAULTS
+    const clamp = (v: number, lo: number | null, hi: number | null): number =>
+      Math.min(Math.max(v, lo ?? v), hi ?? v)
+    return {
+      strokeWidthPt: clamp(base.strokeWidthPt, fig?.lineWeightPt.min ?? null, fig?.lineWeightPt.max ?? null),
+      palette: fig?.palette.suggestedHex ?? base.palette,
+      fontPt: clamp(7, fig?.minFontPt ?? null, fig?.maxFontPt ?? null),
+      fontFamily: fig?.preferredFontFamilies?.[0] ?? base.fontFamily,
+      userPerPt: mmPerUser !== null && mmPerUser > 0 ? 0.3528 / mmPerUser : 1
+    }
+  }
+
+  /** Rebuild marquee candidates + snap engine at gesture start. */
+  const rebuildGestureCache = (excludeForSnap: ReadonlySet<string>): void => {
+    const mirror = mirrorRef.current
+    if (!mirror || !sessionRef.current) {
+      gestureCacheRef.current = null
+      return
+    }
+    const units = collectUnitElements(mirror)
+    const excludedEls: Element[] = []
+    for (const id of excludeForSnap) {
+      const el = mirrorById(id)
+      if (el) excludedEls.push(el)
+    }
+    const elements: { id: string; bbox: interact.WorldRect }[] = []
+    const siblings: interact.WorldRect[] = []
+    for (const u of units) {
+      const bbox = worldBboxOf(u.id)
+      if (!bbox || (bbox.width === 0 && bbox.height === 0)) continue
+      elements.push({ id: u.id, bbox })
+      const excluded =
+        excludeForSnap.has(u.id) ||
+        excludedEls.some((x) => x === u.el || x.contains(u.el) || u.el.contains(x))
+      if (!excluded) siblings.push(bbox)
+    }
+    gestureCacheRef.current = { elements, snap: new interact.SnapEngine(artboardRect(), siblings) }
+  }
+
+  const makeCtx = (eventTarget: EventTarget | null): interact.ToolContext | null => {
+    const session = sessionRef.current
+    const mirror = mirrorRef.current
+    if (!session || !mirror) return null
+    const cache = gestureCacheRef.current
+    return {
+      selection: selectedIdsRef.current,
+      bboxOf: (id) => worldBboxOf(id),
+      hitTest: () => pickTarget(eventTarget, mirror),
+      artboard: artboardRect(),
+      zoom: zoomOf(),
+      snap: cache?.snap ?? new interact.SnapEngine(artboardRect()),
+      elements: cache?.elements ?? [],
+      allocateId: () => session.doc.allocateId(),
+      hasId: (id) => session.doc.getById(id) !== null,
+      defaults: shapeDefaults()
+    }
+  }
+
+  // ---- history transactions (properties-panel control gestures) ---------------
+  const flushTx = (): void => {
+    if (txTimerRef.current !== null) {
+      window.clearTimeout(txTimerRef.current)
+      txTimerRef.current = null
+    }
+    const session = sessionRef.current
+    if (session?.history.inTransaction) session.history.commit()
+  }
+
+  /** One-shot edit → one history entry. */
+  const applyCommand = (command: CanvasCommand, label: string): boolean => {
+    const session = sessionRef.current
+    if (!session) return false
+    flushTx()
+    const result = session.history.apply(command, label)
+    if (!result.ok) {
+      note(`${label} failed: ${result.error.code}`)
+      return false
+    }
+    syncMirror()
+    bump()
+    return true
+  }
+
+  /** Continuous control gesture: buffered into ONE transaction, idle-committed. */
+  const gestureApplyCommand = (command: CanvasCommand, label: string): void => {
+    const session = sessionRef.current
+    if (!session) return
+    if (!session.history.inTransaction) session.history.begin(label)
+    const result = session.history.apply(command)
+    if (!result.ok) note(`${label} failed: ${result.error.code}`)
+    syncMirror()
+    bump()
+    if (txTimerRef.current !== null) window.clearTimeout(txTimerRef.current)
+    txTimerRef.current = window.setTimeout(flushTx, 400)
+  }
+
+  // ---- selection ---------------------------------------------------------------
+  const setSelection = (ids: string[]): void => {
+    selectedIdsRef.current = ids
+    setSelectedIds(ids)
+  }
+
+  /** Drop ids nested inside other selected ids (a marquee over an axes must
+   *  not select both `ax0` and `ax0.legend` — translate would double-move). */
+  const normalizeSelection = (ids: string[]): string[] => {
+    if (ids.length < 2) return ids
+    const els = new Map<string, Element>()
+    for (const id of ids) {
+      const el = mirrorById(id)
+      if (el) els.set(id, el)
+    }
+    return ids.filter((id) => {
+      const el = els.get(id)
+      if (!el) return true
+      return !ids.some((other) => {
+        if (other === id) return false
+        const oe = els.get(other)
+        return oe !== undefined && oe !== el && oe.contains(el)
+      })
+    })
+  }
+
+  // ---- mirror previews ---------------------------------------------------------
+  const ensurePreview = (ids: readonly string[]): PreviewState => {
+    let p = previewRef.current
+    if (p === null) {
+      p = { originals: new Map(), center: null }
+      previewRef.current = p
+    }
+    for (const id of ids) {
+      if (!p.originals.has(id)) {
+        const el = mirrorById(id)
+        if (el) p.originals.set(id, el.getAttribute('transform'))
+      }
+    }
+    return p
+  }
+
+  const setPreviewTransforms = (ids: readonly string[], prefix: string | null): void => {
+    const p = ensurePreview(ids)
+    for (const id of ids) {
+      const el = mirrorById(id)
+      if (!el) continue
+      const original = p.originals.get(id) ?? null
+      if (prefix === null) {
+        if (original === null) el.removeAttribute('transform')
+        else el.setAttribute('transform', original)
+      } else {
+        el.setAttribute('transform', original ? `${prefix} ${original}` : prefix)
+      }
+    }
+  }
+
+  const clearPreview = (restore: boolean): void => {
+    const p = previewRef.current
+    previewRef.current = null
+    if (!p || !restore) return
+    for (const [id, original] of p.originals) {
+      const el = mirrorById(id)
+      if (!el) continue
+      if (original === null) el.removeAttribute('transform')
+      else el.setAttribute('transform', original)
+    }
+  }
+
+  const applyPreview = (g: interact.GestureState): void => {
+    switch (g.kind) {
+      case 'idle':
+        clearPreview(true)
+        break
+      case 'move':
+        setPreviewTransforms(g.ids, g.dx === 0 && g.dy === 0 ? null : `translate(${g.dx} ${g.dy})`)
+        break
+      case 'resize':
+        setPreviewTransforms(
+          g.ids,
+          interact.isIdentityMatrix(g.matrix) ? null : `matrix(${g.matrix.join(' ')})`
+        )
+        break
+      case 'rotate': {
+        const p = ensurePreview(g.ids)
+        p.center ??= (() => {
+          const bbox = unionWorldBbox(g.ids)
+          return bbox ? interact.rectCenter(bbox) : { x: 0, y: 0 }
+        })()
+        const m = interact.rotationMatrix(p.center, g.angle)
+        setPreviewTransforms(g.ids, g.angle === 0 ? null : `matrix(${m.join(' ')})`)
+        break
+      }
+      case 'marquee':
+      case 'create':
+        break
+    }
+    setGesture(g)
+  }
+
+  // ---- controller event application ---------------------------------------------
+  /** Spec §2: resizing a lone text element scales its font size, not its matrix. */
+  const refineCommit = (command: CanvasCommand, label: string): CanvasCommand => {
+    if (label !== 'Resize' || command.kind !== 'transform') return command
+    const session = sessionRef.current
+    if (!session) return command
+    const el = session.doc.getById(command.target)
+    if (!el || el.localName !== 'text') return command
+    const [a, , , d] = command.matrix
+    const s = Math.abs(Math.abs(a) - 1) >= Math.abs(Math.abs(d) - 1) ? Math.abs(a) : Math.abs(d)
+    const current = firstNumber(styleValue(el, 'font-size'))
+    if (!(s > 0) || current === null) return command
+    return { kind: 'set-style', target: command.target, props: { 'font-size': fmt(current * s) } }
+  }
+
+  const applyEvents = (events: interact.EditorEvent[]): void => {
+    for (const ev of events) {
+      switch (ev.kind) {
+        case 'selection':
+          setSelection(normalizeSelection(ev.ids))
+          break
+        case 'guides':
+          setGuides(ev.guides)
+          break
+        case 'preview':
+          applyPreview(ev.gesture)
+          break
+        case 'commit': {
+          const session = sessionRef.current
+          if (!session) break
+          flushTx()
+          previewRef.current = null // mirror resync supersedes any preview
+          const result = session.history.apply(refineCommit(ev.command, ev.label), ev.label)
+          if (!result.ok) note(`${ev.label} failed: ${result.error.code}`)
+          syncMirror()
+          bump()
+          break
+        }
+        case 'enter-text-edit':
+          setTextEdit({ target: ev.id, isNew: true })
+          break
+      }
+    }
+    setToolId(controller.tool)
+  }
+
+  const selectTool = (tool: interact.ToolId): void => {
+    applyEvents(controller.setTool(tool))
+    viewportRef.current?.focus()
   }
 
   // ---- load & mount --------------------------------------------------------
@@ -153,16 +533,28 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     })()
     return () => {
       disposed = true
+      flushTx()
       sessionRef.current = null
       mirrorRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path])
 
+  // Dev seam: let e2e drivers steer the tools (registered while mounted).
+  useEffect(() => {
+    return registerCanvasToolsProvider({
+      setTool: (t) => selectTool(t),
+      getSelection: () => selectedIdsRef.current,
+      getToolState: () => ({ tool: controller.tool, gesture: controller.gesture })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ---- persistence ---------------------------------------------------------
   const save = async (): Promise<void> => {
     const session = sessionRef.current
     if (!session) return
+    flushTx()
     try {
       await window.suna.invoke('fs:write-text', { path, content: session.doc.serialize() })
       savedRevRef.current = revRef.current
@@ -174,86 +566,169 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     }
   }
 
-  // ---- pointer interactions ------------------------------------------------
-  const screenDeltaToWorld = (dx: number, dy: number): { dx: number; dy: number } => {
-    const ctm = mirrorRef.current?.getScreenCTM()
-    if (!ctm) return { dx, dy }
-    const inv = ctm.inverse()
-    const p0 = new DOMPoint(0, 0).matrixTransform(inv)
-    const p1 = new DOMPoint(dx, dy).matrixTransform(inv)
-    return { dx: p1.x - p0.x, dy: p1.y - p0.y }
-  }
-
-  const onPointerDown = (event: ReactPointerEvent): void => {
-    const mirror = mirrorRef.current
-    if (!mirror || event.button !== 0) return
-    viewportRef.current?.focus()
-
-    const targetId = pickTarget(event.target, mirror)
-    if (!targetId) {
-      setSelectedIds([])
+  // ---- clipboard-ish -------------------------------------------------------
+  /** ⌘D: serialized copies from the ENGINE doc, +8/+8, one undo step. */
+  const duplicateSelection = (): void => {
+    const session = sessionRef.current
+    if (!session || selectedIdsRef.current.length === 0) return
+    const copies: interact.DuplicateSource[] = []
+    for (const id of selectedIdsRef.current) {
+      const el = session.doc.getById(id)
+      if (!el) continue
+      const clone = el.cloneNode(true) as Element
+      clone.removeAttribute('id')
+      for (const child of clone.querySelectorAll('[id]')) child.removeAttribute('id')
+      const parent = el.parentElement
+      const parentId = parent && parent !== session.doc.root ? parent.getAttribute('id') : null
+      const source: interact.DuplicateSource = {
+        id: session.doc.allocateId(),
+        svg: session.doc.adapter.serialize(clone)
+      }
+      if (parentId) source.parent = parentId
+      copies.push(source)
+    }
+    const command = interact.duplicateCommand(copies)
+    if (!command) return
+    flushTx()
+    const result = session.history.apply(command, 'Duplicate')
+    if (!result.ok) {
+      note(`Duplicate failed: ${result.error.code}`)
       return
     }
-    let ids: string[]
-    if (event.shiftKey) {
-      ids = selectedIds.includes(targetId)
-        ? selectedIds.filter((id) => id !== targetId)
-        : [...selectedIds, targetId]
-    } else {
-      ids = selectedIds.includes(targetId) ? selectedIds : [targetId]
-    }
-    setSelectedIds(ids)
-    if (ids.length === 0) return
+    syncMirror()
+    bump()
+    setSelection(copies.map((c) => c.id))
+  }
 
-    const originals = new Map<string, string | null>()
-    for (const id of ids) {
-      const el = mirrorById(id)
-      if (el) originals.set(id, el.getAttribute('transform'))
+  // ---- text editing ----------------------------------------------------------
+  const commitTextEdit = (text: string): void => {
+    const session = sessionRef.current
+    const edit = textEdit
+    setTextEdit(null)
+    if (!session || !edit) return
+    if (edit.isNew && text.trim() === '') {
+      // Empty new text is noise: revert the insert entirely.
+      if (session.history.undo()) {
+        setSelection([])
+        syncMirror()
+        bump()
+      }
+      return
     }
-    dragRef.current = {
-      ids,
-      startX: event.clientX,
-      startY: event.clientY,
-      moved: false,
-      originals
+    const engineEl = resolveTarget(session.doc, edit.target)
+    if (text !== (engineEl?.textContent ?? '')) {
+      const result = session.history.apply(
+        { kind: 'set-text', target: edit.target, text },
+        'Edit text'
+      )
+      if (!result.ok) note(`Edit text failed: ${result.error.code}`)
+      syncMirror()
+      bump()
     }
+  }
+
+  const cancelTextEdit = (): void => {
+    const session = sessionRef.current
+    const edit = textEdit
+    setTextEdit(null)
+    if (!session || !edit || !edit.isNew) return
+    if (session.history.undo()) {
+      setSelection([])
+      syncMirror()
+      bump()
+    }
+  }
+
+  // Hide the mirror's text while the contenteditable overlay covers it.
+  useEffect(() => {
+    if (!textEdit) return
+    const el = mirrorByTarget(textEdit.target)
+    if (el instanceof SVGElement) el.style.visibility = 'hidden'
+    return () => {
+      if (el instanceof SVGElement) el.style.visibility = ''
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [textEdit, rev])
+
+  // ---- pointer interactions ------------------------------------------------
+  const onPointerDown = (event: ReactPointerEvent): void => {
+    if (event.button !== 0 || !sessionRef.current || !mirrorRef.current) return
+    viewportRef.current?.focus()
+    const point = screenToWorld(event.clientX, event.clientY)
+    if (!point) return
+    const exclude = new Set(selectedIdsRef.current)
+    const hit = pickTarget(event.target, mirrorRef.current)
+    if (hit) exclude.add(hit)
+    rebuildGestureCache(exclude)
+    const ctx = makeCtx(event.target)
+    if (!ctx) return
+    pointerActiveRef.current = true
+    applyEvents(
+      controller.pointerDown({ ...point, shiftKey: event.shiftKey, altKey: event.altKey }, ctx)
+    )
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const onPointerMove = (event: ReactPointerEvent): void => {
-    const drag = dragRef.current
-    if (!drag) return
-    const dxScreen = event.clientX - drag.startX
-    const dyScreen = event.clientY - drag.startY
-    if (!drag.moved && Math.hypot(dxScreen, dyScreen) < 3) return
-    drag.moved = true
-    const { dx, dy } = screenDeltaToWorld(dxScreen, dyScreen)
-    for (const [id, original] of drag.originals) {
-      const el = mirrorById(id)
-      if (!el) continue
-      const suffix = original ? ` ${original}` : ''
-      el.setAttribute('transform', `translate(${dx} ${dy})${suffix}`)
+    const point = screenToWorld(event.clientX, event.clientY)
+    if (!point) return
+    if (pointerActiveRef.current) {
+      const ctx = makeCtx(null)
+      if (!ctx) return
+      applyEvents(
+        controller.pointerMove({ ...point, shiftKey: event.shiftKey, altKey: event.altKey }, ctx)
+      )
+      return
     }
-    setRev((r) => r + 1) // reposition selection overlay
+    // Hover feedback: transform-handle cursors (hit-tested before canvas picking).
+    const vp = viewportRef.current
+    if (!vp) return
+    let cursor = ''
+    if (controller.tool === 'select' && selectedIdsRef.current.length > 0) {
+      const bbox = unionWorldBbox(selectedIdsRef.current)
+      if (bbox) {
+        const handle = interact.hitHandle(bbox, point, zoomOf())
+        if (handle === 'rotate') cursor = 'crosshair'
+        else if (handle !== null) cursor = interact.cursorForHandle(handle)
+      }
+    }
+    if (vp.style.cursor !== cursor) vp.style.cursor = cursor
   }
 
   const onPointerUp = (event: ReactPointerEvent): void => {
-    const drag = dragRef.current
-    const session = sessionRef.current
-    dragRef.current = null
-    if (!drag || !session) return
-    if (!drag.moved) {
-      setRev((r) => r + 1)
-      return
-    }
-    const { dx, dy } = screenDeltaToWorld(event.clientX - drag.startX, event.clientY - drag.startY)
-    const result = session.history.apply(
-      { kind: 'translate', targets: drag.ids, dx, dy },
-      'move'
+    if (!pointerActiveRef.current) return
+    pointerActiveRef.current = false
+    const point = screenToWorld(event.clientX, event.clientY)
+    const ctx = makeCtx(null)
+    if (!point || !ctx) return
+    applyEvents(
+      controller.pointerUp({ ...point, shiftKey: event.shiftKey, altKey: event.altKey }, ctx)
     )
-    if (!result.ok) note(`Move failed: ${result.error.code}`)
-    syncMirror() // discard preview; render the engine's truth
-    bump()
+  }
+
+  const onPointerCancel = (): void => {
+    pointerActiveRef.current = false
+    applyEvents(controller.cancelGesture())
+  }
+
+  /** Double-click a <text> (or a unit containing the click point) → edit it. */
+  const onDoubleClick = (event: React.MouseEvent): void => {
+    const mirror = mirrorRef.current
+    const session = sessionRef.current
+    if (!mirror || !session || controller.tool !== 'select') return
+    let el = event.target instanceof Element ? event.target : null
+    let textEl: Element | null = null
+    while (el && el !== mirror) {
+      if (el.localName === 'text') {
+        textEl = el
+        break
+      }
+      el = el.parentElement
+    }
+    if (!textEl) return
+    const target = targetForElement(textEl, mirror)
+    if (!target || resolveTarget(session.doc, target) === null) return
+    setTextEdit({ target, isNew: false })
   }
 
   const onWheel = (event: ReactWheelEvent): void => {
@@ -278,34 +753,66 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     const session = sessionRef.current
     if (!session) return
     const mod = event.metaKey || event.ctrlKey
-    if (mod && event.key === 's') {
+    if (mod && event.key.toLowerCase() === 's') {
       event.preventDefault()
       void save()
-    } else if (mod && event.key === 'z') {
+      return
+    }
+    if (mod && event.key.toLowerCase() === 'z') {
       event.preventDefault()
+      flushTx()
       const result = event.shiftKey ? session.history.redo() : session.history.undo()
       if (result) {
         syncMirror()
         bump()
+        setSelection(selectedIdsRef.current.filter((id) => session.doc.getById(id) !== null))
       }
-    } else if ((event.key === 'Backspace' || event.key === 'Delete') && selectedIds.length > 0) {
-      event.preventDefault()
-      const result = session.history.apply({ kind: 'remove', targets: selectedIds }, 'delete')
-      if (result.ok) {
-        setSelectedIds([])
-        syncMirror()
-        bump()
-      } else {
-        note(`Delete failed: ${result.error.code}`)
-      }
-    } else if (event.key === 'Escape') {
-      setSelectedIds([])
+      return
     }
+    if (mod && event.key.toLowerCase() === 'd') {
+      event.preventDefault()
+      duplicateSelection()
+      return
+    }
+    const ctx = makeCtx(null)
+    if (!ctx) return
+    const toolBefore = controller.tool
+    const events = controller.keyDown(
+      {
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey
+      },
+      ctx
+    )
+    if (events.length > 0 || controller.tool !== toolBefore || event.key === 'Escape') {
+      event.preventDefault()
+    }
+    applyEvents(events)
   }
 
-  // ---- selection overlay geometry ------------------------------------------
-  const overlayBoxes: { id: string; left: number; top: number; width: number; height: number }[] = []
+  // ---- layers helpers --------------------------------------------------------
+  const renameElement = (oldId: string, newId: string): void => {
+    if (!applyCommand({ kind: 'set-attrs', target: oldId, attrs: { id: newId } }, 'Rename')) return
+    setSelection(selectedIdsRef.current.map((id) => (id === oldId ? newId : id)))
+  }
+
+  const selectFromLayers = (id: string, additive: boolean): void => {
+    if (additive) {
+      const cur = selectedIdsRef.current
+      setSelection(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])
+    } else {
+      setSelection([id])
+    }
+    viewportRef.current?.focus()
+  }
+
+  // ---- overlay geometry (screen space) ----------------------------------------
   const vpRect = viewportRef.current?.getBoundingClientRect()
+  const overlayBoxes: { id: string; left: number; top: number; width: number; height: number }[] =
+    []
   if (vpRect) {
     for (const id of selectedIds) {
       const el = mirrorById(id)
@@ -322,9 +829,126 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   }
   void rev // overlay depends on rev to recompute after mutations
 
-  if (loadError) {
-    return <div className="sidebar__empty">Could not open {fileName}: {loadError}</div>
+  let handleFrame: { left: number; top: number; width: number; height: number } | null = null
+  const first = overlayBoxes[0]
+  if (toolId === 'select' && first && !textEdit && gesture.kind !== 'marquee') {
+    let left = first.left
+    let top = first.top
+    let right = first.left + first.width
+    let bottom = first.top + first.height
+    for (const b of overlayBoxes.slice(1)) {
+      left = Math.min(left, b.left)
+      top = Math.min(top, b.top)
+      right = Math.max(right, b.left + b.width)
+      bottom = Math.max(bottom, b.top + b.height)
+    }
+    handleFrame = { left, top, width: right - left, height: bottom - top }
   }
+
+  let marqueeBox: { left: number; top: number; width: number; height: number } | null = null
+  if (gesture.kind === 'marquee') {
+    const a = worldToScreen(gesture.start.x, gesture.start.y)
+    const b = worldToScreen(gesture.current.x, gesture.current.y)
+    if (a && b) {
+      marqueeBox = {
+        left: Math.min(a.x, b.x),
+        top: Math.min(a.y, b.y),
+        width: Math.abs(b.x - a.x),
+        height: Math.abs(b.y - a.y)
+      }
+    }
+  }
+
+  const guideSegments: { key: string; left: number; top: number; width: number; height: number }[] =
+    []
+  guides.forEach((g, i) => {
+    const p1 = g.axis === 'x' ? worldToScreen(g.position, g.from) : worldToScreen(g.from, g.position)
+    const p2 = g.axis === 'x' ? worldToScreen(g.position, g.to) : worldToScreen(g.to, g.position)
+    if (!p1 || !p2) return
+    if (g.axis === 'x') {
+      guideSegments.push({
+        key: `g${i}`,
+        left: p1.x,
+        top: Math.min(p1.y, p2.y),
+        width: 1,
+        height: Math.max(Math.abs(p2.y - p1.y), 1)
+      })
+    } else {
+      guideSegments.push({
+        key: `g${i}`,
+        left: Math.min(p1.x, p2.x),
+        top: p1.y,
+        width: Math.max(Math.abs(p2.x - p1.x), 1),
+        height: 1
+      })
+    }
+  })
+
+  let ghostShape: JSX.Element | null = null
+  if (gesture.kind === 'create') {
+    const a = worldToScreen(gesture.start.x, gesture.start.y)
+    const b = worldToScreen(gesture.current.x, gesture.current.y)
+    if (a && b) {
+      if (gesture.tool === 'line' || gesture.tool === 'arrow') {
+        ghostShape = <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+      } else if (gesture.tool === 'ellipse') {
+        ghostShape = (
+          <ellipse
+            cx={(a.x + b.x) / 2}
+            cy={(a.y + b.y) / 2}
+            rx={Math.abs(b.x - a.x) / 2}
+            ry={Math.abs(b.y - a.y) / 2}
+          />
+        )
+      } else {
+        ghostShape = (
+          <rect
+            x={Math.min(a.x, b.x)}
+            y={Math.min(a.y, b.y)}
+            width={Math.abs(b.x - a.x)}
+            height={Math.abs(b.y - a.y)}
+          />
+        )
+      }
+    }
+  }
+
+  // ---- text edit overlay layout -----------------------------------------------
+  let textEditView: { layout: TextEditLayout; initialText: string } | null = null
+  if (textEdit && sessionRef.current && vpRect) {
+    const engineEl = resolveTarget(sessionRef.current.doc, textEdit.target)
+    const mirrorEl = mirrorByTarget(textEdit.target)
+    const ctm = mirrorEl instanceof SVGGraphicsElement ? mirrorEl.getScreenCTM() : null
+    if (engineEl && ctm) {
+      const x = firstNumber(engineEl.getAttribute('x')) ?? 0
+      const y = firstNumber(engineEl.getAttribute('y')) ?? 0
+      const p = new DOMPoint(x, y).matrixTransform(ctm)
+      const scale = Math.hypot(ctm.a, ctm.b)
+      const fontPx = Math.max((firstNumber(styleValue(engineEl, 'font-size')) ?? 10) * scale, 4)
+      textEditView = {
+        layout: {
+          left: p.x - vpRect.left - 2,
+          top: p.y - vpRect.top - fontPx * 0.9,
+          fontSizePx: fontPx,
+          fontFamily: styleValue(engineEl, 'font-family') ?? 'sans-serif',
+          fontWeight: styleValue(engineEl, 'font-weight') ?? 'normal',
+          color: styleValue(engineEl, 'fill') ?? '#000000'
+        },
+        initialText: engineEl.textContent ?? ''
+      }
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div className="sidebar__empty">
+        Could not open {fileName}: {loadError}
+      </div>
+    )
+  }
+
+  const doc = sessionRef.current?.doc ?? null
+  const mmPerUser = doc?.artboard.mmPerUser ?? null
 
   return (
     <div className="canvas-tab">
@@ -353,9 +977,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
         <div className="canvas-diagnostics">
           {diagnostics.slice(0, 50).map((d, i) => (
             <div key={`${d.id}-${i}`} className="canvas-diagnostics__row">
-              <span
-                className={`canvas-diagnostics__dot canvas-diagnostics__dot--${d.severity}`}
-              />
+              <span className={`canvas-diagnostics__dot canvas-diagnostics__dot--${d.severity}`} />
               <span className="canvas-diagnostics__rule">{d.id}</span>
               <span className="canvas-diagnostics__msg">{d.message}</span>
             </div>
@@ -365,30 +987,114 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           )}
         </div>
       )}
-      <div
-        ref={viewportRef}
-        className="canvas-viewport"
-        tabIndex={0}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onWheel={onWheel}
-        onKeyDown={onKeyDown}
-      >
-        <div
-          ref={worldRef}
-          className="canvas-world"
-          style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})` }}
+      <div className="canvas-tab__body">
+        <ToolRail tool={toolId} onSelectTool={selectTool} />
+        <LayersPanel
+          doc={doc}
+          rev={rev}
+          selectedIds={selectedIds}
+          open={layersOpen}
+          onToggle={() => setLayersOpen((o) => !o)}
+          onSelect={selectFromLayers}
+          apply={applyCommand}
+          rename={renameElement}
+          note={note}
         />
-        <div className="canvas-overlay">
-          {overlayBoxes.map((box) => (
-            <div
-              key={box.id}
-              className="canvas-overlay__box"
-              style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
+        <div
+          ref={viewportRef}
+          className={`canvas-viewport${toolId !== 'select' ? ' canvas-viewport--create' : ''}`}
+          tabIndex={0}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onDoubleClick={onDoubleClick}
+          onWheel={onWheel}
+          onKeyDown={onKeyDown}
+        >
+          <div
+            ref={worldRef}
+            className="canvas-world"
+            style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})` }}
+          />
+          <div className="canvas-overlay">
+            {overlayBoxes.map((box) => (
+              <div
+                key={box.id}
+                className="canvas-overlay__box"
+                style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
+              />
+            ))}
+            {guideSegments.map((s) => (
+              <div
+                key={s.key}
+                className="canvas-overlay__guide"
+                style={{ left: s.left, top: s.top, width: s.width, height: s.height }}
+              />
+            ))}
+            {marqueeBox && (
+              <div
+                className="canvas-overlay__marquee"
+                style={{
+                  left: marqueeBox.left,
+                  top: marqueeBox.top,
+                  width: marqueeBox.width,
+                  height: marqueeBox.height
+                }}
+              />
+            )}
+            {ghostShape && (
+              <svg className="canvas-overlay__ghost" aria-hidden="true">
+                {ghostShape}
+              </svg>
+            )}
+            {handleFrame && (
+              <>
+                <div
+                  className="canvas-overlay__rotate"
+                  style={{
+                    left: handleFrame.left + handleFrame.width / 2,
+                    top: handleFrame.top - interact.ROTATE_HANDLE_OFFSET
+                  }}
+                />
+                {HANDLE_POS.map((h) => (
+                  <div
+                    key={h.id}
+                    className="canvas-overlay__handle"
+                    data-handle={h.id}
+                    style={{
+                      left: handleFrame.left + handleFrame.width * h.fx,
+                      top: handleFrame.top + handleFrame.height * h.fy
+                    }}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+          {textEdit && textEditView && (
+            <TextEditOverlay
+              key={textEdit.target}
+              layout={textEditView.layout}
+              initialText={textEditView.initialText}
+              selectAll={textEdit.isNew}
+              onCommit={commitTextEdit}
+              onCancel={cancelTextEdit}
             />
-          ))}
+          )}
         </div>
+        <PropertiesPanel
+          doc={doc}
+          rev={rev}
+          selectedIds={selectedIds}
+          open={propsOpen}
+          onToggle={() => setPropsOpen((o) => !o)}
+          mmPerUser={mmPerUser}
+          profile={profile}
+          worldBboxOf={worldBboxOf}
+          rotationOf={rotationOf}
+          apply={applyCommand}
+          gestureApply={gestureApplyCommand}
+        />
       </div>
     </div>
   )
