@@ -496,6 +496,75 @@ button {
   overflow-x: auto;
 }
 
+/* ---- canvas tab ----------------------------------------------------------- */
+
+.canvas-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-shell);
+}
+
+.canvas-tab__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 14px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  border-bottom: 1px solid var(--s-border);
+  background: var(--s-bg-panel);
+}
+
+.canvas-tab__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.canvas-tab__selection {
+  color: var(--s-accent);
+  font-family: var(--s-font-mono);
+}
+
+.canvas-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  outline: none;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.045) 1px, transparent 1px) 0 0 /
+      22px 22px,
+    var(--s-bg-chrome);
+  cursor: default;
+}
+
+.canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.canvas-world svg {
+  display: block;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+}
+
+.canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.canvas-overlay__box {
+  position: absolute;
+  border: 1px solid var(--s-accent);
+  box-shadow: 0 0 0 1px rgba(232, 180, 92, 0.25);
+}
+
 /* ---- status bar ---------------------------------------------------------- */
 
 .statusbar {

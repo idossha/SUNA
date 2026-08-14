@@ -7,12 +7,14 @@ import { StatusBar } from './shell/StatusBar'
 import { DockHost, type DockPanelComponent } from './shell/dock/DockHost'
 import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
+import { CanvasTab } from './canvas/CanvasTab'
 import { useUiStore } from './state/ui'
 import { setDockApi } from './state/dock'
 
 const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
-  editor: EditorTab
+  editor: EditorTab,
+  canvas: CanvasTab
 }
 
 export function App(): JSX.Element {
