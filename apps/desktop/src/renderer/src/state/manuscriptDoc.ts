@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { BibEntry, CitationStyleConfig } from '@suna/bib'
+import type { LabelMap } from '../manuscript/citations'
 
 /**
  * Shared state between the combined manuscript tab (manuscript/ManuscriptTab)
@@ -25,6 +26,8 @@ export interface CitationRender {
   entries: ReadonlyMap<string, BibEntry>
   /** In-text citation style of the preview profile. */
   style: CitationStyleConfig
+  /** Document-wide cross-reference label map (figures/tables/equations/sections). */
+  labels: LabelMap
   /** Monotonic publish counter; chip passes skip chips already at this serial. */
   serial: number
 }

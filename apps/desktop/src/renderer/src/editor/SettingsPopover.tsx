@@ -7,6 +7,7 @@ import {
   type EditorFontFamily,
   type EditorThemeName
 } from './settings'
+import type { ContentKind } from './contentKind'
 
 const FONT_FAMILY_LABELS: Record<EditorFontFamily, string> = {
   serif: 'Serif',
@@ -16,11 +17,22 @@ const FONT_FAMILY_LABELS: Record<EditorFontFamily, string> = {
 
 interface SettingsPopoverProps {
   onClose: () => void
+  /**
+   * 'code' hides the Content width and Font controls: neither has an effect
+   * on a code/data tab (width never applies, font is always monospace), so
+   * showing them would just be dead UI. Defaults to 'prose' for callers
+   * (e.g. the manuscript tab) that are always prose.
+   */
+  contentKind?: ContentKind
 }
 
-export function SettingsPopover({ onClose }: SettingsPopoverProps): JSX.Element {
+export function SettingsPopover({
+  onClose,
+  contentKind = 'prose'
+}: SettingsPopoverProps): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
   const settings = useEditorSettings()
+  const isCode = contentKind === 'code'
   // vim lives in the app-wide settings (shared with the Settings tab), not in
   // the editor-local appearance store
   const vimMotions = useSettingsStore((s) => s.settings['editor.vimMotions'])
@@ -47,20 +59,23 @@ export function SettingsPopover({ onClose }: SettingsPopoverProps): JSX.Element 
 
   return (
     <div ref={ref} className="editor-settings" role="dialog" aria-label="Editor appearance">
-      <div className="editor-settings__row">
-        <label htmlFor="ed-set-width">
-          Content width <span className="editor-settings__value">{settings.contentWidthCh}ch</span>
-        </label>
-        <input
-          id="ed-set-width"
-          type="range"
-          min={EDITOR_SETTINGS_LIMITS.contentWidthCh.min}
-          max={EDITOR_SETTINGS_LIMITS.contentWidthCh.max}
-          step={1}
-          value={settings.contentWidthCh}
-          onChange={(event) => settings.setContentWidthCh(Number(event.target.value))}
-        />
-      </div>
+      {!isCode && (
+        <div className="editor-settings__row">
+          <label htmlFor="ed-set-width">
+            Content width{' '}
+            <span className="editor-settings__value">{settings.contentWidthCh}ch</span>
+          </label>
+          <input
+            id="ed-set-width"
+            type="range"
+            min={EDITOR_SETTINGS_LIMITS.contentWidthCh.min}
+            max={EDITOR_SETTINGS_LIMITS.contentWidthCh.max}
+            step={1}
+            value={settings.contentWidthCh}
+            onChange={(event) => settings.setContentWidthCh(Number(event.target.value))}
+          />
+        </div>
+      )}
       <div className="editor-settings__row">
         <label htmlFor="ed-set-size">
           Font size <span className="editor-settings__value">{settings.fontSizePx}px</span>
@@ -90,20 +105,22 @@ export function SettingsPopover({ onClose }: SettingsPopoverProps): JSX.Element 
           onChange={(event) => settings.setLineHeight(Number(event.target.value))}
         />
       </div>
-      <div className="editor-settings__row editor-settings__row--select">
-        <label htmlFor="ed-set-family">Font</label>
-        <select
-          id="ed-set-family"
-          value={settings.fontFamily}
-          onChange={(event) => settings.setFontFamily(event.target.value as EditorFontFamily)}
-        >
-          {(Object.keys(FONT_FAMILY_LABELS) as EditorFontFamily[]).map((family) => (
-            <option key={family} value={family}>
-              {FONT_FAMILY_LABELS[family]}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!isCode && (
+        <div className="editor-settings__row editor-settings__row--select">
+          <label htmlFor="ed-set-family">Font</label>
+          <select
+            id="ed-set-family"
+            value={settings.fontFamily}
+            onChange={(event) => settings.setFontFamily(event.target.value as EditorFontFamily)}
+          >
+            {(Object.keys(FONT_FAMILY_LABELS) as EditorFontFamily[]).map((family) => (
+              <option key={family} value={family}>
+                {FONT_FAMILY_LABELS[family]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="editor-settings__row editor-settings__row--select">
         <label htmlFor="ed-set-theme">Theme</label>
         <select

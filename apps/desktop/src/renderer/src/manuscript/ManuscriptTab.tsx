@@ -1,18 +1,14 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type JSX
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
-import { FONT_FAMILY_STACKS, useEditorSettings } from '../editor/settings'
+import { useEditorSettings } from '../editor/settings'
+import { EDITOR_THEME_CLASS } from '../editor/themes'
+import { SettingsPopover } from '../editor/SettingsPopover'
+import '../editor/editor.css'
 import { flattenBody, type OutlineRow } from '../views/outline'
+import { manuscriptStyleVars } from './msdocStyle'
 import { TitlePage } from './TitlePage'
 import { SectionEditor } from './SectionEditor'
 import { ReferencesBlock } from './ReferencesBlock'
@@ -21,6 +17,25 @@ import './manuscript.css'
 const TAB_TITLE = 'Manuscript'
 /** A section is "active" once its top is within this band below the viewport top. */
 const ACTIVE_BAND_PX = 96
+
+/**
+ * Local copy of EditorTab's gear glyph — EditorTab doesn't export its
+ * (unexported) `GearIcon`, and the zone for this work item is manuscript/
+ * only, so this is the "thin local equivalent" the plan allows for rather
+ * than reaching into editor/EditorTab.tsx.
+ */
+function GearIcon(): JSX.Element {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M8 5.25A2.75 2.75 0 1 0 8 10.75 2.75 2.75 0 0 0 8 5.25Zm0-3.75.9 1.9 2.05-.55.55 2.05 1.9.9-1.35 1.6 1.35 1.6-1.9.9-.55 2.05-2.05-.55-.9 1.9-.9-1.9-2.05.55-.55-2.05-1.9-.9L3.95 8 2.6 6.4l1.9-.9.55-2.05 2.05.55.9-1.9Z"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 function headingFor(row: OutlineRow, dirty: boolean): JSX.Element | null {
   if (row.label === null) {
@@ -74,6 +89,10 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const manuscriptError = useManuscriptStore((s) => s.error)
   const refresh = useManuscriptStore((s) => s.refresh)
 
+  // Subscribed field-by-field (not the whole store) so a change to any one
+  // of these — width/size/font/line-height/theme — re-renders this tab and
+  // reflows the title page + every section editor + the references block
+  // together, live, the moment the popover below changes it.
   const contentWidthCh = useEditorSettings((s) => s.contentWidthCh)
   const fontSizePx = useEditorSettings((s) => s.fontSizePx)
   const fontFamily = useEditorSettings((s) => s.fontFamily)
@@ -86,6 +105,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const [dirtyPaths, setDirtyPaths] = useState<ReadonlySet<string>>(new Set())
   const settledSet = useRef(new Set<string>())
   const [settledCount, setSettledCount] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     void refresh()
@@ -179,21 +199,33 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
     useManuscriptDocStore.getState().consumeScrollRequest(scrollRequest.nonce)
   }, [scrollRequest, rows, settledCount, contentPaths.length])
 
-  const settingsStyle = {
-    '--ed-content-width': `${contentWidthCh}ch`,
-    '--ed-font-size': `${fontSizePx}px`,
-    '--ed-line-height': String(lineHeight),
-    '--ed-body-font': FONT_FAMILY_STACKS[fontFamily]
-  } as CSSProperties
+  const settingsStyle = manuscriptStyleVars({
+    contentWidthCh,
+    fontSizePx,
+    fontFamily,
+    lineHeight,
+    editorTheme
+  })
 
   const stale = projectRoot !== null && projectRoot !== rootDir
 
   return (
     <div
       ref={rootRef}
-      className={`msdoc editor-tab editor-tab--theme-${editorTheme}`}
+      className={`msdoc editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
       style={settingsStyle}
     >
+      <div className="msdoc__toolbar">
+        <button
+          className="editor-tab__gear"
+          onClick={() => setSettingsOpen((open) => !open)}
+          title="Manuscript appearance"
+          aria-label="Manuscript appearance settings"
+        >
+          <GearIcon />
+        </button>
+        {settingsOpen && <SettingsPopover onClose={() => setSettingsOpen(false)} />}
+      </div>
       <div className="msdoc__page">
         {stale && (
           <p className="msdoc__hint">

@@ -4,7 +4,7 @@ import { useEditorSettings } from '../editor/settings'
 import { devSeam } from '../state/devSeam'
 import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useUiStore } from '../state/ui'
-import { applyCiteChips } from './citeChips'
+import { applyCiteChips, applyCrossRefChips, applyEquationLabels } from './citeChips'
 
 interface SectionEditorProps {
   rootDir: string
@@ -143,22 +143,28 @@ export function SectionEditor({
     handleRef.current?.setTheme(editorTheme)
   }, [editorTheme])
 
-  // Resolve reading-mode citation chips against the citation render data the
-  // References block publishes (numbers + preview-profile style). A mutation
-  // observer re-applies the pass whenever CodeMirror re-creates widget DOM;
-  // applyCiteChips is idempotent per serial, so its own mutations converge.
+  // Resolve reading-mode citation and cross-reference chips against the
+  // render data the References block publishes (numbers + preview-profile
+  // style + label map). A mutation observer re-applies the pass whenever
+  // CodeMirror re-creates widget DOM; both passes are idempotent per serial,
+  // so their own mutations converge instead of looping the observer.
   const citationRender = useManuscriptDocStore((s) => s.citationRender)
   useEffect(() => {
     const host = hostRef.current
     if (host === null) return
     applyCiteChips(host, citationRender)
+    applyCrossRefChips(host, citationRender)
+    applyEquationLabels(host, citationRender)
     let scheduled = false
     const observer = new MutationObserver(() => {
       if (scheduled) return
       scheduled = true
       queueMicrotask(() => {
         scheduled = false
-        applyCiteChips(host, useManuscriptDocStore.getState().citationRender)
+        const latest = useManuscriptDocStore.getState().citationRender
+        applyCiteChips(host, latest)
+        applyCrossRefChips(host, latest)
+        applyEquationLabels(host, latest)
       })
     })
     observer.observe(host, { childList: true, subtree: true })

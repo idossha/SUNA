@@ -6,11 +6,16 @@
  * → canvas editing suite → sidebar views (explorer CRUD, manuscript outline
  * + the combined manuscript document with title page/section editors/
  * references/scroll-spy, figures, references, git commit, agent) —
- * asserting on real files inside the copy.
+ * asserting on real files inside the copy — then the layout and citation
+ * rendering contract of docs/design/ui-fix-plan.md, *measured* off real
+ * boxes (content-kind widths/wrapping, one manuscript measure, cross-ref
+ * resolution, the "Rendered as" round trip, the references panel).
  *
  * Reset strategy: the userData example copy is deleted before launch, so
  * every run starts from the pristine examples/demo-paper and the git repo
- * created on open has exactly one "Initial commit".
+ * created on open has exactly one "Initial commit". localStorage survives
+ * that, so the two persisted view preferences (editor appearance, per-project
+ * "Rendered as") are reset in the open step — see the note there.
  *
  * Usage:  node scripts/e2e/smoke.mjs        (or: pnpm smoke)
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
@@ -218,6 +223,15 @@ try {
     )
     FIGURE = join(rootDir, 'figures', 'fig-spectrum', 'figure.svg')
     originalSvg = readFileSync(FIGURE, 'utf8')
+    // Normalize the two persisted view preferences before anything asserts on
+    // them: the editor appearance store (localStorage) and the per-project
+    // 'Rendered as' override. The example COPY is recreated every run but
+    // localStorage is not, so without this a run that ended on MNRAS would
+    // decide the *next* run's citation numbering.
+    await evalJs(`(() => {
+      window.__sunaDev.editorSettings.getState().reset();
+      window.__sunaDev.renderProfileStore.setState({ byProject: {} });
+    })()`)
     await sleep(1200)
     const state = await evalJs(`({
       profile: document.querySelector('.statusbar__profile')?.textContent ?? null,
@@ -1103,6 +1117,543 @@ try {
       `nothing counted as cited: ${counts.join(', ')}`
     )
     await screenshot('references-filters.png')
+  })
+
+  // ---- layout & citation rendering (docs/design/ui-fix-plan.md) -------------
+
+  /** Layout facts of the frontmost editor tab, measured off the real boxes. */
+  const editorLayout = () =>
+    evalJs(`(() => {
+      const tab = document.querySelector('.editor-tab');
+      if (!tab) throw new Error('no editor tab mounted');
+      const content = tab.querySelector('.cm-content');
+      const scroller = tab.querySelector('.cm-scroller');
+      const gutters = tab.querySelector('.cm-gutters');
+      if (!content) throw new Error('editor tab has no .cm-content');
+      const cs = getComputedStyle(content);
+      const cr = content.getBoundingClientRect();
+      const sr = scroller.getBoundingClientRect();
+      // one character in the content's own font — makes "chars per line" real
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+      probe.style.font = cs.font;
+      probe.textContent = 'x'.repeat(100);
+      content.appendChild(probe);
+      const charWidth = probe.getBoundingClientRect().width / 100;
+      probe.remove();
+      // widest rendered visual line (post-wrap), via range rects
+      let widest = 0;
+      for (const line of content.querySelectorAll('.cm-line')) {
+        const range = document.createRange();
+        range.selectNodeContents(line);
+        for (const rect of range.getClientRects()) widest = Math.max(widest, rect.width);
+      }
+      return {
+        cls: tab.className,
+        maxWidth: cs.maxWidth,
+        whiteSpace: cs.whiteSpace,
+        fontFamily: cs.fontFamily,
+        contentWidth: cr.width,
+        // distance from the gutter's right edge to the text column, and from
+        // the text column to the scrollport's right edge. clientWidth, not the
+        // bounding right: a vertical scrollbar sits inside the scroller's
+        // border box and would fake a 15px asymmetry in the centering check.
+        gutterGap: gutters === null ? null : cr.left - gutters.getBoundingClientRect().right,
+        rightGap: sr.left + scroller.clientWidth - cr.right,
+        charsPerLine: Math.round(widest / charWidth)
+      };
+    })()`)
+
+  const setWidth = async (ch) => {
+    await evalJs(`window.__sunaDev.editorSettings.getState().setContentWidthCh(${ch})`)
+    await sleep(500)
+  }
+
+  await step('layout-by-content-kind', async () => {
+    const dir = await evalJs(`window.__sunaDev.projectStore.getState().rootDir`)
+    // a persisted slider position must not decide what this step measures
+    await evalJs(`window.__sunaDev.editorSettings.getState().reset()`)
+    // the terminal-panel step left the panel open over the bottom half of the
+    // window; every layout measurement (and every click) below wants the full
+    // editor height back
+    await evalJs(`(() => {
+      const btn = [...document.querySelectorAll('.statusbar__btn')]
+        .find((b) => b.textContent.includes('Terminal'));
+      if (btn && btn.getAttribute('aria-pressed') === 'true') btn.click();
+    })()`)
+    await sleep(400)
+
+    // --- code/data: width never applies, never wraps, hugs the gutter, mono
+    for (const file of ['code/stripping_model.py', 'figures/fig-spectrum/figure.svg.suna.json']) {
+      await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__D__/' + file)}.replace('__D__', ${JSON.stringify(dir)}))`)
+      await sleep(1400)
+      const kind = await evalJs(
+        `window.__sunaDev.editorContentKindFor(${JSON.stringify(file.split('/').pop())})`
+      )
+      assert(kind === 'code', `${file} classified as ${kind} (want code)`)
+      const seen = []
+      for (const ch of [50, 150]) {
+        await setWidth(ch)
+        const m = await editorLayout()
+        seen.push(m)
+        assert(
+          m.cls.includes('editor-tab--code'),
+          `${file} @${ch}ch root class: ${m.cls} (want editor-tab--code)`
+        )
+        assert(m.maxWidth === 'none', `${file} @${ch}ch is width-constrained: ${m.maxWidth}`)
+        assert(
+          m.whiteSpace === 'pre',
+          `${file} @${ch}ch soft-wraps (white-space: ${m.whiteSpace}, want pre)`
+        )
+        assert(
+          /mono/i.test(m.fontFamily),
+          `${file} @${ch}ch is not monospace: ${m.fontFamily}`
+        )
+        assert(
+          m.gutterGap !== null && Math.abs(m.gutterGap) <= 4,
+          `${file} @${ch}ch floats ${m.gutterGap}px from the gutter (want ≤4)`
+        )
+      }
+      assert(
+        Math.abs(seen[0].contentWidth - seen[1].contentWidth) <= 1,
+        `${file} width changed with the prose measure: ${seen[0].contentWidth} → ${seen[1].contentWidth}`
+      )
+      // squeeze the host below the longest line: code must scroll, not reflow
+      const squeezed = await evalJs(`(async () => {
+        const style = document.createElement('style');
+        style.textContent = '.editor-tab .editor-tab__source, .editor-tab .dataview__text { width: 420px !important; }';
+        document.head.appendChild(style);
+        await new Promise((r) => setTimeout(r, 500));
+        const tab = document.querySelector('.editor-tab');
+        const scroller = tab.querySelector('.cm-scroller');
+        const content = tab.querySelector('.cm-content');
+        let maxLine = 0;
+        for (const l of content.querySelectorAll('.cm-line')) {
+          maxLine = Math.max(maxLine, l.getBoundingClientRect().height);
+        }
+        const out = {
+          scrollW: scroller.scrollWidth,
+          clientW: scroller.clientWidth,
+          maxLineHeight: maxLine,
+          lineHeight: parseFloat(getComputedStyle(content).lineHeight)
+        };
+        style.remove();
+        return out;
+      })()`)
+      assert(
+        squeezed.scrollW > squeezed.clientW + 1,
+        `${file} squeezed to 420px did not overflow horizontally (${squeezed.scrollW} ≤ ${squeezed.clientW}) — it wrapped instead`
+      )
+      assert(
+        squeezed.maxLineHeight <= squeezed.lineHeight * 1.2,
+        `${file} squeezed to 420px produced ${squeezed.maxLineHeight}px lines (one line is ${squeezed.lineHeight}px) — text wrapped`
+      )
+      if (file.endsWith('.py')) {
+        await setWidth(50)
+        await screenshot('fix-code-fullwidth.png')
+      }
+    }
+
+    // --- prose source: wraps at the measure, block starts at the gutter
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__D__/manuscript/sections/01-introduction.md')}.replace('__D__', ${JSON.stringify(dir)}))`)
+    await sleep(1600)
+    const toMode = async (want) => {
+      for (let i = 0; i < 3; i++) {
+        if ((await evalJs(`document.querySelector('.editor-tab__mode').textContent`)) === want) return
+        await evalJs(`document.querySelector('.editor-tab__mode').click()`)
+        await sleep(600)
+      }
+      throw new Error(`could not reach ${want} mode`)
+    }
+    await toMode('Source')
+    const source = {}
+    for (const ch of [50, 150]) {
+      await setWidth(ch)
+      source[ch] = await editorLayout()
+      assert(
+        source[ch].cls.includes('editor-tab--prose'),
+        `markdown root class: ${source[ch].cls} (want editor-tab--prose)`
+      )
+      assert(
+        Math.abs(source[ch].gutterGap) <= 4,
+        `source @${ch}ch floats ${source[ch].gutterGap}px from the gutter (want ≤4)`
+      )
+    }
+    assert(
+      source[150].contentWidth > source[50].contentWidth + 100,
+      `the measure did not grow: ${source[50].contentWidth} → ${source[150].contentWidth}`
+    )
+    assert(
+      source[150].charsPerLine > source[50].charsPerLine + 5,
+      `chars/line did not change with the setting: ${source[50].charsPerLine} → ${source[150].charsPerLine}`
+    )
+    await setWidth(60)
+    await screenshot('fix-prose-widths.png')
+
+    // --- prose reading: the same measure, centered
+    await toMode('Reading')
+    for (const ch of [50, 150]) {
+      await setWidth(ch)
+      const m = await editorLayout()
+      assert(
+        Math.abs(m.gutterGap - m.rightGap) <= 8,
+        `reading @${ch}ch is not centered: left ${m.gutterGap} vs right ${m.rightGap}`
+      )
+    }
+    await evalJs(`window.__sunaDev.editorSettings.getState().reset()`)
+    await sleep(400)
+  })
+
+  /** Focus the combined manuscript tab (already created by manuscript-doc). */
+  const focusManuscript = async () => {
+    if (!(await evalJs(`!!document.querySelector('.ms__open')`))) {
+      await activateView('Manuscript')
+      await sleep(500)
+    }
+    await evalJs(`document.querySelector('.ms__open').click()`)
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      const n = await evalJs(`document.querySelectorAll('.msdoc__editor .cm-content').length`)
+      if (n === 4) return
+      await sleep(300)
+    }
+    throw new Error('combined manuscript tab did not come forward with 4 editors')
+  }
+
+  /** Content-box width of a selector's first match (padding excluded). */
+  const innerWidth = (selector) =>
+    evalJs(`(() => {
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) throw new Error('missing element: ' + ${JSON.stringify(selector)});
+      const cs = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    })()`)
+
+  await step('manuscript-settings-parity', async () => {
+    await focusManuscript()
+    // the gear exists in the manuscript tab and opens the shared popover
+    const gear = await evalJs(`!!document.querySelector('.msdoc__toolbar .editor-tab__gear')`)
+    assert(gear, 'manuscript tab has no settings gear')
+    await evalJs(`document.querySelector('.msdoc__toolbar .editor-tab__gear').click()`)
+    await sleep(350)
+    const labels = await evalJs(
+      `[...document.querySelectorAll('.editor-settings label')].map((l) => l.textContent.trim())`
+    )
+    assert(
+      labels.some((l) => l.startsWith('Content width')) &&
+        labels.some((l) => l.startsWith('Font size')) &&
+        labels.includes('Font') &&
+        labels.includes('Theme'),
+      `manuscript popover controls: ${labels.join(' | ')}`
+    )
+    await screenshot('fix-manuscript-settings.png')
+    await evalJs(`document.querySelector('.msdoc__toolbar .editor-tab__gear').click()`)
+    await sleep(250)
+
+    // ONE MEASURE: a title-page paragraph and a section line resolve to the
+    // same text width, at two different settings, and both actually reflow.
+    const at = {}
+    for (const ch of [50, 150]) {
+      await evalJs(`window.__sunaDev.editorSettings.getState().setContentWidthCh(${ch})`)
+      await sleep(700)
+      const title = await innerWidth('.msdoc__titlepage .msdoc__front-text')
+      const section = await innerWidth('.msdoc__editor .cm-line')
+      const refs = await innerWidth('.msdoc__references .msdoc__ref')
+      assert(
+        Math.abs(title - section) <= 4,
+        `@${ch}ch title page (${Math.round(title)}px) and section (${Math.round(section)}px) disagree`
+      )
+      assert(
+        Math.abs(title - refs) <= 4,
+        `@${ch}ch title page (${Math.round(title)}px) and references (${Math.round(refs)}px) disagree`
+      )
+      at[ch] = title
+    }
+    assert(
+      at[150] > at[50] + 100,
+      `changing the width did not reflow the document: ${Math.round(at[50])} → ${Math.round(at[150])}`
+    )
+    // the tab really publishes the editor vars (not the 68ch fallback)
+    const vars = await evalJs(
+      `getComputedStyle(document.querySelector('.msdoc')).getPropertyValue('--ed-content-width').trim()`
+    )
+    assert(vars === '150ch', `manuscript --ed-content-width: ${vars} (want 150ch)`)
+    await evalJs(`window.__sunaDev.editorSettings.getState().reset()`)
+    await sleep(500)
+  })
+
+  /** Every crossref chip currently in the document, scrolled end to end. */
+  const collectXrefs = () =>
+    evalJs(`(async () => {
+      const doc = document.querySelector('.msdoc');
+      const seen = new Map();
+      const collect = () => {
+        for (const el of document.querySelectorAll('.msdoc__editor .cm-lp-xref')) {
+          seen.set(el.textContent + '|' + el.className, {
+            text: el.textContent, cls: el.className
+          });
+        }
+        for (const el of document.querySelectorAll('.msdoc__editor .cm-lp-eq-label')) {
+          seen.set('EQLABEL' + el.textContent, { text: el.textContent, cls: el.className });
+        }
+      };
+      doc.scrollTop = 0;
+      await new Promise((r) => setTimeout(r, 400));
+      collect();
+      for (let y = 0; y <= doc.scrollHeight; y += 300) {
+        doc.scrollTop = y;
+        await new Promise((r) => setTimeout(r, 150));
+        collect();
+      }
+      doc.scrollTop = 0;
+      await new Promise((r) => setTimeout(r, 300));
+      return [...seen.values()];
+    })()`)
+
+  await step('crossref-resolution', async () => {
+    await focusManuscript()
+    const chips = await collectXrefs()
+    const texts = chips.map((c) => c.text)
+    // @eq:stripping -> equation (1); the display equation's own label -> (1)
+    assert(texts.includes('equation (1)'), `no "equation (1)" chip: ${texts.join(' | ')}`)
+    assert(
+      chips.some((c) => c.text === '(1)' && c.cls.includes('cm-lp-eq-label--numbered')),
+      `display equation label not numbered: ${chips.map((c) => c.text).join(' | ')}`
+    )
+    // figures number by manuscript.json order, panel suffixes append directly
+    assert(texts.includes('Fig. 1'), `no "Fig. 1" chip: ${texts.join(' | ')}`)
+    assert(texts.includes('Fig. 2'), `no "Fig. 2" chip: ${texts.join(' | ')}`)
+    assert(
+      texts.includes('Fig. 1a') && texts.includes('Fig. 1b'),
+      `panel-suffix crossrefs "(@fig:fig-spectrum{a})" did not resolve: ${texts.join(' | ')}`
+    )
+    assert(
+      chips.every((c) => !c.cls.includes('cm-lp-xref--unresolved')),
+      `example manuscript has unresolved crossrefs: ${chips
+        .filter((c) => c.cls.includes('unresolved'))
+        .map((c) => c.text)
+        .join(', ')}`
+    )
+    // the parenthesised form must not leak raw braces into the prose. The
+    // cursor's own line legitimately shows raw source (live-preview reveals
+    // what you are editing), so it is excluded.
+    const raw = await evalJs(
+      `[...document.querySelectorAll('.msdoc__editor .cm-line')]
+        .filter((l) => !l.classList.contains('cm-activeLine'))
+        .map((l) => l.textContent).join('\\n')`
+    )
+    assert(!raw.includes('@fig:'), 'raw "@fig:" text still visible in the rendered document')
+    // frame the intro's display equation: its numbered "(1)" label plus the
+    // "equation (1)" / "Fig. 1" / "Fig. 2" prose chips are all on screen there
+    await evalJs(`(() => {
+      const eq = document.querySelector('.msdoc__editor .cm-lp-math-block');
+      if (eq) eq.scrollIntoView({ block: 'center' });
+    })()`)
+    await sleep(700)
+    await screenshot('fix-crossrefs.png')
+
+    // a bogus id keeps its raw text and is flagged — typed live, then undone
+    // (never saved: the section file on disk is untouched)
+    const spot = await evalJs(`(async () => {
+      const editor = document.querySelectorAll('.msdoc__editor')[0];
+      editor.scrollIntoView({ block: 'center' });
+      await new Promise((r) => setTimeout(r, 600));
+      const line = editor.querySelector('.cm-line');
+      const r = line.getBoundingClientRect();
+      const x = r.right - 4;
+      const y = r.top + r.height / 2;
+      // the point must really be over the editor — a panel covering it would
+      // silently send the keystrokes somewhere else (e.g. the terminal)
+      const hit = document.elementFromPoint(x, y);
+      if (hit === null || hit.closest('.msdoc__editor') === null) {
+        throw new Error('click point is not over the section editor: ' + (hit ? hit.className : 'nothing'));
+      }
+      return { x, y };
+    })()`)
+    await click(spot.x, spot.y)
+    await sleep(250)
+    await insertText(' @fig:nope ')
+    await sleep(300)
+    await key('ArrowDown', 'ArrowDown')
+    await key('ArrowDown', 'ArrowDown')
+    await sleep(700)
+    const bogus = await evalJs(
+      `[...document.querySelectorAll('.msdoc__editor .cm-lp-xref--unresolved')]
+        .map((el) => el.textContent)`
+    )
+    assert(
+      bogus.includes('fig:nope'),
+      `a bogus @fig:nope should stay raw and flagged, got: ${bogus.join(', ')}`
+    )
+    const introPath = join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md')
+    const introBefore = readFileSync(introPath, 'utf8')
+    for (let i = 0; i < 6; i++) {
+      await key('z', 'KeyZ', 4)
+      await sleep(120)
+    }
+    await sleep(400)
+    const cleared = await evalJs(
+      `![...document.querySelectorAll('.msdoc__editor .cm-line')]
+        .some((l) => l.textContent.includes('nope'))`
+    )
+    assert(cleared, 'undo did not remove the bogus crossref from the document')
+    assert(
+      readFileSync(introPath, 'utf8') === introBefore,
+      'the bogus-crossref probe wrote to sections/01-introduction.md (it must never save)'
+    )
+  })
+
+  await step('rendered-as-round-trip', async () => {
+    await focusManuscript()
+    const bodyState = () =>
+      evalJs(`(() => {
+        const chips = [...document.querySelectorAll('.msdoc__editor .cm-lp-cite')]
+          .map((c) => ({ text: c.textContent, cls: c.className }));
+        return {
+          renderedAs: document.querySelector('.msdoc__rendered-as')?.textContent ?? null,
+          chips,
+          refNums: [...document.querySelectorAll('.msdoc__references .msdoc__ref-num')]
+            .map((n) => n.textContent),
+          refFirst: document.querySelector('.msdoc__references .msdoc__ref')?.textContent ?? '',
+          refCount: document.querySelectorAll('.msdoc__references .msdoc__ref').length,
+          sidebarNums: [...document.querySelectorAll('.refs__num')].map((n) => n.textContent),
+          sidebarKeys: [...document.querySelectorAll('.refs__key')].map((k) => k.textContent.trim())
+        };
+      })()`)
+
+    const pickProfile = async (label) => {
+      if (!(await evalJs(`!!document.querySelector('.refs__style')`))) {
+        await activateView('References')
+        await sleep(1200)
+      }
+      await evalJs(`(() => {
+        const b = [...document.querySelectorAll('.refs__style')]
+          .find((x) => x.textContent === ${JSON.stringify(label)});
+        if (!b) throw new Error('no Rendered as button: ' + ${JSON.stringify(label)});
+        b.click();
+      })()`)
+      await sleep(1600)
+    }
+
+    // --- ApJ (AAS): author-year in the body, alphabetical unnumbered list
+    await pickProfile('ApJ (AAS)')
+    const apj = await bodyState()
+    assert(
+      apj.renderedAs !== null && apj.renderedAs.includes('Astrophysical Journal'),
+      `manuscript still says: ${apj.renderedAs}`
+    )
+    assert(apj.chips.length > 0, 'no citation chips rendered in the manuscript body')
+    assert(
+      apj.chips.every((c) => /\(\w+.*\d{4}\)/.test(c.text)),
+      `body chips are not author-year: ${apj.chips.map((c) => c.text).join(' | ')}`
+    )
+    assert(
+      apj.chips.every((c) => c.cls.includes('cm-lp-cite--inline')),
+      'author-year chips are still styled as raised superscripts'
+    )
+    assert(
+      apj.refNums.length === 0,
+      `author-year reference list should be unnumbered, got: ${apj.refNums.join(' ')}`
+    )
+    assert(apj.refCount === 11, `reference count under ApJ: ${apj.refCount}`)
+    assert(
+      apj.refFirst.includes('Astropy'),
+      `alphabetical list should start at Astropy, got: ${apj.refFirst.slice(0, 60)}`
+    )
+    assert(
+      apj.sidebarNums.length === 0 && apj.sidebarKeys[0] === 'astropy2022',
+      `sidebar list not alphabetical/unnumbered: ${apj.sidebarKeys.slice(0, 3).join(', ')}`
+    )
+    await screenshot('fix-authoryear.png')
+
+    // --- back to Nature Astronomy: superscript numerals return
+    await pickProfile('Nat. Astron.')
+    const nat = await bodyState()
+    assert(
+      nat.renderedAs !== null && nat.renderedAs.includes('Nature Astronomy'),
+      `manuscript did not switch back: ${nat.renderedAs}`
+    )
+    assert(
+      nat.chips.every((c) => /^\d+([,–-]\d+)*$/.test(c.text)),
+      `body chips are not numeric: ${nat.chips.map((c) => c.text).join(' | ')}`
+    )
+    assert(
+      nat.chips.every((c) => !c.cls.includes('cm-lp-cite--inline')),
+      'numeric chips lost their superscript form'
+    )
+    assert(nat.refNums[0] === '1.', `numeric list should restart at 1., got: ${nat.refNums[0]}`)
+    assert(
+      nat.refFirst.includes('Gunn'),
+      `entry 1 should be gunn1972 again: ${nat.refFirst.slice(0, 60)}`
+    )
+    assert(
+      nat.sidebarKeys[0] === 'gunn1972' && nat.sidebarNums[0] === '1.',
+      `sidebar list did not renumber: ${nat.sidebarKeys.slice(0, 3).join(', ')}`
+    )
+  })
+
+  await step('references-panel-fits', async () => {
+    // re-activating a showing view TOGGLES the sidebar shut — only click when
+    // the References panel is not already on screen
+    if (!(await evalJs(`!!document.querySelector('.refs__list')`))) {
+      await activateView('References')
+      await sleep(900)
+    }
+    const panel = await evalJs(`(() => {
+      const list = document.querySelector('.refs__list');
+      const view = document.querySelector('.view.refs');
+      const rows = [...document.querySelectorAll('.refs__row')];
+      const rects = rows.map((r) => r.getBoundingClientRect());
+      const overlaps = [];
+      for (let i = 1; i < rects.length; i++) {
+        if (rects[i].top < rects[i - 1].bottom - 0.5) overlaps.push(i);
+      }
+      const spill = [];
+      for (const row of rows) {
+        const rb = row.getBoundingClientRect();
+        for (const child of row.querySelectorAll('*')) {
+          const cb = child.getBoundingClientRect();
+          if (cb.width > 0 && (cb.right > rb.right + 1 || cb.bottom > rb.bottom + 1)) {
+            spill.push(child.className);
+          }
+        }
+      }
+      return {
+        rows: rows.length,
+        listScrollW: list.scrollWidth,
+        listClientW: list.clientWidth,
+        viewScrollW: view.scrollWidth,
+        viewClientW: view.clientWidth,
+        maxHeight: getComputedStyle(list).maxHeight,
+        overlaps,
+        spill: [...new Set(spill)],
+        titleClamp: getComputedStyle(document.querySelector('.refs__title')).webkitLineClamp
+      };
+    })()`)
+    assert(panel.rows === 11, `reference rows: ${panel.rows}`)
+    assert(
+      panel.listScrollW <= panel.listClientW,
+      `reference list scrolls horizontally: ${panel.listScrollW} > ${panel.listClientW}`
+    )
+    assert(
+      panel.viewScrollW <= panel.viewClientW,
+      `references panel scrolls horizontally: ${panel.viewScrollW} > ${panel.viewClientW}`
+    )
+    assert(panel.maxHeight === 'none', `reference list is still height-trapped: ${panel.maxHeight}`)
+    assert(panel.overlaps.length === 0, `reference rows overlap at index ${panel.overlaps.join(', ')}`)
+    assert(panel.spill.length === 0, `row content spills past its row: ${panel.spill.join(', ')}`)
+    assert(panel.titleClamp === '2', `titles not clamped to 2 lines: ${panel.titleClamp}`)
+
+    // the sidebar manuscript summary renders its title math, like the title page
+    await activateView('Manuscript')
+    await sleep(900)
+    const title = await evalJs(`(() => {
+      const el = document.querySelector('.ms__title');
+      return { text: el?.textContent ?? '', katex: !!el?.querySelector('.katex') };
+    })()`)
+    assert(title.katex, 'sidebar manuscript title does not render KaTeX')
+    assert(!title.text.includes('$'), `sidebar title still shows raw TeX: ${title.text}`)
   })
 
   console.log(`\nALL ${results.length} STEPS PASSED`)

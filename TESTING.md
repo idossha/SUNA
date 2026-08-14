@@ -41,16 +41,25 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
    away and it re-renders. You can type in either mode; ⌘S saves in any
    mode. The gear button tunes width/font/line-height/theme per your
    taste (content width now goes up to 150 ch).
-4. **Explorer**: right-click any file or folder — New File…, New
+4. **Layout follows content kind**. Markdown is *prose*: the width
+   setting applies, Source left-aligns the column against the line-number
+   gutter (Obsidian-like) and Reading centers it. Everything else —
+   `code/stripping_model.py`, `figures/*/figure.svg.suna.json`,
+   `references.bib`, the CSV **Text** view — is *code*: full width, no
+   soft wrapping (long lines scroll horizontally), flush against the
+   gutter, always monospace, and the gear hides the Content width and
+   Font rows because neither does anything there.
+5. **Explorer**: right-click any file or folder — New File…, New
    Folder…, Rename… (inline input, basename pre-selected), Delete
    (two-step *Confirm delete?*; files go to the system trash, never
    `rm`). The header buttons create at the project root.
-5. **Manuscript view** (activity bar): title, author count, abstract
-   word count, the ordered outline (level chips + per-section word
-   counts; the intro shows as *untitled* since it precedes the first
-   heading), figure/table counts. *Open full manuscript* — or any
-   outline row — opens the combined document tab.
-6. **Manuscript document**: one scrollable page. The rendered title page
+6. **Manuscript view** (activity bar): title (its `$z = 1.7$` typeset
+   through KaTeX, like the title page), author count, abstract word
+   count, the ordered outline (level chips + per-section word counts;
+   the intro shows as *untitled* since it precedes the first heading),
+   figure/table counts. *Open full manuscript* — or any outline row —
+   opens the combined document tab.
+7. **Manuscript document**: one scrollable page. The rendered title page
    (KaTeX in the title, affiliation superscripts derived from author
    order, `*` + e-mail for the corresponding author, small-caps
    Abstract/Significance blocks) is followed by one live-preview editor
@@ -60,32 +69,47 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
    under numeric profiles; `gunn1972` is entry 1). Scrolling the
    document moves the outline's active row in the sidebar; clicking an
    outline row smooth-scrolls the document to that section.
-7. **Figures view**: one card per `figures/*/figure.svg` with a live SVG
-   thumbnail, caption title, and width-preset chip. Clicking a card opens
-   the figure on the canvas.
-8. **Canvas**: `figures/fig-spectrum/figure.svg` reads *180.0 × 58.0 mm*.
-   Click a panel title or legend text — the selection names the semantic
-   element (`ax0.title`, `ax0.legend`). Drag it; **⌘Z** undoes; **⌘S**
-   saves. Scroll pans, ⌘-scroll (or pinch) zooms. The tool rail adds
-   rects/ellipses/lines/arrows/text; layers + properties panels sit
-   left/right.
-9. **References view**: filter the 11 entries, click one, and flip the
-   rendered preview between the four bundled journal styles — the in-text
-   sample switches between numeric superscript and author–year live. The
-   `[@]` button copies a citation key for pasting into a section.
-10. **Source control view**: the example copy is already a repo (branch
+8. **Manuscript appearance**: the gear pinned at the top of the document
+   opens the same popover as an editor tab and drives the **whole**
+   document from one measure — the title page, every section editor, and
+   the reference list reflow together, and a title-page paragraph and a
+   section line always render at the same text width.
+9. **Cross-references resolve live** in the document: `@eq:stripping`
+   reads *equation (1)*, the display equation's own right-margin label
+   reads *(1)*, `@fig:fig-spectrum` reads *Fig. 1*, and the
+   parenthesised, panel-suffixed form `(@fig:fig-spectrum{a})` reads
+   *(Fig. 1a)*. An id nothing matches keeps its raw `kind:id` text in a
+   dashed red warning style rather than blanking out.
+10. **Figures view**: one card per `figures/*/figure.svg` with a live SVG
+    thumbnail, caption title, and width-preset chip. Clicking a card opens
+    the figure on the canvas.
+11. **Canvas**: `figures/fig-spectrum/figure.svg` reads *180.0 × 58.0 mm*.
+    Click a panel title or legend text — the selection names the semantic
+    element (`ax0.title`, `ax0.legend`). Drag it; **⌘Z** undoes; **⌘S**
+    saves. Scroll pans, ⌘-scroll (or pinch) zooms. The tool rail adds
+    rects/ellipses/lines/arrows/text; layers + properties panels sit
+    left/right.
+12. **References view**: filter the 11 entries, click one, and flip
+    *Rendered as* between the four bundled journal styles. This is the
+    one control for the whole app: switching to **ApJ (AAS)** turns the
+    manuscript body's superscript numerals into author–year
+    *(Gunn & Gott 1972)* and re-sorts both reference lists
+    alphabetically and unnumbered; switching back to **Nat. Astron.**
+    restores the superscripts and the appearance numbering. The `[@]`
+    button copies a citation key for pasting into a section.
+13. **Source control view**: the example copy is already a repo (branch
     `main`, one *Initial commit*). Edit any file, and the view lists it
     with a status letter; clicking shows the colored diff; *Commit all*
     with a message grows the history.
-11. **Agent view**: pick Anthropic/OpenAI (paste an API key — stored
+14. **Agent view**: pick Anthropic/OpenAI (paste an API key — stored
     encrypted via safeStorage, never written in plain text) or Ollama
     (local, no key). Chat runs with the manuscript title in the system
     prompt. ⌘⏎ sends.
-12. **Compliance**: the example figures are clean. To see diagnostics,
+15. **Compliance**: the example figures are clean. To see diagnostics,
     edit a figure's text to a large size — an *N issues* chip appears in
     the canvas toolbar; click it for the list (rule id, measured value vs
     the journal's stated rule).
-13. **Reproducibility**: rerun a figure's `source/plot.py` (command
+16. **Reproducibility**: rerun a figure's `source/plot.py` (command
     above) and reopen — canvas edits saved to the SVG are currently
     overwritten by regeneration; the provenance overlay that replays them
     lands next.
@@ -97,46 +121,100 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
 Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
-default 9321) and drives 22 steps end to end. The userData example copy
+default 9321) and drives 33 steps end to end. The userData example copy
 is **deleted before launch**, so every run exercises the pristine
-copy-on-open path (fresh git repo, exactly one initial commit):
+copy-on-open path (fresh git repo, exactly one initial commit); the two
+*persisted view preferences* — the editor appearance store and the
+per-project *Rendered as* override, both in localStorage, which the copy
+deletion does not touch — are reset on open so no run can decide the
+next one's measurements:
 
 1. welcome renders → 2. example opens **as the userData copy** (profile
-chip, tree, git-inited) → 3. intro section in CodeMirror → 4. **sidebar
-resize**: pointer-drag the handle +60 px, width + localStorage
-persistence asserted, double-click resets to 272 → 5. **reading mode**
-(two-state toggle): KaTeX widget in the CM DOM, click into the math
-reveals the raw `$$` source at the cursor, moving away re-renders it,
-and the surface stays **editable** (type → doc changes → undo reverts)
-→ 6. figure mounts on canvas at 180 mm → 7. zero compliance issues →
-8. trusted-input drag + ⌘S produces a **one-line transform diff** →
-9. ⌘Z + ⌘S restores the file **byte-identical** → 10–15. editing suite
-(rect create with profile-default fill, palette fill edit, SE-handle
-resize, text tool, panels screenshot, undo chain back to byte-identical)
-→ 16. **explorer** create/rename/delete via the context menu, asserted
-on disk → 17. **manuscript view** outline (4 sections; an outline click
-opens the combined document and scroll-spies to that section) →
-18. **manuscript document**: title page (KaTeX title, `1,*` author
-superscripts, affiliations, correspondence e-mail, Abstract +
-Significance), 4 section editors, 11 references numbered by first
-appearance (entry 1 = `gunn1972`), outline click scrolls to Methods
-(active row + live word counts asserted), and a per-section ⌘S
-save/undo/save round-trip on `sections/04-methods.md` → 19. **figures
-view** (two thumbnails; velocity map opens at 88 mm, compliant) →
-20. **references view** (11 entries; style toggle re-renders the
-reference) → 21. **git view** (clean repo → edit → diff → commit →
-history grows) → 22. **agent view** (three providers; Ollama needs no
-key — no live chat).
+chip, tree, git-inited, view preferences normalized) → 3. intro section
+in CodeMirror → 4. **sidebar resize**: pointer-drag the handle +60 px,
+width + localStorage persistence asserted, double-click resets to 272 →
+5. **reading mode** (two-state toggle): KaTeX widget in the CM DOM,
+click into the math reveals the raw `$$` source at the cursor, moving
+away re-renders it, and the surface stays **editable** (type → doc
+changes → undo reverts) → 6. figure mounts on canvas at 180 mm →
+7. zero compliance issues → 8. trusted-input drag + ⌘S produces a
+**one-line transform diff** → 9. ⌘Z + ⌘S restores the file
+**byte-identical** → 10–15. editing suite (rect create with
+profile-default fill, palette fill edit, SE-handle resize, text tool,
+panels screenshot, undo chain back to byte-identical) → 16. **explorer**
+create/rename/delete via the context menu, asserted on disk →
+17. **manuscript view** outline (4 sections; an outline click opens the
+combined document and scroll-spies to that section) → 18. **manuscript
+document**: title page (KaTeX title, `1,*` author superscripts,
+affiliations, correspondence e-mail, Abstract + Significance), 4 section
+editors, 11 references numbered by first appearance (entry 1 =
+`gunn1972`), outline click scrolls to Methods (active row + live word
+counts asserted), and a per-section ⌘S save/undo/save round-trip on
+`sections/04-methods.md` → 19. **figures view** (two thumbnails;
+velocity map opens at 88 mm, compliant) → 20. **references view**
+(11 entries; style toggle re-renders the reference) → 21. **git view**
+(clean repo → edit → diff → commit → history grows) → 22. **agent view**
+(three providers; Ollama needs no key — no live chat) → 23. **agent CLI
+MCP config** written into the project → 24. **terminal panel** echoes a
+marker through a real pty → 25. **settings tab** round-trips a setting
+through the main process → 26. **CSV data grid** → 27. **.bib
+diagnostics** → 28. **references Cited/Uncited filter**.
+
+The last five steps measure the layout and citation-rendering contract
+(`docs/design/ui-fix-plan.md`) in the running app rather than eyeballing
+it:
+
+29. **layout-by-content-kind** — `stripping_model.py` and
+    `figure.svg.suna.json` at 50 ch and 150 ch: root class
+    `editor-tab--code`, computed `max-width: none`, `white-space: pre`,
+    a monospace stack, `.cm-content` starting within 4 px of the gutter,
+    and identical width at both settings; then the host is squeezed to
+    420 px and the scroller must overflow horizontally with every line
+    still one line high (proof it scrolls instead of wrapping).
+    `01-introduction.md` in Source at 50 vs 150 ch: the measure grows,
+    measured chars-per-line grows, and the block stays at the gutter; in
+    Reading the same measure is centered (left gap = right gap ±8 px,
+    computed off `clientWidth` so the scrollbar cannot fake it).
+30. **manuscript-settings-parity** — the document's gear exists and
+    opens the shared popover (Content width / Font size / Line height /
+    Font / Theme); at 50 ch and 150 ch a title-page paragraph, a section
+    line, and a reference row resolve to the same text width (±4 px),
+    the document actually reflows between the two, and the tab's
+    `--ed-content-width` really is the chosen value (not the 68 ch
+    fallback).
+31. **crossref-resolution** — scrolling the whole document collects
+    every chip: `equation (1)`, the display equation's own `(1)` label,
+    `Fig. 1`, `Fig. 2`, and the parenthesised panel forms `Fig. 1a` /
+    `Fig. 1b`; nothing is left unresolved and no raw `@fig:` text
+    survives outside the cursor's own line. Then a bogus `@fig:nope` is
+    typed into a live section: it must stay raw and carry the
+    `cm-lp-xref--unresolved` class, and the undo that follows must leave
+    `sections/01-introduction.md` byte-identical (the probe never saves).
+32. **rendered-as-round-trip** — *Rendered as → ApJ (AAS)*: every body
+    chip becomes author–year (`/\(\w+.*\d{4}\)/`) and inline-styled,
+    the reference list loses its numbers and starts at *Astropy*, and
+    the sidebar list matches. Back to *Nat. Astron.*: numeric
+    superscripts return, entry 1 is `gunn1972` again, both lists
+    renumber.
+33. **references-panel-fits** — the sidebar list has no horizontal
+    overflow, no `max-height` trap, no overlapping rows, no child
+    spilling out of its row, titles clamped to two lines; and the
+    manuscript summary title renders KaTeX with no raw `$`.
 
 Exit code 0 = pass. Screenshots (each sidebar view as `views-*.png`,
 `reading-mode.png`, `manuscript-doc.png`, `manuscript-outline-active.png`,
-plus the canvas/editing shots) land in `scripts/e2e/.artifacts/`;
-failures add `FAIL-<step>.png`. Ad-hoc driving during development: run
-`SUNA_DEBUG_PORT=9310 pnpm dev`, then evaluate JS in the page — dev
-builds expose `window.__sunaDev` with `openFileTab`, `projectStore`,
-`uiStore`, `canvasTools`, `editorSettings`, `editorViewModes`,
-`explorerStore`, `manuscriptStore`, `manuscriptDocStore`, and
-`agentChatStore`.
+the canvas/editing shots, plus `fix-code-fullwidth.png`,
+`fix-prose-widths.png`, `fix-manuscript-settings.png`,
+`fix-crossrefs.png` and `fix-authoryear.png` from the five steps above)
+land in `scripts/e2e/.artifacts/`; failures add `FAIL-<step>.png`.
+
+Ad-hoc driving during development: run `SUNA_DEBUG_PORT=9310 pnpm dev`,
+then evaluate JS in the page — dev builds expose `window.__sunaDev` with
+`openFileTab`, `projectStore`, `uiStore`, `canvasTools`,
+`editorSettings`, `editorViewModes`, `editorBibDiagnostics`,
+`editorContentKindFor`, `editorContentKindClass`, `dataGrid`,
+`explorerStore`, `manuscriptStore`, `manuscriptDocStore`,
+`renderProfileStore`, and `agentChatStore`.
 
 ## Unit gates
 

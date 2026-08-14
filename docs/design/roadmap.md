@@ -10,11 +10,12 @@ recorded manual check.
 |---|---|
 | Shell | VS Code-like: activity bar, resizable sidebar (persisted), dockview tabs, status bar, terminal panel |
 | Project | Scaffold + git init; "Open example" copies the demo to userData and git-inits it |
+| Editor | Reading default, working content-width (50–150ch), **layout by content kind** (prose wraps at the measure — left-aligned in Source, centered in Reading; code/data never wrapped or width-constrained, always mono, flush at the gutter), GFM tables in reading mode, vim motions, .bib language pack (highlight/lint/completion), CSV/TSV data grid |
 | Manuscript editing | SciMark (math, citations, cross-refs, figure embeds, raw LaTeX); Source ↔ Reading modes, Reading = editable live preview with cursor-reveal |
-| Manuscript document | Combined tab: title page (authors/affiliations/abstract/significance/highlights), per-section editors, references page numbered by first appearance per profile; scroll-spy outline with word counts |
+| Manuscript document | Combined tab: title page (authors/affiliations/abstract/significance/highlights), per-section editors, references page numbered by first appearance per profile; scroll-spy outline with word counts; own settings gear driving **one measure** for title page + sections + references; live cross-reference resolution (`Fig. 1a`, `equation (1)`, numbered display equations) with unresolved ids flagged, never blanked |
 | Figure canvas | SVG-DOM engine (byte-identical round-trip, inverse-op undo), full editing suite (tools, handles, snapping, layers, properties), compliance chip |
 | Journal profiles | 4 profiles from official author guidelines with source URLs + provenance tags; figure & manuscript compliance checkers |
-| References | Bib list, live per-journal rendering ("Rendered as"), Cited/Uncited filter, missing-entry warnings |
+| References | Bib list, Cited/Uncited filter, missing-entry warnings; **"Rendered as" is one shared control** — it drives the sidebar preview *and* the manuscript body's in-text chips (author–year ⇄ numeric superscript) and both reference lists' sort/numbering |
 | Source control | Status, diffs, commit, history, init |
 | Terminal | node-pty + xterm panel, multiple tabs, env activation |
 | Environments | uv/.venv/conda detection, per-project selection |
@@ -22,11 +23,11 @@ recorded manual check.
 | AI | Provider adapters (Anthropic/OpenAI/Ollama) + API-key chat; MCP server exposing manuscript verbs; "Open Claude Code here" launches a subscription-billed CLI wired to it |
 | Python | suna_mpl: semantic gids, journal presets, deterministic SVG, anchor manifests, auto-rasterization |
 
-| Editor | Reading default, working content-width (50–150ch), GFM tables in reading mode, vim motions, .bib language pack (highlight/lint/completion), CSV/TSV data grid |
-
 ## In progress
 
-Nothing — the last batch landed. `pnpm smoke` runs 28 steps green.
+Nothing — the last batch landed. `pnpm smoke` runs 33 steps green (the
+last five measure the layout/citation contract in
+`docs/design/ui-fix-plan.md` rather than eyeballing it).
 
 ## Outstanding (next milestones)
 
@@ -46,8 +47,8 @@ Nothing — the last batch landed. `pnpm smoke` runs 28 steps green.
 
 ## Known rough edges
 
-- Manuscript sidebar summary shows raw `$…$` in the title (the title page
-  itself renders it).
+- A section's dirty dot is set by any edit and only cleared by a save —
+  undoing back to the on-disk text still shows the tab as modified.
 - Layers panel lists matplotlib's metadata/RDF nodes unfiltered.
 - Canvas align/distribute exist in the engine but have no UI buttons.
 - Agent chat has no streaming or tool use yet (single-turn text); the MCP

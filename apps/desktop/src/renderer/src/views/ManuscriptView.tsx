@@ -1,11 +1,38 @@
 import { useEffect, useMemo, type JSX } from 'react'
+import katex from 'katex'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
 import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openManuscriptTab } from '../state/dock'
+import { splitTexSpans } from '../manuscript/title-page'
 import { flattenBody } from './outline'
 import './views.css'
 import './manuscript-view.css'
+
+/**
+ * Prose with $...$ spans rendered through KaTeX, matching how the title page
+ * itself renders the manuscript title (manuscript/TitlePage's TexText) —
+ * the sidebar summary is otherwise the one place still showing raw "$...$".
+ */
+function TexText({ text }: { text: string }): JSX.Element {
+  const segments = useMemo(() => splitTexSpans(text), [text])
+  return (
+    <>
+      {segments.map((segment, i) =>
+        segment.kind === 'math' ? (
+          <span
+            key={i}
+            dangerouslySetInnerHTML={{
+              __html: katex.renderToString(segment.value, { throwOnError: false })
+            }}
+          />
+        ) : (
+          <span key={i}>{segment.value}</span>
+        )
+      )}
+    </>
+  )
+}
 
 export function ManuscriptView(): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
@@ -84,7 +111,9 @@ export function ManuscriptView(): JSX.Element {
       </button>
 
       <div>
-        <div className="ms__title">{manuscript.title}</div>
+        <div className="ms__title">
+          <TexText text={manuscript.title} />
+        </div>
         <div className="ms__meta">
           <span>
             <strong>{manuscript.authors.length}</strong>{' '}

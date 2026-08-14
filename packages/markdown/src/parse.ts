@@ -21,6 +21,14 @@ const FIGURE_EMBED = /^!\[\[fig:([A-Za-z][\w.-]*)\]\]$/;
 const SCAN = /\[@[^\]]*\]|@[A-Za-z][\w:.-]+(\{[^}]*\})?/g;
 const BRACKET_ITEM = /^@([A-Za-z][\w:.-]*)$/;
 const BARE = /^@([A-Za-z][\w:.-]+)(\{([^}]*)\})?/;
+/**
+ * Characters that may immediately precede a bare `@key`/`@kind:id{suffix}`
+ * token for it to count as a citation/cross-reference start, beyond
+ * start-of-string. Whitespace covers the common case; the opening brackets
+ * let a parenthetical crossref like "(@fig:x{a})" or "[@eq:y]"-as-prose
+ * still be recognised even though nothing whitespace-like precedes the `@`.
+ */
+const PRECEDING_OK = /[\s([{]/;
 
 export function parseSciMark(source: string): SciMarkRoot {
   const root = processor.parse(source);
@@ -171,7 +179,7 @@ function scanText(node: Text): PhrasingContent[] | undefined {
           consumed: token.length,
         };
       }
-    } else if (start === 0 || /\s/.test(value.charAt(start - 1))) {
+    } else if (start === 0 || PRECEDING_OK.test(value.charAt(start - 1))) {
       produced = matchBare(token);
     }
 

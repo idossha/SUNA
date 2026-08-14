@@ -18,6 +18,7 @@ import { livePreview } from './livePreview'
 import { sunaJsonLinter } from './jsonLint'
 import { bibLanguage, bibLinter } from './bibLang'
 import { editorTheme } from './themes'
+import { contentKindFor } from './contentKind'
 import type { EditorThemeName } from './settings'
 
 /** Extension-based language pick. Anything unknown stays plain and falls
@@ -76,6 +77,11 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   const liveCompartment = new Compartment()
   const vimCompartment = new Compartment()
 
+  // Prose wraps at the content-width measure; code/data scroll horizontally
+  // instead so statements and long tokens never soft-break mid-line.
+  const wrapping: Extension =
+    contentKindFor(options.fileName) === 'prose' ? EditorView.lineWrapping : []
+
   const extensions: Extension[] = [
     // vim() must precede every other keymap: it installs its own high-priority
     // input handler and only wins if CM6 sees it first (per its README).
@@ -98,7 +104,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     ]),
     themeCompartment.of(editorTheme(options.theme)),
     liveCompartment.of(options.live ? livePreview() : []),
-    EditorView.lineWrapping,
+    wrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) options.onDocChanged()
     }),
