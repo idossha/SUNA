@@ -21,6 +21,7 @@
     "@lezer/highlight": "^1.2.3",
     "@suna/canvas": "workspace:*",
     "@suna/core": "workspace:*",
+    "@suna/formatter": "workspace:*",
     "@suna/markdown": "workspace:*",
     "dockview": "^8.1.0",
     "katex": "^0.18.4",

@@ -18,12 +18,14 @@ text.
 
 from .export import save_svg
 from .gid import autogid
-from .sizes import MM_PER_INCH, WIDTH_PRESETS_MM, resolve_width_mm, set_size
-from .style import journal_rc
+from .sizes import MM_PER_INCH, PROFILE_WIDTHS_MM, WIDTH_PRESETS_MM, resolve_width_mm, set_size
+from .style import WONG_PALETTE, journal_rc
 
 __all__ = [
     "MM_PER_INCH",
+    "PROFILE_WIDTHS_MM",
     "WIDTH_PRESETS_MM",
+    "WONG_PALETTE",
     "autogid",
     "journal_rc",
     "resolve_width_mm",

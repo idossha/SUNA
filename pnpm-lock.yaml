@@ -47,6 +47,9 @@ importers:
       '@suna/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@suna/formatter':
+        specifier: workspace:*
+        version: link:../../packages/formatter
       '@suna/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown

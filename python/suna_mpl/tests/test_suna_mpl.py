@@ -18,8 +18,23 @@ def fig():
 def test_set_size_single_column(fig):
     suna_mpl.set_size(fig, "single")
     w_in, h_in = fig.get_size_inches()
-    assert w_in == pytest.approx(89.0 / 25.4)
-    assert h_in == pytest.approx(89.0 * 0.618 / 25.4)
+    assert w_in == pytest.approx(88.0 / 25.4)
+    assert h_in == pytest.approx(88.0 * 0.618 / 25.4)
+
+
+def test_profile_width_tables(fig):
+    suna_mpl.set_size(fig, "single", profile="mnras")
+    assert fig.get_size_inches()[0] == pytest.approx(80.0 / 25.4)
+    with pytest.raises(ValueError, match="unknown journal profile"):
+        suna_mpl.set_size(fig, "single", profile="apocrypha")
+
+
+def test_journal_rc_uses_wong_palette():
+    rc = suna_mpl.journal_rc()
+    colors = [c["color"] for c in rc["axes.prop_cycle"]]
+    assert colors[0] == "#0072b2"
+    assert len(colors) == len(suna_mpl.WONG_PALETTE)
+    assert rc["axes.titlesize"] == 7.0
 
 
 def test_set_size_explicit_mm(fig):

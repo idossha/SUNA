@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react'
 import { CanvasDocument, CommandHistory, createBrowserDomAdapter } from '@suna/canvas'
+import { checkFigureSvg, getBundledProfile, type Diagnostic } from '@suna/formatter'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useUiStore } from '../state/ui'
+import { useProjectStore } from '../state/project'
 
 /**
  * The engine's CanvasDocument stays OFF-DOM and pristine — it is the single
@@ -69,8 +71,24 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const [rev, setRev] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [artboardLabel, setArtboardLabel] = useState('')
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([])
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
 
   const note = (text: string): void => useUiStore.getState().setStatusNote(text)
+
+  /** Compliance check against the project's active journal profile. */
+  const runCompliance = (): void => {
+    const session = sessionRef.current
+    const profileId = useProjectStore.getState().manifest?.activeProfileId
+    if (!session || !profileId) return
+    const profile = getBundledProfile(profileId)
+    if (!profile) return
+    try {
+      setDiagnostics(checkFigureSvg(session.doc.serialize(), profile, { figureId: fileName }))
+    } catch {
+      // compliance is advisory; never let it break the canvas
+    }
+  }
 
   const mirrorById = (id: string): Element | null => {
     const mirror = mirrorRef.current
@@ -110,6 +128,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
         if (ab.widthMm && ab.heightMm) {
           setArtboardLabel(`${ab.widthMm.toFixed(1)} × ${ab.heightMm.toFixed(1)} mm`)
         }
+        runCompliance()
 
         const viewport = viewportRef.current
         const mirror = mirrorRef.current
@@ -149,6 +168,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
       savedRevRef.current = revRef.current
       api.setTitle(fileName)
       note(`Saved ${fileName}`)
+      runCompliance()
     } catch (error) {
       note(`Could not save ${fileName}: ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -317,8 +337,34 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
             </span>
           )}
         </span>
-        <span className="canvas-tab__meta">{Math.round(view.scale * 100)}%</span>
+        <span className="canvas-tab__meta">
+          {diagnostics.length > 0 && (
+            <button
+              className={`canvas-tab__issues ${diagnostics.some((d) => d.severity === 'error') ? 'canvas-tab__issues--error' : ''}`}
+              onClick={() => setDiagnosticsOpen((open) => !open)}
+            >
+              {diagnostics.length} {diagnostics.length === 1 ? 'issue' : 'issues'}
+            </button>
+          )}
+          {Math.round(view.scale * 100)}%
+        </span>
       </div>
+      {diagnosticsOpen && diagnostics.length > 0 && (
+        <div className="canvas-diagnostics">
+          {diagnostics.slice(0, 50).map((d, i) => (
+            <div key={`${d.id}-${i}`} className="canvas-diagnostics__row">
+              <span
+                className={`canvas-diagnostics__dot canvas-diagnostics__dot--${d.severity}`}
+              />
+              <span className="canvas-diagnostics__rule">{d.id}</span>
+              <span className="canvas-diagnostics__msg">{d.message}</span>
+            </div>
+          ))}
+          {diagnostics.length > 50 && (
+            <div className="canvas-diagnostics__row">…and {diagnostics.length - 50} more</div>
+          )}
+        </div>
+      )}
       <div
         ref={viewportRef}
         className="canvas-viewport"
