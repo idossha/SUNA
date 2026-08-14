@@ -8,7 +8,11 @@ describe('CHANNELS', () => {
       'agent:chat',
       'agent:provider-status',
       'agent:set-key',
+      'agent:write-mcp-config',
       'dialog:pick-directory',
+      'env:detect',
+      'env:select',
+      'env:selected',
       'fs:create-file',
       'fs:delete',
       'fs:list',
@@ -25,6 +29,12 @@ describe('CHANNELS', () => {
       'project:open',
       'project:open-example',
       'project:scaffold-status',
+      'settings:get',
+      'settings:set',
+      'term:create',
+      'term:kill',
+      'term:resize',
+      'term:write',
     ]);
   });
 
