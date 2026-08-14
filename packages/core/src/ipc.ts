@@ -162,6 +162,65 @@ export const CHANNELS = {
       ),
     }),
   },
+  'term:create': {
+    request: z.object({
+      cwd: z.string().min(1),
+      cols: z.number().int().positive(),
+      rows: z.number().int().positive(),
+      // when set, the pty starts with this python env activated
+      envPath: z.string().min(1).nullable(),
+    }),
+    response: z.object({ id: z.string().min(1) }),
+  },
+  'term:write': {
+    request: z.object({ id: z.string().min(1), data: z.string() }),
+    response: z.object({}),
+  },
+  'term:resize': {
+    request: z.object({
+      id: z.string().min(1),
+      cols: z.number().int().positive(),
+      rows: z.number().int().positive(),
+    }),
+    response: z.object({}),
+  },
+  'term:kill': {
+    request: z.object({ id: z.string().min(1) }),
+    response: z.object({}),
+  },
+  'env:detect': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      envs: z.array(
+        z.object({
+          kind: z.enum(['uv', 'venv', 'conda']),
+          name: z.string().min(1),
+          path: z.string().min(1),
+          python: z.string().min(1).nullable(),
+        }),
+      ),
+    }),
+  },
+  'env:select': {
+    request: z.object({ dir: z.string().min(1), envPath: z.string().min(1).nullable() }),
+    response: z.object({}),
+  },
+  'env:selected': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ envPath: z.string().min(1).nullable() }),
+  },
+  'settings:get': {
+    request: z.object({}),
+    response: z.object({ settings: z.record(z.string(), z.unknown()) }),
+  },
+  'settings:set': {
+    request: z.object({ patch: z.record(z.string(), z.unknown()) }),
+    response: z.object({ settings: z.record(z.string(), z.unknown()) }),
+  },
+  'agent:write-mcp-config': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ path: z.string().min(1) }),
+  },
   'agent:chat': {
     request: z.object({
       provider: z.enum(['anthropic', 'openai', 'ollama']),
@@ -178,6 +237,15 @@ export const CHANNELS = {
     response: z.object({ text: z.string() }),
   },
 } as const satisfies Record<string, ChannelContract>;
+
+/**
+ * Event channels (main → renderer pushes; not request/response). The preload
+ * exposes subscription helpers for exactly these prefixes.
+ */
+export const EVENT_CHANNELS = {
+  termData: (id: string) => `term:data:${id}`,
+  termExit: (id: string) => `term:exit:${id}`,
+} as const;
 
 export type ChannelName = keyof typeof CHANNELS;
 export type RequestOf<C extends ChannelName> = z.infer<(typeof CHANNELS)[C]['request']>;
