@@ -1,0 +1,331 @@
+import { useEffect, useRef, useState, type JSX } from 'react'
+import { resolveSettings, type ResponseOf } from '@suna/core'
+import type { DockPanelProps } from '../shell/dock/DockHost'
+import { useProjectStore } from '../state/project'
+import { useSettingsStore } from '../state/settings'
+import { openFileTab } from '../state/dock'
+import { registerOnboardingProvider } from './devSeam'
+import { stepGate } from './gating'
+import {
+  buildScaffoldSettings,
+  createInitialWizardState,
+  defaultsToGlobalPatch,
+  INITIAL_CREATE_PROGRESS,
+  type CreateProgress,
+  type WizardMode,
+  type WizardState
+} from './types'
+import { Step1Location } from './steps/Step1Location'
+import { Step2Profile } from './steps/Step2Profile'
+import { Step3Scaffold } from './steps/Step3Scaffold'
+import { Step4Python } from './steps/Step4Python'
+import { Step5Ai } from './steps/Step5Ai'
+import { Step6Defaults } from './steps/Step6Defaults'
+import { Step7Review } from './steps/Step7Review'
+import './onboarding.css'
+
+const STEP_TITLES = [
+  'Where & what',
+  'Target journal',
+  'What to scaffold',
+  'Python environment',
+  'AI',
+  'Defaults',
+  'Review'
+]
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function parseParams(params: Record<string, unknown>): { mode: WizardMode; dir: string | null } {
+  return {
+    mode: params['mode'] === 'setup' ? 'setup' : 'create',
+    dir: typeof params['dir'] === 'string' ? params['dir'] : null
+  }
+}
+
+/** Splits an absolute path into its parent directory and basename. */
+function splitPath(path: string): { parent: string; name: string } {
+  const trimmed = path.replace(/\/+$/, '')
+  const idx = trimmed.lastIndexOf('/')
+  if (idx <= 0) return { parent: '/', name: trimmed.slice(idx + 1) }
+  return { parent: trimmed.slice(0, idx), name: trimmed.slice(idx + 1) }
+}
+
+/**
+ * Onboarding wizard (feature-plan-5 §5) — a full dock tab, component
+ * 'onboarding'. Two entry points: {mode:'create'} starts from step 1;
+ * {mode:'setup', dir} targets an existing suna.json-less folder and starts
+ * at step 2 (steps 2-7 "against it", per the spec). Nothing is written to
+ * disk before "Create project" on step 7.
+ */
+export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
+  const [wizard, setWizard] = useState<WizardState>(() => {
+    const { mode, dir } = parseParams(params)
+    if (mode === 'setup' && dir !== null) {
+      const { parent, name } = splitPath(dir)
+      return createInitialWizardState('setup', { parentDir: parent, name, step: 2 })
+    }
+    return createInitialWizardState('create')
+  })
+  const seededDefaults = useRef(false)
+
+  const update = (patch: Partial<WizardState>): void => setWizard((s) => ({ ...s, ...patch }))
+
+  // Step 6 seeds from GLOBAL settings only (not any other currently-open
+  // project's overrides) — load once, then seed once when it lands.
+  useEffect(() => {
+    void useSettingsStore.getState().load()
+  }, [])
+  const rawGlobalSettings = useSettingsStore((s) => s.raw)
+  const globalSettingsLoaded = useSettingsStore((s) => s.loaded)
+  useEffect(() => {
+    if (seededDefaults.current || !globalSettingsLoaded) return
+    seededDefaults.current = true
+    const resolved = resolveSettings(rawGlobalSettings, undefined).value
+    update({
+      defaults: {
+        defaultMode: resolved['editor.defaultMode'],
+        editorTheme: resolved['editor.editorTheme'],
+        fontSizePx: resolved['editor.fontSizePx'],
+        lineHeight: resolved['editor.lineHeight'],
+        contentWidthCh: resolved['editor.contentWidthCh']
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalSettingsLoaded, rawGlobalSettings])
+
+  // Escape cancels from anywhere in the wizard (feature-plan-5 §5) — but only
+  // while this wizard is the panel on screen. dockview keeps hidden panels
+  // mounted, so an ungated window listener would let an Escape pressed in a
+  // completely different tab silently discard a half-filled wizard.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && api.isVisible) {
+        e.preventDefault()
+        api.close()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [api])
+
+  // Dev-only seam for e2e drivers: step 1's folder picker is a native dialog
+  // CDP cannot drive, so a driver patches the state the picker would produce
+  // and then presses the wizard's own buttons (see onboarding/devSeam.ts).
+  const wizardRef = useRef(wizard)
+  wizardRef.current = wizard
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    return registerOnboardingProvider({
+      getState: () => wizardRef.current,
+      patch: (next) => setWizard((s) => ({ ...s, ...next })),
+      close: () => api.close(),
+      isVisible: () => api.isVisible
+    })
+  }, [api])
+
+  const firstStep = wizard.mode === 'setup' ? 2 : 1
+  const visibleSteps = wizard.mode === 'setup' ? [2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7]
+  const gate = stepGate(wizard.step, wizard)
+  const targetPath =
+    wizard.parentDir !== null && wizard.name !== '' ? `${wizard.parentDir}/${wizard.name}` : null
+  // 'create': env:detect runs against the parent (the project doesn't exist yet).
+  // 'setup': the folder already exists, so scan it directly.
+  const envScanDir = wizard.mode === 'setup' ? targetPath : wizard.parentDir
+  /** Once dirs/files/git have succeeded, the project exists — Back/Cancel just closes. */
+  const created = wizard.progress.dirs === 'done'
+
+  const goBack = (): void => {
+    if (created || wizard.step <= firstStep) {
+      api.close()
+      return
+    }
+    update({ step: wizard.step - 1 })
+  }
+
+  const goNext = (): void => {
+    if (!gate.canAdvance || wizard.step >= 7) return
+    update({ step: wizard.step + 1 })
+  }
+
+  const runCreate = async (): Promise<void> => {
+    if (targetPath === null) return
+    const snapshot = wizard
+    let progress: CreateProgress = { ...INITIAL_CREATE_PROGRESS, dirs: 'active', files: 'active' }
+    const warnings: string[] = []
+    update({ creating: true, createError: null, createWarnings: [], progress })
+
+    const activeProfileId = snapshot.profileId ?? 'nature-astronomy'
+    const settings = buildScaffoldSettings(snapshot)
+
+    let scaffoldResult: ResponseOf<'project:scaffold'>
+    try {
+      scaffoldResult = await window.suna.invoke('project:scaffold', {
+        dir: targetPath,
+        name: snapshot.name,
+        activeProfileId,
+        scaffold: snapshot.scaffold,
+        importDir: snapshot.scaffold === 'import' ? snapshot.importDir : null,
+        settings
+      })
+    } catch (error) {
+      progress = { ...progress, dirs: 'error', files: 'error' }
+      update({ creating: false, createError: errorMessage(error), progress })
+      return
+    }
+
+    warnings.push(...scaffoldResult.warnings)
+    progress = {
+      ...progress,
+      dirs: 'done',
+      files: 'done',
+      git: scaffoldResult.gitInitialized ? 'done' : 'error'
+    }
+    if (!scaffoldResult.gitInitialized) {
+      warnings.push('Git could not be initialized — continuing without version control.')
+    }
+    update({ progress, createWarnings: [...warnings] })
+
+    if (!snapshot.saveDefaultsToProject) {
+      try {
+        await window.suna.invoke('settings:set', { patch: defaultsToGlobalPatch(snapshot.defaults) })
+      } catch (error) {
+        warnings.push(`Could not save defaults globally: ${errorMessage(error)}`)
+        update({ createWarnings: [...warnings] })
+      }
+    }
+
+    progress = { ...progress, env: 'active' }
+    update({ progress })
+    if (snapshot.pythonChoice === 'create-uv') {
+      try {
+        const res = await window.suna.invoke('env:create', { dir: targetPath })
+        if (res.ok) {
+          progress = { ...progress, env: 'done' }
+        } else {
+          warnings.push(res.error ?? 'Could not create a uv environment.')
+          progress = { ...progress, env: 'error' }
+        }
+      } catch (error) {
+        warnings.push(errorMessage(error))
+        progress = { ...progress, env: 'error' }
+      }
+    } else if (snapshot.pythonChoice === 'existing' && snapshot.existingEnvPath !== null) {
+      try {
+        await window.suna.invoke('env:select', { dir: targetPath, envPath: snapshot.existingEnvPath })
+        progress = { ...progress, env: 'done' }
+      } catch (error) {
+        warnings.push(errorMessage(error))
+        progress = { ...progress, env: 'error' }
+      }
+    } else {
+      progress = { ...progress, env: 'skipped' }
+    }
+    update({ progress, createWarnings: [...warnings] })
+
+    progress = { ...progress, mcp: 'active' }
+    update({ progress })
+    if (snapshot.writeMcpConfig) {
+      try {
+        await window.suna.invoke('agent:write-mcp-config', { dir: targetPath })
+        progress = { ...progress, mcp: 'done' }
+      } catch (error) {
+        warnings.push(errorMessage(error))
+        progress = { ...progress, mcp: 'error' }
+      }
+    } else {
+      progress = { ...progress, mcp: 'skipped' }
+    }
+
+    update({ creating: false, progress, createWarnings: [...warnings] })
+
+    // Adopt the freshly created project into the workbench either way — the
+    // project itself exists once dirs/files/git succeeded, regardless of an
+    // env/mcp hiccup. Only auto-close when there is nothing to read: a
+    // warning must stay on screen, not vanish with the tab that reported it.
+    useProjectStore.setState({ rootDir: targetPath, manifest: scaffoldResult.manifest, tree: null })
+    await useProjectStore.getState().refreshTree()
+    openFileTab(`${targetPath}/manuscript/sections/01-introduction.md`)
+    if (warnings.length === 0) api.close()
+  }
+
+  return (
+    <div className="onboard">
+      <div className="onboard__header">
+        <div>
+          <div className="onboard__eyebrow">SUNA</div>
+          <div className="onboard__title">
+            {wizard.mode === 'setup' ? 'Set up project' : 'New project'}
+          </div>
+        </div>
+        <button className="onboard__cancel" onClick={() => api.close()}>
+          Cancel (Esc)
+        </button>
+      </div>
+
+      <div className="onboard__steps">
+        {visibleSteps.map((n) => (
+          <div
+            key={n}
+            className={
+              'onboard__step' +
+              (n === wizard.step ? ' onboard__step--active' : '') +
+              (n < wizard.step ? ' onboard__step--done' : '')
+            }
+          >
+            <span className="onboard__step-num">{n}</span>
+            {STEP_TITLES[n - 1]}
+          </div>
+        ))}
+      </div>
+
+      <div className="onboard__body">
+        {wizard.createError !== null && (
+          <div className="onboard__error">{wizard.createError}</div>
+        )}
+        {wizard.step === 1 && wizard.mode === 'create' && (
+          <Step1Location state={wizard} update={update} />
+        )}
+        {wizard.step === 2 && <Step2Profile state={wizard} update={update} />}
+        {wizard.step === 3 && <Step3Scaffold state={wizard} update={update} />}
+        {wizard.step === 4 && (
+          <Step4Python state={wizard} update={update} scanDir={envScanDir} />
+        )}
+        {wizard.step === 5 && <Step5Ai state={wizard} update={update} />}
+        {wizard.step === 6 && <Step6Defaults state={wizard} update={update} />}
+        {wizard.step === 7 && (
+          <Step7Review state={wizard} update={update} targetPath={targetPath} />
+        )}
+      </div>
+
+      <div className="onboard__footer">
+        <button className="onboard__back" onClick={goBack} disabled={wizard.creating}>
+          {created ? 'Close' : wizard.step <= firstStep ? 'Cancel' : 'Back'}
+        </button>
+        <div className="onboard__footer-right">
+          {wizard.step < 7 && (
+            <button className="onboard__next" onClick={goNext} disabled={!gate.canAdvance}>
+              Next
+            </button>
+          )}
+          {wizard.step === 7 && !created && (
+            <button
+              className="onboard__create"
+              onClick={() => void runCreate()}
+              disabled={wizard.creating || targetPath === null}
+            >
+              {wizard.creating ? 'Creating…' : 'Create project'}
+            </button>
+          )}
+          {wizard.step === 7 && created && (
+            <button className="onboard__create" onClick={() => api.close()}>
+              Done
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

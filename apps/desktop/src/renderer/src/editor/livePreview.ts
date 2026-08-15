@@ -27,6 +27,13 @@ import {
    the *whole surrounding text node's* position onto those nodes (their AST
    positions are not offset-exact); a raw-source scan with code/math ranges
    excluded is the robust choice for them.
+
+   The AST is also what makes backslash-escapes and code-fence contents safe
+   for free: remark resolves `\*` to a literal `*` inside the enclosing text
+   node's *value* without emitting an emphasis node, and it never descends
+   into code/inlineCode content looking for nested markup — so those cases
+   never produce a span to hide in the first place. Nothing hides them; the
+   raw source renders through untouched.
    ------------------------------------------------------------------------- */
 
 export type LiveSpan =
@@ -44,6 +51,19 @@ export type LiveSpan =
       id: string
       suffix: string | undefined
     }
+  /**
+   * Zero-width syntax hide: [from,to) is the literal source run that
+   * disappears (a `##␣` prefix, a pair of `**`/`*`/`~~`/backtick delimiters,
+   * a link's brackets+parens+URL, a blockquote's `>` run). [revealFrom,
+   * revealTo) is the *separate*, usually larger, range the selection has to
+   * intersect for the hide to lift — the enclosing formatting node's full
+   * span for inline marks (so a cursor anywhere in "**bold**" shows both
+   * `**` runs at once), or the whole physical line for headings/list
+   * markers/blockquotes.
+   */
+  | { kind: 'hide'; from: number; to: number; revealFrom: number; revealTo: number }
+  /** A bullet list marker ('-'/'*'/'+' + following space), replaced by a glyph widget. */
+  | { kind: 'bullet'; from: number; to: number; revealFrom: number; revealTo: number }
 
 export interface MarkSpan {
   from: number
@@ -52,19 +72,28 @@ export interface MarkSpan {
 }
 
 export interface LineMark {
-  /** Offset somewhere on the heading's first line (mapped to line start at build time). */
+  /** Offset somewhere on the marked line (mapped to line start at build time). */
   at: number
   cls: string
 }
 
 export interface SpanIndex {
-  /** blockMath | figure — rendered as block replace decorations (state field). */
+  /** blockMath | figure | table — rendered as block replace decorations (state field). */
   blocks: LiveSpan[]
-  /** inlineMath | cite | xref — rendered as inline replace decorations (view plugin). */
+  /**
+   * inlineMath | cite | xref | hide | bullet — rendered as inline replace
+   * decorations (view plugin). Each entry is reveal-gated: skipped for the
+   * render whenever the selection intersects its reveal range (its own
+   * [from,to) for math/cite/xref, a separate wider range for hide/bullet).
+   */
   inline: LiveSpan[]
-  /** Cheap mark decorations: strong/emphasis styling + dimmed syntax characters. */
+  /**
+   * Non-hiding style marks over *visible* text: bold/italic/strikethrough
+   * weight, inline-code and link styling. Never reveal-gated — nothing here
+   * hides source, so there is nothing to reveal.
+   */
   marks: MarkSpan[]
-  /** Heading line classes (font-size/weight via CSS). */
+  /** Line classes (heading size/weight, blockquote bar). Never reveal-gated. */
   lines: LineMark[]
 }
 
@@ -75,6 +104,7 @@ interface MdNode {
   meta?: string | null
   depth?: number
   figureId?: string
+  ordered?: boolean | null
   position?: { start: { offset?: number | undefined }; end: { offset?: number | undefined } }
 }
 
@@ -88,6 +118,15 @@ function spanOf(node: MdNode): OffsetRange | undefined {
   const to = node.position?.end.offset
   if (typeof from !== 'number' || typeof to !== 'number' || to <= from) return undefined
   return { from, to }
+}
+
+/** The physical source line containing `offset` — scans outward to the nearest '\n' on each side. */
+function lineBoundsAt(source: string, offset: number): OffsetRange {
+  let start = offset
+  while (start > 0 && source.charCodeAt(start - 1) !== 10) start -= 1
+  let end = offset
+  while (end < source.length && source.charCodeAt(end) !== 10) end += 1
+  return { from: start, to: end }
 }
 
 const EQ_LABEL = /^\{#(eq:[A-Za-z][\w:.-]*)\}$/
@@ -108,6 +147,12 @@ const CROSSREF_KINDS = new Set(['fig', 'tbl', 'eq', 'sec'])
  * live chips and rendered output disagree.
  */
 const PRECEDING_OK = /[\s([{]/
+
+/** Leading blockquote marker run for one physical line: up to 3 spaces of
+ *  indentation, then one or more `>` (each optionally followed by a single
+ *  space), consumed greedily — so a doubly-nested "> > text" hides both
+ *  `>` levels in one shot. Anchored to the start of the sliced line. */
+const QUOTE_MARKER = /^(?: {0,3}>[ \t]?)+/
 
 function trimTrailingPunctuation(key: string): string {
   let end = key.length
@@ -213,6 +258,12 @@ export function extractSpans(source: string): SpanIndex {
   const marks: MarkSpan[] = []
   const lines: LineMark[] = []
   const exclude: OffsetRange[] = []
+  /** De-dupes blockquote marker-hiding by line start: nested blockquote
+   *  nodes share physical lines with their ancestor, and the ancestor is
+   *  visited first (pre-order), consuming the *whole* nested `>` run for
+   *  that line via QUOTE_MARKER's `+`. Without this, the descendant would
+   *  try to hide the same characters again. */
+  const seenQuoteLines = new Set<number>()
 
   const visitNode = (node: MdNode): void => {
     const range = spanOf(node)
@@ -254,9 +305,38 @@ export function extractSpans(source: string): SpanIndex {
         return
       }
       case 'code':
-      case 'rawLatex':
-      case 'inlineCode': {
+      case 'rawLatex': {
         if (range) exclude.push(range)
+        return
+      }
+      case 'inlineCode': {
+        // Keep the code styling, hide only the backtick fence. Fence length
+        // is read straight off the source (1+ backticks) rather than
+        // assumed, since CommonMark lets a fence widen to `` `` etc. when
+        // the content itself contains a backtick.
+        if (range) {
+          exclude.push(range)
+          let openLen = 0
+          while (source.charAt(range.from + openLen) === '`') openLen += 1
+          const closeStart = range.to - openLen
+          if (openLen > 0 && closeStart > range.from + openLen) {
+            marks.push({ from: range.from + openLen, to: closeStart, cls: 'cm-lp-code' })
+            inline.push({
+              kind: 'hide',
+              from: range.from,
+              to: range.from + openLen,
+              revealFrom: range.from,
+              revealTo: range.to
+            })
+            inline.push({
+              kind: 'hide',
+              from: closeStart,
+              to: range.to,
+              revealFrom: range.from,
+              revealTo: range.to
+            })
+          }
+        }
         return
       }
       case 'heading': {
@@ -264,23 +344,167 @@ export function extractSpans(source: string): SpanIndex {
           lines.push({ at: range.from, cls: `cm-lp-h${Math.min(node.depth, 4)}` })
           const hashEnd = range.from + node.depth
           const dimTo = source.charAt(hashEnd) === ' ' ? hashEnd + 1 : hashEnd
-          marks.push({ from: range.from, to: dimTo, cls: 'cm-lp-syntax' })
+          const line = lineBoundsAt(source, range.from)
+          inline.push({
+            kind: 'hide',
+            from: range.from,
+            to: dimTo,
+            revealFrom: line.from,
+            revealTo: line.to
+          })
         }
         break
       }
       case 'strong': {
         if (range && range.to - range.from > 4) {
           marks.push({ from: range.from, to: range.to, cls: 'cm-lp-strong' })
-          marks.push({ from: range.from, to: range.from + 2, cls: 'cm-lp-syntax' })
-          marks.push({ from: range.to - 2, to: range.to, cls: 'cm-lp-syntax' })
+          inline.push({
+            kind: 'hide',
+            from: range.from,
+            to: range.from + 2,
+            revealFrom: range.from,
+            revealTo: range.to
+          })
+          inline.push({
+            kind: 'hide',
+            from: range.to - 2,
+            to: range.to,
+            revealFrom: range.from,
+            revealTo: range.to
+          })
         }
         break
       }
       case 'emphasis': {
         if (range && range.to - range.from > 2) {
           marks.push({ from: range.from, to: range.to, cls: 'cm-lp-em' })
-          marks.push({ from: range.from, to: range.from + 1, cls: 'cm-lp-syntax' })
-          marks.push({ from: range.to - 1, to: range.to, cls: 'cm-lp-syntax' })
+          inline.push({
+            kind: 'hide',
+            from: range.from,
+            to: range.from + 1,
+            revealFrom: range.from,
+            revealTo: range.to
+          })
+          inline.push({
+            kind: 'hide',
+            from: range.to - 1,
+            to: range.to,
+            revealFrom: range.from,
+            revealTo: range.to
+          })
+        }
+        break
+      }
+      case 'delete': {
+        // GFM strikethrough (~~text~~), always a 2-char delimiter each side.
+        if (range && range.to - range.from > 4) {
+          marks.push({ from: range.from, to: range.to, cls: 'cm-lp-strike' })
+          inline.push({
+            kind: 'hide',
+            from: range.from,
+            to: range.from + 2,
+            revealFrom: range.from,
+            revealTo: range.to
+          })
+          inline.push({
+            kind: 'hide',
+            from: range.to - 2,
+            to: range.to,
+            revealFrom: range.from,
+            revealTo: range.to
+          })
+        }
+        break
+      }
+      case 'link': {
+        // Only "[text](url)" inline links transform. Autolinks ("<url>")
+        // are also mdast 'link' nodes but start with '<', not '[' — spec
+        // says bare autolinks stay as-is, so those fall through untouched.
+        if (range && source.charAt(range.from) === '[') {
+          // Excluded from citation scanning unconditionally (not just when
+          // the hide/mark below fires): a literal "[@key]" immediately
+          // followed by "(url)" parses as a link, and the raw-source
+          // citation scanner would otherwise also match its bracket form,
+          // producing an overlapping decoration.
+          exclude.push(range)
+          const children = node.children
+          const first = children?.[0]
+          const last = children !== undefined && children.length > 0 ? children[children.length - 1] : undefined
+          const firstRange = first ? spanOf(first) : undefined
+          const lastRange = last ? spanOf(last) : undefined
+          if (
+            firstRange &&
+            lastRange &&
+            firstRange.from > range.from &&
+            lastRange.to < range.to &&
+            lastRange.to > firstRange.from
+          ) {
+            marks.push({ from: firstRange.from, to: lastRange.to, cls: 'cm-lp-link' })
+            inline.push({
+              kind: 'hide',
+              from: range.from,
+              to: firstRange.from,
+              revealFrom: range.from,
+              revealTo: range.to
+            })
+            inline.push({
+              kind: 'hide',
+              from: lastRange.to,
+              to: range.to,
+              revealFrom: range.from,
+              revealTo: range.to
+            })
+          }
+        }
+        break
+      }
+      case 'list': {
+        // Ordered-list numbers stay literal — only unordered markers get a
+        // bullet widget. Marker width comes from the gap between the item's
+        // own start and its first child's start, which remark already
+        // computed exactly (indentation, marker char, following space all
+        // accounted for) — no need to re-derive it with a regex.
+        if (range && node.ordered !== true && node.children !== undefined) {
+          for (const item of node.children) {
+            const itemRange = spanOf(item)
+            const firstChild = item.children?.[0]
+            const contentRange = firstChild ? spanOf(firstChild) : undefined
+            if (itemRange && contentRange && contentRange.from > itemRange.from) {
+              const line = lineBoundsAt(source, itemRange.from)
+              inline.push({
+                kind: 'bullet',
+                from: itemRange.from,
+                to: contentRange.from,
+                revealFrom: line.from,
+                revealTo: line.to
+              })
+            }
+          }
+        }
+        break
+      }
+      case 'blockquote': {
+        if (range) {
+          let cursor = lineBoundsAt(source, range.from).from
+          while (cursor < range.to) {
+            const bounds = lineBoundsAt(source, cursor)
+            if (!seenQuoteLines.has(bounds.from)) {
+              seenQuoteLines.add(bounds.from)
+              const markerMatch = QUOTE_MARKER.exec(source.slice(bounds.from, bounds.to))
+              if (markerMatch !== null && markerMatch[0].length > 0) {
+                inline.push({
+                  kind: 'hide',
+                  from: bounds.from,
+                  to: bounds.from + markerMatch[0].length,
+                  revealFrom: bounds.from,
+                  revealTo: bounds.to
+                })
+              }
+              lines.push({ at: bounds.from, cls: 'cm-lp-quote' })
+            }
+            if (bounds.to >= range.to) break
+            cursor = bounds.to + 1
+          }
         }
         break
       }
@@ -460,6 +684,29 @@ class FigureWidget extends WidgetType {
   }
 }
 
+/** Fixed-width glyph standing in for a hidden '-'/'*'/'+' + following space.
+ *  Stateless (no eq() fields to compare beyond the class default identity
+ *  match), so a single shared instance covers every bullet in the doc. */
+class BulletWidget extends WidgetType {
+  override eq(): boolean {
+    return true
+  }
+  override toDOM(): HTMLElement {
+    const el = document.createElement('span')
+    el.className = 'cm-lp-bullet'
+    el.textContent = '•'
+    return el
+  }
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
+const bulletWidget = new BulletWidget()
+/** Shared zero-width replace — safe to reuse across ranges (CodeMirror decorations are position-independent specs). */
+const hideDecoration = Decoration.replace({})
+const bulletDecoration = Decoration.replace({ widget: bulletWidget })
+
 function decorationFor(span: LiveSpan): Decoration {
   switch (span.kind) {
     case 'blockMath':
@@ -474,7 +721,21 @@ function decorationFor(span: LiveSpan): Decoration {
       return Decoration.replace({ widget: new CiteWidget(span.keys) })
     case 'xref':
       return Decoration.replace({ widget: new XrefWidget(span.refKind, span.id, span.suffix) })
+    case 'hide':
+      return hideDecoration
+    case 'bullet':
+      return bulletDecoration
   }
+}
+
+/** The selection range that must be avoided for a span's hide to apply —
+ *  its own bounds for math/cite/xref, the wider carried reveal range for
+ *  hide/bullet spans (see the LiveSpan doc comment). */
+function revealRangeFor(span: LiveSpan): OffsetRange {
+  if (span.kind === 'hide' || span.kind === 'bullet') {
+    return { from: span.revealFrom, to: span.revealTo }
+  }
+  return { from: span.from, to: span.to }
 }
 
 /* ---------------------------------------------------------------------------
@@ -517,19 +778,30 @@ const liveField = StateField.define<LiveState>({
   provide: (field) => EditorView.decorations.from(field, (value) => value.blockDeco)
 })
 
-function buildInlineDeco(view: EditorView): DecorationSet {
-  const { index } = view.state.field(liveField)
-  const selection = view.state.selection
-  const doc = view.state.doc
+/**
+ * Pure decoration builder — the "plugin's decoration builder" tests drive
+ * directly against a headless EditorState (this repo has no DOM test
+ * environment; see editor/keymap.test.ts). Takes visibleRanges explicitly
+ * rather than an EditorView so a test can pass `[{ from: 0, to: doc.length }]`
+ * without constructing a real view.
+ */
+export function buildInlineDecorations(
+  state: EditorState,
+  visibleRanges: readonly { from: number; to: number }[]
+): DecorationSet {
+  const { index } = state.field(liveField)
+  const selection = state.selection
+  const doc = state.doc
   const ranges: Range<Decoration>[] = []
   const seen = new Set<object>()
 
-  for (const { from, to } of view.visibleRanges) {
+  for (const { from, to } of visibleRanges) {
     for (const span of index.inline) {
       if (span.to < from || span.from > to || span.to > doc.length) continue
       if (seen.has(span)) continue
       seen.add(span)
-      if (selectionTouches(selection, span.from, span.to)) continue
+      const reveal = revealRangeFor(span)
+      if (selectionTouches(selection, reveal.from, reveal.to)) continue
       ranges.push(decorationFor(span).range(span.from, span.to))
     }
     for (const mark of index.marks) {
@@ -553,11 +825,11 @@ const inlinePlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
     constructor(view: EditorView) {
-      this.decorations = buildInlineDeco(view)
+      this.decorations = buildInlineDecorations(view.state, view.visibleRanges)
     }
     update(update: ViewUpdate): void {
       if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildInlineDeco(update.view)
+        this.decorations = buildInlineDecorations(update.view.state, update.view.visibleRanges)
       }
     }
   },

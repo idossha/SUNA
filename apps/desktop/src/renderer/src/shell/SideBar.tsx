@@ -64,7 +64,12 @@ export function SideBar(): JSX.Element {
   }
 
   const onResizeEnd = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (dragRef.current?.pointerId !== event.pointerId) return
+    const drag = dragRef.current
+    if (drag?.pointerId !== event.pointerId) return
+    // Commit where the pointer was released: a fast drag can have its last
+    // pointermove events coalesced away, which used to leave the sidebar
+    // parked short of where the user let go.
+    useUiStore.getState().setSidebarWidth(event.clientX - drag.left)
     dragRef.current = null
     setResizing(false)
   }

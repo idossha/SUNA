@@ -57,6 +57,26 @@ const api = {
   },
 
   /**
+   * Subscribe to "the open project's suna.json changed on disk"
+   * (EVENT_CHANNELS.projectManifestChanged) — an edit made outside the app by
+   * an agent, the terminal, or another editor. Returns an unsubscribe function.
+   */
+  onProjectManifestChanged: (listener: (payload: { dir: string }) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.projectManifestChanged
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      const dir =
+        typeof payload === 'object' && payload !== null && 'dir' in payload
+          ? (payload as { dir: unknown }).dir
+          : null
+      if (typeof dir === 'string') listener({ dir })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
    * Subscribe to status-line pushes for one 'lit:ai-search' run
    * (EVENT_CHANNELS.litProgress). Returns an unsubscribe function.
    */

@@ -46,10 +46,25 @@ import {
 } from './services/lit'
 import { updateManuscript } from './services/manuscript'
 import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
-import { createProject, openProject, scaffoldStatus } from './services/project'
+import {
+  checkScaffoldTarget,
+  createProject,
+  listImportableFiles,
+  openProject,
+  scaffoldProject,
+  scaffoldStatus,
+  updateProjectSettings
+} from './services/project'
+import { watchProjectManifest } from './services/projectWatch'
 import { allowRoot } from './services/roots'
-import { detectEnvs, selectEnv, selectedEnv } from './services/envs'
-import { readSettings, writeSettings } from './services/settings'
+import { createEnvWithUv, detectEnvs, selectEnv, selectedEnv, uvAvailable } from './services/envs'
+import {
+  forgetRecentProject,
+  listRecentProjects,
+  readSettings,
+  touchRecentProject,
+  writeSettings
+} from './services/settings'
 import {
   createTerminal,
   killTerminal,
@@ -143,6 +158,36 @@ async function ensureExampleProjectCopy(): Promise<string> {
   return target
 }
 
+/**
+ * Record a project open in the recents list. Best-effort by design: a settings
+ * write that fails must never stop a project from opening — it is logged, and
+ * the welcome screen simply misses one row.
+ */
+async function noteRecentProject(dir: string, name: string): Promise<void> {
+  try {
+    await touchRecentProject(dir, name)
+  } catch (error) {
+    console.warn('could not record recent project:', error)
+  }
+}
+
+/**
+ * Follow the newly-opened project's suna.json (feature-plan-5 §4). Every entry
+ * point that makes a project "the open one" calls this, so an external edit —
+ * an agent, `$` in the terminal, another editor — reaches the renderer's
+ * resolver without a restart. Best-effort: a project that cannot be watched
+ * still opens, it just loses live re-resolution.
+ */
+function followProjectManifest(dir: string): void {
+  watchProjectManifest(dir, (changed) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.webContents.isDestroyed()) {
+        win.webContents.send(EVENT_CHANNELS.projectManifestChanged, { dir: changed })
+      }
+    }
+  })
+}
+
 /** Register a handler with request/response zod validation on both edges. */
 function handle<C extends ChannelName>(
   channel: C,
@@ -157,14 +202,44 @@ function handle<C extends ChannelName>(
 }
 
 export function registerIpcHandlers(): void {
-  handle('project:create', ({ dir, name }) => createProject(dir, name))
-  handle('project:open', ({ dir }) => openProject(dir))
+  handle('project:create', async ({ dir, name }) => {
+    const manifest = await createProject(dir, name)
+    await noteRecentProject(dir, manifest.name)
+    followProjectManifest(dir)
+    return manifest
+  })
+  handle('project:open', async ({ dir }) => {
+    const opened = await openProject(dir)
+    await noteRecentProject(dir, opened.manifest.name)
+    followProjectManifest(dir)
+    return opened
+  })
   handle('project:open-example', async () => {
     const dir = await ensureExampleProjectCopy()
     const { manifest } = await openProject(dir)
+    await noteRecentProject(dir, manifest.name)
+    followProjectManifest(dir)
     return { dir, manifest }
   })
   handle('project:scaffold-status', ({ dir }) => scaffoldStatus(dir))
+  handle('project:update-settings', async ({ dir, patch }) => ({
+    manifest: await updateProjectSettings(dir, patch)
+  }))
+  handle('project:check-target', ({ parentDir, name }) => checkScaffoldTarget(parentDir, name))
+  handle('project:list-importable', async ({ dir }) => ({ files: await listImportableFiles(dir) }))
+  handle('project:scaffold', async (req) => {
+    const result = await scaffoldProject(req)
+    await noteRecentProject(req.dir, result.manifest.name)
+    followProjectManifest(req.dir)
+    return result
+  })
+  handle('project:recents', async () => ({ recents: await listRecentProjects() }))
+  handle('project:touch-recent', async ({ path, name }) => ({
+    recents: await touchRecentProject(path, name)
+  }))
+  handle('project:forget-recent', async ({ path }) => ({
+    recents: await forgetRecentProject(path)
+  }))
 
   handle('fs:read-text', async ({ path }) => ({ content: await readText(path) }))
   handle('fs:write-text', async ({ path, content }) => ({
@@ -336,6 +411,8 @@ export function registerIpcHandlers(): void {
     return {}
   })
   handle('env:selected', async ({ dir }) => ({ envPath: await selectedEnv(dir) }))
+  handle('env:uv-available', async () => ({ available: await uvAvailable() }))
+  handle('env:create', ({ dir }) => createEnvWithUv(dir))
 
   handle('settings:get', async () => ({ settings: await readSettings() }))
   handle('settings:set', async ({ patch }) => ({ settings: await writeSettings(patch) }))

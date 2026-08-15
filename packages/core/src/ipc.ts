@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { LitCliIdSchema, LitProviderIdSchema } from './lit';
-import { ProjectDirKeySchema, SunaProjectManifestSchema } from './project';
+import {
+  ProjectDirKeySchema,
+  ProjectSettingsSchema,
+  RecentProjectSchema,
+  SunaProjectManifestSchema,
+} from './project';
 
 export interface FsFileNode {
   kind: 'file';
@@ -45,6 +50,16 @@ export interface ChannelContract {
  */
 export const MAX_READ_BINARY_BYTES = 200 * 1024 * 1024;
 
+/**
+ * A recents row as the welcome screen receives it: the persisted entry plus a
+ * freshly stat'd `exists` (the directory still holds a suna.json). Only
+ * `path`/`name`/`lastOpenedAt` are stored in settings.
+ */
+export const RecentProjectEntrySchema = RecentProjectSchema.extend({
+  exists: z.boolean(),
+});
+export type RecentProjectEntry = z.infer<typeof RecentProjectEntrySchema>;
+
 export const CHANNELS = {
   'project:create': {
     request: z.object({
@@ -65,6 +80,101 @@ export const CHANNELS = {
     response: z.object({
       manifestPresent: z.boolean(),
       dirs: z.record(ProjectDirKeySchema, z.boolean()),
+    }),
+  },
+  /**
+   * Read-merge-validate-write on suna.json's `settings` block — the project
+   * half of the settings hierarchy (feature-plan-5 §4). Main re-reads the file
+   * from disk, merges `patch` into `settings` (see mergeProjectSettings: null
+   * DELETES a key, which is how "Reset to global" leaves a clean file),
+   * validates the result with SunaProjectManifestSchema and writes atomically.
+   * Never touches global settings, and never touches any manifest key outside
+   * `settings`. Build the patch with projectSettingPatch(key, value).
+   */
+  'project:update-settings': {
+    request: z.object({ dir: z.string().min(1), patch: ProjectSettingsSchema }),
+    response: z.object({ manifest: SunaProjectManifestSchema }),
+  },
+  /**
+   * Recent projects for the welcome screen, most-recent first (feature-plan-5
+   * §1). Persisted in GLOBAL settings under 'recentProjects'; `exists` is
+   * recomputed on every read (true = the directory still holds a suna.json) so
+   * a deleted project can render its "Missing" state without being opened.
+   */
+  'project:recents': {
+    request: z.object({}),
+    response: z.object({ recents: z.array(RecentProjectEntrySchema) }),
+  },
+  /**
+   * Record an open. Callers rarely need this: project:create / project:open /
+   * project:open-example already touch recents themselves. Deduped by path,
+   * capped at 10.
+   */
+  'project:touch-recent': {
+    request: z.object({ path: z.string().min(1), name: z.string().min(1) }),
+    response: z.object({ recents: z.array(RecentProjectEntrySchema) }),
+  },
+  /** Drop one entry (the "Remove" action on a missing project). */
+  'project:forget-recent': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({ recents: z.array(RecentProjectEntrySchema) }),
+  },
+  /**
+   * Onboarding wizard step 1 live validation (feature-plan-5 §5): does
+   * `<parentDir>/<name>` already exist, and can `parentDir` be written to.
+   * Pure filename-shape checks (empty/illegal characters) run in the renderer
+   * without a round trip — this only answers questions the filesystem knows.
+   */
+  'project:check-target': {
+    request: z.object({ parentDir: z.string().min(1), name: z.string().min(1) }),
+    response: z.object({
+      path: z.string().min(1),
+      exists: z.boolean(),
+      parentWritable: z.boolean(),
+    }),
+  },
+  /**
+   * Onboarding wizard step 3 "Import existing": shallow-scans `dir` (depth
+   * capped, `.git`/`node_modules`/venvs skipped) for `.md`/`.tex`/`.bib`
+   * files so the step can list what will be copied in before anything is
+   * written.
+   */
+  'project:list-importable': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      files: z.array(
+        z.object({
+          path: z.string().min(1),
+          name: z.string().min(1),
+          ext: z.enum(['md', 'tex', 'bib']),
+        }),
+      ),
+    }),
+  },
+  /**
+   * Onboarding wizard step 7 "Create project" (feature-plan-5 §5): the one
+   * call that actually writes anything — directories, suna.json, the
+   * scaffolded/imported manuscript, and (best-effort) a git init + first
+   * commit. Never called before the review step. `settings` is the step-6
+   * "save to this project" patch (possibly empty). Distinct from
+   * 'project:create', which always writes the fixed starter manuscript with
+   * no profile/scaffold-kind/import choice.
+   */
+  'project:scaffold': {
+    request: z.object({
+      dir: z.string().min(1),
+      name: z.string().min(1),
+      activeProfileId: z.string().min(1),
+      scaffold: z.enum(['blank', 'starter', 'import']),
+      /** Source folder for 'import'; ignored otherwise. */
+      importDir: z.string().min(1).nullable(),
+      settings: ProjectSettingsSchema,
+    }),
+    response: z.object({
+      manifest: SunaProjectManifestSchema,
+      gitInitialized: z.boolean(),
+      /** Non-fatal issues (e.g. git unavailable, an import name collision). */
+      warnings: z.array(z.string()),
     }),
   },
   'fs:read-text': {
@@ -252,6 +362,26 @@ export const CHANNELS = {
   'env:selected': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({ envPath: z.string().min(1).nullable() }),
+  },
+  /** Onboarding wizard step 4: is `uv` on PATH, so "create with uv" can be offered honestly. */
+  'env:uv-available': {
+    request: z.object({}),
+    response: z.object({ available: z.boolean() }),
+  },
+  /**
+   * Onboarding wizard step 7's env sub-step: runs `uv venv` in `dir` (the
+   * just-created project). Never called before the project exists — step 4
+   * only records the choice, per §5's "nothing written until Create". `error`
+   * is a human message (e.g. uv missing); `ok: false` never throws, so a
+   * missing `uv` does not fail the rest of creation.
+   */
+  'env:create': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      ok: z.boolean(),
+      envPath: z.string().min(1).nullable(),
+      error: z.string().nullable(),
+    }),
   },
   'settings:get': {
     request: z.object({}),
@@ -467,6 +597,15 @@ export const EVENT_CHANNELS = {
   aiAskProgress: (askId: string) => `ai:progress:${askId}`,
   /** Terminal event for one 'ai:ask' run: `{ text: string | null, error: string | null }`. */
   aiAskDone: (askId: string) => `ai:done:${askId}`,
+  /**
+   * The open project's `suna.json` changed on disk (feature-plan-5 §4: "watch
+   * suna.json for external edits — the user typing in it, or an agent — and
+   * re-resolve live"). Payload: `{ dir: string }`, the project root whose
+   * manifest moved. A single channel rather than a per-project one: exactly
+   * one project is open at a time, and the payload names it so a stale push
+   * for a project the renderer already closed can be ignored.
+   */
+  projectManifestChanged: 'project:manifest-changed',
 } as const;
 
 export type ChannelName = keyof typeof CHANNELS;

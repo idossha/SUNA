@@ -1,0 +1,496 @@
+/* ---------------------------------------------------------------------------
+   Onboarding wizard dock tab (feature-plan-5 §5). Tokens only.
+   --------------------------------------------------------------------------- */
+
+.onboard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-editor);
+  color: var(--s-ink);
+}
+
+.onboard__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 32px 14px;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.onboard__eyebrow {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--s-accent);
+  margin-bottom: 6px;
+}
+
+.onboard__title {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.onboard__cancel {
+  padding: 5px 12px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  flex-shrink: 0;
+}
+
+.onboard__cancel:hover {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+/* ---- step indicator -------------------------------------------------- */
+
+.onboard__steps {
+  flex-shrink: 0;
+  display: flex;
+  padding: 14px 32px;
+  gap: 4px;
+  border-bottom: 1px solid var(--s-border);
+  overflow-x: auto;
+}
+
+.onboard__step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  white-space: nowrap;
+}
+
+.onboard__step-num {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1px solid var(--s-border-strong);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.onboard__step--done .onboard__step-num {
+  background: var(--s-bg-active);
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+.onboard__step--active {
+  color: var(--s-ink);
+}
+
+.onboard__step--active .onboard__step-num {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+/* ---- body -------------------------------------------------------------- */
+
+.onboard__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px 32px 40px;
+}
+
+.onboard__step-page {
+  max-width: 720px;
+}
+
+.onboard__step-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.onboard__step-sub {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-faint);
+  line-height: 1.6;
+  margin-bottom: 22px;
+  max-width: 560px;
+}
+
+.onboard__error {
+  margin-bottom: 16px;
+  padding: 9px 11px;
+  border: 1px solid var(--s-border-strong);
+  border-left: 2px solid var(--s-err);
+  border-radius: var(--s-radius);
+  color: var(--s-err);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+  user-select: text;
+}
+
+.onboard__warning {
+  margin-bottom: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--s-border-strong);
+  border-left: 2px solid var(--s-warn);
+  border-radius: var(--s-radius);
+  color: var(--s-warn);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+  user-select: text;
+}
+
+/* ---- fields -------------------------------------------------------------- */
+
+.onboard__field {
+  margin-bottom: 18px;
+}
+
+.onboard__field label {
+  display: block;
+  font-size: var(--s-text-sm);
+  font-weight: 500;
+  color: var(--s-ink);
+  margin-bottom: 6px;
+}
+
+.onboard__field input[type='text'],
+.onboard__field select {
+  width: 100%;
+  max-width: 420px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  outline: none;
+}
+
+.onboard__field input[type='text']:focus,
+.onboard__field select:focus {
+  border-color: var(--s-accent);
+}
+
+.onboard__field-hint {
+  margin-top: 5px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  line-height: 1.5;
+}
+
+.onboard__field-error {
+  margin-top: 5px;
+  font-size: var(--s-text-xs);
+  color: var(--s-err);
+}
+
+.onboard__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.onboard__path {
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  overflow-x: auto;
+  white-space: nowrap;
+  user-select: text;
+}
+
+/* ---- choice cards (profiles, scaffold kind, AI) --------------------------- */
+
+.onboard__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.onboard__card {
+  text-align: left;
+  padding: 14px 15px;
+  border: 1px solid var(--s-border);
+  border-radius: calc(var(--s-radius) * 2);
+  background: var(--s-bg-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboard__card:hover {
+  border-color: var(--s-border-strong);
+}
+
+.onboard__card--selected {
+  border-color: var(--s-accent);
+  background: var(--s-bg-active);
+}
+
+.onboard__card-title {
+  font-size: var(--s-text-md);
+  font-weight: 600;
+}
+
+.onboard__card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.onboard__card-meta span {
+  color: var(--s-ink-faint);
+}
+
+.onboard__card-note {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  line-height: 1.5;
+}
+
+/* ---- radio rows (scaffold kind, python, AI, review-adjacent choices) ------ */
+
+.onboard__choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--s-border);
+  cursor: pointer;
+}
+
+.onboard__choice:last-child {
+  border-bottom: none;
+}
+
+.onboard__choice input[type='radio'],
+.onboard__choice input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: var(--s-accent);
+  flex-shrink: 0;
+}
+
+.onboard__choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.onboard__choice-title {
+  font-size: var(--s-text-md);
+  color: var(--s-ink);
+}
+
+.onboard__choice-hint {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  line-height: 1.5;
+}
+
+.onboard__sublist {
+  margin: 8px 0 4px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onboard__filelist {
+  margin-top: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-raised);
+}
+
+.onboard__filelist-row {
+  display: flex;
+  gap: 8px;
+  padding: 5px 10px;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  border-bottom: 1px solid var(--s-border);
+}
+
+.onboard__filelist-row:last-child {
+  border-bottom: none;
+}
+
+.onboard__filelist-ext {
+  color: var(--s-ink-faint);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* ---- review step ----------------------------------------------------------- */
+
+.onboard__review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.onboard__review-section {
+  margin-bottom: 20px;
+}
+
+.onboard__review-label {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+  margin-bottom: 8px;
+}
+
+.onboard__review-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.onboard__review-summary span {
+  color: var(--s-ink-faint);
+  margin-right: 6px;
+}
+
+.onboard__tree,
+.onboard__review-json {
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  line-height: 1.6;
+  padding: 10px 12px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  overflow: auto;
+  max-height: 320px;
+  white-space: pre;
+  user-select: text;
+}
+
+/* ---- create progress -------------------------------------------------------- */
+
+.onboard__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.onboard__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-faint);
+}
+
+.onboard__progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--s-border-strong);
+  flex-shrink: 0;
+}
+
+.onboard__progress-row--active {
+  color: var(--s-ink);
+}
+
+.onboard__progress-row--active .onboard__progress-dot {
+  border-color: var(--s-accent);
+  background: var(--s-accent);
+}
+
+.onboard__progress-row--done {
+  color: var(--s-ok);
+}
+
+.onboard__progress-row--done .onboard__progress-dot {
+  border-color: var(--s-ok);
+  background: var(--s-ok);
+}
+
+.onboard__progress-row--error {
+  color: var(--s-err);
+}
+
+.onboard__progress-row--error .onboard__progress-dot {
+  border-color: var(--s-err);
+  background: var(--s-err);
+}
+
+.onboard__progress-row--skipped {
+  color: var(--s-ink-faint);
+  text-decoration: line-through;
+}
+
+/* ---- footer -------------------------------------------------------------- */
+
+.onboard__footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  border-top: 1px solid var(--s-border);
+}
+
+.onboard__footer-right {
+  display: flex;
+  gap: 10px;
+}
+
+.onboard__back,
+.onboard__next,
+.onboard__create {
+  padding: 7px 18px;
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-md);
+  border: 1px solid var(--s-border-strong);
+  color: var(--s-ink);
+}
+
+.onboard__next,
+.onboard__create {
+  border-color: var(--s-accent);
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  font-weight: 600;
+}
+
+.onboard__back:hover {
+  background: var(--s-bg-hover);
+}
+
+.onboard__next:hover:not(:disabled),
+.onboard__create:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.onboard__back:disabled,
+.onboard__next:disabled,
+.onboard__create:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

@@ -6,6 +6,7 @@ import { dataviewDevSeam } from './dataview/devSeam'
 import { schemaDevSeam } from './dev/schemaSeam'
 import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
+import { onboardingSeam } from './onboarding/devSeam'
 import { settingsDevSeam } from './settings/devSeam'
 import { terminalDevSeam } from './terminal/devSeam'
 import { commandsDevSeam } from './state/commands'
@@ -67,11 +68,19 @@ if (import.meta.env.DEV) {
       // citekey -> resolved PDF map (§3/§4), scanned per project + saveBump.
       referencePdfsStore: useReferencePdfsStore,
       getReferencePdf,
-      // Global settings store (e.g. 'references.autoOpenPdf', §4).
+      // Settings store (feature-plan-4 §4's 'references.autoOpenPdf', and
+      // feature-plan-5 §4's two-level hierarchy: `resolved.value` /
+      // `resolved.sources` per key, plus setGlobal/setProject/clearProject and
+      // refreshProjectSettings for an out-of-band suna.json edit).
       settingsStore: settingsDevSeam.settingsStore,
       settingsDefaults: settingsDevSeam.defaults,
       // Integrated terminal (§5 '$' mode): tab metadata + the panel store.
-      terminal: terminalDevSeam
+      terminal: terminalDevSeam,
+      // --- feature-plan-5 -------------------------------------------------
+      // Onboarding wizard (§5): read/patch the visible wizard's state so a
+      // driver can walk all seven steps past step 1's NATIVE folder picker,
+      // which CDP cannot drive (onboarding/devSeam.ts).
+      onboarding: onboardingSeam
     }
   })
 }

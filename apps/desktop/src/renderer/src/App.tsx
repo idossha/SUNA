@@ -10,6 +10,7 @@ import { EditorTab } from './editor/EditorTab'
 import { CanvasTab } from './canvas/CanvasTab'
 import { DataGridTab } from './dataview/DataGridTab'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
+import { OnboardingTab } from './onboarding/OnboardingTab'
 import { SettingsTab } from './settings/SettingsTab'
 import { TerminalPanel } from './terminal/TerminalPanel'
 import { PdfTab } from './viewer/PdfTab'
@@ -19,6 +20,9 @@ import { useUiStore } from './state/ui'
 import { setDockApi } from './state/dock'
 // Registers the app's built-in commands as an import side effect (state/commands.ts).
 import './state/commands'
+// Feeds resolved project/global settings into the editor surface store
+// (feature-plan-5 §4) as an import side effect — see state/editorSettingsBridge.ts.
+import './state/editorSettingsBridge'
 
 const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
@@ -26,6 +30,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   canvas: CanvasTab,
   dataview: DataGridTab,
   manuscript: ManuscriptTab,
+  onboarding: OnboardingTab,
   settings: SettingsTab,
   pdf: PdfTab,
   image: ImageTab

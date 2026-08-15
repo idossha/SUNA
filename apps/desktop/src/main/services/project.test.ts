@@ -1,0 +1,327 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { DEFAULT_PROJECT_DIRS, ManuscriptSchema, SunaProjectManifestSchema } from '@suna/core'
+import {
+  checkScaffoldTarget,
+  listImportableFiles,
+  scaffoldProject,
+  updateProjectSettings
+} from './project'
+import { allowRoot } from './roots'
+
+let dir = ''
+let manifestFile = ''
+
+const baseManifest = {
+  schemaVersion: 1,
+  name: 'my-paper',
+  activeProfileId: 'nature-astronomy',
+  directories: DEFAULT_PROJECT_DIRS,
+  createdAt: '2026-08-13T09:30:00.000Z'
+}
+
+async function writeManifest(value: unknown): Promise<void> {
+  await writeFile(manifestFile, JSON.stringify(value, null, 2) + '\n', 'utf8')
+}
+
+async function readManifest(): Promise<Record<string, unknown>> {
+  return JSON.parse(await readFile(manifestFile, 'utf8')) as Record<string, unknown>
+}
+
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), 'suna-project-settings-'))
+  allowRoot(dir)
+  manifestFile = join(dir, 'suna.json')
+  await writeManifest(baseManifest)
+})
+
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true })
+})
+
+describe('suna.json compatibility', () => {
+  it('still parses the shipped demo project, which predates the settings block', async () => {
+    const path = fileURLToPath(
+      new URL('../../../../../examples/demo-paper/suna.json', import.meta.url)
+    )
+    const parsed = SunaProjectManifestSchema.safeParse(
+      JSON.parse(await readFile(path, 'utf8')) as unknown
+    )
+    expect(parsed.success).toBe(true)
+    expect(parsed.success && parsed.data.settings).toBeUndefined()
+  })
+})
+
+describe('updateProjectSettings', () => {
+  it('adds a settings block and leaves every other manifest key alone', async () => {
+    const manifest = await updateProjectSettings(dir, { editor: { contentWidthCh: 90 } })
+    expect(manifest.settings?.editor?.contentWidthCh).toBe(90)
+    const onDisk = await readManifest()
+    expect(onDisk['settings']).toEqual({ editor: { contentWidthCh: 90 } })
+    expect(onDisk['name']).toBe('my-paper')
+    expect(onDisk['createdAt']).toBe(baseManifest.createdAt)
+  })
+
+  it('merges a second key into the existing block', async () => {
+    await updateProjectSettings(dir, { editor: { contentWidthCh: 90 } })
+    await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
+    expect((await readManifest())['settings']).toEqual({
+      editor: { contentWidthCh: 90, fontSizePx: 18 }
+    })
+  })
+
+  it('deletes a key on null and prunes the block when it empties', async () => {
+    await updateProjectSettings(dir, { editor: { contentWidthCh: 90, fontSizePx: 18 } })
+    await updateProjectSettings(dir, { editor: { contentWidthCh: null } })
+    expect((await readManifest())['settings']).toEqual({ editor: { fontSizePx: 18 } })
+    await updateProjectSettings(dir, { editor: { fontSizePx: null } })
+    expect('settings' in (await readManifest())).toBe(false)
+  })
+
+  it('re-reads the file, so a concurrent external edit is never clobbered', async () => {
+    await updateProjectSettings(dir, { editor: { contentWidthCh: 90 } })
+    // An agent (or the user, in the editor) renames the project on disk.
+    await writeManifest({
+      ...baseManifest,
+      name: 'renamed-by-an-agent',
+      settings: { editor: { contentWidthCh: 90 } }
+    })
+    const manifest = await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
+    expect(manifest.name).toBe('renamed-by-an-agent')
+    expect((await readManifest())['name']).toBe('renamed-by-an-agent')
+  })
+
+  it('preserves manifest keys the schema does not know about', async () => {
+    await writeManifest({ ...baseManifest, futureKey: { keepMe: true } })
+    await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
+    expect((await readManifest())['futureKey']).toEqual({ keepMe: true })
+  })
+
+  it('rejects an out-of-range value and leaves the file untouched', async () => {
+    const before = await readFile(manifestFile, 'utf8')
+    await expect(updateProjectSettings(dir, { editor: { fontSizePx: 400 } })).rejects.toThrow()
+    expect(await readFile(manifestFile, 'utf8')).toBe(before)
+  })
+
+  it('refuses a manifest that is already invalid rather than half-fixing it', async () => {
+    await writeManifest({ ...baseManifest, schemaVersion: 2 })
+    await expect(updateProjectSettings(dir, { editor: { fontSizePx: 18 } })).rejects.toThrow()
+  })
+
+  it('reports unparseable JSON honestly', async () => {
+    await writeFile(manifestFile, '{ not json', 'utf8')
+    await expect(updateProjectSettings(dir, {})).rejects.toThrow(/not valid JSON/)
+  })
+
+  it('refuses a directory that is not a project', async () => {
+    const empty = await mkdtemp(join(tmpdir(), 'suna-not-a-project-'))
+    allowRoot(empty)
+    await expect(updateProjectSettings(empty, {})).rejects.toThrow(/no suna\.json/)
+    await rm(empty, { recursive: true, force: true })
+  })
+
+  it('refuses a path outside every open project root', async () => {
+    await expect(updateProjectSettings('/definitely/not/open', {})).rejects.toThrow(
+      /outside any open project/
+    )
+  })
+
+  it('writes atomically, leaving no temp files behind', async () => {
+    await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
+    const entries = await readdir(dir)
+    expect(entries.filter((name) => name.endsWith('.tmp'))).toEqual([])
+  })
+})
+
+describe('checkScaffoldTarget', () => {
+  it('reports the resolved path, exists:false, and a writable parent', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'suna-onboard-parent-'))
+    const result = await checkScaffoldTarget(parent, 'my-new-paper')
+    expect(result).toEqual({
+      path: join(parent, 'my-new-paper'),
+      exists: false,
+      parentWritable: true
+    })
+    await rm(parent, { recursive: true, force: true })
+  })
+
+  it('reports exists:true when the target directory is already there', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'suna-onboard-parent-'))
+    await mkdir(join(parent, 'taken'))
+    const result = await checkScaffoldTarget(parent, 'taken')
+    expect(result.exists).toBe(true)
+    await rm(parent, { recursive: true, force: true })
+  })
+
+  it('reports parentWritable:false for a parent that does not exist', async () => {
+    const result = await checkScaffoldTarget('/definitely/does/not/exist/anywhere', 'x')
+    expect(result.parentWritable).toBe(false)
+  })
+})
+
+describe('listImportableFiles', () => {
+  it('finds .md/.tex/.bib files (including nested), skipping .git and everything else', async () => {
+    const src = await mkdtemp(join(tmpdir(), 'suna-import-src-'))
+    await writeFile(join(src, 'intro.md'), '# intro')
+    await writeFile(join(src, 'paper.tex'), '\\documentclass{article}')
+    await writeFile(join(src, 'refs.bib'), '@article{a,}')
+    await writeFile(join(src, 'notes.txt'), 'not imported')
+    await mkdir(join(src, '.git'))
+    await writeFile(join(src, '.git', 'HEAD'), 'ref: refs/heads/main')
+    await mkdir(join(src, 'sub'))
+    await writeFile(join(src, 'sub', 'appendix.md'), '# appendix')
+
+    const files = await listImportableFiles(src)
+    expect(files.map((f) => f.name).sort()).toEqual([
+      'appendix.md',
+      'intro.md',
+      'paper.tex',
+      'refs.bib'
+    ])
+    expect(files.every((f) => f.path.startsWith(src))).toBe(true)
+    expect(files.find((f) => f.name === 'refs.bib')?.ext).toBe('bib')
+    await rm(src, { recursive: true, force: true })
+  })
+
+  it('returns an empty list for a directory with nothing importable', async () => {
+    const src = await mkdtemp(join(tmpdir(), 'suna-import-empty-'))
+    await writeFile(join(src, 'data.csv'), 'a,b\n1,2')
+    expect(await listImportableFiles(src)).toEqual([])
+    await rm(src, { recursive: true, force: true })
+  })
+})
+
+describe('scaffoldProject', () => {
+  let parent = ''
+  let target = ''
+
+  beforeEach(async () => {
+    parent = await mkdtemp(join(tmpdir(), 'suna-scaffold-parent-'))
+    target = join(parent, 'new-paper')
+  })
+
+  afterEach(async () => {
+    await rm(parent, { recursive: true, force: true })
+  })
+
+  it('refuses a directory that is already a SUNA project', async () => {
+    await mkdir(target, { recursive: true })
+    await writeFile(join(target, 'suna.json'), JSON.stringify(baseManifest))
+    await expect(
+      scaffoldProject({
+        dir: target,
+        name: 'x',
+        activeProfileId: 'nature-astronomy',
+        scaffold: 'blank',
+        importDir: null,
+        settings: {}
+      })
+    ).rejects.toThrow(/already a SUNA project/)
+  })
+
+  it('writes a schema-valid, git-initialized blank project with no demo prose', async () => {
+    const result = await scaffoldProject({
+      dir: target,
+      name: 'My New Paper',
+      activeProfileId: 'science',
+      scaffold: 'blank',
+      importDir: null,
+      settings: {}
+    })
+    expect(result.manifest.activeProfileId).toBe('science')
+    expect(result.manifest.settings).toBeUndefined()
+    expect(result.gitInitialized).toBe(true)
+    expect(result.warnings).toEqual([])
+
+    const manifestOnDisk = SunaProjectManifestSchema.parse(
+      JSON.parse(await readFile(join(target, 'suna.json'), 'utf8'))
+    )
+    expect(manifestOnDisk.name).toBe('My New Paper')
+
+    const manuscript = ManuscriptSchema.parse(
+      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
+    )
+    expect(manuscript.body).toHaveLength(1)
+    expect(
+      await readFile(join(target, 'manuscript', 'sections', '01-introduction.md'), 'utf8')
+    ).toBe('')
+
+    const gitEntries = await readdir(join(target, '.git'))
+    expect(gitEntries.length).toBeGreaterThan(0)
+  })
+
+  it('writes the starter demo manuscript for scaffold "starter"', async () => {
+    const result = await scaffoldProject({
+      dir: target,
+      name: 'Starter Paper',
+      activeProfileId: 'nature-astronomy',
+      scaffold: 'starter',
+      importDir: null,
+      settings: {}
+    })
+    expect(result.warnings).toEqual([])
+    const intro = await readFile(join(target, 'manuscript', 'sections', '01-introduction.md'), 'utf8')
+    expect(intro).toContain('Galaxies falling into dense cluster environments')
+    const manuscript = ManuscriptSchema.parse(
+      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
+    )
+    expect(manuscript.body).toHaveLength(3)
+  })
+
+  it('writes the requested project-level settings block onto the manifest', async () => {
+    const result = await scaffoldProject({
+      dir: target,
+      name: 'Configured Paper',
+      activeProfileId: 'nature-astronomy',
+      scaffold: 'blank',
+      importDir: null,
+      settings: { editor: { contentWidthCh: 90, fontSizePx: 18 } }
+    })
+    expect(result.manifest.settings).toEqual({ editor: { contentWidthCh: 90, fontSizePx: 18 } })
+  })
+
+  it('copies imported files into manuscript/imported and points bibliography at the imported .bib', async () => {
+    const importSrc = await mkdtemp(join(tmpdir(), 'suna-import-src-'))
+    await writeFile(join(importSrc, 'draft.md'), '# Draft')
+    await writeFile(join(importSrc, 'refs.bib'), '@article{a,}')
+
+    const result = await scaffoldProject({
+      dir: target,
+      name: 'Imported Paper',
+      activeProfileId: 'nature-astronomy',
+      scaffold: 'import',
+      importDir: importSrc,
+      settings: {}
+    })
+    expect(result.warnings).toEqual([])
+    const imported = await readdir(join(target, 'manuscript', 'imported'))
+    expect(imported.sort()).toEqual(['draft.md', 'refs.bib'])
+    const manuscript = ManuscriptSchema.parse(
+      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
+    )
+    expect(manuscript.bibliography).toBe('imported/refs.bib')
+
+    await rm(importSrc, { recursive: true, force: true })
+  })
+
+  it('warns instead of failing when the import folder has nothing importable', async () => {
+    const importSrc = await mkdtemp(join(tmpdir(), 'suna-import-empty-'))
+    const result = await scaffoldProject({
+      dir: target,
+      name: 'Empty Import',
+      activeProfileId: 'nature-astronomy',
+      scaffold: 'import',
+      importDir: importSrc,
+      settings: {}
+    })
+    expect(result.warnings).toEqual([`No .md/.tex/.bib files found in ${importSrc}`])
+    const manuscript = ManuscriptSchema.parse(
+      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
+    )
+    expect(manuscript.bibliography).toBe('references.bib')
+    await rm(importSrc, { recursive: true, force: true })
+  })
+})

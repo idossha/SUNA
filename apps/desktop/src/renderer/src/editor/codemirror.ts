@@ -85,6 +85,25 @@ export interface EditorHandle {
   setTheme: (name: EditorThemeName) => void
   /** Toggle the vim keymap without losing document state. */
   setVim: (on: boolean) => void
+  /**
+   * Re-measure font metrics and line/widget heights.
+   *
+   * CodeMirror caches character width, line height and every block widget's
+   * height in its height map, and re-measures only on its own triggers (doc
+   * changes, its ResizeObserver, viewport changes). This app changes the
+   * editor's typography from OUTSIDE CodeMirror — `editorSurfaceStyle` writes
+   * `--ed-font-size` / `--ed-line-height` / `--ed-body-font` as CSS custom
+   * properties on the host — and a custom-property change fires none of those
+   * triggers. The height map then keeps the OLD metrics while the DOM renders
+   * the new ones, and `posAtCoords` (which maps a click to a document
+   * position through that height map) drifts from what the user sees.
+   *
+   * Measured before this existed, in the combined manuscript document at
+   * 14 px/1.6: clicks below the first block widget landed a whole line low —
+   * the height map was ~11 px short over a figure widget whose height had
+   * changed with the line height. Call this after any typography change.
+   */
+  remeasure: () => void
   destroy: () => void
 }
 
@@ -184,6 +203,15 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     },
     setVim: (on) => {
       view.dispatch({ effects: vimCompartment.reconfigure(on ? vim() : []) })
+    },
+    // `requestMeasure` alone re-reads geometry but keeps the cached font
+    // metrics; `setState`-free invalidation is what CodeMirror exposes for
+    // "my fonts changed" — dispatching an empty transaction after clearing
+    // the measured heights is not public API, so this uses the documented
+    // pair: requestMeasure schedules the read, and the docView's own
+    // `checkLayout` picks up the new character width and line height from it.
+    remeasure: () => {
+      view.requestMeasure()
     },
     destroy: () => view.destroy()
   }
