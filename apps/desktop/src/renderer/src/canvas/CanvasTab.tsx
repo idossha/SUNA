@@ -32,6 +32,7 @@ import {
   targetForElement
 } from './canvas-util'
 import { registerCanvasToolsProvider } from './dev-seam'
+import { registerCanvasPaletteContext } from './palette-actions'
 import { ToolRail } from './ToolRail'
 import { importOffset, nextImportGroupId, prepareSvgImport } from './import-svg'
 import { pngImageSnippet, pngSizeUserUnits } from './import-png'
@@ -586,6 +587,27 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
       note(`Could not save ${fileName}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
+
+  // Command palette seam: "Run Compliance Check" / "Export Figure as PNG/PDF"
+  // (feature-plan-4 §5) act on whichever figure is on screen.
+  useEffect(() => {
+    if (rootDir === null || figureId === null) return
+    return registerCanvasPaletteContext({
+      rootDir,
+      figureId,
+      profile,
+      get doc() {
+        // sessionRef can be replaced (a new file loads into the same tab id
+        // is not expected here, but the getter keeps this honest either way)
+        if (!sessionRef.current) throw new Error('figure not loaded yet')
+        return sessionRef.current.doc
+      },
+      save,
+      runCompliance,
+      isVisible: () => (viewportRef.current?.getBoundingClientRect().width ?? 0) > 0
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootDir, figureId, profile])
 
   // ---- clipboard-ish -------------------------------------------------------
   /** ⌘D: serialized copies from the ENGINE doc, +8/+8, one undo step. */

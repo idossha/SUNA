@@ -21,7 +21,10 @@ import { editorTheme } from './themes'
 import { contentKindFor } from './contentKind'
 import { formattingKeymap, type FormattingCallbacks } from './keymap'
 import { openContextMenu } from './ContextMenu'
+import { citationKeyAtLineOffset } from './citationHit'
+import { getReferencePdf } from '../state/referencePdfs'
 import type { EditorThemeName } from './settings'
+import type { OpenReferencePdfHit } from './contextMenuItems'
 
 /** Extension-based language pick. Anything unknown stays plain and falls
  *  back to the shared highlight style. */
@@ -85,6 +88,22 @@ export interface EditorHandle {
   destroy: () => void
 }
 
+/**
+ * The citation under a right-click, if any (feature-plan-4.md §3): hit-tests
+ * the click to a document position, slices out that line, and runs the pure
+ * `citationKeyAtLineOffset` grammar over it — then resolves the key against
+ * the project's reference-PDF map (state/referencePdfs.ts). Returns null
+ * (hiding the menu item) when the click landed off any citation.
+ */
+function citationHitAt(view: EditorView, clientX: number, clientY: number): OpenReferencePdfHit | null {
+  const pos = view.posAtCoords({ x: clientX, y: clientY })
+  if (pos === null) return null
+  const line = view.state.doc.lineAt(pos)
+  const key = citationKeyAtLineOffset(line.text, pos - line.from)
+  if (key === null) return null
+  return { key, path: getReferencePdf(key)?.path ?? null }
+}
+
 export function createEditor(options: CreateEditorOptions): EditorHandle {
   const themeCompartment = new Compartment()
   const liveCompartment = new Compartment()
@@ -135,7 +154,13 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
           EditorView.domEventHandlers({
             contextmenu: (event, view) => {
               event.preventDefault()
-              openContextMenu(view, event.clientX, event.clientY, formattingCallbacks)
+              openContextMenu(
+                view,
+                event.clientX,
+                event.clientY,
+                formattingCallbacks,
+                citationHitAt(view, event.clientX, event.clientY)
+              )
             }
           })
         ]

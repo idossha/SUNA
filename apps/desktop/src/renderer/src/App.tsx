@@ -12,8 +12,13 @@ import { DataGridTab } from './dataview/DataGridTab'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
 import { SettingsTab } from './settings/SettingsTab'
 import { TerminalPanel } from './terminal/TerminalPanel'
+import { PdfTab } from './viewer/PdfTab'
+import { ImageTab } from './viewer/ImageTab'
+import { CommandPalette } from './palette/CommandPalette'
 import { useUiStore } from './state/ui'
 import { setDockApi } from './state/dock'
+// Registers the app's built-in commands as an import side effect (state/commands.ts).
+import './state/commands'
 
 const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
@@ -21,7 +26,9 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   canvas: CanvasTab,
   dataview: DataGridTab,
   manuscript: ManuscriptTab,
-  settings: SettingsTab
+  settings: SettingsTab,
+  pdf: PdfTab,
+  image: ImageTab
 }
 
 export function App(): JSX.Element {
@@ -48,6 +55,7 @@ export function App(): JSX.Element {
         </div>
       </div>
       <StatusBar />
+      <CommandPalette />
     </div>
   )
 }

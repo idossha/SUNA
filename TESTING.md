@@ -193,6 +193,11 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     and the markers come off. Same for **⌘I**, **⌘⇧C** (code), **⌘⇧X**
     (strikethrough) and **⌘K** (link, with `url` preselected). Each is a
     single CodeMirror transaction, so one ⌘Z reverts the whole action.
+    **⌘K needs a selection**: with the cursor merely parked somewhere the
+    editor lets the key through and the *command palette* opens instead
+    (item 23) — the two specs both claim ⌘K, and an empty `[](url)` is
+    worth less than reaching the palette while writing. The
+    no-selection link is still on the context menu.
     **Right-click** a selection for the menu: *Comment ⌘⇧M*, then
     Bold/Italic/Code/Strikethrough, then *Link… ⌘K* and *Insert
     citation… ⌘⇧K*, then Cut/Copy/Paste. With nothing selected the
@@ -211,6 +216,46 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     `impN-` prefix — so importing the demo figure's 193 ids introduces
     **zero** collisions — and a PNG embeds as a data-URI `<image>` sized
     at 300 dpi. Either way it is one command: a single ⌘Z removes it.
+23. **Split view, viewers, reference PDFs, command palette**. Open the
+    intro section and press **⌘\** — the tab is duplicated into a second
+    group beside it (⌘⇧\ splits downward). Press it again: still two
+    groups, never three, because the split reuses the group it already
+    made. Copy one of the repo's `references/*.pdf` into
+    `<project>/references/` and open it: it renders in a continuous
+    scroll with a **page N of M** readout and jump box, zoom
+    out/in/100 %/**Fit width** (⌘−/⌘+/⌘0), selectable text, and pages
+    that render only near the viewport — scroll a long paper end to end
+    and the live canvas count stays flat instead of growing per page. A
+    `.png/.jpg/.jpeg/.gif/.webp` opens in the image viewer with
+    fit/100 %/zoom, drag-to-pan and its true pixel dimensions in the
+    toolbar. Both read their bytes over `fs:read-binary`, so nothing
+    loads through `file://` and PDFs are only ever read.
+
+    Name a PDF `references/<citekey>.pdf` (or point a BibTeX `file` field
+    at one, or follow the `Author_Year*` convention) and the
+    **References** list grows a small *PDF* badge on that row — hover it
+    to see which rule matched. Click the row and the paper opens
+    **beside** the list, replacing whatever PDF was there: click three
+    entries in a row and you still have one PDF tab, showing the last.
+    Rows without a PDF offer **Attach PDF…**, which opens a file picker
+    and *copies* the file to `references/<citekey>.pdf` — your original
+    never moves. Turn the auto-open off in Settings → References if you
+    dislike it. In the manuscript, **right-click a citation chip**:
+    *Open reference PDF* opens it in the side group without touching the
+    manuscript group; a citation with no PDF shows the item disabled and
+    named — *No PDF found for @peng2010*.
+
+    **⌘K** opens the command palette over everything (**⌘⇧P** opens it
+    already in command mode). With nothing typed it lists what you last
+    used in this project. Type to search files by their project-relative
+    path — Enter opens, ⌘⏎ opens to the side. Four prefixes switch mode,
+    shown in the hint row: `>` app commands (Split Right/Down, New
+    Figure, export PNG/PDF, Run Compliance Check, Toggle Terminal, Open
+    Settings, Switch 'Rendered As' Profile…), `$` runs the rest of the
+    line in the integrated terminal, `?` sends it to the agent CLI in the
+    project directory and drops the answer into the Agent transcript,
+    with progress and a **Cancel** that really kills the child. Escape
+    closes with nothing changed.
 
 ## Agent / CI smoke test
 
@@ -219,7 +264,7 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
 Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
-default 9321) and drives 48 steps end to end. The userData example copy
+default 9321) and drives 55 steps end to end. The userData example copy
 is **deleted before launch**, so every run exercises the pristine
 copy-on-open path (fresh git repo, exactly one initial commit); the two
 *persisted view preferences* — the editor appearance store and the
@@ -240,6 +285,18 @@ cannot be resized from the driver; `Emulation.setDeviceMetricsOverride`
 pins the *renderer's* viewport instead, which is what the assertions
 actually read. Input events use the same coordinate space, so the real
 mouse/drag steps are unaffected, and screenshots come out a fixed size.
+
+The override's width/height are **device-independent** pixels, which
+equal CSS pixels only at page zoom 1. On a display whose macOS scale
+factor is not an integer — a MacBook in a "More Space" scaled mode
+reports `devicePixelRatio` 2.629 — Chromium keeps an integral device
+scale factor and folds the remainder into a page zoom, so a raw
+`width: 1600` landed at `window.innerWidth === 1217` (measured) and every
+width-dependent assertion below it silently read a viewport nobody asked
+for. The pin therefore multiplies the request by
+`Page.getLayoutMetrics().cssVisualViewport.zoom` first; on an
+integral-scale display that zoom is 1 and the scaling is a no-op. Step 1
+allows ±1 px, since the product is rounded to whole device pixels.
 
 The steps then run:
 
@@ -456,6 +513,94 @@ Steps 44–47 are the acceptance criteria of
     count: at the original `limit: 20` the same query ran **past** the
     180 s timeout and returned nothing.
 
+Steps 48–54 are the acceptance criteria of
+`docs/design/feature-plan-4.md`, measured the same way:
+
+48. **split-view-two-groups** (§1) — the dock is emptied first
+    (`__sunaDev.dock.clearDock()`), because "the second group" is defined
+    by creation order and whatever the previous step left behind would
+    decide the answer. The intro opens alone (1 group), the editor is
+    focused, and a real **⌘\** — dispatched as `code: 'Backslash'`, which
+    is the only layout-stable signal, since Shift turns `\` into `|` in
+    `event.key` but never in `event.code` — must produce **exactly 2**
+    groups, each holding exactly one panel for that file. Then
+    `openInSplit` is called twice more: the group *list* must come back
+    byte-identical, proving the split reuses its group rather than
+    nesting a third.
+49. **pdf-viewer-page-count-and-canvas-bound** (§2) —
+    `references/nphys3816.pdf` is copied into the project through the
+    real **`fs:copy-file`** channel (the response path is asserted, and
+    both source and target must exist afterwards: copy, never move).
+    The expected page count is not a literal: the same bytes are read
+    **headlessly in Node** with the *legacy* pdf.js build resolved out of
+    `apps/desktop`'s own dependency tree, and the toolbar must read
+    `of <that number>` — 7 for this fixture. Page 1's `<canvas>` must
+    have a non-zero bitmap (measured 3582×4708 device px, 1243×1634 css)
+    and its text layer >20 spans and >100 characters, so "renders" means
+    pixels and selectable text rather than a mounted element. Then the
+    document is scrolled end-to-top **three times** and
+    `.pdfview__page canvas` is counted after each sweep: 2, 2, 2 against
+    a budget of 6 for a 7-page document, and the last sweep may not
+    exceed the first by more than one. A viewer that kept a canvas per
+    page would read 7 here.
+50. **image-viewer-dimensions-match-ihdr** (§2) — the PNG step 40 already
+    exported is reopened in the image viewer. The toolbar readout is
+    parsed and compared to the dimensions decoded from the file's own
+    **IHDR** chunk (2126×685). `.png` must also route to the `image`
+    component.
+51. **reference-pdfs-resolve-and-open-in-side-group** (§3 resolution, §4
+    UI) — three of the repo's journal PDFs are placed at
+    `references/<citekey>.pdf` for `gunn1972`, `cortese2021` and
+    `jachym2019`. Each must resolve with `how === 'citekey'` to that
+    exact absolute path, and `peng2010` — which has none — must resolve
+    to `null` rather than a fuzzy guess. The References rows for the
+    three carry a *PDF* badge, and rows without one offer *Attach PDF…*.
+    Then the three rows are clicked in turn: after **each** click there
+    must be 2 groups, **exactly one** PDF tab, that tab must live in the
+    side group, and the only *visible* `.pdfview__filename` must be the
+    file just clicked. (Visibility matters: dockview keeps hidden panels
+    mounted at zero size, so an unscoped query would happily read a
+    ghost.)
+52. **citation-context-menu-opens-reference-pdf** (§3) — reading mode
+    replaces each `[@key]` with a `.cm-lp-cite` chip, so the chips are
+    collected from the **visible** editor and right-clicked with a real
+    CDP right-click. A citation with no PDF must show the item present,
+    `disabled`, and labelled `No PDF found for @<key>` with the key
+    matching that chip; a right-click on plain prose must not offer the
+    item **at all**; and the chip that does resolve must show it enabled,
+    with choosing it leaving 2 groups, 1 PDF tab, and the manuscript
+    group's panel list unchanged.
+53. **command-palette-modes** (§5) — **⌘K** is pressed with a prose
+    editor focused: the dialog must open *and* `document.activeElement`
+    must be `.palette__input` (this is the case the editor's own ⌘K used
+    to swallow — see the ⌘K note in the walkthrough). Typing `intro`
+    must rank `01-introduction.md` first, show it by its
+    **project-relative** path, and match fewer than five files at all —
+    matching absolute paths returns the whole project, because every file
+    shares the same long prefix. Enter opens exactly that file and closes
+    the palette. **⌘⇧P** must prefill `>` and list *Split Right*.
+    `>split right` must take the dock from 1 group to 2.
+    `$echo SUNA_PALETTE` must open the terminal panel and put the marker
+    in the xterm buffer **twice** — once as the echoed command line, once
+    as the shell's output — so a step that merely typed the text cannot
+    pass. Finally Escape must close the palette with the open tabs, the
+    terminal tab count, and the document's first 60 characters all
+    unchanged (the last catches a palette that types into the editor
+    behind it).
+54. **palette-ai-ask-cancel** (§5, the unbilled half) — skipped with a
+    log line if no agent CLI is installed. Otherwise a `?` prompt
+    carrying a unique `SUNA_PALETTE_ASK_PROBE_<ts>` marker is submitted;
+    while busy the Cancel button must exist, the input must be disabled,
+    and focus must sit on `.palette__button` (a disabled input auto-blurs
+    to `document.body`, from which a keydown never reaches the dialog's
+    handler, so Escape would silently die). The child is located in `ps`
+    **by that marker**, never by the string "claude", so running this
+    suite from inside an agent CLI session cannot match it. After Cancel
+    the process list must be empty, every captured pid gone, and the
+    palette back to an enabled, empty input that Escape then closes.
+    As with step 47, the **billed** leg — a full answer coming back and
+    landing in the Agent transcript — is not run on every `pnpm smoke`.
+
 Exit code 0 = pass. Screenshots (each sidebar view as `views-*.png`,
 `reading-mode.png`, `manuscript-doc.png`, `manuscript-outline-active.png`,
 the canvas/editing shots, plus `fix-code-fullwidth.png`,
@@ -464,7 +609,9 @@ the canvas/editing shots, plus `fix-code-fullwidth.png`,
 plus `20-title-page-edit.png`, `21-comments.png`, `22-canvas-rail.png`
 and `23-lit-search.png` from steps 34–41, plus `text-context-menu.png`,
 `margin-comments.png`, `new-figure.png` and `ai-cli-cancel.png` from
-steps 44–47) land in `scripts/e2e/.artifacts/`; failures add
+steps 44–47, plus `split-view.png`, `pdf-viewer.png`,
+`image-viewer.png`, `reference-pdf-side.png` and `command-palette.png`
+from steps 48–53) land in `scripts/e2e/.artifacts/`; failures add
 `FAIL-<step>.png`. `ai-lit-search.png` in the same directory is from the
 manual billed run described under step 47 — `pnpm smoke` never
 overwrites it.
@@ -489,8 +636,25 @@ then evaluate JS in the page — dev builds expose `window.__sunaDev` with
 `editorSettings`, `editorViewModes`, `editorBibDiagnostics`,
 `editorContentKindFor`, `editorContentKindClass`, `dataGrid`,
 `explorerStore`, `manuscriptStore`, `manuscriptDocStore`,
-`renderProfileStore`, `agentChatStore`, `commentsStore`, `validateDoc`
-and `validateFile`.
+`renderProfileStore`, `agentChatStore`, `commentsStore`, `validateDoc`,
+`validateFile`, `dock`, `commands`, `referencePdfsStore`,
+`getReferencePdf`, `settingsStore`, `settingsDefaults` and `terminal`.
+
+`dock` is `state/dock.ts`'s seam: `openFileTab`, `openInSplit`,
+`openViewerInSide`, `componentForFile`, `activePanelPath`, `sideGroupId`,
+plus the three readouts the split/viewer criteria are measured with —
+`groupCount()`, `groupPanelIds()` (panel ids per group, groups in
+creation order, so `[1]` is the side group) and `panelComponents()` (id →
+dock component, which is how "exactly one PDF tab" is counted without
+re-deriving it from file extensions). `clearDock()` empties the dock so a
+split assertion starts from one known group.
+`commands` is the palette's registry — `listCommands`, `getCommand`,
+`isCommandEnabled`, `runCommand(id)` — so a command's *effect* can be
+asserted without synthesizing the keystrokes that reach it.
+`referencePdfsStore.getState().scan(rootDir)` forces the citekey → PDF
+rescan a driver needs after writing a PDF out of band, and
+`getReferencePdf(key)` is the same synchronous lookup the editor's
+context menu uses.
 `canvasTools` always steers the canvas tab that is **visible**, not the
 last one mounted, so it stays usable with several figures open.
 `validateDoc(kind, json)` / `validateFile(kind, path)` — kind is
@@ -530,3 +694,26 @@ cd python/suna_mpl && uv run pytest  # matplotlib companion
 - The gutter's narrow (< 1100 px window) dot + popover mode is exercised
   by unit tests on the layout maths only; no smoke step resizes the
   window to reach it.
+- The billed half of the palette's `?` mode (step 54) — a full agent
+  answer arriving and landing in the Agent transcript. Started and
+  cancelled by `pnpm smoke`; the complete round trip costs tokens per
+  run, so it is a manual check, like step 47's.
+- **"Attach PDF…"** (feature-plan-4 §4) is wired end to end
+  (`dialog:pick-file` → `fs:copy-file` → rescan) but has **no smoke
+  step**: it opens a *native* file dialog, which CDP cannot drive and the
+  app exposes no dev seam to bypass. The two IPC channels underneath it
+  have main-process unit tests (`main/services/fs.test.ts`: creates
+  parents, refuses to overwrite an existing target, leaves the source in
+  place), and the badge/`how` labelling the attach produces is covered by
+  step 51 — but the picker leg itself is verified by hand.
+- The `.pdfview` viewer's own **⌘+/⌘−/⌘0** zoom keys and the image
+  viewer's drag-to-pan are covered by unit tests on the pure zoom maths
+  (`viewer/zoom.test.ts`) and exercised by hand; the smoke step drives
+  the toolbar's *Fit width* path only.
+- ⌘⇧\ (*Split Down*) has a registered command and a unit test, but the
+  smoke step presses ⌘\ only — the two share one code path differing by
+  a `direction` argument.
+- PDF resolution rules 1 and 3 (the BibTeX `file` field and the
+  `Author_Year*` fuzzy match) are covered by `@suna/bib`'s unit tests
+  (`packages/bib/src/pdf.test.ts`); the smoke step exercises rule 2, the
+  `references/<citekey>.pdf` convention, in the running app.

@@ -21,8 +21,11 @@ import {
   buildContextMenuItems,
   clampMenuPosition,
   enabledActionIds,
-  type ContextMenuActionId
+  type ContextMenuActionId,
+  type ContextMenuAvailability,
+  type OpenReferencePdfHit
 } from './contextMenuItems'
+import { openInSplit } from '../state/dock'
 import './formatting.css'
 
 export type {
@@ -31,7 +34,8 @@ export type {
   ContextMenuEntry,
   ContextMenuItem,
   ContextMenuSeparator,
-  MenuPositionInput
+  MenuPositionInput,
+  OpenReferencePdfHit
 } from './contextMenuItems'
 export { buildContextMenuItems, clampMenuPosition, enabledActionIds } from './contextMenuItems'
 
@@ -41,7 +45,12 @@ export interface ContextMenuCallbacks {
   onInsertCrossReference?: (view: EditorView) => void
 }
 
-function runAction(id: ContextMenuActionId, view: EditorView, callbacks: ContextMenuCallbacks): void {
+function runAction(
+  id: ContextMenuActionId,
+  view: EditorView,
+  callbacks: ContextMenuCallbacks,
+  citationHit: OpenReferencePdfHit | null
+): void {
   switch (id) {
     case 'comment':
       callbacks.onComment?.(view)
@@ -67,6 +76,15 @@ function runAction(id: ContextMenuActionId, view: EditorView, callbacks: Context
     case 'insertCrossReference':
       callbacks.onInsertCrossReference?.(view)
       break
+    case 'openReferencePdf':
+      // The item only shows enabled when citationHit.path resolved, so a
+      // click always has a path here — no per-host callback needed, unlike
+      // Comment/Insert citation, which need caller-specific context (a
+      // section path, a comments store) this action never does.
+      if (citationHit?.path !== null && citationHit?.path !== undefined) {
+        openInSplit(citationHit.path, 'right')
+      }
+      break
     case 'cut':
       view.focus()
       document.execCommand('cut')
@@ -87,10 +105,13 @@ interface ContextMenuProps {
   x: number
   y: number
   callbacks: ContextMenuCallbacks
+  /** The citation (if any) under the click, computed by codemirror.ts's
+   *  contextmenu handler from the click position — see editor/citationHit.ts. */
+  citationHit?: OpenReferencePdfHit | null
   onClose: () => void
 }
 
-export function ContextMenu({ view, x, y, callbacks, onClose }: ContextMenuProps): JSX.Element {
+export function ContextMenu({ view, x, y, callbacks, citationHit, onClose }: ContextMenuProps): JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
   const hasSelection = !view.state.selection.main.empty
 
@@ -99,10 +120,11 @@ export function ContextMenu({ view, x, y, callbacks, onClose }: ContextMenuProps
       buildContextMenuItems(hasSelection, {
         comment: callbacks.onComment !== undefined,
         insertCitation: callbacks.onInsertCitation !== undefined,
-        insertCrossReference: callbacks.onInsertCrossReference !== undefined
+        insertCrossReference: callbacks.onInsertCrossReference !== undefined,
+        openReferencePdf: citationHit ?? null
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hasSelection, callbacks.onComment, callbacks.onInsertCitation, callbacks.onInsertCrossReference]
+    [hasSelection, callbacks.onComment, callbacks.onInsertCitation, callbacks.onInsertCrossReference, citationHit]
   )
   const enabledIds = useMemo(() => enabledActionIds(items), [items])
   const [activeId, setActiveId] = useState<ContextMenuActionId | null>(enabledIds[0] ?? null)
@@ -145,13 +167,13 @@ export function ContextMenu({ view, x, y, callbacks, onClose }: ContextMenuProps
       if (event.key === 'Enter') {
         if (activeId === null) return
         event.preventDefault()
-        runAction(activeId, view, callbacks)
+        runAction(activeId, view, callbacks, citationHit ?? null)
         onClose()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [activeId, enabledIds, view, callbacks, onClose])
+  }, [activeId, enabledIds, view, callbacks, citationHit, onClose])
 
   // scrolling anywhere invalidates the anchor position — dismiss rather
   // than chase it. Capture phase: the editor's own scroller doesn't bubble
@@ -190,7 +212,7 @@ export function ContextMenu({ view, x, y, callbacks, onClose }: ContextMenuProps
               }
               onMouseEnter={() => entry.enabled && setActiveId(entry.id)}
               onClick={() => {
-                runAction(entry.id, view, callbacks)
+                runAction(entry.id, view, callbacks, citationHit ?? null)
                 onClose()
               }}
             >
@@ -218,17 +240,29 @@ function closeActiveMount(): void {
 
 /** Imperative entry point: mounts a ContextMenu at (x, y) for `view`,
  *  closing any menu already open. Called from codemirror.ts's native
- *  `contextmenu` DOM handler — no host component state required. */
+ *  `contextmenu` DOM handler — no host component state required.
+ *  `citationHit` is the citation (if any) codemirror.ts found under the
+ *  click, resolved against the project's reference PDFs. */
 export function openContextMenu(
   view: EditorView,
   x: number,
   y: number,
-  callbacks: ContextMenuCallbacks
+  callbacks: ContextMenuCallbacks,
+  citationHit?: OpenReferencePdfHit | null
 ): void {
   closeActiveMount()
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   activeMount = { root, container }
-  root.render(<ContextMenu view={view} x={x} y={y} callbacks={callbacks} onClose={closeActiveMount} />)
+  root.render(
+    <ContextMenu
+      view={view}
+      x={x}
+      y={y}
+      callbacks={callbacks}
+      citationHit={citationHit ?? null}
+      onClose={closeActiveMount}
+    />
+  )
 }

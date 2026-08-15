@@ -61,6 +61,42 @@ describe('buildContextMenuItems', () => {
   })
 })
 
+describe('buildContextMenuItems — "Open reference PDF" (feature-plan-4.md §3)', () => {
+  it('omits the item entirely when the click did not land on a citation', () => {
+    const items = buildContextMenuItems(false, { ...ALL_AVAILABLE, openReferencePdf: null })
+    expect(items.filter((e) => e.kind === 'item').map((e) => e.id)).not.toContain('openReferencePdf')
+  })
+
+  it('omits the item when the host supplies no availability at all (back-compat)', () => {
+    const items = buildContextMenuItems(false, ALL_AVAILABLE)
+    expect(items.filter((e) => e.kind === 'item').map((e) => e.id)).not.toContain('openReferencePdf')
+  })
+
+  it('shows it enabled with "Open reference PDF" when a PDF resolves', () => {
+    const items = buildContextMenuItems(false, {
+      ...ALL_AVAILABLE,
+      openReferencePdf: { key: 'Gunn1972', path: '/proj/references/Gunn1972.pdf' }
+    })
+    const item = items.find((e) => e.kind === 'item' && e.id === 'openReferencePdf')
+    expect(item).toMatchObject({ label: 'Open reference PDF', enabled: true })
+  })
+
+  it('shows it disabled, naming the key, when no PDF resolves', () => {
+    const items = buildContextMenuItems(false, {
+      ...ALL_AVAILABLE,
+      openReferencePdf: { key: 'Nobody2099', path: null }
+    })
+    const item = items.find((e) => e.kind === 'item' && e.id === 'openReferencePdf')
+    expect(item).toMatchObject({ label: 'No PDF found for @Nobody2099', enabled: false })
+  })
+
+  it('never depends on text selection', () => {
+    const availability = { ...ALL_AVAILABLE, openReferencePdf: { key: 'K', path: '/x.pdf' } }
+    expect(enabledActionIds(buildContextMenuItems(true, availability))).toContain('openReferencePdf')
+    expect(enabledActionIds(buildContextMenuItems(false, availability))).toContain('openReferencePdf')
+  })
+})
+
 describe('enabledActionIds', () => {
   it('skips disabled items and separators, preserving menu order', () => {
     const items = buildContextMenuItems(false, ALL_AVAILABLE)

@@ -26,6 +26,9 @@ import type { LitCliPreference } from '@suna/core'
  *   'lit.cli'              LitCliPreference  which agent CLI 'lit:ai-search'
  *                                 should prefer ('auto' tries claude, then
  *                                 codex).
+ *   'references.autoOpenPdf' boolean         References view (feature-plan-4
+ *                                 §4): auto-open a resolved PDF beside the
+ *                                 list on selecting an entry. Default on.
  */
 export type EditorModeSetting = 'reading' | 'source'
 export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'high-contrast'
@@ -43,6 +46,8 @@ export interface GlobalSettings {
   'lit.mailto': string
   /** Which agent CLI the 'ai-cli' literature provider prefers. */
   'lit.cli': LitCliPreference
+  /** Auto-open a resolved reference PDF beside the References list. */
+  'references.autoOpenPdf': boolean
 }
 
 export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
@@ -53,7 +58,8 @@ export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
   'appearance.uiScale': 1,
   'terminal.shell': '',
   'lit.mailto': '',
-  'lit.cli': 'auto'
+  'lit.cli': 'auto',
+  'references.autoOpenPdf': true
 }
 
 export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
@@ -92,6 +98,9 @@ export function coerceSettings(raw: Record<string, unknown>): GlobalSettings {
   const cliPreference = raw['lit.cli']
   if (cliPreference === 'auto' || cliPreference === 'claude' || cliPreference === 'codex') {
     out['lit.cli'] = cliPreference
+  }
+  if (typeof raw['references.autoOpenPdf'] === 'boolean') {
+    out['references.autoOpenPdf'] = raw['references.autoOpenPdf']
   }
   return out
 }

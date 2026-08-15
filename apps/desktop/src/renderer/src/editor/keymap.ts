@@ -1,6 +1,7 @@
 /**
  * Prose formatting shortcuts (feature-plan-3.md §1): ⌘B bold, ⌘I italic,
- * ⌘⇧C code, ⌘⇧X strikethrough, ⌘K link, ⌘⇧M comment, ⌘⇧K insert citation.
+ * ⌘⇧C code, ⌘⇧X strikethrough, ⌘K link (selection only — see
+ * `insertLinkOnSelection`), ⌘⇧M comment, ⌘⇧K insert citation.
  * `createEditor` (codemirror.ts) only installs this extension for prose
  * files (`contentKindFor === 'prose'`) and wraps it in `Prec.high` so it
  * wins over CM's own default keymap.
@@ -8,6 +9,27 @@
 import { Prec, type Extension } from '@codemirror/state'
 import { keymap, type Command, type EditorView } from '@codemirror/view'
 import { insertLink, toggleWrap } from './markdownCommands'
+
+/**
+ * ⌘K is claimed by two shipped specs: feature-plan-3 §1 gave it to *Insert
+ * link* ("select a word and press ⌘K"), feature-plan-4 §5 gave it to the
+ * command palette ("⌘K opens focused"). Both are real, and a keymap that
+ * silently swallows ⌘K inside every prose editor makes the palette
+ * unreachable from the app's primary surface — you cannot search files while
+ * writing, which is exactly when you want to.
+ *
+ * The split follows what each spec actually documents: with a **selection**
+ * ⌘K wraps it as a link, which is the only form feature-plan-3 describes;
+ * with an **empty** selection it returns false, so CodeMirror does not
+ * preventDefault and the palette's window-level listener opens
+ * (CommandPalette.tsx deliberately skips `defaultPrevented` events). The
+ * no-selection *Link…* action is still one right-click away in the context
+ * menu, where it is enabled regardless of selection.
+ */
+export function insertLinkOnSelection(): Command {
+  const run = insertLink()
+  return (view) => (view.state.selection.main.empty ? false : run(view))
+}
 
 export interface FormattingCallbacks {
   /** Comment on the current selection — same anchored-comment flow as the
@@ -34,7 +56,7 @@ export function formattingKeymap(callbacks: FormattingCallbacks): Extension {
       { key: 'Mod-i', run: toggleWrap('*') },
       { key: 'Mod-Shift-c', run: toggleWrap('`') },
       { key: 'Mod-Shift-x', run: toggleWrap('~~') },
-      { key: 'Mod-k', run: insertLink() },
+      { key: 'Mod-k', run: insertLinkOnSelection() },
       { key: 'Mod-Shift-m', run: callbackCommand(callbacks.onComment) },
       { key: 'Mod-Shift-k', run: callbackCommand(callbacks.onInsertCitation) }
     ])

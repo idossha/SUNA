@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
+import { cancelAllAiAsks } from './services/ai-ask'
 import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
 
@@ -57,10 +58,12 @@ app.whenReady().then(() => {
 app.on('will-quit', () => {
   killAllTerminals()
   cancelAllAiCliSearches()
+  cancelAllAiAsks()
 })
 
 app.on('window-all-closed', () => {
   killAllTerminals()
   cancelAllAiCliSearches()
+  cancelAllAiAsks()
   if (process.platform !== 'darwin') app.quit()
 })

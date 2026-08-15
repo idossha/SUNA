@@ -1,7 +1,16 @@
 import { shell } from 'electron'
-import { readdir, readFile, writeFile, mkdir, rename } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
-import type { FsNode } from '@suna/core'
+import { constants } from 'node:fs'
+import {
+  copyFile,
+  readdir,
+  readFile,
+  stat,
+  writeFile,
+  mkdir,
+  rename
+} from 'node:fs/promises'
+import { basename, dirname, join, resolve } from 'node:path'
+import { MAX_READ_BINARY_BYTES, type FsNode } from '@suna/core'
 import { writeFileAtomic } from './atomic'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -17,6 +26,55 @@ export async function writeText(path: string, content: string): Promise<number> 
   await mkdir(dirname(abs), { recursive: true })
   await writeFile(abs, content, 'utf8')
   return Buffer.byteLength(content, 'utf8')
+}
+
+function megabytes(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1)
+}
+
+/**
+ * Read a file's bytes as base64 — root-confined exactly like readText, so the
+ * renderer never touches file:// . PDFs and images arrive this way. Oversized
+ * files are refused rather than blowing up renderer memory (the base64 payload
+ * is ~4/3 the byte size and the viewer keeps the decoded copy too).
+ */
+export async function readBinary(path: string): Promise<{ base64: string; bytes: number }> {
+  const abs = assertInsideAllowedRoot(path)
+  const info = await stat(abs)
+  if (!info.isFile()) throw new Error(`not a file: ${path}`)
+  if (info.size > MAX_READ_BINARY_BYTES) {
+    throw new Error(
+      `file is too large to open: ${megabytes(info.size)} MB exceeds the ` +
+        `${megabytes(MAX_READ_BINARY_BYTES)} MB limit (${path})`
+    )
+  }
+  const buffer = await readFile(abs)
+  return { base64: buffer.toString('base64'), bytes: buffer.byteLength }
+}
+
+/**
+ * Copy a file INTO the project ("Attach PDF…"). `from` deliberately escapes
+ * the allowed roots — the user picks it anywhere on disk — while `to` is
+ * root-confined like every other write. Never overwrites an existing target,
+ * and never moves: the user's original stays where it was.
+ */
+export async function copyFileInto(from: string, to: string): Promise<string> {
+  const target = assertInsideAllowedRoot(to)
+  const source = resolve(from)
+  const info = await stat(source).catch(() => {
+    throw new Error(`file to copy does not exist: ${from}`)
+  })
+  if (!info.isFile()) throw new Error(`not a file: ${from}`)
+  await mkdir(dirname(target), { recursive: true })
+  try {
+    await copyFile(source, target, constants.COPYFILE_EXCL)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new Error(`refusing to overwrite an existing file: ${to}`)
+    }
+    throw error
+  }
+  return target
 }
 
 /**

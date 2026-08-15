@@ -6,12 +6,16 @@ import { dataviewDevSeam } from './dataview/devSeam'
 import { schemaDevSeam } from './dev/schemaSeam'
 import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
-import { openFileTab } from './state/dock'
+import { settingsDevSeam } from './settings/devSeam'
+import { terminalDevSeam } from './terminal/devSeam'
+import { commandsDevSeam } from './state/commands'
+import { dockDevSeam, openFileTab } from './state/dock'
 import { useAgentChatStore } from './state/agentChat'
 import { useCommentsStore } from './state/comments'
 import { useExplorerStore } from './state/explorer'
 import { useManuscriptStore } from './state/manuscript'
 import { useProjectStore } from './state/project'
+import { getReferencePdf, useReferencePdfsStore } from './state/referencePdfs'
 import { useRenderProfileStore } from './state/renderProfile'
 import { useUiStore } from './state/ui'
 import './styles/app.css'
@@ -51,7 +55,23 @@ if (import.meta.env.DEV) {
       // import them directly — see dev/schemaSeam.ts
       // (feature-plan-3 §4 asserts a schema-valid figure.json on disk).
       validateDoc: schemaDevSeam.validateDoc,
-      validateFile: schemaDevSeam.validateFile
+      validateFile: schemaDevSeam.validateFile,
+      // --- feature-plan-4 -------------------------------------------------
+      // Split view (§1): openInSplit/openViewerInSide plus the group/panel
+      // readouts the "exactly 2 groups" / "exactly one PDF tab" acceptance
+      // checks measure (state/dock.ts).
+      dock: dockDevSeam,
+      // Command registry (§5): list/inspect/run a command by id, so a driver
+      // can assert '>split right' without synthesizing every keystroke.
+      commands: commandsDevSeam,
+      // citekey -> resolved PDF map (§3/§4), scanned per project + saveBump.
+      referencePdfsStore: useReferencePdfsStore,
+      getReferencePdf,
+      // Global settings store (e.g. 'references.autoOpenPdf', §4).
+      settingsStore: settingsDevSeam.settingsStore,
+      settingsDefaults: settingsDevSeam.defaults,
+      // Integrated terminal (§5 '$' mode): tab metadata + the panel store.
+      terminal: terminalDevSeam
     }
   })
 }

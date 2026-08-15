@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import type { FsNode } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useExplorerStore, type ExplorerEditing } from '../state/explorer'
-import { openFileTab } from '../state/dock'
+import { openFileTab, openInSplit } from '../state/dock'
 import './explorer.css'
 
 function parentDirOf(path: string): string {
@@ -72,7 +72,8 @@ function TreeEntry({ node, depth, editing }: TreeEntryProps): JSX.Element {
       <button
         className="tree__row"
         style={indent}
-        onClick={() => openFileTab(node.path)}
+        // ⌘↵ (or ⌘-click) opens to the side, reusing the split group (feature-plan-4 §1/§5)
+        onClick={(e) => (e.metaKey || e.ctrlKey ? openInSplit(node.path, 'right') : openFileTab(node.path))}
         onContextMenu={(e) => {
           e.preventDefault()
           openMenu(node, e.clientX, e.clientY)

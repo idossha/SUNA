@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { BibEntry } from '@suna/bib'
+import type { BibEntry, PdfResolution } from '@suna/bib'
 import { BUNDLED_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
-import { citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor } from './refs'
+import {
+  autoOpenPdfPath,
+  citeStyleOf,
+  entryMatches,
+  firstAuthorOf,
+  maxAuthorsFor,
+  pdfBadgeTitle
+} from './refs'
 
 const natureTruncation = { etAlAllowed: true, truncateWhenMoreThan: 5, keepFirstN: 1 }
 
@@ -67,5 +74,33 @@ describe('firstAuthorOf / entryMatches', () => {
     expect(entryMatches(entry, 'infall of matter')).toBe(true)
     expect(entryMatches(entry, '1972')).toBe(true)
     expect(entryMatches(entry, 'quasar')).toBe(false)
+  })
+})
+
+describe('pdfBadgeTitle', () => {
+  it('names every resolution mechanism, distinctly', () => {
+    const fileField = pdfBadgeTitle('file-field')
+    const citekey = pdfBadgeTitle('citekey')
+    const fuzzy = pdfBadgeTitle('fuzzy')
+    for (const label of [fileField, citekey, fuzzy]) expect(label.length).toBeGreaterThan(0)
+    expect(new Set([fileField, citekey, fuzzy]).size).toBe(3)
+  })
+})
+
+describe('autoOpenPdfPath', () => {
+  const resolution: PdfResolution = { path: '/proj/references/gunn1972.pdf', how: 'citekey' }
+
+  it('returns the resolved path when the preference is on', () => {
+    expect(autoOpenPdfPath(resolution, true)).toBe('/proj/references/gunn1972.pdf')
+  })
+
+  it('returns null when the preference is off, even with a resolution', () => {
+    expect(autoOpenPdfPath(resolution, false)).toBeNull()
+  })
+
+  it('returns null when nothing resolves, preference on or off', () => {
+    expect(autoOpenPdfPath(null, true)).toBeNull()
+    expect(autoOpenPdfPath(undefined, true)).toBeNull()
+    expect(autoOpenPdfPath(null, false)).toBeNull()
   })
 })

@@ -19,3 +19,5 @@ export {
 } from './providers.js';
 export type { AppendLitResultOutcome } from './bib-write.js';
 export { appendLitResultToBib } from './bib-write.js';
+export type { PdfResolution, PdfResolutionHow, ResolvePdfOptions } from './pdf.js';
+export { pdfPathFromFileField, resolvePdfPath } from './pdf.js';

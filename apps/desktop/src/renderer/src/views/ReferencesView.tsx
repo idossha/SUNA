@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState, type JSX } from 'react'
 import { assignNumbers, formatReference, parseBibtex, renderCluster, type BibEntry, type Run } from '@suna/bib'
 import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { orderedReferences } from '../manuscript/citations'
+import { openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
+import { useReferencePdfs } from '../state/referencePdfs'
 import { usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
+import { useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
-import { citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor } from './refs'
+import { autoOpenPdfPath, citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor, pdfBadgeTitle } from './refs'
 import { useCitedKeys } from './useCitedKeys'
 import { SearchTab, type FindSimilarSeed } from './lit/SearchTab'
 import './views.css'
@@ -55,7 +58,12 @@ export function ReferencesView(): JSX.Element {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RefsTab>('library')
   const [findSimilarSeed, setFindSimilarSeed] = useState<FindSimilarSeed | null>(null)
+  const [attachingKey, setAttachingKey] = useState<string | null>(null)
   const cited = useCitedKeys()
+  // Reference PDFs (feature-plan-4 §3/§4): resolved once per project (and on
+  // saveBump) independent of this view ever mounting — see state/referencePdfs.
+  const referencePdfs = useReferencePdfs()
+  const autoOpenPdf = useSettingsStore((s) => s.settings['references.autoOpenPdf'])
   // Shared with the combined manuscript tab (state/renderProfile) — this is
   // the one 'Rendered as' control, so switching it here also switches the
   // manuscript body's in-text citation style and reference-list order.
@@ -140,6 +148,42 @@ export function ReferencesView(): JSX.Element {
     setStatusNote(`Copied [@${key}]`)
   }
 
+  /** Select a row and, when 'references.autoOpenPdf' is on and a PDF
+   *  resolves, open it in the side group — replacing whatever was there
+   *  (openViewerInSide), never stacking (feature-plan-4.md §4). */
+  const selectEntry = (key: string): void => {
+    setSelectedKey(key)
+    const path = autoOpenPdfPath(referencePdfs.map.get(key), autoOpenPdf)
+    if (path !== null) openViewerInSide(path)
+  }
+
+  /** "Attach PDF…": picks a file anywhere on disk and COPIES it (never
+   *  moves — the user's original stays put) to the conventional
+   *  references/<citekey>.pdf path, then rescans so the badge appears. */
+  const attachPdf = async (entry: BibEntry): Promise<void> => {
+    if (rootDir === null) return
+    setAttachingKey(entry.key)
+    try {
+      const { path } = await window.suna.invoke('dialog:pick-file', {
+        title: `Attach a PDF for ${entry.key}`,
+        extensions: ['pdf']
+      })
+      if (path === null) return
+      await window.suna.invoke('fs:copy-file', {
+        from: path,
+        to: `${rootDir}/references/${entry.key}.pdf`
+      })
+      referencePdfs.rescan()
+      setStatusNote(`Attached PDF for ${entry.key}`)
+    } catch (error) {
+      setStatusNote(
+        `Could not attach PDF for ${entry.key}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    } finally {
+      setAttachingKey(null)
+    }
+  }
+
   const findSimilar = (entry: BibEntry): void => {
     setFindSimilarSeed({ nonce: Date.now(), doi: entry.doi ?? null, title: entry.title })
     setActiveTab('search')
@@ -216,12 +260,13 @@ export function ReferencesView(): JSX.Element {
               {displayRows.map((row) => {
                 const entry = row.entry
                 if (entry === undefined) return null
+                const resolution = referencePdfs.map.get(entry.key)
                 return (
                   <button
                     key={row.key}
                     className="refs__row"
                     aria-selected={selected !== undefined && selected.key === row.key}
-                    onClick={() => setSelectedKey(row.key)}
+                    onClick={() => selectEntry(row.key)}
                   >
                     {numbered && <span className="refs__num">{row.number}.</span>}
                     <span className="refs__row-main">
@@ -239,6 +284,23 @@ export function ReferencesView(): JSX.Element {
                       </span>
                       <span className="refs__title">{entry.title}</span>
                     </span>
+                    {resolution ? (
+                      <span className="refs__pdf-badge" title={pdfBadgeTitle(resolution.how)}>
+                        PDF
+                      </span>
+                    ) : (
+                      <span
+                        className="refs__attach-pdf"
+                        role="button"
+                        title="Attach a PDF for this reference (copied in, never moved)"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (attachingKey === null) void attachPdf(entry)
+                        }}
+                      >
+                        {attachingKey === entry.key ? 'Attaching…' : 'Attach PDF…'}
+                      </span>
+                    )}
                     <span
                       className="refs__copy"
                       role="button"

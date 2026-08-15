@@ -15,6 +15,7 @@ export type ContextMenuActionId =
   | 'link'
   | 'insertCitation'
   | 'insertCrossReference'
+  | 'openReferencePdf'
   | 'cut'
   | 'copy'
   | 'paste'
@@ -33,10 +34,22 @@ export interface ContextMenuSeparator {
 
 export type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator
 
+/**
+ * A citation the right-click landed on (feature-plan-4.md §3): `path` is the
+ * resolved PDF path, or null when none resolves — the menu still shows the
+ * item, disabled, naming the key.
+ */
+export interface OpenReferencePdfHit {
+  key: string
+  path: string | null
+}
+
 export interface ContextMenuAvailability {
   comment: boolean
   insertCitation: boolean
   insertCrossReference: boolean
+  /** Absent/null hides "Open reference PDF" entirely — the click didn't land on a citation. */
+  openReferencePdf?: OpenReferencePdfHit | null
 }
 
 /**
@@ -80,6 +93,15 @@ export function buildContextMenuItems(
       id: 'insertCrossReference',
       label: 'Insert cross-reference…',
       enabled: true
+    })
+  }
+  const pdfHit = available.openReferencePdf
+  if (pdfHit != null) {
+    entries.push({
+      kind: 'item',
+      id: 'openReferencePdf',
+      label: pdfHit.path !== null ? 'Open reference PDF' : `No PDF found for @${pdfHit.key}`,
+      enabled: pdfHit.path !== null
     })
   }
   entries.push(

@@ -337,6 +337,23 @@ export function SettingsTab(): JSX.Element {
           />
         </div>
 
+        <h2 className="settings-tab__section">References</h2>
+        <div className="settings-tab__row">
+          <label htmlFor="set-refs-auto-open">
+            Auto-open reference PDF
+            <span className="settings-tab__hint">
+              Selecting a reference with a PDF opens it beside the list. Off leaves selection silent
+              — use the PDF badge or &quot;Attach PDF…&quot; to open/attach manually.
+            </span>
+          </label>
+          <input
+            id="set-refs-auto-open"
+            type="checkbox"
+            checked={settings['references.autoOpenPdf']}
+            onChange={(e) => void update('references.autoOpenPdf', e.target.checked)}
+          />
+        </div>
+
         <h2 className="settings-tab__section">Literature providers</h2>
         <div className="settings-tab__row">
           <label htmlFor="set-lit-mailto">

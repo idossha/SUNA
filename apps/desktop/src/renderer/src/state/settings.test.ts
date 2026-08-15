@@ -29,4 +29,13 @@ describe('coerceSettings', () => {
   it('ignores an unknown lit.cli value and falls back to auto', () => {
     expect(coerceSettings({ 'lit.cli': 'gemini' })['lit.cli']).toBe('auto')
   })
+
+  it('defaults references.autoOpenPdf to on and adopts a persisted false', () => {
+    expect(coerceSettings({})['references.autoOpenPdf']).toBe(true)
+    expect(coerceSettings({ 'references.autoOpenPdf': false })['references.autoOpenPdf']).toBe(false)
+  })
+
+  it('ignores a non-boolean references.autoOpenPdf and falls back to the default', () => {
+    expect(coerceSettings({ 'references.autoOpenPdf': 'no' })['references.autoOpenPdf']).toBe(true)
+  })
 })
