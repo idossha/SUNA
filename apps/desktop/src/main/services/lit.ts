@@ -54,7 +54,7 @@ export const AI_CLI_SEARCH_TIMEOUT_MS = 180_000
  * inherited PATH. Append the common install locations so detection/spawn
  * matches what the user's own shell sees.
  */
-function cliEnv(): NodeJS.ProcessEnv {
+export function cliEnv(): NodeJS.ProcessEnv {
   if (process.platform === 'win32') return process.env
   const extras = [join(homedir(), '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin']
   const path = process.env['PATH'] ?? ''

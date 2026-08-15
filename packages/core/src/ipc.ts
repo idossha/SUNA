@@ -38,6 +38,13 @@ export interface ChannelContract {
   readonly response: z.ZodType;
 }
 
+/**
+ * Ceiling for 'fs:read-binary'. A whole PDF crosses the IPC boundary as
+ * base64 (≈4/3 the byte size) and is held in renderer memory, so a runaway
+ * file must be refused rather than wedging the app.
+ */
+export const MAX_READ_BINARY_BYTES = 200 * 1024 * 1024;
+
 export const CHANNELS = {
   'project:create': {
     request: z.object({
@@ -71,6 +78,30 @@ export const CHANNELS = {
     }),
     response: z.object({ bytesWritten: z.number().int().nonnegative() }),
   },
+  /**
+   * Read a file's bytes as base64 — root-confined exactly like 'fs:read-text',
+   * so no `file://` and no CSP relaxation. Feeds the PDF/image viewers, which
+   * decode to a Uint8Array (or a data URI) in the renderer. Files larger than
+   * MAX_READ_BINARY_BYTES are refused with a message naming both sizes.
+   */
+  'fs:read-binary': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({
+      base64: z.string(),
+      /** Decoded byte length (not the base64 length). */
+      bytes: z.number().int().nonnegative(),
+    }),
+  },
+  /**
+   * Copy a file INTO the project ("Attach PDF…"). `from` may live anywhere on
+   * disk — that is the point — while `to` must resolve inside an open project
+   * root. Parent directories are created; an existing `to` is never
+   * overwritten (the copy fails instead). Copy, never move: the original stays.
+   */
+  'fs:copy-file': {
+    request: z.object({ from: z.string().min(1), to: z.string().min(1) }),
+    response: z.object({ path: z.string().min(1) }),
+  },
   'fs:list': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({ root: FsNodeSchema }),
@@ -86,6 +117,18 @@ export const CHANNELS = {
     request: z.object({
       title: z.string().min(1),
       allowCreate: z.boolean(),
+    }),
+    response: z.object({ path: z.string().min(1).nullable() }),
+  },
+  /**
+   * Native single-file open dialog. `extensions` are bare, dot-less filter
+   * extensions (`['pdf']`); an empty array means "any file". Returns null when
+   * the user cancels.
+   */
+  'dialog:pick-file': {
+    request: z.object({
+      title: z.string().min(1),
+      extensions: z.array(z.string().min(1)),
     }),
     response: z.object({ path: z.string().min(1).nullable() }),
   },
@@ -326,6 +369,27 @@ export const CHANNELS = {
   },
 
   /**
+   * General-purpose "ask the agent CLI" (feature-plan-4 §5, the command
+   * palette's `?` prefix): spawns whichever agent CLI is installed with
+   * `prompt`, cwd'd to `dir`, and returns immediately with an askId; progress
+   * and the final answer arrive over EVENT_CHANNELS.aiAskProgress(askId) /
+   * aiAskDone(askId). Mirrors 'lit:ai-search' but for one free-text answer
+   * instead of a paper list — never call it expecting a synchronous reply.
+   */
+  'ai:ask': {
+    request: z.object({
+      prompt: z.string().min(1),
+      dir: z.string().min(1),
+    }),
+    response: z.object({ askId: z.string().min(1) }),
+  },
+  /** Kills the child process for an in-flight 'ai:ask' run. A no-op if it already finished. */
+  'ai:cancel': {
+    request: z.object({ askId: z.string().min(1) }),
+    response: z.object({}),
+  },
+
+  /**
    * Export the current figure into the project's output/ dir.
    * Main handles 'svg' (byte copy) and 'pdf' (hidden window → printToPDF).
    * 'png'/'tiff' are rasterized in the renderer and written with
@@ -399,6 +463,10 @@ export const EVENT_CHANNELS = {
   litProgress: (searchId: string) => `lit:progress:${searchId}`,
   /** Terminal event for one 'lit:ai-search' run: `{ results: unknown[], error: string | null }`. */
   litDone: (searchId: string) => `lit:done:${searchId}`,
+  /** Status-line pushes for one 'ai:ask' run (e.g. "Asking Claude Code…"). */
+  aiAskProgress: (askId: string) => `ai:progress:${askId}`,
+  /** Terminal event for one 'ai:ask' run: `{ text: string | null, error: string | null }`. */
+  aiAskDone: (askId: string) => `ai:done:${askId}`,
 } as const;
 
 export type ChannelName = keyof typeof CHANNELS;

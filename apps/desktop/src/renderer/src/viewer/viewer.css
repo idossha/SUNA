@@ -1,0 +1,289 @@
+/* ---------------------------------------------------------------------------
+   PDF and image viewers (feature-plan-4 §2). Dark app chrome (toolbar/scroll
+   backdrop use the standard --s-* tokens); the content itself — PDF pages,
+   the image's checkerboard frame — is deliberately NOT theme-tokenized: a
+   page is white paper and a transparent PNG shows a neutral checkerboard
+   regardless of app theme, the same way a real viewer would render them.
+   --------------------------------------------------------------------------- */
+
+.pdfview,
+.imgview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-shell);
+  outline: none;
+}
+
+/* ---- shared toolbar ------------------------------------------------------- */
+
+.pdfview__toolbar,
+.imgview__toolbar {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 14px;
+  height: 34px;
+  padding: 0 14px;
+  background: var(--s-bg-panel);
+  border-bottom: 1px solid var(--s-border);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.pdfview__filename,
+.imgview__filename {
+  overflow: hidden;
+  margin-right: auto;
+  color: var(--s-ink);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pdfview__pagenav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdfview__pagejump {
+  width: 3.2em;
+  padding: 2px 4px;
+  color: var(--s-ink);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pdfview__pagejump:focus-visible {
+  border-color: var(--s-accent);
+}
+
+.pdfview__pageinfo {
+  color: var(--s-ink-faint);
+}
+
+.imgview__dims {
+  flex: none;
+  color: var(--s-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdfview__zoom,
+.imgview__zoom {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+
+.pdfview__zoombtn,
+.imgview__zoombtn {
+  min-width: 3.4em;
+  padding: 3px 8px;
+  color: var(--s-ink-muted);
+  border-radius: var(--s-radius);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pdfview__zoombtn:hover:not(:disabled),
+.imgview__zoombtn:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.pdfview__zoombtn:disabled {
+  color: var(--s-ink-faint);
+  cursor: default;
+}
+
+.pdfview__fitwidth,
+.imgview__fit {
+  margin-left: 4px;
+  padding: 3px 12px;
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pdfview__fitwidth:hover:not(:disabled),
+.imgview__fit:hover {
+  color: var(--s-accent);
+  border-color: var(--s-border-strong);
+}
+
+.pdfview__fitwidth[aria-pressed='true'],
+.imgview__fit[aria-pressed='true'] {
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.pdfview__fitwidth:disabled {
+  color: var(--s-ink-faint);
+  cursor: default;
+}
+
+/* ---- shared loading / error states ---------------------------------------- */
+
+.pdfview__loading,
+.pdfview__error,
+.imgview__loading,
+.imgview__error {
+  margin: auto;
+  padding: 24px;
+  max-width: 46ch;
+  color: var(--s-ink-faint);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.pdfview__error,
+.imgview__error {
+  color: var(--s-err);
+}
+
+/* ---- PDF page scroll ------------------------------------------------------- */
+
+.pdfview__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+}
+
+.pdfview__pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 24px 0;
+}
+
+.pdfview__page {
+  position: relative;
+  flex: none;
+  margin-bottom: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.pdfview__pagesurface {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* The TextLayer constructor sizes itself with `--total-scale-factor` and
+     `--scale-round-*` (pdfjs setLayerDimensions). Our canvas/text-layer
+     viewport is already at the exact CSS-pixel scale we want, so "no extra
+     scaling" (1) and 1px rounding granularity is the correct pair here. */
+  --total-scale-factor: 1;
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+
+.pdfview__canvas {
+  display: block;
+}
+
+.pdfview__placeholder {
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+}
+
+.pdfview__page-error {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 6px 10px;
+  background: rgba(217, 123, 108, 0.92);
+  color: #1a1a1a;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+}
+
+/* pdf.js's TextLayer appends raw <span>/<br> nodes; these rules are the
+   standard pdf.js textLayer contract (transparent, selectable text sitting
+   exactly on top of the rendered glyphs). */
+.pdfview__textlayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  user-select: text;
+}
+
+.pdfview__textlayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.pdfview__textlayer .endOfContent {
+  position: absolute;
+  inset: 100% 0 0;
+  display: block;
+  cursor: default;
+  user-select: none;
+}
+
+.pdfview__textlayer ::selection {
+  background: rgba(50, 130, 240, 0.32);
+}
+
+/* ---- image viewer stage ---------------------------------------------------- */
+
+.imgview__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.imgview__stage:active {
+  cursor: grabbing;
+}
+
+.imgview__frame {
+  position: relative;
+  flex: none;
+  background-image:
+    linear-gradient(45deg, #808080 25%, transparent 25%),
+    linear-gradient(-45deg, #808080 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #808080 75%),
+    linear-gradient(-45deg, transparent 75%, #808080 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-color: #b0b0b0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.imgview__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}

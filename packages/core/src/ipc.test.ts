@@ -3,6 +3,7 @@ import {
   CHANNELS,
   EVENT_CHANNELS,
   FsNodeSchema,
+  MAX_READ_BINARY_BYTES,
   type FsNode,
   type RequestOf,
   type ResponseOf,
@@ -16,9 +17,12 @@ describe('CHANNELS', () => {
       'agent:provider-status',
       'agent:set-key',
       'agent:write-mcp-config',
+      'ai:ask',
+      'ai:cancel',
       'comments:read',
       'comments:write',
       'dialog:pick-directory',
+      'dialog:pick-file',
       'env:detect',
       'env:select',
       'env:selected',
@@ -26,10 +30,12 @@ describe('CHANNELS', () => {
       'figure:duplicate',
       'figure:export',
       'figure:write-binary',
+      'fs:copy-file',
       'fs:create-file',
       'fs:delete',
       'fs:list',
       'fs:mkdir',
+      'fs:read-binary',
       'fs:read-text',
       'fs:rename',
       'fs:write-text',
@@ -110,6 +116,45 @@ describe('CHANNELS', () => {
     expect(CHANNELS['fs:write-text'].request.parse(req)).toEqual(req);
     const res: ResponseOf<'fs:write-text'> = { bytesWritten: 12 };
     expect(CHANNELS['fs:write-text'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates fs:read-binary shapes and rejects a fractional byte count', () => {
+    const req: RequestOf<'fs:read-binary'> = { path: 'references/nphys3816.pdf' };
+    expect(CHANNELS['fs:read-binary'].request.parse(req)).toEqual(req);
+    const res: ResponseOf<'fs:read-binary'> = { base64: 'JVBERi0=', bytes: 6 };
+    expect(CHANNELS['fs:read-binary'].response.parse(res)).toEqual(res);
+    expect(CHANNELS['fs:read-binary'].response.safeParse({ base64: 'JVBERi0=' }).success).toBe(
+      false,
+    );
+    expect(CHANNELS['fs:read-binary'].response.safeParse({ ...res, bytes: 6.5 }).success).toBe(
+      false,
+    );
+  });
+
+  it('keeps the fs:read-binary ceiling at 200MB', () => {
+    expect(MAX_READ_BINARY_BYTES).toBe(209_715_200);
+  });
+
+  it('validates fs:copy-file both-paths-required shapes', () => {
+    const req: RequestOf<'fs:copy-file'> = {
+      from: '/Users/ada/Downloads/gunn1972.pdf',
+      to: '/work/my-paper/references/gunn1972.pdf',
+    };
+    expect(CHANNELS['fs:copy-file'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['fs:copy-file'].request.safeParse({ from: req.from }).success).toBe(false);
+    expect(CHANNELS['fs:copy-file'].request.safeParse({ ...req, to: '' }).success).toBe(false);
+    const res: ResponseOf<'fs:copy-file'> = { path: req.to };
+    expect(CHANNELS['fs:copy-file'].response.parse(res)).toEqual(res);
+  });
+
+  it('allows a cancelled dialog:pick-file but never an empty path', () => {
+    const req: RequestOf<'dialog:pick-file'> = { title: 'Attach PDF', extensions: ['pdf'] };
+    expect(CHANNELS['dialog:pick-file'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['dialog:pick-file'].request.parse({ ...req, extensions: [] }).extensions).toEqual(
+      [],
+    );
+    expect(CHANNELS['dialog:pick-file'].response.parse({ path: null })).toEqual({ path: null });
+    expect(CHANNELS['dialog:pick-file'].response.safeParse({ path: '' }).success).toBe(false);
   });
 
   it('passes a manuscript:update patch through untouched', () => {
@@ -220,12 +265,32 @@ describe('CHANNELS', () => {
     expect(CHANNELS['lit:cancel'].request.parse(req)).toEqual(req);
     expect(CHANNELS['lit:cancel'].request.safeParse({ searchId: '' }).success).toBe(false);
   });
+
+  it('requires a non-empty prompt and dir on ai:ask', () => {
+    const req: RequestOf<'ai:ask'> = { prompt: 'why is the sky blue', dir: '/work/my-paper' };
+    expect(CHANNELS['ai:ask'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['ai:ask'].request.safeParse({ ...req, prompt: '' }).success).toBe(false);
+    expect(CHANNELS['ai:ask'].request.safeParse({ prompt: req.prompt }).success).toBe(false);
+    const res: ResponseOf<'ai:ask'> = { askId: 'ai-ask-1' };
+    expect(CHANNELS['ai:ask'].response.parse(res)).toEqual(res);
+  });
+
+  it('requires a non-empty askId on ai:cancel', () => {
+    const req: RequestOf<'ai:cancel'> = { askId: 'ai-ask-1' };
+    expect(CHANNELS['ai:cancel'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['ai:cancel'].request.safeParse({ askId: '' }).success).toBe(false);
+  });
 });
 
 describe('EVENT_CHANNELS', () => {
   it('namespaces lit progress/done events by searchId', () => {
     expect(EVENT_CHANNELS.litProgress('lit-ai-1')).toBe('lit:progress:lit-ai-1');
     expect(EVENT_CHANNELS.litDone('lit-ai-1')).toBe('lit:done:lit-ai-1');
+  });
+
+  it('namespaces ai:ask progress/done events by askId', () => {
+    expect(EVENT_CHANNELS.aiAskProgress('ai-ask-1')).toBe('ai:progress:ai-ask-1');
+    expect(EVENT_CHANNELS.aiAskDone('ai-ask-1')).toBe('ai:done:ai-ask-1');
   });
 });
 

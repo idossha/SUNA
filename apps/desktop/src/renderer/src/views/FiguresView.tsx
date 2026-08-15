@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useProjectStore } from '../state/project'
-import { openFileTab } from '../state/dock'
+import { openFileTab, openInSplit } from '../state/dock'
 import { NewFigureButton } from '../canvas/NewFigureButton'
 import { parseFigureMeta, scanFigures, svgDataUrl, type FigureHit } from './figures-scan'
 import './views.css'
@@ -80,8 +80,13 @@ export function FiguresView(): JSX.Element {
         <button
           key={card.hit.dirPath}
           className="figs__card"
-          onClick={() => openFileTab(card.hit.svgPath)}
-          title={`Open ${card.hit.id} on the canvas`}
+          // ⌘↵ (or ⌘-click) opens to the side, reusing the split group (feature-plan-4 §1/§5)
+          onClick={(e) =>
+            e.metaKey || e.ctrlKey
+              ? openInSplit(card.hit.svgPath, 'right')
+              : openFileTab(card.hit.svgPath)
+          }
+          title={`Open ${card.hit.id} on the canvas (⌘↵ to open beside)`}
         >
           {card.thumbUrl !== null ? (
             <span className="figs__thumb">

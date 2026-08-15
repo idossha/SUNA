@@ -28,6 +28,7 @@ interface AgentChatState {
   refreshStatus: () => Promise<void>
   saveKey: (key: string) => Promise<void>
   send: (text: string) => Promise<void>
+  pushExternalExchange: (prompt: string, answer: string) => void
 }
 
 export const useAgentChatStore = create<AgentChatState>((set, get) => ({
@@ -39,6 +40,23 @@ export const useAgentChatStore = create<AgentChatState>((set, get) => ({
   error: null,
 
   setProvider: (provider) => set({ provider, error: null }),
+
+  /**
+   * Append a prompt/answer pair produced OUTSIDE this store's own `send()`
+   * round trip — the command palette's `?` prefix (feature-plan-4 §5) drops
+   * its ai-cli answer here so the Agent view transcript stays the single
+   * place a user reviews every AI answer, whichever entry point produced it
+   * (and so the answer isn't a floating reply with no visible question).
+   */
+  pushExternalExchange: (prompt, answer) => {
+    set((s) => ({
+      messages: [
+        ...s.messages,
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: answer }
+      ]
+    }))
+  },
 
   refreshStatus: async () => {
     try {

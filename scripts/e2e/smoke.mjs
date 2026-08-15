@@ -21,10 +21,11 @@
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
  */
 import { spawn, execSync, execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ARTIFACTS = join(ROOT, 'scripts', 'e2e', '.artifacts')
@@ -256,6 +257,31 @@ const reloadComments = () =>
     };
   })()`)
 
+/**
+ * Page count of a PDF read HEADLESSLY, with the same pdf.js the renderer
+ * uses — the ground truth the viewer's "of N" readout is compared against,
+ * rather than a number typed into this file. `pdfjs-dist` is a dependency of
+ * apps/desktop (not of this script), and its default build needs DOM globals,
+ * so this resolves the *legacy* Node build from the app's own dependency tree.
+ */
+async function pdfPageCountHeadless(file) {
+  const require_ = createRequire(import.meta.url)
+  const entry = require_.resolve('pdfjs-dist/legacy/build/pdf.mjs', {
+    paths: [join(ROOT, 'apps', 'desktop')]
+  })
+  const { getDocument } = await import(pathToFileURL(entry).href)
+  const doc = await getDocument({ data: new Uint8Array(readFileSync(file)) }).promise
+  return doc.numPages
+}
+
+/** Dimensions a PNG really has, decoded from its IHDR chunk. */
+function pngIhdr(file) {
+  const bytes = readFileSync(file)
+  assert(bytes.subarray(0, 8).toString('hex') === '89504e470d0a1a0a', `${file} is not a PNG`)
+  assert(bytes.subarray(12, 16).toString('ascii') === 'IHDR', `${file} has no IHDR chunk`)
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
+}
+
 const MCP_PROBE = join(ROOT, 'scripts', 'e2e', 'mcp-probe.mjs')
 
 /** Build the standalone MCP bundle if it is not there yet (esbuild, ~50 ms). */
@@ -355,10 +381,24 @@ try {
    * reads. Input events are delivered in the same coordinate space, so real
    * mouse/drag steps keep working (verified), and screenshots come out at a
    * fixed size instead of varying run to run.
+   *
+   * The override's width/height are in Chromium's *device-independent*
+   * pixels, which equal CSS pixels only when the page zoom is 1. On a display
+   * whose macOS scale factor is not an integer (a MacBook running a "More
+   * Space" scaled mode reports devicePixelRatio 2.629, say), Chromium keeps
+   * an integral device scale factor and folds the remainder into a page zoom
+   * — `Page.getLayoutMetrics().cssVisualViewport.zoom` — so a raw
+   * `width: 1600` lands at `window.innerWidth === 1600 / zoom` (measured:
+   * 1217) and every width assertion below it reads a viewport nobody asked
+   * for. Scaling the request by that zoom pins the CSS viewport itself; on
+   * an integral-scale display zoom is 1 and this is a no-op.
    */
   const VIEWPORT = { width: 1600, height: 1100 }
+  const metrics = await send('Page.getLayoutMetrics')
+  const pageZoom = metrics.cssVisualViewport?.zoom ?? 1
   await send('Emulation.setDeviceMetricsOverride', {
-    ...VIEWPORT,
+    width: Math.round(VIEWPORT.width * pageZoom),
+    height: Math.round(VIEWPORT.height * pageZoom),
     deviceScaleFactor: 2,
     mobile: false
   })
@@ -366,9 +406,11 @@ try {
 
   await step('viewport-is-pinned', async () => {
     const got = await evalJs(`({ w: window.innerWidth, h: window.innerHeight })`)
+    // ±1 px: the override is applied in device-independent pixels, so a
+    // non-integral page zoom can round the CSS width by a pixel.
     assert(
-      got.w === VIEWPORT.width && got.h === VIEWPORT.height,
-      `viewport override did not take: ${got.w}×${got.h} (want ${VIEWPORT.width}×${VIEWPORT.height})`
+      Math.abs(got.w - VIEWPORT.width) <= 1 && Math.abs(got.h - VIEWPORT.height) <= 1,
+      `viewport override did not take: ${got.w}×${got.h} (want ${VIEWPORT.width}×${VIEWPORT.height}, page zoom ${pageZoom})`
     )
     // Above the gutter's 1100px breakpoint, so the margin-comment steps
     // measure the card layout rather than the narrow dot fallback.
@@ -3024,6 +3066,600 @@ try {
       assert(probe.tools.includes(name), `bundled MCP server is missing ${name}`)
     }
     assert(probe.tools.length === 15, `MCP tool count: ${probe.tools.length}`)
+  })
+
+  /* ------------------------------------------------------------------
+   * Steps 48-54: docs/design/feature-plan-4.md acceptance criteria
+   * (split view, PDF/image viewers, reference PDFs, command palette),
+   * measured the same way — real keys, real files, real page counts.
+   * ------------------------------------------------------------------ */
+
+  /** Empty the dock so a split assertion starts from one known group. */
+  const resetDock = async () => {
+    await evalJs(`window.__sunaDev.dock.clearDock()`)
+    await sleep(500)
+  }
+  /** Groups, panel ids per group, and each panel's dock component. */
+  const dockState = () =>
+    evalJs(`(() => {
+      const ids = window.__sunaDev.dock.groupPanelIds();
+      const comps = window.__sunaDev.dock.panelComponents();
+      return {
+        groups: ids.length,
+        ids,
+        comps,
+        pdfTabs: Object.values(comps).filter((c) => c === 'pdf').length
+      };
+    })()`)
+  /** Only the tabs the user can actually see — dockview keeps hidden panels
+   *  mounted at zero size, so an unscoped querySelector reads ghosts. */
+  const visibleText = (selector) =>
+    evalJs(`[...document.querySelectorAll(${JSON.stringify(selector)})]
+      .filter((e) => e.getBoundingClientRect().width > 0)
+      .map((e) => e.textContent)`)
+
+  const REF_PDFS = {
+    gunn1972: join(ROOT, 'references', 'nphys3816.pdf'),
+    cortese2021: join(ROOT, 'references', 's41550-026-02905-7.pdf'),
+    jachym2019: join(ROOT, 'references', 's41550-026-02892-9.pdf')
+  }
+  const INTRO_MD = join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md')
+
+  await step('split-view-two-groups', async () => {
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(INTRO_MD)})`)
+    await sleep(900)
+    const before = await dockState()
+    assert(before.groups === 1, `dock did not reset to one group: ${before.groups}`)
+
+    // ⌘\ on the focused editor — the real key, matched on event.code
+    await evalJs(`[...document.querySelectorAll('.cm-content')]
+      .find((e) => e.getBoundingClientRect().width > 0).focus()`)
+    await sleep(250)
+    await key('\\', 'Backslash', 4)
+    await sleep(1000)
+    const after = await dockState()
+    assert(after.groups === 2, `⌘\\ produced ${after.groups} groups, want exactly 2`)
+    const showing = after.ids.map(
+      (group) => group.filter((id) => id === INTRO_MD || id.startsWith(`${INTRO_MD}::`)).length
+    )
+    assert(
+      showing.length === 2 && showing[0] === 1 && showing[1] === 1,
+      `both groups must show the section: ${JSON.stringify(showing)}`
+    )
+
+    // "if a second group already exists, reuse it rather than endlessly
+    // splitting" — two more openInSplit calls must not add a third group.
+    await evalJs(`window.__sunaDev.dock.openInSplit(${JSON.stringify(INTRO_MD)}, 'right')`)
+    await sleep(400)
+    await evalJs(`window.__sunaDev.dock.openInSplit(${JSON.stringify(INTRO_MD)}, 'right')`)
+    await sleep(700)
+    const twice = await dockState()
+    assert(twice.groups === 2, `openInSplit twice left ${twice.groups} groups, want 2`)
+    assert(
+      JSON.stringify(twice.ids) === JSON.stringify(after.ids),
+      `openInSplit twice added panels: ${JSON.stringify(twice.ids)}`
+    )
+    await screenshot('split-view.png')
+  })
+
+  await step('pdf-viewer-page-count-and-canvas-bound', async () => {
+    await resetDock()
+    const src = join(ROOT, 'references', 'nphys3816.pdf')
+    const dst = join(COPY_DIR, 'references', 'nphys3816.pdf')
+    rmSync(dst, { force: true })
+    // through the real fs:copy-file channel (creates references/, refuses to
+    // overwrite, never moves the original)
+    const copiedTo = await evalJs(
+      `window.suna.invoke('fs:copy-file', { from: ${JSON.stringify(src)}, to: ${JSON.stringify(dst)} }).then((r) => r.path)`
+    )
+    assert(copiedTo === dst, `fs:copy-file landed at ${copiedTo}`)
+    assert(existsSync(dst) && existsSync(src), 'copy must create the target AND leave the source')
+
+    const wantPages = await pdfPageCountHeadless(src)
+    assert(wantPages > 1, `headless pdf.js read ${wantPages} pages — fixture looks wrong`)
+    assert(
+      (await evalJs(`window.__sunaDev.dock.componentForFile(${JSON.stringify(dst)})`)) === 'pdf',
+      '.pdf did not route to the pdf component'
+    )
+
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(dst)})`)
+    let info = null
+    const deadline = Date.now() + 60_000
+    while (Date.now() < deadline) {
+      info = await evalJs(`({
+        pageinfo: document.querySelector('.pdfview__pageinfo')?.textContent ?? null,
+        pages: document.querySelectorAll('.pdfview__page').length,
+        error: document.querySelector('.pdfview__error')?.textContent ?? null
+      })`)
+      if (info.error !== null || (info.pageinfo !== null && info.pageinfo !== 'of —')) break
+      await sleep(500)
+    }
+    assert(info.error === null, `the PDF failed to open: ${info.error}`)
+    assert(
+      info.pageinfo === `of ${wantPages}`,
+      `the toolbar reads "${info.pageinfo}" but pdf.js reads ${wantPages} pages headlessly`
+    )
+    assert(info.pages === wantPages, `${info.pages} page wrappers for a ${wantPages}-page document`)
+
+    // page 1 is really rasterized: a non-zero bitmap, not an empty <canvas>
+    await sleep(2500)
+    const page1 = await evalJs(`(() => {
+      const c = document.querySelector('.pdfview__page[data-page="1"] canvas');
+      if (!c) return null;
+      const r = c.getBoundingClientRect();
+      return { w: c.width, h: c.height, cssW: Math.round(r.width), cssH: Math.round(r.height) };
+    })()`)
+    assert(page1 !== null, 'page 1 rendered no canvas')
+    assert(page1.w > 0 && page1.h > 0, `page 1 canvas bitmap is ${page1.w}×${page1.h}`)
+    assert(page1.cssW > 100 && page1.cssH > 100, `page 1 is laid out at ${page1.cssW}×${page1.cssH} css px`)
+
+    // the text layer exists, so selection and ⌘F work
+    const text = await evalJs(`(() => {
+      const t = document.querySelector('.pdfview__page[data-page="1"] .pdfview__textlayer');
+      return { spans: t ? t.querySelectorAll('span').length : 0, chars: t ? t.textContent.trim().length : 0 };
+    })()`)
+    assert(text.spans > 20 && text.chars > 100, `text layer looks empty: ${JSON.stringify(text)}`)
+    await screenshot('pdf-viewer.png')
+
+    // Performance guard: scrolling the whole document and back must NOT keep
+    // a canvas per page alive. The lazy window is ±800 px, so the live count
+    // stays a small constant however many sweeps we make.
+    const liveCanvases = () => evalJs(`document.querySelectorAll('.pdfview__page canvas').length`)
+    const atStart = await liveCanvases()
+    const sweeps = []
+    for (let i = 0; i < 3; i += 1) {
+      await evalJs(`(async () => {
+        const el = document.querySelector('.pdfview__scroll');
+        el.scrollTop = el.scrollHeight; await new Promise((r) => setTimeout(r, 1200));
+        el.scrollTop = 0; await new Promise((r) => setTimeout(r, 1200));
+      })()`)
+      sweeps.push(await liveCanvases())
+    }
+    const CANVAS_BUDGET = 6
+    assert(
+      sweeps.every((n) => n <= CANVAS_BUDGET),
+      `live canvases grew while scrolling: start ${atStart}, after each sweep ${sweeps.join(', ')} (budget ${CANVAS_BUDGET} of ${wantPages} pages)`
+    )
+    assert(
+      sweeps[sweeps.length - 1] <= sweeps[0] + 1,
+      `live canvases climbed across sweeps: ${sweeps.join(', ')}`
+    )
+  })
+
+  await step('image-viewer-dimensions-match-ihdr', async () => {
+    await resetDock()
+    // the PNG the canvas export step already wrote, reopened in the viewer
+    const png = join(COPY_DIR, 'output', 'fig-spectrum.png')
+    assert(existsSync(png), `no exported PNG at ${png} (the canvas export step should have written it)`)
+    const real = pngIhdr(png)
+    assert(
+      (await evalJs(`window.__sunaDev.dock.componentForFile(${JSON.stringify(png)})`)) === 'image',
+      '.png did not route to the image component'
+    )
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(png)})`)
+    let view = null
+    const deadline = Date.now() + 30_000
+    while (Date.now() < deadline) {
+      view = await evalJs(`({
+        dims: document.querySelector('.imgview__dims')?.textContent ?? null,
+        error: document.querySelector('.imgview__error')?.textContent ?? null
+      })`)
+      if (view.dims !== null || view.error !== null) break
+      await sleep(400)
+    }
+    assert(view.error === null, `the image failed to open: ${view.error}`)
+    const m = /(\d+)\s*×\s*(\d+)px/.exec(view.dims ?? '')
+    assert(m, `no pixel readout in the image toolbar: ${view.dims}`)
+    assert(
+      Number(m[1]) === real.width && Number(m[2]) === real.height,
+      `the viewer reads ${m[1]}×${m[2]} but the PNG's IHDR says ${real.width}×${real.height}`
+    )
+    await screenshot('image-viewer.png')
+  })
+
+  await step('reference-pdfs-resolve-and-open-in-side-group', async () => {
+    mkdirSync(join(COPY_DIR, 'references'), { recursive: true })
+    for (const [citekey, src] of Object.entries(REF_PDFS)) {
+      copyFileSync(src, join(COPY_DIR, 'references', `${citekey}.pdf`))
+    }
+    await evalJs(`window.__sunaDev.referencePdfsStore.getState().scan(${JSON.stringify(COPY_DIR)})`)
+    await sleep(1200)
+    const map = await evalJs(`(() => {
+      const out = {};
+      for (const [k, v] of window.__sunaDev.referencePdfsStore.getState().map) {
+        out[k] = v === null ? null : { how: v.how, path: v.path };
+      }
+      return out;
+    })()`)
+    for (const citekey of Object.keys(REF_PDFS)) {
+      assert(map[citekey] !== null && map[citekey] !== undefined, `no PDF resolved for @${citekey}`)
+      assert(
+        map[citekey].how === 'citekey',
+        `@${citekey} resolved via ${map[citekey].how}, want the references/<citekey>.pdf rule`
+      )
+      assert(
+        map[citekey].path === join(COPY_DIR, 'references', `${citekey}.pdf`),
+        `@${citekey} resolved to ${map[citekey].path}`
+      )
+    }
+    assert(map['peng2010'] === null, 'peng2010 has no PDF and must resolve to null, not a guess')
+
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(INTRO_MD)})`)
+    await sleep(900)
+    await showView('references')
+    await sleep(1500)
+    assert(
+      (await evalJs(`window.__sunaDev.settingsStore.getState().settings['references.autoOpenPdf']`)) === true,
+      "'references.autoOpenPdf' should default on"
+    )
+    const badged = await evalJs(`[...document.querySelectorAll('.refs__row')]
+      .filter((r) => r.querySelector('.refs__pdf-badge'))
+      .map((r) => r.querySelector('.refs__key').textContent.trim())`)
+    for (const citekey of Object.keys(REF_PDFS)) {
+      assert(badged.includes(citekey), `no PDF badge on the ${citekey} row: ${badged.join(', ')}`)
+    }
+    assert(
+      (await evalJs(`document.querySelectorAll('.refs__attach-pdf').length`)) > 0,
+      'rows without a PDF must offer "Attach PDF…"'
+    )
+
+    const clickRow = (citekey) =>
+      evalJs(`(() => {
+        const row = [...document.querySelectorAll('.refs__row')]
+          .find((r) => (r.querySelector('.refs__key')?.textContent ?? '').trim() === ${JSON.stringify(citekey)});
+        if (!row) throw new Error('no references row for ' + ${JSON.stringify(citekey)});
+        row.click();
+      })()`)
+
+    // Three entries in a row: exactly one PDF tab, in the SIDE group, showing
+    // the last one clicked — replacing, never stacking.
+    const seen = []
+    for (const citekey of ['gunn1972', 'cortese2021', 'jachym2019']) {
+      await clickRow(citekey)
+      await sleep(2500)
+      const state = await dockState()
+      const shown = await visibleText('.pdfview__filename')
+      seen.push({ citekey, groups: state.groups, pdfTabs: state.pdfTabs, shown })
+      assert(state.groups === 2, `clicking ${citekey} left ${state.groups} groups, want 2`)
+      assert(state.pdfTabs === 1, `clicking ${citekey} left ${state.pdfTabs} PDF tabs, want exactly 1`)
+      assert(
+        (state.ids[1] ?? []).some((id) => id.endsWith(`${citekey}.pdf`)),
+        `${citekey}.pdf is not in the side group: ${JSON.stringify(state.ids)}`
+      )
+      assert(
+        shown.length === 1 && shown[0] === `${citekey}.pdf`,
+        `the visible PDF is ${JSON.stringify(shown)}, want ${citekey}.pdf`
+      )
+    }
+    console.log(`    (side group after each click: ${seen.map((s) => `${s.citekey}→${s.pdfTabs} tab`).join(', ')})`)
+    await screenshot('reference-pdf-side.png')
+  })
+
+  await step('citation-context-menu-opens-reference-pdf', async () => {
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(INTRO_MD)})`)
+    await sleep(2000)
+    // Reading mode replaces each [@key] with a .cm-lp-cite chip; scope the
+    // lookup to the VISIBLE editor so a zero-size hidden panel can't supply
+    // the coordinates.
+    const chips = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.cm-content')].find((e) => e.getBoundingClientRect().width > 0);
+      if (!host) throw new Error('no visible editor');
+      return [...host.querySelectorAll('.cm-lp-cite')].map((c) => {
+        const r = c.getBoundingClientRect();
+        return { text: c.textContent, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+    })()`)
+    assert(chips.length >= 3, `expected several citation chips in the intro, got ${chips.length}`)
+
+    const menuOn = async (chip) => {
+      await rclick(chip.x, chip.y)
+      await sleep(500)
+      return evalJs(`[...document.querySelectorAll('.md-ctxmenu__item')].map((i) => ({
+        action: i.getAttribute('data-action'), label: i.textContent.trim(), disabled: i.disabled === true
+      }))`)
+    }
+    const dismissMenu = async () => {
+      await evalJs(`document.querySelector('.md-ctxmenu-scrim')
+        ?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`)
+      await key('Escape', 'Escape')
+      await sleep(350)
+    }
+
+    // A citation WITHOUT a PDF: the item is present, disabled, and names the key.
+    let disabled = null
+    for (const chip of chips) {
+      const items = await menuOn(chip)
+      const item = items.find((i) => i.action === 'openReferencePdf')
+      await dismissMenu()
+      if (item !== undefined && item.disabled) {
+        disabled = { chip: chip.text, item }
+        break
+      }
+    }
+    assert(disabled !== null, 'no citation without a PDF produced a disabled "Open reference PDF"')
+    assert(
+      /^No PDF found for @\w/.test(disabled.item.label),
+      `the disabled item does not name the key: "${disabled.item.label}"`
+    )
+    assert(
+      disabled.chip.includes(disabled.item.label.replace('No PDF found for @', '')),
+      `the disabled item names ${disabled.item.label} but the chip is ${disabled.chip}`
+    )
+
+    // A right-click on plain prose must not offer the item at all.
+    const proseAt = await evalJs(`(() => {
+      const line = [...document.querySelectorAll('.cm-line')].find((e) => e.getBoundingClientRect().width > 0);
+      const r = line.getBoundingClientRect();
+      return { x: r.left + 25, y: r.top + r.height / 2 };
+    })()`)
+    await rclick(proseAt.x, proseAt.y)
+    await sleep(500)
+    const proseActions = await evalJs(
+      `[...document.querySelectorAll('.md-ctxmenu__item')].map((i) => i.getAttribute('data-action'))`
+    )
+    assert(proseActions.length > 0, 'right-clicking prose opened no menu')
+    assert(
+      !proseActions.includes('openReferencePdf'),
+      'a click off any citation must not offer "Open reference PDF"'
+    )
+    await dismissMenu()
+
+    // A citation WITH a PDF: enabled, and choosing it opens the paper in the
+    // side group without disturbing the manuscript group.
+    const before = await dockState()
+    const enabledChip = chips[0]
+    const items = await menuOn(enabledChip)
+    const item = items.find((i) => i.action === 'openReferencePdf')
+    assert(item !== undefined, `no "Open reference PDF" on ${enabledChip.text}`)
+    assert(!item.disabled, `"Open reference PDF" is disabled on ${enabledChip.text}`)
+    assert(item.label === 'Open reference PDF', `unexpected label: ${item.label}`)
+    await evalJs(`[...document.querySelectorAll('.md-ctxmenu__item')]
+      .find((i) => i.getAttribute('data-action') === 'openReferencePdf').click()`)
+    await sleep(3000)
+    const after = await dockState()
+    assert(after.groups === 2, `choosing the item left ${after.groups} groups, want 2`)
+    assert(after.pdfTabs === 1, `choosing the item left ${after.pdfTabs} PDF tabs, want 1`)
+    assert(
+      JSON.stringify(after.ids[0]) === JSON.stringify(before.ids[0]),
+      `the manuscript group was disturbed: ${JSON.stringify(before.ids[0])} -> ${JSON.stringify(after.ids[0])}`
+    )
+    const shown = await visibleText('.pdfview__filename')
+    assert(
+      shown.length === 1 && /\.pdf$/.test(shown[0]),
+      `no single PDF visible in the side group: ${JSON.stringify(shown)}`
+    )
+  })
+
+  await step('command-palette-modes', async () => {
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(INTRO_MD)})`)
+    await sleep(1200)
+    const docBefore = await evalJs(`[...document.querySelectorAll('.cm-content')]
+      .find((e) => e.getBoundingClientRect().width > 0).textContent.slice(0, 60)`)
+
+    // ⌘K opens FOCUSED, over a focused prose editor. (The editor's own ⌘K
+    // still makes a link out of a SELECTION; with an empty selection it lets
+    // the key through — editor/keymap.ts's insertLinkOnSelection.)
+    await evalJs(`[...document.querySelectorAll('.cm-content')]
+      .find((e) => e.getBoundingClientRect().width > 0).focus()`)
+    await sleep(250)
+    await key('k', 'KeyK', 4)
+    await sleep(700)
+    const opened = await evalJs(`({
+      dialog: !!document.querySelector('.palette'),
+      focused: document.activeElement ? document.activeElement.className : null
+    })`)
+    assert(opened.dialog, '⌘K did not open the palette over a focused editor')
+    assert(
+      opened.focused === 'palette__input',
+      `the palette opened without focus on its input: ${opened.focused}`
+    )
+
+    // file mode: typing 'intro' finds the intro section and Enter opens it
+    await insertText('intro')
+    await sleep(800)
+    const fileRows = await evalJs(`[...document.querySelectorAll('.palette__item')].map((i) => ({
+      label: i.querySelector('.palette__item-label')?.textContent ?? '',
+      sub: i.querySelector('.palette__item-sub')?.textContent ?? ''
+    }))`)
+    assert(fileRows.length > 0, "typing 'intro' matched nothing")
+    assert(
+      fileRows[0].label === '01-introduction.md',
+      `'intro' ranked ${fileRows[0].label} first, want 01-introduction.md`
+    )
+    // matched on the PROJECT-RELATIVE path: every file shares the absolute
+    // prefix, so scoring absolute paths returns the entire project
+    assert(
+      !fileRows[0].sub.startsWith('/'),
+      `file rows show an absolute path: ${fileRows[0].sub}`
+    )
+    assert(
+      fileRows.length < 5,
+      `'intro' matched ${fileRows.length} files — the query is not discriminating (${fileRows.map((r) => r.label).join(', ')})`
+    )
+    await screenshot('command-palette.png')
+    await resetDock()
+    await sleep(400)
+    await key('Enter', 'Enter')
+    await sleep(1500)
+    const openedFile = await evalJs(`({
+      closed: !document.querySelector('.palette'),
+      active: window.__sunaDev.dock.activePanelPath()
+    })`)
+    assert(openedFile.closed, 'the palette stayed open after Enter')
+    assert(openedFile.active === INTRO_MD, `Enter opened ${openedFile.active}`)
+
+    // ⌘⇧P opens straight into '>' command mode
+    await key('P', 'KeyP', 12)
+    await sleep(700)
+    const commandMode = await evalJs(`({
+      value: document.querySelector('.palette__input')?.value ?? null,
+      rows: [...document.querySelectorAll('.palette__item')].map((i) => i.querySelector('.palette__item-label')?.textContent ?? '')
+    })`)
+    assert(commandMode.value === '>', `⌘⇧P prefilled ${JSON.stringify(commandMode.value)}, want '>'`)
+    assert(commandMode.rows.includes('Split Right'), `command list: ${commandMode.rows.join(', ')}`)
+    await key('Escape', 'Escape')
+    await sleep(500)
+
+    // '>' mode: '>split right' really splits
+    const beforeSplit = await dockState()
+    assert(beforeSplit.groups === 1, `expected one group before the split: ${beforeSplit.groups}`)
+    await key('k', 'KeyK', 4)
+    await sleep(600)
+    await insertText('>split right')
+    await sleep(700)
+    const cmdRows = await evalJs(
+      `[...document.querySelectorAll('.palette__item')].map((i) => i.querySelector('.palette__item-label')?.textContent ?? '')`
+    )
+    assert(
+      cmdRows[0] === 'Split Right',
+      `'>split right' ranked ${JSON.stringify(cmdRows)} — want Split Right first`
+    )
+    await key('Enter', 'Enter')
+    await sleep(1500)
+    const afterSplit = await dockState()
+    assert(afterSplit.groups === 2, `'>split right' produced ${afterSplit.groups} groups, want 2`)
+
+    // '$' mode: the line really runs in the integrated terminal
+    await key('k', 'KeyK', 4)
+    await sleep(600)
+    await insertText('$echo SUNA_PALETTE')
+    await sleep(500)
+    const termHint = await evalJs(`document.querySelector('.palette__status')?.textContent ?? ''`)
+    assert(/Enter to run/.test(termHint), `no terminal hint row: ${termHint}`)
+    await key('Enter', 'Enter')
+    let buffer = ''
+    const termDeadline = Date.now() + 25_000
+    while (Date.now() < termDeadline) {
+      buffer = await evalJs(
+        `document.querySelector('.termpanel__mount .xterm-rows')?.textContent ?? ''`
+      )
+      if (buffer.includes('SUNA_PALETTE')) break
+      await sleep(600)
+    }
+    assert(
+      await evalJs(`!!document.querySelector('.termpanel')`),
+      'the terminal panel did not open for $ mode'
+    )
+    // the command echoed AND its output came back: the marker appears twice
+    // (the typed line, then the shell's own output)
+    const occurrences = buffer.split('SUNA_PALETTE').length - 1
+    assert(
+      occurrences >= 2,
+      `the terminal buffer does not show '$echo SUNA_PALETTE' running: ${JSON.stringify(buffer.replace(/\s+/g, ' ').slice(-200))}`
+    )
+
+    // Escape closes with NO side effects
+    const beforeEscape = {
+      ...(await dockState()),
+      terms: await evalJs(`document.querySelectorAll('.termpanel__tab-name').length`)
+    }
+    await key('k', 'KeyK', 4)
+    await sleep(600)
+    await insertText('methods')
+    await sleep(600)
+    assert(await evalJs(`!!document.querySelector('.palette')`), 'the palette did not reopen')
+    await key('Escape', 'Escape')
+    await sleep(800)
+    const afterEscape = {
+      ...(await dockState()),
+      terms: await evalJs(`document.querySelectorAll('.termpanel__tab-name').length`),
+      closed: await evalJs(`!document.querySelector('.palette')`)
+    }
+    assert(afterEscape.closed, 'Escape did not close the palette')
+    assert(
+      JSON.stringify(beforeEscape.ids) === JSON.stringify(afterEscape.ids),
+      `Escape changed the open tabs: ${JSON.stringify(beforeEscape.ids)} -> ${JSON.stringify(afterEscape.ids)}`
+    )
+    assert(
+      beforeEscape.terms === afterEscape.terms,
+      `Escape created a terminal: ${beforeEscape.terms} -> ${afterEscape.terms}`
+    )
+    const docAfter = await evalJs(`[...document.querySelectorAll('.cm-content')]
+      .find((e) => e.getBoundingClientRect().width > 0)?.textContent.slice(0, 60) ?? null`)
+    assert(
+      docAfter === docBefore,
+      'the palette typed into the document instead of its own input'
+    )
+  })
+
+  /**
+   * The palette's '?' AI mode, unbilled half — same contract as step 47's
+   * literature-search cancel: start a real agent-CLI run and kill it. The
+   * child is located in `ps` by the run's own unique prompt text, never by
+   * the string "claude", so running this suite from inside an agent CLI
+   * session cannot match. The billed half (a full answer) is verified by hand
+   * — see TESTING.md.
+   */
+  await step('palette-ai-ask-cancel', async () => {
+    const cli = await evalJs(`window.suna.invoke('lit:cli-status', {})`)
+    if (!Array.isArray(cli.available) || cli.available.length === 0) {
+      console.log('    (no agent CLI installed — ? mode cannot be exercised here)')
+      return
+    }
+    const marker = `SUNA_PALETTE_ASK_PROBE_${Date.now()}`
+    await key('k', 'KeyK', 4)
+    await sleep(600)
+    await insertText(`?${marker} reply with the single word OK`)
+    await sleep(500)
+    const hint = await evalJs(`document.querySelector('.palette__status')?.textContent ?? ''`)
+    assert(/ask the agent CLI/.test(hint), `no ai hint row: ${hint}`)
+    await key('Enter', 'Enter')
+    await sleep(4000)
+
+    const busy = await evalJs(`({
+      buttons: [...document.querySelectorAll('.palette__button')].map((b) => b.textContent.trim()),
+      inputDisabled: document.querySelector('.palette__input')?.disabled ?? null,
+      focused: document.activeElement ? document.activeElement.className : null
+    })`)
+    assert(busy.buttons.includes('Cancel'), `no Cancel button while busy: ${busy.buttons.join(', ')}`)
+    // focus must stay INSIDE the dialog once the input disables, or Escape dies
+    assert(busy.focused === 'palette__button', `focus escaped the dialog: ${busy.focused}`)
+
+    const psFor = () => {
+      try {
+        return execSync(`ps -Ao pid=,command= | grep ${marker} | grep -v grep || true`, {
+          encoding: 'utf8'
+        }).trim()
+      } catch {
+        return ''
+      }
+    }
+    const running = psFor()
+    assert(running !== '', `no child process was spawned for the '?' prompt`)
+    const pids = running
+      .split('\n')
+      .map((line) => Number(line.trim().split(/\s+/)[0]))
+      .filter((n) => Number.isFinite(n))
+
+    await evalJs(`[...document.querySelectorAll('.palette__button')]
+      .find((b) => b.textContent.trim() === 'Cancel').click()`)
+    await sleep(3500)
+    assert(psFor() === '', `the agent CLI is still running after Cancel:\n${psFor()}`)
+    for (const pid of pids) {
+      let alive = true
+      try {
+        process.kill(pid, 0)
+      } catch {
+        alive = false
+      }
+      assert(!alive, `spawned pid ${pid} survived Cancel`)
+    }
+    // Cancel returns the palette to its idle input rather than closing it
+    const idle = await evalJs(`({
+      dialog: !!document.querySelector('.palette'),
+      inputDisabled: document.querySelector('.palette__input')?.disabled ?? null,
+      value: document.querySelector('.palette__input')?.value ?? null
+    })`)
+    assert(idle.dialog && idle.inputDisabled === false, `the palette did not return to idle: ${JSON.stringify(idle)}`)
+    assert(idle.value === '', `the palette kept the cancelled prompt: ${JSON.stringify(idle.value)}`)
+    await key('Escape', 'Escape')
+    await sleep(400)
+    assert(await evalJs(`!document.querySelector('.palette')`), 'Escape did not close the idle palette')
+    console.log(`    (killed ${pids.length} agent CLI process(es) started by '?')`)
   })
 
   console.log(`\nALL ${results.length} STEPS PASSED`)

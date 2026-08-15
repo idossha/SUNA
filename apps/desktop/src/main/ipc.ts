@@ -12,6 +12,7 @@ import {
   type ResponseOf
 } from '@suna/core'
 import { getProvider } from '@suna/agent'
+import { cancelAiAsk, runAiAsk } from './services/ai-ask'
 import {
   getKey,
   getLitKey,
@@ -25,9 +26,11 @@ import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
 import { exportFigure } from './services/figure-export'
 import {
+  copyFileInto,
   createFile,
   listTree,
   makeDir,
+  readBinary,
   readText,
   renameEntry,
   trashEntry,
@@ -167,6 +170,8 @@ export function registerIpcHandlers(): void {
   handle('fs:write-text', async ({ path, content }) => ({
     bytesWritten: await writeText(path, content)
   }))
+  handle('fs:read-binary', ({ path }) => readBinary(path))
+  handle('fs:copy-file', async ({ from, to }) => ({ path: await copyFileInto(from, to) }))
   handle('fs:list', async ({ dir }) => ({ root: await listTree(dir) }))
   handle('fs:rename', async ({ path, newName }) => ({
     path: await renameEntry(path, newName)
@@ -244,6 +249,32 @@ export function registerIpcHandlers(): void {
   })
   handle('lit:cancel', async ({ searchId }) => {
     cancelAiCliSearch(searchId)
+    return {}
+  })
+
+  handle('ai:ask', async ({ prompt, dir }, event) => {
+    const askId = `ai-ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const webContents = event.sender
+    const cliPreference = await litCliPreference()
+
+    // Fire-and-forget: the child keeps running after this handler returns.
+    // Progress/outcome arrive over EVENT_CHANNELS.aiAskProgress/aiAskDone(askId).
+    void runAiAsk(askId, prompt, {
+      dir,
+      cliPreference,
+      onProgress: (status) => {
+        if (!webContents.isDestroyed()) webContents.send(EVENT_CHANNELS.aiAskProgress(askId), status)
+      }
+    }).then(({ text, error }) => {
+      if (!webContents.isDestroyed()) {
+        webContents.send(EVENT_CHANNELS.aiAskDone(askId), { text, error })
+      }
+    })
+
+    return { askId }
+  })
+  handle('ai:cancel', async ({ askId }) => {
+    cancelAiAsk(askId)
     return {}
   })
 
@@ -332,6 +363,26 @@ export function registerIpcHandlers(): void {
       properties: allowCreate
         ? ['openDirectory', 'createDirectory']
         : ['openDirectory']
+    })
+    return { path: result.canceled ? null : (result.filePaths[0] ?? null) }
+  })
+
+  handle('dialog:pick-file', async ({ title, extensions }) => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    if (!win) return { path: null }
+    // Electron wants bare extensions; callers may pass '.pdf' or 'pdf'.
+    const bare = extensions.map((ext) => ext.replace(/^\./, '').toLowerCase()).filter(Boolean)
+    const filters =
+      bare.length > 0
+        ? [
+            { name: bare.map((ext) => ext.toUpperCase()).join(', '), extensions: bare },
+            { name: 'All files', extensions: ['*'] }
+          ]
+        : [{ name: 'All files', extensions: ['*'] }]
+    const result = await dialog.showOpenDialog(win, {
+      title,
+      properties: ['openFile'],
+      filters
     })
     return { path: result.canceled ? null : (result.filePaths[0] ?? null) }
   })

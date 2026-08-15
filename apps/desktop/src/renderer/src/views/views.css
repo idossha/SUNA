@@ -393,6 +393,35 @@
   border-color: var(--s-accent);
 }
 
+/* PDF badge (resolved) / "Attach PDF…" (unresolved) — feature-plan-4 §4.
+   Unlike .refs__copy this stays visible at rest: whether a reference has a
+   PDF is information worth seeing at a glance, not just on hover. */
+.refs__pdf-badge,
+.refs__attach-pdf {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border: 1px solid var(--s-border);
+  border-radius: 3px;
+  font-family: var(--s-font-mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.refs__pdf-badge {
+  color: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.refs__attach-pdf {
+  color: var(--s-ink-faint);
+}
+
+.refs__attach-pdf:hover {
+  color: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
 .refs__styles {
   display: flex;
   gap: 3px;

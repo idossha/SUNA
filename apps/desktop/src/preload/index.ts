@@ -92,6 +92,44 @@ const api = {
     return () => {
       ipcRenderer.removeListener(channel, handler)
     }
+  },
+
+  /**
+   * Subscribe to status-line pushes for one 'ai:ask' run
+   * (EVENT_CHANNELS.aiAskProgress). Returns an unsubscribe function.
+   */
+  onAiAskProgress: (askId: string, listener: (status: string) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.aiAskProgress(askId)
+    const handler = (_event: IpcRendererEvent, status: unknown): void => {
+      if (typeof status === 'string') listener(status)
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
+   * Subscribe to the terminal outcome of one 'ai:ask' run
+   * (EVENT_CHANNELS.aiAskDone) — fires exactly once. Returns an unsubscribe
+   * function (call it after `listener` fires, or on unmount if it never does).
+   */
+  onAiAskDone: (
+    askId: string,
+    listener: (outcome: { text: string | null; error: string | null }) => void
+  ): (() => void) => {
+    const channel = EVENT_CHANNELS.aiAskDone(askId)
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      const object =
+        typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
+      const text = typeof object['text'] === 'string' ? object['text'] : null
+      const error = typeof object['error'] === 'string' ? object['error'] : null
+      listener({ text, error })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
   }
 } as const
 
