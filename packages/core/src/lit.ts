@@ -13,6 +13,44 @@ export const LIT_PROVIDER_IDS = ['crossref', 'openalex', 'ads', 'arxiv'] as cons
 export const LitProviderIdSchema = z.enum(LIT_PROVIDER_IDS);
 export type LitProviderId = z.infer<typeof LitProviderIdSchema>;
 
+/**
+ * Agent CLIs the 'ai-cli' provider can spawn (feature-plan-3 §2). Detection
+ * and process management live in the main process
+ * (apps/desktop/src/main/services/lit.ts); this is just the shared id type.
+ */
+export const LIT_CLI_IDS = ['claude', 'codex'] as const;
+export const LitCliIdSchema = z.enum(LIT_CLI_IDS);
+export type LitCliId = z.infer<typeof LitCliIdSchema>;
+
+/** Settings key 'lit.cli': which CLI to prefer when more than one is installed. */
+export const LIT_CLI_PREFERENCE_IDS = ['auto', ...LIT_CLI_IDS] as const;
+export const LitCliPreferenceSchema = z.enum(LIT_CLI_PREFERENCE_IDS);
+export type LitCliPreference = z.infer<typeof LitCliPreferenceSchema>;
+
+/**
+ * Every value a LitResult.source can carry: the four dispatchable HTTP
+ * providers above (LitProviderId — what searchLiterature/lookupByDoi and the
+ * MCP search_literature/lookup_doi tools switch on) plus 'ai-cli'. 'ai-cli'
+ * is deliberately NOT a member of LitProviderId: it has no HTTP fetch path
+ * (it spawns a child process from the main process instead), and the MCP
+ * tools never dispatch to it — an agent already has its own web search, so
+ * search_literature keeps only the API providers.
+ */
+export const LIT_RESULT_SOURCE_IDS = [...LIT_PROVIDER_IDS, 'ai-cli'] as const;
+export const LitResultSourceSchema = z.enum(LIT_RESULT_SOURCE_IDS);
+export type LitResultSource = z.infer<typeof LitResultSourceSchema>;
+
+/**
+ * Provider ids shown in the UI's provider picker: 'ai-cli' first (it becomes
+ * the picker's default once a CLI is detected — apps/desktop main process),
+ * then the four keyless/keyed HTTP APIs.
+ */
+export const UI_LIT_PROVIDER_IDS = ['ai-cli', ...LIT_PROVIDER_IDS] as const;
+export const UiLitProviderIdSchema = z.enum(UI_LIT_PROVIDER_IDS);
+export type UiLitProviderId = z.infer<typeof UiLitProviderIdSchema>;
+
+export const AI_CLI_LABEL = 'AI search';
+
 export interface LitProviderMeta {
   readonly label: string;
   /** Callable without a stored key. OpenAlex is keyless but metered. */
@@ -46,7 +84,7 @@ export const LIT_PROVIDER_META = {
 
 /** Normalized search hit. Every nullable field is null when unknown. */
 export const LitResultSchema = z.object({
-  source: LitProviderIdSchema,
+  source: LitResultSourceSchema,
   /** Provider-native id: DOI (crossref), work id (openalex), bibcode (ads), arXiv id. */
   id: z.string().min(1),
   doi: z.string().nullable(),

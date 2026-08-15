@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useProjectStore } from '../state/project'
 import { openFileTab } from '../state/dock'
+import { NewFigureButton } from '../canvas/NewFigureButton'
 import { parseFigureMeta, scanFigures, svgDataUrl, type FigureHit } from './figures-scan'
 import './views.css'
 
@@ -33,6 +34,7 @@ async function loadCard(hit: FigureHit): Promise<FigureCard> {
 }
 
 export function FiguresView(): JSX.Element {
+  const rootDir = useProjectStore((s) => s.rootDir)
   const tree = useProjectStore((s) => s.tree)
   const saveBump = useProjectStore((s) => s.saveBump)
   const hits = useMemo(() => scanFigures(tree), [tree])
@@ -48,16 +50,32 @@ export function FiguresView(): JSX.Element {
     }
   }, [hits, saveBump])
 
+  const header = rootDir !== null && (
+    <div className="figs__header">
+      <span className="figs__header-title">Figures</span>
+      <NewFigureButton
+        rootDir={rootDir}
+        className="figs__new"
+        inputClassName="figs__new-input"
+        title="New figure"
+      />
+    </div>
+  )
+
   if (hits.length === 0) {
     return (
-      <p className="sidebar__empty">
-        No figures found. Each figure lives in figures/&lt;id&gt;/ with a figure.svg canvas.
-      </p>
+      <div className="view figs">
+        {header}
+        <p className="sidebar__empty">
+          No figures found. Each figure lives in figures/&lt;id&gt;/ with a figure.svg canvas.
+        </p>
+      </div>
     )
   }
 
   return (
     <div className="view figs">
+      {header}
       {cards.map((card) => (
         <button
           key={card.hit.dirPath}

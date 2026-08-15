@@ -1,5 +1,12 @@
 import { useEffect, useState, type JSX } from 'react'
-import { LIT_PROVIDER_IDS, LIT_PROVIDER_META, type LitProviderId } from '@suna/core'
+import {
+  LIT_CLI_PREFERENCE_IDS,
+  LIT_PROVIDER_IDS,
+  LIT_PROVIDER_META,
+  type LitCliId,
+  type LitCliPreference,
+  type LitProviderId
+} from '@suna/core'
 import { useProjectStore } from '../state/project'
 import {
   UI_SCALE_CHOICES,
@@ -129,6 +136,62 @@ function LitProvidersSection(): JSX.Element {
         )
       })}
     </>
+  )
+}
+
+const CLI_PREFERENCE_LABELS: Record<LitCliPreference, string> = {
+  auto: 'Automatic (Claude Code, then Codex)',
+  claude: 'Claude Code',
+  codex: 'Codex'
+}
+
+function cliDisplayName(id: LitCliId): string {
+  return id === 'claude' ? 'Claude Code' : 'Codex'
+}
+
+/** "AI CLI preference": which agent CLI the 'ai-cli' literature provider spawns. */
+function AiCliSection(): JSX.Element {
+  const cliPreference = useSettingsStore((s) => s.settings['lit.cli'])
+  const update = useSettingsStore((s) => s.update)
+  const [available, setAvailable] = useState<LitCliId[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void window.suna
+      .invoke('lit:cli-status', {})
+      .then((res) => setAvailable(res.available))
+      .catch((err) => setError(errMessage(err)))
+  }, [])
+
+  const statusText =
+    available === null
+      ? 'Checking…'
+      : available.length === 0
+        ? 'Neither was found on PATH — literature search falls back to Crossref.'
+        : `Detected: ${available.map(cliDisplayName).join(', ')}.`
+
+  return (
+    <div className="settings-tab__row">
+      <label htmlFor="set-lit-cli">
+        AI CLI preference
+        <span className="settings-tab__hint">
+          Which agent CLI the &quot;AI search&quot; literature provider spawns — billed to your
+          existing subscription, not an API key. {statusText}
+          {error !== null && ` (status check failed: ${error})`}
+        </span>
+      </label>
+      <select
+        id="set-lit-cli"
+        value={cliPreference}
+        onChange={(e) => void update('lit.cli', e.target.value as LitCliPreference)}
+      >
+        {LIT_CLI_PREFERENCE_IDS.map((id) => (
+          <option key={id} value={id}>
+            {CLI_PREFERENCE_LABELS[id]}
+          </option>
+        ))}
+      </select>
+    </div>
   )
 }
 
@@ -296,6 +359,7 @@ export function SettingsTab(): JSX.Element {
             }}
           />
         </div>
+        <AiCliSection />
         <LitProvidersSection />
 
         <h2 className="settings-tab__section">About</h2>

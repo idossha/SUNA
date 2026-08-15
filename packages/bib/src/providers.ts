@@ -535,6 +535,174 @@ async function arxivByDoi(doi: string): Promise<LitLookupOutcome> {
   return { result: outcome.results[0] ?? null, error: null }
 }
 
+/* ------------------------------------------------------------------ ai-cli -- */
+
+/**
+ * Pure parsing for the 'ai-cli' provider (feature-plan-3 §2): a Claude Code
+ * or Codex CLI child process, spawned by the main process
+ * (apps/desktop/src/main/services/lit.ts — the only place that touches
+ * child_process), is prompted to answer with ONLY a JSON array of
+ * `{title, authors[], year, venue, doi, url, abstract}`. Everything below is
+ * dependency-free (no fetch, no fs, no child_process) so it runs unmodified
+ * under plain vitest and inside the bundled main process alike.
+ *
+ * Ground truth probed 2026-08-14 (feature-plan-3 §2.0, plus a live
+ * verification run for codex during this build):
+ *   - `claude -p "<prompt>" --output-format json --allowed-tools WebSearch`
+ *     exits 0 and prints ONE JSON object whose `.result` is a STRING holding
+ *     the model's answer; `.is_error` flags a failed turn.
+ *   - `codex --ask-for-approval never --sandbox read-only --search exec
+ *     --json --skip-git-repo-check -C <dir> --output-last-message <file>
+ *     "<prompt>"` exits 0, streams JSONL progress events on stdout, and
+ *     writes the model's raw answer text (no envelope) to `<file>`.
+ */
+
+export interface AiCliOutcome {
+  results: LitResult[]
+  error: string | null
+}
+
+/** First `n` chars of the model's raw answer — an honest error, never an empty list. */
+function firstChars(text: string, n: number): string {
+  const trimmed = text.trim()
+  if (trimmed === '') return '(empty output)'
+  return trimmed.length <= n ? trimmed : `${trimmed.slice(0, n)}…`
+}
+
+/** Strip a ```json / ``` fence wrapping the ENTIRE trimmed text, if present. */
+function stripCodeFence(text: string): string {
+  const trimmed = text.trim()
+  const fenced = /^```(?:json)?\s*\n?([\s\S]*?)\n?```$/.exec(trimmed)
+  return fenced?.[1] !== undefined ? fenced[1].trim() : trimmed
+}
+
+function tryParseArray(text: string): unknown[] | null {
+  try {
+    const value: unknown = JSON.parse(text)
+    return Array.isArray(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+/** The substring from the first `[` to the last `]` — recovers an array the model wrapped in prose. */
+function extractBracketedArray(text: string): string | null {
+  const start = text.indexOf('[')
+  const end = text.lastIndexOf(']')
+  if (start === -1 || end === -1 || end <= start) return null
+  return text.slice(start, end + 1)
+}
+
+/** Raw `{title, authors, year, venue, doi, url, abstract}` -> LitResult, tagged `source: 'ai-cli'`. */
+function mapAiCliItem(raw: unknown): unknown {
+  const item = asObject(raw)
+  if (item === null) return null
+  const title = asString(item['title'])
+  const doi = asString(item['doi'])
+  const authorsField = item['authors']
+  const authors = Array.isArray(authorsField)
+    ? authorsField.map((entry) => asString(entry)).filter((entry): entry is string => entry !== null)
+    : []
+  return {
+    source: 'ai-cli',
+    // no stable provider-native id from a model answer: DOI first, else the title.
+    id: doi ?? title ?? 'ai-cli-result',
+    doi,
+    title: title === null ? '(untitled)' : title,
+    authors,
+    year: asInt(item['year']),
+    venue: asString(item['venue']),
+    citedByCount: null,
+    openAccessUrl: asString(item['url']),
+    abstract: asString(item['abstract'])
+  }
+}
+
+/**
+ * Parse a model's raw text answer into LitResults: tolerates a bare array, a
+ * fenced array, and prose wrapped around the array, and drops malformed
+ * items rather than failing the whole search — the parse pipeline promised
+ * by feature-plan-3 §2 BUILD step 2.
+ */
+export function parseAiCliText(text: string): AiCliOutcome {
+  const unfenced = stripCodeFence(text)
+  let candidates = tryParseArray(unfenced)
+  if (candidates === null) {
+    const bracketed = extractBracketedArray(unfenced)
+    candidates = bracketed === null ? null : tryParseArray(bracketed)
+  }
+  if (candidates === null) return { results: [], error: firstChars(text, 300) }
+  return { results: collect(candidates.map(mapAiCliItem)), error: null }
+}
+
+/**
+ * Parse `claude -p "<prompt>" --output-format json` stdout. Non-zero exit,
+ * unparseable JSON, `is_error: true`, or a `.result` that isn't a parseable
+ * array all come back as `{ results: [], error: <first 300 chars> }` —
+ * never a silent empty list.
+ */
+export function parseClaudeCliOutput(stdout: string, stderr: string, exitCode: number): AiCliOutcome {
+  if (exitCode !== 0) {
+    return { results: [], error: firstChars(stdout !== '' ? stdout : stderr, 300) }
+  }
+  const envelope = asObject(parseJson(stdout))
+  if (envelope === null) {
+    return { results: [], error: firstChars(stdout !== '' ? stdout : stderr, 300) }
+  }
+  if (envelope['is_error'] === true) {
+    const message = asString(envelope['result']) ?? stdout
+    return { results: [], error: firstChars(message, 300) }
+  }
+  const result = asString(envelope['result'])
+  if (result === null) {
+    return { results: [], error: firstChars(stdout, 300) }
+  }
+  return parseAiCliText(result)
+}
+
+/**
+ * Parse a `codex exec --output-last-message <file>` run: `lastMessage` is
+ * that file's content — the model's raw answer text, with no envelope
+ * (verified live 2026-08-14, see module doc above).
+ */
+export function parseCodexCliOutput(lastMessage: string, stderr: string, exitCode: number): AiCliOutcome {
+  if (exitCode !== 0 || lastMessage.trim() === '') {
+    return { results: [], error: firstChars(lastMessage !== '' ? lastMessage : stderr, 300) }
+  }
+  return parseAiCliText(lastMessage)
+}
+
+/**
+ * Progress ticks from codex's `--json` JSONL event stream, one call per
+ * line (verified live 2026-08-14): thread/turn lifecycle plus web_search /
+ * agent_message item events. Null for a line with nothing worth surfacing
+ * (unparseable, blank, or an event type we don't narrate).
+ */
+export function codexProgressFromLine(line: string): string | null {
+  const trimmed = line.trim()
+  if (trimmed === '') return null
+  const event = asObject(parseJson(trimmed))
+  if (event === null) return null
+  const type = asString(event['type'])
+  const itemType = asString(asObject(event['item'])?.['type'])
+  switch (type) {
+    case 'thread.started':
+      return 'Starting Codex…'
+    case 'turn.started':
+      return 'Thinking…'
+    case 'item.started':
+      return itemType === 'web_search' ? 'Searching the web…' : null
+    case 'item.completed':
+      if (itemType === 'web_search') return 'Reading results…'
+      if (itemType === 'agent_message') return 'Compiling results…'
+      return null
+    case 'turn.completed':
+      return 'Finishing…'
+    default:
+      return null
+  }
+}
+
 /* ------------------------------------------------------------------- api -- */
 
 function normalizeOptions(options: LitRequestOptions): {

@@ -19,4 +19,14 @@ describe('coerceSettings', () => {
     expect(out['editor.defaultMode']).toBe('reading')
     expect(out['terminal.shell']).toBe('')
   })
+
+  it('defaults lit.cli to auto and adopts a valid persisted preference', () => {
+    expect(coerceSettings({})['lit.cli']).toBe('auto')
+    expect(coerceSettings({ 'lit.cli': 'claude' })['lit.cli']).toBe('claude')
+    expect(coerceSettings({ 'lit.cli': 'codex' })['lit.cli']).toBe('codex')
+  })
+
+  it('ignores an unknown lit.cli value and falls back to auto', () => {
+    expect(coerceSettings({ 'lit.cli': 'gemini' })['lit.cli']).toBe('auto')
+  })
 })

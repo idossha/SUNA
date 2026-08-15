@@ -3,9 +3,11 @@ import { access, cp, writeFile } from 'node:fs/promises'
 import { basename, join, relative, resolve, sep } from 'node:path'
 import {
   CHANNELS,
+  EVENT_CHANNELS,
   LIT_PROVIDER_IDS,
   LIT_PROVIDER_META,
   type ChannelName,
+  type LitCliPreference,
   type RequestOf,
   type ResponseOf
 } from '@suna/core'
@@ -19,6 +21,7 @@ import {
   setLitKey
 } from './services/agent-keys'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
+import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
 import { exportFigure } from './services/figure-export'
 import {
@@ -31,7 +34,13 @@ import {
   writeBinary,
   writeText
 } from './services/fs'
-import { lookupByDoi, searchLiterature } from './services/lit'
+import {
+  aiCliSearch,
+  cancelAiCliSearch,
+  detectAvailableClis,
+  lookupByDoi,
+  searchLiterature
+} from './services/lit'
 import { updateManuscript } from './services/manuscript'
 import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
 import { createProject, openProject, scaffoldStatus } from './services/project'
@@ -68,6 +77,13 @@ async function politeMailto(): Promise<string | null> {
     if (typeof value === 'string' && value.trim() !== '') return value.trim()
   }
   return null
+}
+
+/** Settings key 'lit.cli': which agent CLI the 'ai-cli' provider should prefer. */
+async function litCliPreference(): Promise<LitCliPreference> {
+  const settings = await readSettings()
+  const value = settings['lit.cli']
+  return value === 'claude' || value === 'codex' ? value : 'auto'
 }
 
 /** The demo paper shipped with the repo (dev) or app resources (packaged). */
@@ -204,6 +220,32 @@ export function registerIpcHandlers(): void {
       }))
     )
   }))
+  handle('lit:cli-status', async () => ({ available: await detectAvailableClis() }))
+  handle('lit:ai-search', async ({ query, limit, dir }, event) => {
+    const searchId = `lit-ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const webContents = event.sender
+    const cliPreference = await litCliPreference()
+
+    // Fire-and-forget: the child keeps running after this handler returns.
+    // Progress/outcome arrive over EVENT_CHANNELS.litProgress/litDone(searchId).
+    void aiCliSearch(searchId, query, limit, {
+      dir,
+      cliPreference,
+      onProgress: (status) => {
+        if (!webContents.isDestroyed()) webContents.send(EVENT_CHANNELS.litProgress(searchId), status)
+      }
+    }).then(({ results, error }) => {
+      if (!webContents.isDestroyed()) {
+        webContents.send(EVENT_CHANNELS.litDone(searchId), { results, error })
+      }
+    })
+
+    return { searchId }
+  })
+  handle('lit:cancel', async ({ searchId }) => {
+    cancelAiCliSearch(searchId)
+    return {}
+  })
 
   handle('figure:export', ({ dir, figureId, format, widthMm, dpi, transparent }) =>
     exportFigure({ dir, figureId, format, widthMm, dpi, transparent })
@@ -212,6 +254,7 @@ export function registerIpcHandlers(): void {
     path: await writeBinary(path, base64)
   }))
   handle('figure:duplicate', ({ dir, figureId, newId }) => duplicateFigure(dir, figureId, newId))
+  handle('figure:create', ({ dir, name, widthMm }) => createFigure(dir, name, widthMm))
 
   handle('git:status', ({ dir }) => gitStatus(dir))
   handle('git:log', ({ dir, limit }) => gitLog(dir, limit))

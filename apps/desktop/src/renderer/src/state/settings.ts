@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { LitCliPreference } from '@suna/core'
 
 /**
  * App-wide settings, persisted by the MAIN process (userData) via the frozen
@@ -22,6 +23,9 @@ import { create } from 'zustand'
  *   'lit.mailto'          string  polite-pool contact for Crossref/OpenAlex
  *                                 lit:search and lit:by-doi requests; falls
  *                                 back to 'user.email' when empty ('' = none).
+ *   'lit.cli'              LitCliPreference  which agent CLI 'lit:ai-search'
+ *                                 should prefer ('auto' tries claude, then
+ *                                 codex).
  */
 export type EditorModeSetting = 'reading' | 'source'
 export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'high-contrast'
@@ -37,6 +41,8 @@ export interface GlobalSettings {
   'terminal.shell': string
   /** Polite-pool contact for Crossref/OpenAlex; '' falls back to 'user.email'. */
   'lit.mailto': string
+  /** Which agent CLI the 'ai-cli' literature provider prefers. */
+  'lit.cli': LitCliPreference
 }
 
 export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
@@ -46,7 +52,8 @@ export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
   'editor.autosave': false,
   'appearance.uiScale': 1,
   'terminal.shell': '',
-  'lit.mailto': ''
+  'lit.mailto': '',
+  'lit.cli': 'auto'
 }
 
 export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
@@ -81,6 +88,10 @@ export function coerceSettings(raw: Record<string, unknown>): GlobalSettings {
   }
   if (typeof raw['lit.mailto'] === 'string') {
     out['lit.mailto'] = raw['lit.mailto']
+  }
+  const cliPreference = raw['lit.cli']
+  if (cliPreference === 'auto' || cliPreference === 'claude' || cliPreference === 'codex') {
+    out['lit.cli'] = cliPreference
   }
   return out
 }

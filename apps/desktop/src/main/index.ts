@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpcHandlers } from './ipc'
+import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
@@ -55,9 +56,11 @@ app.whenReady().then(() => {
 
 app.on('will-quit', () => {
   killAllTerminals()
+  cancelAllAiCliSearches()
 })
 
 app.on('window-all-closed', () => {
   killAllTerminals()
+  cancelAllAiCliSearches()
   if (process.platform !== 'darwin') app.quit()
 })

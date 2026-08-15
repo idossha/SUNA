@@ -127,19 +127,27 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     `manuscript.json` from disk, merges, validates, and writes
     atomically; type a malformed ORCID and you get an inline error with
     the file left byte-identical.
-18. **Comments** (activity bar): select any text in a section of the
-    combined manuscript tab and press **⌘⇧M** — the Comments view opens
-    with a composer quoting your selection. Post it and the text carries
-    a subtle highlight plus a dot at the start of its line, and
+18. **Comments in the margin** (no activity-bar entry any more): select
+    any text in a section of the combined manuscript tab and press
+    **⌘⇧M** — a composer opens in the **right margin gutter**, beside the
+    text, quoting your selection. Post it and the text carries a subtle
+    highlight plus a dot at the start of its line, and
     `manuscript/comments.json` gains a W3C-style quote anchor (prefix /
-    quote / suffix). The prose itself is never touched. Edit the
-    sentence around the quote and the comment stays attached; delete the
-    quoted words and it is marked **detached** rather than dropped —
-    paste them back and it re-attaches. Filter all/open/resolved/mine,
-    reply, resolve, delete; click a card to scroll to and flash its
-    anchor. Agent-authored comments carry the model name in accent.
-    Agents reach the same file over MCP (`list_comments`, `add_comment`,
-    `reply_comment`, `resolve_comment`).
+    quote / suffix). The prose itself is never touched. Each card sits
+    level with its anchor's line; two comments on neighbouring lines push
+    each other down instead of overlapping, and a comment whose anchor is
+    off-screen collapses into an *"N comments above/below"* edge badge.
+    Detached comments collect in an *Unanchored (N)* group at the top;
+    resolved ones hide behind *Show resolved (N)*. Click a card to scroll
+    to and flash its anchor, or click the highlighted text to activate
+    its card. Edit the sentence around the quote and the comment stays
+    attached; delete the quoted words and it is marked **detached**
+    rather than dropped — paste them back and it re-attaches.
+    Agent-authored comments carry the model name in accent. Below a
+    **1100 px window** the gutter collapses to margin dots that open a
+    popover. The gutter appears in the combined manuscript tab and in
+    single-file prose editor tabs. Agents reach the same file over MCP
+    (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`).
 19. **Canvas parity rail** (right panel of a figure tab): **Align**
     (6 buttons + Distribute H/V, disabled with a hint under 2/3 selected),
     **Figure** (artboard W/H mm with a live `= W × H mm` readout,
@@ -157,8 +165,18 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     1 mm minor ticks, labels every 10 mm, origin at the artboard's
     top-left, and a live cursor marker — they track pan and zoom.
     Everything lands in the project's `output/`.
-20. **Literature search**: References view → **Search** tab. Crossref is
-    the default and needs no key; type a query and result cards show
+20. **Literature search**: References view → **Search** tab. With Claude
+    Code or Codex installed, **AI search** is listed first and selected by
+    default: it spawns the CLI from the main process with the project as
+    its cwd, narrates progress ("Searching the web… / Reading sources… /
+    Compiling results…") instead of freezing, and offers **Cancel**, which
+    really kills the child. It asks the agent for 8 papers — deliberately
+    fewer than the HTTP providers' 20, because the agent verifies each one
+    and the adapter has a hard 180 s budget. Measured on an M-series Mac:
+    ~70–130 s for 8 results with DOIs. With no CLI installed the panel
+    says *"Install Claude Code or Codex, or use Crossref (no key
+    needed)"* rather than failing silently. Crossref is
+    the keyless fallback and needs no key; type a query and result cards show
     title, authors, year, venue, citation count, with *Add to
     references.bib* (generated `firstauthorYEARword` cite key, deduped),
     *Copy DOI* and *Open*. The added entry shows up in the Library tab
@@ -168,7 +186,31 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     the panel says so verbatim with "try Crossref instead" inline rather
     than showing an empty list. NASA ADS asks for its free key; arXiv is
     best-effort. Agents get `search_literature`, `lookup_doi` and
-    `add_reference` over MCP.
+    `add_reference` over MCP — deliberately **without** the `ai-cli`
+    provider, so an agent never recurses into another agent CLI.
+21. **Word-grade text editing** (prose files, both modes): select a word
+    and press **⌘B** — the markdown becomes `**word**`; press it again
+    and the markers come off. Same for **⌘I**, **⌘⇧C** (code), **⌘⇧X**
+    (strikethrough) and **⌘K** (link, with `url` preselected). Each is a
+    single CodeMirror transaction, so one ⌘Z reverts the whole action.
+    **Right-click** a selection for the menu: *Comment ⌘⇧M*, then
+    Bold/Italic/Code/Strikethrough, then *Link… ⌘K* and *Insert
+    citation… ⌘⇧K*, then Cut/Copy/Paste. With nothing selected the
+    selection-only items grey out and you get the plain
+    Insert/Cut/Copy/Paste group. Menu *Comment* and ⌘⇧M produce the
+    identical anchored draft.
+22. **Create a figure from scratch**: the Figures view header **+** (or
+    the canvas tab's own **+**) asks only for a name, then writes
+    `figures/<slug>/{figure.svg,figure.json}` with a blank artboard at
+    the active profile's **double-column** width (180 mm for Nature
+    Astronomy) and a 0.618 height, registers it in `manuscript.json`, and
+    opens it. The blank artboard shows *"Drop or import a plot · ⌘⇧I
+    import SVG/PNG · or draw with the tools"* until it has content.
+    **Drag an SVG or PNG onto the canvas** (or press ⌘⇧I): an SVG lands
+    as one `<g id="imported-N">` with every internal id rewritten to an
+    `impN-` prefix — so importing the demo figure's 193 ids introduces
+    **zero** collisions — and a PNG embeds as a data-URI `<image>` sized
+    at 300 dpi. Either way it is one command: a single ⌘Z removes it.
 
 ## Agent / CI smoke test
 
@@ -177,15 +219,31 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
 Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
-default 9321) and drives 43 steps end to end. The userData example copy
+default 9321) and drives 48 steps end to end. The userData example copy
 is **deleted before launch**, so every run exercises the pristine
 copy-on-open path (fresh git repo, exactly one initial commit); the two
 *persisted view preferences* — the editor appearance store and the
 per-project *Rendered as* override, both in localStorage, which the copy
 deletion does not touch — are reset on open so no run can decide the
-next one's measurements:
+next one's measurements.
 
-1. welcome renders → 2. example opens **as the userData copy** (profile
+**The viewport is pinned to 1600×1100 before any step runs**
+(step 1, *viewport-is-pinned*). The app asks for a 1520×960 window, but
+macOS window tiling remembers a per-app state across launches and returns
+whatever it likes — runs on the same machine and commit have come up at
+1265×1334 and at 900×1334 (the `minWidth`). Everything width-dependent
+then becomes a coin flip: the comment gutter's 1100 px card/dot
+breakpoint, the properties panel's 1200 px auto-open, and canvas click
+targets (the `text-tool` step failed exactly this way at 900 px).
+Electron does not implement CDP's `Browser` domain, so the OS window
+cannot be resized from the driver; `Emulation.setDeviceMetricsOverride`
+pins the *renderer's* viewport instead, which is what the assertions
+actually read. Input events use the same coordinate space, so the real
+mouse/drag steps are unaffected, and screenshots come out a fixed size.
+
+The steps then run:
+
+1. viewport pinned (above) → welcome renders → 2. example opens **as the userData copy** (profile
 chip, tree, git-inited, view preferences normalized) → 3. intro section
 in CodeMirror → 4. **sidebar resize**: pointer-drag the handle +60 px,
 width + localStorage persistence asserted, double-click resets to 272 →
@@ -273,10 +331,14 @@ Steps 34–43 are the acceptance criteria of
 35. **comments-select-create-anchor** — drag-select *"best-fit
     centroid"* in the Results editor with real mouse events, press
     **⌘⇧M**: the draft carries a prefix/quote/suffix anchor for
-    `sections/02-results.md` and the Comments view opens. Post it →
-    `comments.json` holds exactly that anchor, the section prose contains
-    no marker, and the editor paints one `.cmt-anchor` over the quote
-    plus one `.cmt-line-dot`.
+    `sections/02-results.md` and the composer opens **in the margin
+    gutter**. Post it → `comments.json` holds exactly that anchor, the
+    section prose contains no marker, the editor paints one
+    `.cmt-anchor` over the quote plus one `.cmt-line-dot`, exactly one
+    **positioned** card (`.cmt-gutter__slot`) exists, and the composer
+    has closed. (Counting `.cmt-gutter .cmt-card` instead would also
+    count the draft composer — which shares that base class — and would
+    pass even with no real card rendered.)
 36. **comments-survive-edits-then-detach** — insert *"carefully
     measured"* before the quote and ⌘S: still attached, still
     highlighted. Delete the quoted words and ⌘S: the comment is
@@ -285,8 +347,11 @@ Steps 34–43 are the acceptance criteria of
 37. **comments-mcp-add-shows-in-app** — the *bundled* MCP server
     (`packages/agent/dist-mcp/server.mjs`, built on demand) is driven
     over real stdio JSON-RPC to `add_comment` on the same example copy;
-    reloading the store in the app shows two comments, one badged as the
-    agent, with both anchors highlighted.
+    reloading the store in the app shows two comments with both anchors
+    highlighted, and after scrolling to the agent comment's anchor its
+    card carries the agent badge. (The scroll matters: the gutter only
+    renders a card for an anchor inside the visible strip, so asserting
+    the badge without scrolling asks about a card that never existed.)
 38. **canvas-align-and-rulers** — scoped to the *visible* canvas tab (two
     figures are open by now, and dockview keeps the hidden one mounted at
     zero size). Rulers: 181 horizontal and 59 vertical 1 mm ticks for the
@@ -323,14 +388,86 @@ Steps 34–43 are the acceptance criteria of
     stdio for `tools/list`: all 15 verbs (including the four comment and
     three literature tools) with JSON Schemas.
 
+Steps 44–47 are the acceptance criteria of
+`docs/design/feature-plan-3.md`, measured the same way:
+
+44. **markdown-formatting-and-context-menu** (§1) — asserted against
+    `sections/02-results.md` **on disk**. Drag-select *centroid*, ⌘B, ⌘S
+    → the file contains `**centroid**`; ⌘B + ⌘S again → the file is
+    **byte-identical** to before. A real right-click (CDP
+    `button: 'right'`, so Chromium synthesizes the actual `contextmenu`
+    event) opens `.md-ctxmenu` carrying all ten documented actions with
+    *Comment* enabled; *Bold* from the menu applies, and **one** ⌘Z
+    restores the file byte-for-byte. Right-click with no selection: every
+    selection-only item is `disabled`, *Paste* is not. Finally the menu's
+    *Comment* and ⌘⇧M are shown to produce the **identical** draft
+    (target path, anchor quote and preview all equal).
+45. **margin-comments-align-with-anchors** (§3) — the geometry the spec
+    actually names, measured off `getBoundingClientRect()`. First it
+    asserts the gutter is **not** in narrow/dot mode at this window width
+    and is ~260 px wide. Then a second comment is anchored on the line
+    directly below an existing one, and for each comment the card is
+    matched to its anchor through `data-comment-id` (both the
+    `.cmt-gutter__slot` and the `.cmt-anchor` decoration carry it): the
+    **topmost** card — the only one whose position is purely
+    anchor-driven — must sit within **±8 px** of its anchor's row, and no
+    two card boxes may overlap. Clicking a card must flash its anchor and
+    leave it on screen.
+46. **new-figure-and-svg-import** (§4) — *New Figure* named *Velocity
+    Map* → `figures/velocity-map/` exists with `figure.svg` and
+    `figure.json`; the JSON is validated with the **real**
+    `FigureDocumentSchema` through `window.__sunaDev.validateDoc`; the
+    SVG's artboard is 180 mm wide (Nature Astronomy's double-column
+    preset) by 0.618 × that; `manuscript.json` gains a matching
+    `figures[]` entry and stays schema-valid; the blank canvas shows the
+    drop hint. Then the demo `figure.svg` is dropped onto the viewport
+    through a synthetic `DragEvent` carrying a real `File`: it must land
+    as exactly one top-level `<g id="imported-1">`, bring in >100 ids
+    with **zero duplicates** anywhere in the document, namespace its
+    children to `imp1-`, and hide the hint — and **one** ⌘Z must remove
+    all of it and bring the hint back.
+47. **ai-cli-provider-and-cancel** (§2, the unbilled half) — the picker
+    lists five providers with *AI search* first. If `lit:cli-status`
+    reports no CLI, the step asserts the honest install hint and stops.
+    Otherwise *AI search* must be the **default**, the panel must name
+    the detected CLI, and a real search is started and **cancelled after
+    ~3 s**: the child process is located in `ps` by the adapter's own
+    prompt text (never by the string "claude", so a developer running
+    this suite from inside an agent CLI session is not matched), and
+    after Cancel both that process list and each captured pid must be
+    gone, with the panel out of its loading state and saying the search
+    was cancelled.
+
+    **Not covered by `pnpm smoke`: the billed leg.** "≥3 parseable
+    results with DOIs inside 180 s" spends real tokens on every run, so
+    it is verified by hand:
+
+    ```bash
+    # References → Search → AI search → "ram pressure stripping"
+    SUNA_DEBUG_PORT=9310 pnpm dev
+    ```
+
+    Last measured 2026-08-14 (Claude Code 2.1.233): **8/8 results with
+    DOIs in 129 s**, including Gunn & Gott 1972 (`10.1086/151605`),
+    McCarthy et al. 2008, Roediger & Brüggen 2007, Ebeling et al. 2014
+    and GASP I — the first of which appended to `references.bib` as
+    `@article{gunn1972infall,…}`. `scripts/e2e/.artifacts/ai-lit-search.png`
+    is that run. Note this leg is sensitive to the requested result
+    count: at the original `limit: 20` the same query ran **past** the
+    180 s timeout and returned nothing.
+
 Exit code 0 = pass. Screenshots (each sidebar view as `views-*.png`,
 `reading-mode.png`, `manuscript-doc.png`, `manuscript-outline-active.png`,
 the canvas/editing shots, plus `fix-code-fullwidth.png`,
 `fix-prose-widths.png`, `fix-manuscript-settings.png`,
 `fix-crossrefs.png` and `fix-authoryear.png` from the five steps above,
 plus `20-title-page-edit.png`, `21-comments.png`, `22-canvas-rail.png`
-and `23-lit-search.png` from steps 34–41) land in
-`scripts/e2e/.artifacts/`; failures add `FAIL-<step>.png`.
+and `23-lit-search.png` from steps 34–41, plus `text-context-menu.png`,
+`margin-comments.png`, `new-figure.png` and `ai-cli-cancel.png` from
+steps 44–47) land in `scripts/e2e/.artifacts/`; failures add
+`FAIL-<step>.png`. `ai-lit-search.png` in the same directory is from the
+manual billed run described under step 47 — `pnpm smoke` never
+overwrites it.
 
 ### Probing the MCP server on its own
 
@@ -352,9 +489,18 @@ then evaluate JS in the page — dev builds expose `window.__sunaDev` with
 `editorSettings`, `editorViewModes`, `editorBibDiagnostics`,
 `editorContentKindFor`, `editorContentKindClass`, `dataGrid`,
 `explorerStore`, `manuscriptStore`, `manuscriptDocStore`,
-`renderProfileStore`, `agentChatStore`, and `commentsStore`.
+`renderProfileStore`, `agentChatStore`, `commentsStore`, `validateDoc`
+and `validateFile`.
 `canvasTools` always steers the canvas tab that is **visible**, not the
 last one mounted, so it stays usable with several figures open.
+`validateDoc(kind, json)` / `validateFile(kind, path)` — kind is
+`'figure' | 'manuscript' | 'comments'` — run the **real** `@suna/core`
+zod schema over a document and return `{ ok, issues[] }`. They exist
+because the workspace packages ship raw TypeScript with extensionless
+imports, so a plain `node -e "import … from '@suna/core'"` in a driver
+script dies on module resolution; the renderer already has the schemas
+bundled, so the driver asks the app instead of keeping a drifting copy
+of the schema.
 
 ## Unit gates
 
@@ -371,3 +517,16 @@ cd python/suna_mpl && uv run pytest  # matplotlib companion
   configuration; no network calls).
 - Export (submission PDF/DOCX) is not built yet — it is the next
   milestone; the smoke test will grow an export step when it lands.
+- The billed `ai-cli` search leg (see step 47) — verified by hand, not by
+  `pnpm smoke`.
+- **Insert cross-reference…** is specified for the editor context menu
+  (feature-plan-3 §1) but is not implemented: `ContextMenu` supports the
+  action and omits any item whose callback a host does not supply, and no
+  host supplies this one, so the item never appears. *Insert citation…*
+  beside it is wired and working.
+- PNG import onto the canvas has unit tests for the sizing math
+  (`canvas/import-png.test.ts`) but no e2e step — the smoke step drops an
+  SVG only.
+- The gutter's narrow (< 1100 px window) dot + popover mode is exercised
+  by unit tests on the layout maths only; no smoke step resizes the
+  window to reach it.

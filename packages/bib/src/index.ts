@@ -10,5 +10,12 @@ export { formatReference } from './format.js';
 export { generateCiteKey, litResultToBibEntry } from './lit-entry.js';
 export type { LitLookupOutcome, LitRequestOptions, LitSearchOutcome } from './providers.js';
 export { lookupByDoi, searchLiterature } from './providers.js';
+export type { AiCliOutcome } from './providers.js';
+export {
+  codexProgressFromLine,
+  parseAiCliText,
+  parseClaudeCliOutput,
+  parseCodexCliOutput
+} from './providers.js';
 export type { AppendLitResultOutcome } from './bib-write.js';
 export { appendLitResultToBib } from './bib-write.js';

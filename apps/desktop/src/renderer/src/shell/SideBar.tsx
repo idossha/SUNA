@@ -9,7 +9,6 @@ import { useProjectStore } from '../state/project'
 import { useExplorerStore } from '../state/explorer'
 import { ExplorerView } from './ExplorerView'
 import { ManuscriptView } from '../views/ManuscriptView'
-import { CommentsView } from '../views/CommentsView'
 import { FiguresView } from '../views/FiguresView'
 import { ReferencesView } from '../views/ReferencesView'
 import { SourceControlView } from '../views/SourceControlView'
@@ -21,7 +20,6 @@ import './sidebar.css'
 const VIEW_EMPTY_COPY: Record<SidebarView, string> = {
   explorer: 'Open a project to browse its files.',
   manuscript: 'The section outline of your manuscript will live here.',
-  comments: "Review comments — yours and your agent's — will show up here.",
   figures: 'Figures and their generating scripts will appear here.',
   references: 'Your bibliography (references.bib) will be managed here.',
   git: 'Version history and pending changes will show here.',
@@ -31,7 +29,6 @@ const VIEW_EMPTY_COPY: Record<SidebarView, string> = {
 const VIEW_COMPONENTS: Record<SidebarView, () => JSX.Element> = {
   explorer: ExplorerView,
   manuscript: ManuscriptView,
-  comments: CommentsView,
   figures: FiguresView,
   references: ReferencesView,
   git: SourceControlView,

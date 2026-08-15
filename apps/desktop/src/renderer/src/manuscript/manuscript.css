@@ -41,6 +41,18 @@
   border-bottom: 1px solid var(--ed-border, var(--s-border-strong));
 }
 
+/* Row for the page + its margin comment gutter (comments/CommentGutter),
+   both normal-flow children of the SAME scrolling element (.msdoc) — the
+   gutter never gets its own scroller, it rides .msdoc__page's scroll one-
+   for-one. The gutter is `position: sticky`, so while its own box is a
+   normal flow sibling (contributing ~0 height itself — see comments.css's
+   .cmt-gutter__track), it stays pinned within the visible viewport for the
+   whole height of this row, i.e. the whole scrollable document. */
+.msdoc__body {
+  display: flex;
+  align-items: flex-start;
+}
+
 .msdoc__page {
   max-width: var(--ed-content-width, 68ch);
   margin: 0 auto;
@@ -48,6 +60,21 @@
   font-family: var(--ed-body-font, var(--s-font-serif));
   font-size: var(--ed-font-size, 16px);
   line-height: var(--ed-line-height, 1.7);
+}
+
+/* Scoped to .msdoc__body — editor/editor.css's own .editor-tab__source gives
+   .cmt-gutter different (non-sticky, stretch-to-height) rules for the
+   single-file prose tab case, where CodeMirror's own .cm-scroller is the
+   scrolling element instead of this whole row. */
+.msdoc__body .cmt-gutter {
+  position: sticky;
+  top: 40px; /* .msdoc__toolbar's height — sticks just below it, not under it */
+  align-self: flex-start;
+  margin-top: 56px; /* aligns the gutter's own top with .msdoc__page's first content, not its top padding */
+}
+
+.msdoc__body .cmt-gutter--narrow {
+  margin-top: 56px;
 }
 
 /* text blocks align with the CM line padding (16px) */

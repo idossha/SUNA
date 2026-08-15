@@ -1,0 +1,144 @@
+/* ---------------------------------------------------------------------------
+   Prose formatting UI: the editor context menu (ContextMenu.tsx) and the
+   insert-citation picker (CitationPicker.tsx). Imported by those two
+   components directly (not editor.css) so the styles travel with them
+   wherever they're mounted — including from manuscript/SectionEditor.tsx,
+   which does not import editor.css.
+
+   Visual language matches shell/explorer.css's .ctxmenu (do not edit that
+   file — this is an independent, self-contained copy under a different
+   namespace so the two can't collide or drift from a shared dependency).
+   --------------------------------------------------------------------------- */
+
+.md-ctxmenu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.md-ctxmenu {
+  position: fixed;
+  z-index: 61;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  font-family: var(--s-font-ui);
+}
+
+.md-ctxmenu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  text-align: left;
+}
+
+.md-ctxmenu__item--active {
+  background: var(--s-bg-hover);
+}
+
+.md-ctxmenu__item:hover:not(.md-ctxmenu__item--disabled) {
+  background: var(--s-bg-hover);
+}
+
+.md-ctxmenu__item--disabled {
+  color: var(--s-ink-faint);
+  cursor: default;
+}
+
+.md-ctxmenu__shortcut {
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.02em;
+}
+
+.md-ctxmenu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--s-border);
+}
+
+/* ---- insert-citation picker ------------------------------------------- */
+
+.md-citepicker {
+  position: fixed;
+  z-index: 61;
+  width: 320px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  font-family: var(--s-font-ui);
+  overflow: hidden;
+}
+
+.md-citepicker__input {
+  flex: none;
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--s-ink);
+  background: var(--s-bg-editor);
+  border: none;
+  border-bottom: 1px solid var(--s-border);
+  font-size: var(--s-text-md);
+  font-family: inherit;
+  outline: none;
+}
+
+.md-citepicker__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.md-citepicker__item {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 3px;
+  text-align: left;
+  color: var(--s-ink);
+}
+
+.md-citepicker__item--active {
+  background: var(--s-bg-hover);
+}
+
+.md-citepicker__item:hover {
+  background: var(--s-bg-hover);
+}
+
+.md-citepicker__item-key {
+  display: block;
+  color: var(--s-accent);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+}
+
+.md-citepicker__item-title {
+  display: block;
+  margin-top: 2px;
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.md-citepicker__empty {
+  padding: 12px 10px;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-sm);
+}

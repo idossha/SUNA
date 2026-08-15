@@ -38,14 +38,6 @@ export function ManuscriptIcon(): JSX.Element {
   )
 }
 
-export function CommentsIcon(): JSX.Element {
-  return (
-    <Icon>
-      <path d="M4.5 5.5C4.5 4.7 5.2 4 6 4h12c.8 0 1.5.7 1.5 1.5v9c0 .8-.7 1.5-1.5 1.5H9l-4 4v-4H6c-.8 0-1.5-.7-1.5-1.5z" />
-    </Icon>
-  )
-}
-
 export function FiguresIcon(): JSX.Element {
   return (
     <Icon>
@@ -107,7 +99,6 @@ export function NewFolderIcon(): JSX.Element {
 export const VIEW_ICONS: Record<SidebarView, () => JSX.Element> = {
   explorer: ExplorerIcon,
   manuscript: ManuscriptIcon,
-  comments: CommentsIcon,
   figures: FiguresIcon,
   references: ReferencesIcon,
   git: GitIcon,

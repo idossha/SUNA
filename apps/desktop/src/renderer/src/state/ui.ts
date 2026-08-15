@@ -1,21 +1,12 @@
 import { create } from 'zustand'
 
-export const SIDEBAR_VIEWS = [
-  'explorer',
-  'manuscript',
-  'comments',
-  'figures',
-  'references',
-  'git',
-  'agent'
-] as const
+export const SIDEBAR_VIEWS = ['explorer', 'manuscript', 'figures', 'references', 'git', 'agent'] as const
 
 export type SidebarView = (typeof SIDEBAR_VIEWS)[number]
 
 export const SIDEBAR_VIEW_LABELS: Record<SidebarView, string> = {
   explorer: 'Explorer',
   manuscript: 'Manuscript',
-  comments: 'Comments',
   figures: 'Figures',
   references: 'References',
   git: 'Source Control',

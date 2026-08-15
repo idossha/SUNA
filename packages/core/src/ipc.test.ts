@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CHANNELS, FsNodeSchema, type FsNode, type RequestOf, type ResponseOf } from './ipc';
+import {
+  CHANNELS,
+  EVENT_CHANNELS,
+  FsNodeSchema,
+  type FsNode,
+  type RequestOf,
+  type ResponseOf,
+} from './ipc';
 import { DEFAULT_PROJECT_DIRS } from './project';
 
 describe('CHANNELS', () => {
@@ -15,6 +22,7 @@ describe('CHANNELS', () => {
       'env:detect',
       'env:select',
       'env:selected',
+      'figure:create',
       'figure:duplicate',
       'figure:export',
       'figure:write-binary',
@@ -30,7 +38,10 @@ describe('CHANNELS', () => {
       'git:init',
       'git:log',
       'git:status',
+      'lit:ai-search',
       'lit:by-doi',
+      'lit:cancel',
+      'lit:cli-status',
       'lit:providers',
       'lit:search',
       'lit:set-key',
@@ -145,6 +156,30 @@ describe('CHANNELS', () => {
     ).toBe(false);
   });
 
+  it('validates figure:create requests and its schema-shaped response', () => {
+    const req: RequestOf<'figure:create'> = {
+      dir: '/work/my-paper',
+      name: 'New spectrum',
+      widthMm: 180,
+    };
+    expect(CHANNELS['figure:create'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['figure:create'].request.safeParse({ ...req, widthMm: 0 }).success).toBe(
+      false,
+    );
+    const res: ResponseOf<'figure:create'> = {
+      figureId: 'new-spectrum',
+      canvasRef: 'figures/new-spectrum/figure.svg',
+      svgPath: '/work/my-paper/figures/new-spectrum/figure.svg',
+      jsonPath: '/work/my-paper/figures/new-spectrum/figure.json',
+      widthMm: 180,
+      heightMm: 111.24,
+    };
+    expect(CHANNELS['figure:create'].response.parse(res)).toEqual(res);
+    expect(CHANNELS['figure:create'].response.safeParse({ ...res, canvasRef: 'x.png' }).success).toBe(
+      false,
+    );
+  });
+
   it('validates the lit:providers capability list', () => {
     const res: ResponseOf<'lit:providers'> = {
       providers: [
@@ -153,6 +188,44 @@ describe('CHANNELS', () => {
       ],
     };
     expect(CHANNELS['lit:providers'].response.parse(res)).toEqual(res);
+  });
+
+  it('lists only the detected agent CLIs on lit:cli-status', () => {
+    const none: ResponseOf<'lit:cli-status'> = { available: [] };
+    expect(CHANNELS['lit:cli-status'].response.parse(none)).toEqual(none);
+    const both: ResponseOf<'lit:cli-status'> = { available: ['claude', 'codex'] };
+    expect(CHANNELS['lit:cli-status'].response.parse(both)).toEqual(both);
+    expect(
+      CHANNELS['lit:cli-status'].response.safeParse({ available: ['gemini'] }).success,
+    ).toBe(false);
+  });
+
+  it('pins the lit:ai-search provider to the ai-cli literal and rejects lit:search providers', () => {
+    const req: RequestOf<'lit:ai-search'> = {
+      provider: 'ai-cli',
+      query: 'ram pressure stripping',
+      limit: 20,
+      dir: '/work/my-paper',
+    };
+    expect(CHANNELS['lit:ai-search'].request.parse(req)).toEqual(req);
+    expect(
+      CHANNELS['lit:ai-search'].request.safeParse({ ...req, provider: 'crossref' }).success,
+    ).toBe(false);
+    const res: ResponseOf<'lit:ai-search'> = { searchId: 'lit-ai-1' };
+    expect(CHANNELS['lit:ai-search'].response.parse(res)).toEqual(res);
+  });
+
+  it('requires a non-empty searchId on lit:cancel', () => {
+    const req: RequestOf<'lit:cancel'> = { searchId: 'lit-ai-1' };
+    expect(CHANNELS['lit:cancel'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['lit:cancel'].request.safeParse({ searchId: '' }).success).toBe(false);
+  });
+});
+
+describe('EVENT_CHANNELS', () => {
+  it('namespaces lit progress/done events by searchId', () => {
+    expect(EVENT_CHANNELS.litProgress('lit-ai-1')).toBe('lit:progress:lit-ai-1');
+    expect(EVENT_CHANNELS.litDone('lit-ai-1')).toBe('lit:done:lit-ai-1');
   });
 });
 
