@@ -79,6 +79,12 @@ const key = (keyName, code, modifiers = 0) =>
   send('Input.dispatchKeyEvent', { type: 'keyDown', key: keyName, code, modifiers })
     .then(() => send('Input.dispatchKeyEvent', { type: 'keyUp', key: keyName, code, modifiers }))
 const insertText = (text) => send('Input.insertText', { text })
+/** Real right-click — Chromium synthesizes the `contextmenu` event from it,
+ *  which is what editor/codemirror.ts's domEventHandler listens for. */
+const rclick = async (x, y) => {
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'right', clickCount: 1 })
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'right', clickCount: 1 })
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -186,31 +192,47 @@ async function dragSelectInSection(phrase) {
   })()`)
   if (!scrolled) return null
   await sleep(400)
-  const rect = await evalJs(`(() => {
+  // Drag from the START of the phrase's FIRST line box to the END of its
+  // LAST one. A phrase that soft-wraps has a multi-line range, and its
+  // getBoundingClientRect() is the union of those lines — whose vertical
+  // centre lands in the gap BETWEEN them, so pressing there selected a whole
+  // paragraph instead of the phrase. Per-line-box rects make the gesture
+  // independent of where the measure happens to break the text.
+  const box = await evalJs(`(() => {
     const hit = ${locate};
     if (hit === null) return null;
-    const b = hit.range.getBoundingClientRect();
-    const onScreen = b.width > 0 && b.top > 40 && b.bottom < window.innerHeight - 40;
-    return { x: b.x, y: b.y, w: b.width, h: b.height, onScreen };
+    const rects = [...hit.range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
+    if (rects.length === 0) return null;
+    const first = rects[0];
+    const last = rects[rects.length - 1];
+    return {
+      lines: rects.length,
+      from: { x: first.left, y: first.top + first.height / 2 },
+      to: { x: last.right, y: last.top + last.height / 2 },
+      onScreen: first.top > 40 && last.bottom < window.innerHeight - 40
+    };
   })()`)
-  if (rect === null) return null
-  if (!rect.onScreen) {
+  if (box === null) return null
+  if (!box.onScreen) {
     throw new Error(
-      `"${phrase}" is not on screen (top ${Math.round(rect.y)}, height ${Math.round(rect.h)})`
+      `"${phrase}" is not fully on screen (first line top ${Math.round(box.from.y)})`
     )
   }
-  const y = rect.y + rect.h / 2
   await send('Input.dispatchMouseEvent', {
-    type: 'mousePressed', x: rect.x + 0.5, y, button: 'left', clickCount: 1
+    type: 'mousePressed', x: box.from.x + 0.5, y: box.from.y, button: 'left', clickCount: 1
   })
   await send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved', x: rect.x + rect.w / 2, y, button: 'left', buttons: 1
+    type: 'mouseMoved',
+    x: (box.from.x + box.to.x) / 2,
+    y: (box.from.y + box.to.y) / 2,
+    button: 'left',
+    buttons: 1
   })
   await send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved', x: rect.x + rect.w - 0.5, y, button: 'left', buttons: 1
+    type: 'mouseMoved', x: box.to.x - 0.5, y: box.to.y, button: 'left', buttons: 1
   })
   await send('Input.dispatchMouseEvent', {
-    type: 'mouseReleased', x: rect.x + rect.w - 0.5, y, button: 'left', clickCount: 1
+    type: 'mouseReleased', x: box.to.x - 0.5, y: box.to.y, button: 'left', clickCount: 1
   })
   await sleep(220)
   return evalJs(`window.getSelection().toString()`)
@@ -315,6 +337,43 @@ try {
     ws.onerror = () => rej(new Error('CDP websocket failed'))
   })
   await sleep(1500)
+
+  /**
+   * Pin the viewport before anything measures geometry.
+   *
+   * The app asks for a 1520×960 window, but macOS window tiling remembers a
+   * per-app state across launches and hands it back whatever it likes: runs
+   * of this suite have come up at 1265×1334 AND at 900×1334 (the `minWidth`)
+   * on the same machine, same commit. Anything width-dependent then turns
+   * into a coin flip — the margin comment gutter's 1100 px card/dot
+   * breakpoint, the properties panel's 1200 px auto-open, and the canvas
+   * click targets (the text-tool step failed exactly this way at 900 px).
+   *
+   * Electron does not implement CDP's Browser domain, so the OS window
+   * cannot be resized from here; Emulation.setDeviceMetricsOverride pins the
+   * *renderer's* viewport instead, which is what every assertion actually
+   * reads. Input events are delivered in the same coordinate space, so real
+   * mouse/drag steps keep working (verified), and screenshots come out at a
+   * fixed size instead of varying run to run.
+   */
+  const VIEWPORT = { width: 1600, height: 1100 }
+  await send('Emulation.setDeviceMetricsOverride', {
+    ...VIEWPORT,
+    deviceScaleFactor: 2,
+    mobile: false
+  })
+  await sleep(800)
+
+  await step('viewport-is-pinned', async () => {
+    const got = await evalJs(`({ w: window.innerWidth, h: window.innerHeight })`)
+    assert(
+      got.w === VIEWPORT.width && got.h === VIEWPORT.height,
+      `viewport override did not take: ${got.w}×${got.h} (want ${VIEWPORT.width}×${VIEWPORT.height})`
+    )
+    // Above the gutter's 1100px breakpoint, so the margin-comment steps
+    // measure the card layout rather than the narrow dot fallback.
+    assert(got.w >= 1100, `viewport ${got.w}px is below the comment gutter's card/dot breakpoint`)
+  })
 
   await step('app-loads-welcome', async () => {
     const ok = await evalJs(`!!document.querySelector('.welcome__title')`)
@@ -1918,35 +1977,185 @@ try {
     await screenshot('20-title-page-edit.png')
   })
 
+  /**
+   * feature-plan-3 §1 acceptance, measured against the FILE ON DISK: ⌘B wraps
+   * the selection in `**`, ⌘B again removes it, the context menu offers the
+   * documented items with Comment enabled only on a selection, and a menu
+   * action is exactly one undo step. Runs before the comment steps so
+   * 02-results.md is still pristine.
+   */
+  await step('markdown-formatting-and-context-menu', async () => {
+    await openManuscriptDoc()
+    const original = readFileSync(RESULTS_MD, 'utf8')
+    const saveSection = async () => {
+      await key('s', 'KeyS', 4)
+      await sleep(1200)
+    }
+
+    // --- ⌘B on a word -> **word** on disk, ⌘B again -> back ----------------
+    assert(
+      (await dragSelectInSection('centroid')) === 'centroid',
+      'could not select the word to format'
+    )
+    await key('b', 'KeyB', 4)
+    await sleep(350)
+    await saveSection()
+    assert(
+      readFileSync(RESULTS_MD, 'utf8').includes('**centroid**'),
+      '⌘B did not write **centroid** to the section file'
+    )
+    await key('b', 'KeyB', 4)
+    await sleep(350)
+    await saveSection()
+    assert(
+      readFileSync(RESULTS_MD, 'utf8') === original,
+      '⌘B a second time did not restore the file byte-for-byte'
+    )
+
+    // --- right-click WITH a selection: the documented menu ------------------
+    assert((await dragSelectInSection('centroid')) === 'centroid', 'could not reselect')
+    const at = await evalJs(`(() => {
+      const r = window.getSelection().getRangeAt(0).getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    })()`)
+    await rclick(at.x, at.y)
+    await sleep(500)
+    const menu = await evalJs(`(() => {
+      const m = document.querySelector('.md-ctxmenu');
+      if (!m) return null;
+      return [...m.querySelectorAll('.md-ctxmenu__item')]
+        .map((b) => ({ id: b.dataset.action, disabled: b.disabled }));
+    })()`)
+    assert(menu !== null, 'right-click did not open the editor context menu')
+    const ids = menu.map((i) => i.id)
+    for (const want of ['comment', 'bold', 'italic', 'code', 'strikethrough', 'link', 'insertCitation', 'cut', 'copy', 'paste']) {
+      assert(ids.includes(want), `context menu is missing "${want}": ${ids.join(', ')}`)
+    }
+    assert(
+      menu.find((i) => i.id === 'comment').disabled === false,
+      'Comment is disabled even though there is a selection'
+    )
+    await screenshot('text-context-menu.png')
+
+    // --- a menu action is ONE undo step ------------------------------------
+    await evalJs(`document.querySelector('.md-ctxmenu__item[data-action="bold"]').click()`)
+    await sleep(400)
+    await saveSection()
+    assert(readFileSync(RESULTS_MD, 'utf8').includes('**centroid**'), 'menu Bold did not apply')
+    await evalJs(`(() => {
+      const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('centroid'));
+      cm.querySelector('.cm-content').focus();
+    })()`)
+    await sleep(200)
+    await key('z', 'KeyZ', 4)
+    await sleep(400)
+    await saveSection()
+    assert(
+      readFileSync(RESULTS_MD, 'utf8') === original,
+      'ONE ⌘Z did not undo the whole menu action'
+    )
+
+    // --- right-click with NO selection: Comment disabled, Paste enabled -----
+    const line = await evalJs(`(() => {
+      const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('centroid'));
+      const l = [...cm.querySelectorAll('.cm-line')].find((x) => x.textContent.includes('centroid'));
+      const r = l.getBoundingClientRect();
+      return { x: r.left + 12, y: r.top + r.height / 2 };
+    })()`)
+    await click(line.x, line.y)
+    await sleep(250)
+    await rclick(line.x, line.y)
+    await sleep(500)
+    const plain = await evalJs(`(() => {
+      const m = document.querySelector('.md-ctxmenu');
+      if (!m) return null;
+      return [...m.querySelectorAll('.md-ctxmenu__item')]
+        .map((b) => ({ id: b.dataset.action, disabled: b.disabled }));
+    })()`)
+    assert(plain !== null, 'right-click with no selection did not open a menu')
+    assert(
+      plain.find((i) => i.id === 'comment').disabled === true,
+      'Comment is enabled with an empty selection'
+    )
+    assert(
+      plain.find((i) => i.id === 'paste').disabled === false,
+      'Paste is disabled with no selection'
+    )
+    await evalJs(`document.querySelector('.md-ctxmenu-scrim')
+      ?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`)
+    await sleep(300)
+
+    // --- menu "Comment" == ⌘⇧M: same anchored draft ------------------------
+    assert((await dragSelectInSection('centroid')) === 'centroid', 'could not reselect for Comment')
+    const at2 = await evalJs(`(() => {
+      const r = window.getSelection().getRangeAt(0).getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    })()`)
+    await rclick(at2.x, at2.y)
+    await sleep(500)
+    await evalJs(`document.querySelector('.md-ctxmenu__item[data-action="comment"]').click()`)
+    await sleep(700)
+    const viaMenu = await evalJs(`(() => {
+      const d = window.__sunaDev.commentsStore.getState().draft;
+      return d === null ? null : { path: d.target.path, quote: d.target.anchor.quote, preview: d.preview };
+    })()`)
+    assert(viaMenu !== null, 'menu Comment did not start a draft')
+    await evalJs(`window.__sunaDev.commentsStore.getState().cancelDraft()`)
+    await sleep(250)
+
+    assert((await dragSelectInSection('centroid')) === 'centroid', 'could not reselect for ⌘⇧M')
+    await key('m', 'KeyM', 12)
+    await sleep(700)
+    const viaKey = await evalJs(`(() => {
+      const d = window.__sunaDev.commentsStore.getState().draft;
+      return d === null ? null : { path: d.target.path, quote: d.target.anchor.quote, preview: d.preview };
+    })()`)
+    assert(viaKey !== null, '⌘⇧M did not start a draft')
+    assert(
+      JSON.stringify(viaKey) === JSON.stringify(viaMenu),
+      `menu Comment and ⌘⇧M differ:\n  menu ${JSON.stringify(viaMenu)}\n  key  ${JSON.stringify(viaKey)}`
+    )
+    // leave no draft/comment behind for the comment steps that follow
+    await evalJs(`window.__sunaDev.commentsStore.getState().cancelDraft()`)
+    await sleep(250)
+    assert(
+      readFileSync(RESULTS_MD, 'utf8') === original,
+      'the formatting step left the section file modified'
+    )
+  })
+
   await step('comments-select-create-anchor', async () => {
     await openManuscriptDoc()
     const selected = await dragSelectInSection('best-fit centroid')
     assert(selected === 'best-fit centroid', `selection in the section editor: ${selected}`)
     await key('m', 'KeyM', 12) // ⌘⇧M
     await sleep(700)
+    // feature-plan-3 §3: comments moved to the margin gutter (comments/
+    // CommentGutter.tsx) — there is no more Comments sidebar view to switch
+    // to; the draft composer appears inline in the gutter (.cmt-gutter
+    // .cmt__draft, an additional class alongside its .cmt-card.cmt-card--
+    // active base) as soon as useCommentsStore's `draft` is set.
     const draft = await evalJs(`(() => {
       const d = window.__sunaDev.commentsStore.getState().draft;
       return {
         path: d?.target?.path ?? null,
         quote: d?.target?.anchor?.quote ?? null,
-        view: window.__sunaDev.uiStore.getState().activeView,
-        composer: !!document.querySelector('.cmt__draft')
+        composer: !!document.querySelector('.cmt-gutter .cmt__draft')
       };
     })()`)
     assert(draft.quote === 'best-fit centroid', `draft anchor quote: ${draft.quote}`)
     assert(draft.path === 'sections/02-results.md', `draft target: ${draft.path}`)
-    assert(draft.view === 'comments', `selection did not open the Comments view: ${draft.view}`)
-    assert(draft.composer, 'no comment composer appeared')
+    assert(draft.composer, 'no comment composer appeared in the margin gutter')
 
     await evalJs(
       setFieldJs(
-        `document.querySelector('.cmt__draft .view__textarea')`,
+        `document.querySelector('.cmt-gutter .cmt__draft .cmt-textarea')`,
         'Should this be the vacuum wavelength?',
         'HTMLTextAreaElement'
       )
     )
     await sleep(150)
-    await evalJs(`[...document.querySelectorAll('.cmt__draft .cmt__btn')]
+    await evalJs(`[...document.querySelectorAll('.cmt-gutter .cmt__draft .cmt__btn')]
       .find((b) => b.textContent.trim() === 'Comment').click()`)
     await sleep(1200)
 
@@ -1964,11 +2173,18 @@ try {
       'a comment marker leaked into the section prose'
     )
     const ui = await evalJs(`({
-      cards: document.querySelectorAll('.cmt__card').length,
+      // .cmt-gutter__slot is a POSITIONED card (one per anchored comment).
+      // Counting '.cmt-gutter .cmt-card' instead would also count the draft
+      // composer, which carries the same .cmt-card base class — that made
+      // this assertion pass even when the composer failed to close and no
+      // positioned card existed at all.
+      slots: document.querySelectorAll('.cmt-gutter__slot').length,
+      drafts: document.querySelectorAll('.cmt-gutter .cmt__draft').length,
       anchors: [...document.querySelectorAll('.cm-content .cmt-anchor')].map((a) => a.textContent),
       lineDots: document.querySelectorAll('.cm-line.cmt-line-dot').length
     })`)
-    assert(ui.cards === 1, `comment cards in the panel: ${ui.cards}`)
+    assert(ui.slots === 1, `positioned comment cards in the gutter: ${ui.slots}`)
+    assert(ui.drafts === 0, 'the draft composer stayed open after the comment was submitted')
     assert(
       ui.anchors.length === 1 && ui.anchors[0] === 'best-fit centroid',
       `anchor highlight: ${JSON.stringify(ui.anchors)}`
@@ -2030,11 +2246,127 @@ try {
     assert(state.count === 2, `comments after the MCP call: ${state.count}`)
     assert(state.authors.includes('agent'), 'the agent-authored comment is missing')
     assert(state.anchorsInDom === 2, `anchors after the MCP comment: ${state.anchorsInDom}`)
-    const agentBadge = await evalJs(
-      `document.querySelectorAll('.cmt__badge--agent').length`
-    )
-    assert(agentBadge === 1, 'the agent comment is not visually distinct in the panel')
+
+    // The margin gutter only renders a CARD for a comment whose anchor is in
+    // the visible strip; anything above/below collapses into an edge badge
+    // (feature-plan-3 §3). The agent comment's anchor is further down the
+    // document, so scroll to it first — otherwise "is it visually distinct?"
+    // is asking about a card that was never rendered.
+    const agentId = await evalJs(`(() => {
+      const c = window.__sunaDev.commentsStore.getState().comments.find((x) => x.author.kind === 'agent');
+      if (!c) throw new Error('no agent-authored comment in the store');
+      window.__sunaDev.commentsStore.getState().requestFlash(c.id);
+      return c.id;
+    })()`)
+    await sleep(1200)
+    const agent = await evalJs(`(() => {
+      const slot = document.querySelector('.cmt-gutter__slot[data-comment-id="' + ${JSON.stringify(agentId)} + '"]');
+      return {
+        card: !!slot,
+        badge: slot ? slot.querySelectorAll('.cmt__badge--agent').length : 0,
+        anyBadge: document.querySelectorAll('.cmt-gutter__slot .cmt__badge--agent').length
+      };
+    })()`)
+    assert(agent.card, `the agent comment has no card in the gutter after scrolling to it`)
+    assert(agent.badge === 1, `the agent comment is not visually distinct: ${JSON.stringify(agent)}`)
     await screenshot('21-comments.png')
+  })
+
+  /**
+   * feature-plan-3 §3 acceptance, MEASURED off real boxes: a card sits within
+   * ±8 px of its anchor's row, and two comments on adjacent lines never
+   * overlap. Both regressed during the build — the gutter was stuck in
+   * narrow/dot mode (panel-width breakpoint instead of window-width), and the
+   * positioning track silently moved whenever the gutter's header changed.
+   */
+  await step('margin-comments-align-with-anchors', async () => {
+    await openManuscriptDoc()
+    const mode = await evalJs(`({
+      narrow: !!document.querySelector('.msdoc__body .cmt-gutter--narrow'),
+      width: document.querySelector('.msdoc__body .cmt-gutter')?.getBoundingClientRect().width ?? 0,
+      innerWidth: window.innerWidth
+    })`)
+    assert(
+      !mode.narrow,
+      `the gutter is in narrow/dot mode at a ${mode.innerWidth}px window (breakpoint is 1100px)`
+    )
+    assert(mode.width > 200, `the comment gutter is only ${mode.width}px wide (expected ~260)`)
+
+    // One more comment on the line directly BELOW the agent comment's anchor
+    // ("regular rotation pattern"), so the two sit on adjacent rows — the
+    // collision case the spec calls out. Deliberately not a substring of that
+    // quote, so the two anchors never nest.
+    const near = await dragSelectInSection('infall direction')
+    assert(near === 'infall direction', `could not select a second anchor: ${near}`)
+    await key('m', 'KeyM', 12)
+    await sleep(700)
+    await evalJs(
+      setFieldJs(
+        `document.querySelector('.cmt-gutter .cmt__draft .cmt-textarea')`,
+        'Second anchor, for the collision check.',
+        'HTMLTextAreaElement'
+      )
+    )
+    await sleep(150)
+    await evalJs(`[...document.querySelectorAll('.cmt-gutter .cmt__draft .cmt__btn')]
+      .find((b) => b.textContent.trim() === 'Comment').click()`)
+    await sleep(1400)
+
+    const geom = await evalJs(`(() => {
+      const byId = {};
+      for (const s of document.querySelectorAll('.msdoc__body .cmt-gutter__slot')) {
+        const r = s.getBoundingClientRect();
+        byId[s.dataset.commentId] = { card: { top: r.top, bottom: r.bottom } };
+      }
+      for (const a of document.querySelectorAll('.msdoc .cm-content .cmt-anchor')) {
+        const r = a.getBoundingClientRect();
+        (byId[a.dataset.commentId] ??= {}).anchor = { top: r.top, text: a.textContent };
+      }
+      return Object.entries(byId)
+        .filter(([, v]) => v.card && v.anchor)
+        .map(([id, v]) => ({ id, cardTop: v.card.top, cardBottom: v.card.bottom, anchorTop: v.anchor.top, text: v.anchor.text }));
+    })()`)
+    assert(geom.length >= 2, `expected >=2 positioned cards to compare, got ${geom.length}`)
+    geom.sort((a, b) => a.anchorTop - b.anchorTop)
+
+    // the TOPMOST card is the one whose position is purely anchor-driven;
+    // any card below it may legitimately be pushed down by collision.
+    const first = geom[0]
+    const delta = Math.abs(first.cardTop - first.anchorTop)
+    assert(
+      delta <= 8,
+      `card for "${first.text}" is ${delta.toFixed(1)}px from its anchor row (spec: <=8px)`
+    )
+
+    const boxes = geom.map((g) => ({ top: g.cardTop, bottom: g.cardBottom })).sort((a, b) => a.top - b.top)
+    for (let i = 1; i < boxes.length; i++) {
+      assert(
+        boxes[i].top >= boxes[i - 1].bottom,
+        `cards overlap: [${boxes[i - 1].top.toFixed(1)}..${boxes[i - 1].bottom.toFixed(1)}] vs [${boxes[i].top.toFixed(1)}..]`
+      )
+    }
+
+    // Clicking a card highlights its anchor and brings it into view. Note the
+    // gutter only renders a card while its anchor is inside the visible strip
+    // (everything else collapses into an edge badge), so this deliberately
+    // does NOT scroll away first — that would leave nothing to click.
+    const clicked = await evalJs(`(() => {
+      const main = document.querySelector('.msdoc__body .cmt-gutter__slot .cmt-card__main');
+      if (!main) return false;
+      main.click();
+      return true;
+    })()`)
+    assert(clicked, 'no positioned comment card was on screen to click')
+    await sleep(1000)
+    const flash = await evalJs(`(() => {
+      const f = document.querySelector('.msdoc .cm-content .cmt-anchor--flash');
+      if (!f) return { flashed: false };
+      const r = f.getBoundingClientRect();
+      return { flashed: true, visible: r.top > 0 && r.bottom < window.innerHeight };
+    })()`)
+    assert(flash.flashed, 'clicking a margin card did not flash its anchor')
+    assert(flash.visible, 'clicking a margin card did not scroll its anchor into view')
+    await screenshot('margin-comments.png')
   })
 
   // Two figures get canvas tabs during this run, and dockview keeps the
@@ -2300,6 +2632,244 @@ try {
     await screenshot('22-canvas-rail.png')
   })
 
+  /**
+   * feature-plan-3 §4 acceptance, asserted on DISK plus the live canvas:
+   * New Figure writes a directory, a schema-valid figure.json (validated with
+   * the real @suna/core schema through the dev seam) and an SVG at the
+   * profile's double-column width, registers it in manuscript.json, shows the
+   * empty-canvas hint, and imports an SVG as one id-namespaced group that a
+   * single undo removes.
+   */
+  await step('new-figure-and-svg-import', async () => {
+    await showView('figures')
+    await sleep(800)
+    await evalJs(`document.querySelector('.figs__new').click()`)
+    await sleep(300)
+    await evalJs(`(() => {
+      const el = [...document.querySelectorAll('input')].find((i) => i.placeholder === 'Figure name…');
+      if (!el) throw new Error('the New Figure name input did not appear');
+      const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      el.focus();
+      set.call(el, 'Velocity Map');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`)
+    await sleep(3500)
+
+    const figDir = join(COPY_DIR, 'figures', 'velocity-map')
+    const figSvg = join(figDir, 'figure.svg')
+    const figJson = join(figDir, 'figure.json')
+    assert(existsSync(figDir), 'New Figure did not create figures/velocity-map/')
+    assert(existsSync(figSvg), 'New Figure did not write figure.svg')
+    assert(existsSync(figJson), 'New Figure did not write figure.json')
+
+    // schema-valid, per the app's own FigureDocumentSchema
+    const docJson = JSON.parse(readFileSync(figJson, 'utf8'))
+    const valid = await evalJs(
+      `window.__sunaDev.validateDoc('figure', ${JSON.stringify(docJson)})`
+    )
+    assert(valid.ok, `figure.json is not schema-valid: ${valid.issues.join('; ')}`)
+
+    // artboard width == the active profile's double-column preset (180mm for
+    // Nature Astronomy), height == 0.618 * width
+    const svgText = readFileSync(figSvg, 'utf8')
+    const wpt = /width="([\d.]+)pt"/.exec(svgText)
+    const hpt = /height="([\d.]+)pt"/.exec(svgText)
+    assert(wpt && hpt, `blank figure.svg has no pt width/height: ${svgText.slice(0, 120)}`)
+    const wmm = Number(wpt[1]) * 0.3528
+    const hmm = Number(hpt[1]) * 0.3528
+    assert(Math.abs(wmm - 180) < 0.5, `artboard width ${wmm.toFixed(2)}mm != the 180mm double-column preset`)
+    assert(Math.abs(hmm - 180 * 0.618) < 0.5, `artboard height ${hmm.toFixed(2)}mm != 0.618 * width`)
+
+    // registered in manuscript.json, still schema-valid
+    const ms = JSON.parse(readFileSync(join(COPY_DIR, 'manuscript', 'manuscript.json'), 'utf8'))
+    const msValid = await evalJs(`window.__sunaDev.validateDoc('manuscript', ${JSON.stringify(ms)})`)
+    assert(msValid.ok, `manuscript.json is not schema-valid after the registration: ${msValid.issues.join('; ')}`)
+    const entry = ms.figures.find((f) => f.id === 'velocity-map')
+    assert(entry, 'manuscript.json has no figures[] entry for the new figure')
+    assert(
+      entry.canvasRef === 'figures/velocity-map/figure.svg',
+      `the manuscript entry points at ${entry.canvasRef}`
+    )
+
+    // the blank canvas shows the drop hint
+    await sleep(1200)
+    const hint = await evalJs(canvasJs(`
+      const h = CT.querySelector('.canvas-viewport__hint');
+      return h ? h.textContent.trim() : null;
+    `))
+    assert(hint && /Drop or import a plot/.test(hint), `blank canvas hint: ${hint}`)
+    await screenshot('new-figure.png')
+
+    // --- import the demo figure.svg by drag-and-drop -----------------------
+    const demo = readFileSync(FIGURE, 'utf8')
+    await evalJs(canvasJs(`
+      const vp = CT.querySelector('.canvas-viewport');
+      const dt = new DataTransfer();
+      dt.items.add(new File([${JSON.stringify(demo)}], 'figure.svg', { type: 'image/svg+xml' }));
+      vp.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+      return true;
+    `))
+    await sleep(2500)
+
+    const imported = await evalJs(canvasJs(`
+      const svg = CT.querySelector('.canvas-world svg');
+      const all = [...svg.querySelectorAll('[id]')].map((e) => e.id);
+      const group = svg.querySelector('#imported-1');
+      return {
+        ids: all.length,
+        dupes: [...new Set(all.filter((id, i) => all.indexOf(id) !== i))],
+        group: !!group,
+        topLevelGroups: [...svg.children].filter((c) => c.tagName.toLowerCase() === 'g').length,
+        childIds: [...(group?.querySelectorAll('[id]') ?? [])].map((e) => e.id).slice(0, 8),
+        hint: !!CT.querySelector('.canvas-viewport__hint')
+      };
+    `))
+    assert(imported.group, 'the dropped SVG was not inserted as <g id="imported-1">')
+    assert(imported.topLevelGroups === 1, `expected one top-level group, got ${imported.topLevelGroups}`)
+    assert(imported.ids > 100, `the import brought in only ${imported.ids} ids — did it inline the content?`)
+    assert(
+      imported.dupes.length === 0,
+      `duplicate ids after the import: ${imported.dupes.slice(0, 5).join(', ')}`
+    )
+    assert(
+      imported.childIds.every((id) => id.startsWith('imp1-')),
+      `imported ids are not namespaced: ${imported.childIds.join(', ')}`
+    )
+    assert(!imported.hint, 'the drop hint is still showing after content was imported')
+
+    // --- ONE undo removes the whole import --------------------------------
+    await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
+    await sleep(200)
+    await key('z', 'KeyZ', 4)
+    await sleep(1200)
+    const undone = await evalJs(canvasJs(`
+      const svg = CT.querySelector('.canvas-world svg');
+      return {
+        group: !!svg.querySelector('#imported-1'),
+        ids: [...svg.querySelectorAll('[id]')].length,
+        hint: !!CT.querySelector('.canvas-viewport__hint')
+      };
+    `))
+    assert(!undone.group, 'one undo did not remove the imported group')
+    assert(undone.ids === 0, `${undone.ids} imported ids survived the undo`)
+    assert(undone.hint, 'the blank-canvas hint did not come back after the undo')
+  })
+
+  /**
+   * feature-plan-3 §2 plumbing, WITHOUT spending the developer's tokens: the
+   * ai-cli provider is offered (and defaults) when a CLI is detected, and
+   * cancelling an in-flight search actually kills the child process and
+   * releases the UI. The billed "≥3 results with DOIs inside 180 s" leg is a
+   * manual verification — see TESTING.md — because every run of it costs real
+   * money.
+   *
+   * The cancel leg starts a real child and kills it after ~3 s, which is
+   * cheap but not free; it is the only way to prove the kill path end to end.
+   * With no CLI installed the step asserts the honest install hint instead.
+   */
+  await step('ai-cli-provider-and-cancel', async () => {
+    await showView('references')
+    await sleep(700)
+    await evalJs(`[...document.querySelectorAll('.refs__tab')]
+      .find((b) => b.textContent.trim() === 'Search').click()`)
+    await sleep(1000)
+
+    const picker = await evalJs(`(() => {
+      const btns = [...document.querySelectorAll('.lit-search__providers .refs__style')];
+      return {
+        labels: btns.map((b) => b.textContent.trim()),
+        selected: btns.find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent.trim() ?? null,
+        note: document.querySelector('.lit-search .view__hint')?.textContent ?? null
+      };
+    })()`)
+    assert(picker.labels.length === 5, `provider buttons: ${picker.labels.join(' | ')}`)
+    assert(picker.labels[0].includes('AI search'), `AI search is not listed first: ${picker.labels[0]}`)
+
+    const cliAvailable = await evalJs(
+      `window.suna.invoke('lit:cli-status', {}).then((r) => r.available)`
+    )
+    if (cliAvailable.length === 0) {
+      // Honest-failure path: no CLI on this machine.
+      assert(
+        /Install Claude Code or Codex/.test(picker.note ?? ''),
+        `with no CLI installed the panel must show the install hint, got: ${picker.note}`
+      )
+      console.log('    (no agent CLI installed — verified the install-hint path)')
+      return
+    }
+
+    assert(
+      picker.selected && picker.selected.includes('AI search'),
+      `ai-cli did not become the default with ${cliAvailable.join('/')} installed: ${picker.selected}`
+    )
+    assert(
+      /Claude Code|Codex/.test(picker.note ?? ''),
+      `the panel does not name the detected CLI: ${picker.note}`
+    )
+
+    // --- start a real search, then cancel it -------------------------------
+    // Match on the adapter's own prompt text rather than on "claude"/"codex":
+    // whoever runs this suite may themselves be inside an agent CLI session,
+    // and killing/counting that would be both wrong and rude. Only a child
+    // carrying THIS prompt is one the app spawned.
+    const PROMPT_MARK = 'real, published academic papers'
+    const running = () =>
+      execSync('ps -eo pid,command', { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+        .split('\n')
+        .filter((line) => line.includes(PROMPT_MARK) && !line.includes('ps -eo'))
+        .map((line) => line.trim())
+    assert(running().length === 0, `an ai-cli child was already running before the step:\n${running().join('\n')}`)
+
+    await evalJs(setFieldJs(`document.querySelector('.lit-search__query .view__input')`, 'ram pressure stripping'))
+    await sleep(200)
+    await evalJs(`document.querySelector('.lit-search__go').click()`)
+    await sleep(3500)
+
+    const spawned = running()
+    assert(spawned.length > 0, 'the ai-cli search did not spawn a CLI child process')
+    const pids = spawned.map((l) => l.split(/\s+/)[0])
+    assert(
+      await evalJs(`!!document.querySelector('.lit-search__cancel')`),
+      'no Cancel button while the ai-cli search runs'
+    )
+
+    await evalJs(`document.querySelector('.lit-search__cancel').click()`)
+    let left = null
+    for (let i = 0; i < 24; i++) {
+      await sleep(500)
+      left = running()
+      if (left.length === 0) break
+    }
+    assert(left.length === 0, `cancel left a CLI child alive:\n${left.join('\n')}`)
+    for (const pid of pids) {
+      let alive = true
+      try {
+        execSync(`ps -p ${pid} > /dev/null 2>&1`, { shell: '/bin/bash' })
+      } catch {
+        alive = false
+      }
+      assert(!alive, `spawned pid ${pid} is still alive after cancel`)
+    }
+
+    // the UI must leave the loading state and say what happened
+    let ui = null
+    for (let i = 0; i < 20; i++) {
+      ui = await evalJs(`({
+        loading: !!document.querySelector('.lit-search__cancel'),
+        error: document.querySelector('.view__error')?.textContent ?? null
+      })`)
+      if (!ui.loading) break
+      await sleep(500)
+    }
+    assert(!ui.loading, 'the panel is still showing a Cancel button after the search was cancelled')
+    assert(
+      ui.error !== null && /cancel/i.test(ui.error),
+      `the cancelled search was not reported honestly: ${ui.error}`
+    )
+    await screenshot('ai-cli-cancel.png')
+  })
+
   await step('literature-search-and-add', async () => {
     await showView('references')
     await sleep(900)
@@ -2309,8 +2879,22 @@ try {
     const providers = await evalJs(
       `[...document.querySelectorAll('.lit-search__providers .refs__style')].map((b) => b.textContent)`
     )
-    assert(providers.length === 4, `provider buttons: ${providers.join(' | ')}`)
-    assert(providers[0].includes('Crossref'), 'Crossref is not the default provider')
+    // feature-plan-3 §2 added 'ai-cli' as a FIFTH provider, listed first and
+    // auto-selected when a CLI is detected (@suna/core's UI_LIT_PROVIDER_IDS).
+    assert(providers.length === 5, `provider buttons: ${providers.join(' | ')}`)
+    assert(providers[0].includes('AI search'), `AI search is not listed first: ${providers[0]}`)
+
+    // Pin Crossref explicitly. This step exercises the HTTP provider path, and
+    // ai-cli is the default on any machine with Claude Code/Codex installed —
+    // leaving it selected would spend the developer's tokens on every smoke run.
+    await evalJs(`[...document.querySelectorAll('.lit-search__providers .refs__style')]
+      .find((b) => b.textContent.includes('Crossref')).click()`)
+    await sleep(300)
+    assert(
+      await evalJs(`[...document.querySelectorAll('.lit-search__providers .refs__style')]
+        .find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent.includes('Crossref') ?? false`),
+      'Crossref did not become the selected provider'
+    )
 
     await evalJs(setFieldJs(`document.querySelector('.lit-search__query .view__input')`, 'ram pressure stripping'))
     await sleep(200)

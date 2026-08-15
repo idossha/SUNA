@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { canvasToolsSeam } from './canvas/dev-seam'
 import { dataviewDevSeam } from './dataview/devSeam'
+import { schemaDevSeam } from './dev/schemaSeam'
 import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
 import { openFileTab } from './state/dock'
@@ -44,7 +45,13 @@ if (import.meta.env.DEV) {
       // out-of-band write (an MCP add_comment) instead of restarting the app,
       // and reads `comments` to assert anchoring/detached flips
       // (docs/design/feature-plan-2.md §2).
-      commentsStore: useCommentsStore
+      commentsStore: useCommentsStore,
+      // Schema-validate a file the app just wrote using the REAL @suna/core
+      // schemas. Workspace packages are raw TS, so a driver script cannot
+      // import them directly — see dev/schemaSeam.ts
+      // (feature-plan-3 §4 asserts a schema-valid figure.json on disk).
+      validateDoc: schemaDevSeam.validateDoc,
+      validateFile: schemaDevSeam.validateFile
     }
   })
 }

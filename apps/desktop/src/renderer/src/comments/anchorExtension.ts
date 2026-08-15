@@ -53,13 +53,19 @@ const commentsField = StateField.define<readonly Comment[]>({
   }
 })
 
-const anchorMark = Decoration.mark({ class: 'cmt-anchor' })
 const lineDotMark = Decoration.line({ class: 'cmt-line-dot' })
+
+/** One mark per comment so the highlight carries its comment id — the margin
+ *  card renders the same id in `data-comment-id`, which is what lets an e2e
+ *  driver measure card-vs-anchor alignment per comment (feature-plan-3 §3). */
+function anchorMarkFor(commentId: string): Decoration {
+  return Decoration.mark({ class: 'cmt-anchor', attributes: { 'data-comment-id': commentId } })
+}
 
 function rebuild(text: string, comments: readonly Comment[]): DecorationSet {
   const entries = resolvedRanges(text, comments)
   const builder = new RangeSetBuilder<Decoration>()
-  for (const entry of entries) builder.add(entry.from, entry.to, anchorMark)
+  for (const entry of entries) builder.add(entry.from, entry.to, anchorMarkFor(entry.comment.id))
   return builder.finish()
 }
 
@@ -122,8 +128,14 @@ const flashDecorationField = StateField.define<DecorationSet>({
 /**
  * Builds the extension. `onRequestComment` fires with the live selection's
  * [from, to) when Mod-Shift-M is pressed over a non-empty selection.
+ * `onActivateComment`, if given, fires with a comment's id when the user
+ * clicks directly on its anchored highlight — the reverse of clicking its
+ * margin card, which scrolls/flashes the anchor via flashAnchor below.
  */
-export function commentAnchorExtension(onRequestComment: (from: number, to: number) => void): Extension {
+export function commentAnchorExtension(
+  onRequestComment: (from: number, to: number) => void,
+  onActivateComment?: (commentId: string) => void
+): Extension {
   return [
     commentsField,
     decorationsField,
@@ -140,8 +152,57 @@ export function commentAnchorExtension(onRequestComment: (from: number, to: numb
           return true
         }
       }
-    ])
+    ]),
+    onActivateComment
+      ? EditorView.domEventHandlers({
+          mousedown(event, view) {
+            if (event.button !== 0) return false
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+            if (pos === null) return false
+            const comments = view.state.field(commentsField)
+            const text = view.state.doc.toString()
+            const hit = resolvedRanges(text, comments).find((r) => pos >= r.from && pos <= r.to)
+            if (hit === undefined) return false
+            onActivateComment(hit.comment.id)
+            return false
+          }
+        })
+      : []
   ]
+}
+
+/**
+ * Content-space-free, viewport-relative top for a document position, diffed
+ * against a reference element's current bounding rect (typically the
+ * comment gutter's own track — see comments/CommentGutter.tsx). Recompute on
+ * scroll/resize/doc-or-viewport changes; the return value is only valid for
+ * the instant it was measured. Null when the position has no visible
+ * coordinates (e.g. folded away).
+ */
+export function anchorTopIn(view: EditorView, pos: number, reference: Element): number | null {
+  const coords = view.coordsAtPos(pos)
+  if (coords === null) return null
+  return coords.top - reference.getBoundingClientRect().top
+}
+
+/**
+ * Every section-target comment's anchor position, viewport-diffed against
+ * `reference` (see anchorTopIn). Comments that don't resolve in this view's
+ * current text (deleted quote, or simply not this section) are omitted —
+ * callers treat a missing id as "unpositioned" (unanchored/detached group).
+ */
+export function anchorTopsFor(
+  view: EditorView,
+  comments: readonly Comment[],
+  reference: Element
+): Map<string, number> {
+  const text = view.state.doc.toString()
+  const out = new Map<string, number>()
+  for (const { comment, from } of resolvedRanges(text, comments)) {
+    const top = anchorTopIn(view, from, reference)
+    if (top !== null) out.set(comment.id, top)
+  }
+  return out
 }
 
 /** Push a fresh comments list into a view that already has the extension appended. */

@@ -54,6 +54,44 @@ const api = {
     return () => {
       ipcRenderer.removeListener(channel, handler)
     }
+  },
+
+  /**
+   * Subscribe to status-line pushes for one 'lit:ai-search' run
+   * (EVENT_CHANNELS.litProgress). Returns an unsubscribe function.
+   */
+  onLitProgress: (searchId: string, listener: (status: string) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.litProgress(searchId)
+    const handler = (_event: IpcRendererEvent, status: unknown): void => {
+      if (typeof status === 'string') listener(status)
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
+   * Subscribe to the terminal outcome of one 'lit:ai-search' run
+   * (EVENT_CHANNELS.litDone) — fires exactly once. Returns an unsubscribe
+   * function (call it after `listener` fires, or on unmount if it never does).
+   */
+  onLitDone: (
+    searchId: string,
+    listener: (outcome: { results: unknown[]; error: string | null }) => void
+  ): (() => void) => {
+    const channel = EVENT_CHANNELS.litDone(searchId)
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      const object =
+        typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {}
+      const results = Array.isArray(object['results']) ? object['results'] : []
+      const error = typeof object['error'] === 'string' ? object['error'] : null
+      listener({ results, error })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
   }
 } as const
 

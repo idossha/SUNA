@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LIT_CLI_IDS,
+  LIT_CLI_PREFERENCE_IDS,
   LIT_PROVIDER_IDS,
   LIT_PROVIDER_META,
+  LIT_RESULT_SOURCE_IDS,
+  LitCliIdSchema,
+  LitCliPreferenceSchema,
   LitProviderIdSchema,
   LitResultSchema,
+  LitResultSourceSchema,
   LitSearchResponseSchema,
+  UI_LIT_PROVIDER_IDS,
+  UiLitProviderIdSchema,
   type LitResult,
 } from './lit';
 
@@ -37,9 +45,45 @@ describe('LitProviderIdSchema', () => {
   });
 });
 
+describe('LitCliIdSchema / LitCliPreferenceSchema', () => {
+  it('accepts exactly claude and codex', () => {
+    expect([...LIT_CLI_IDS]).toEqual(['claude', 'codex']);
+    for (const id of LIT_CLI_IDS) expect(LitCliIdSchema.parse(id)).toBe(id);
+    expect(LitCliIdSchema.safeParse('gemini').success).toBe(false);
+  });
+
+  it('lit.cli preference is auto or a specific CLI', () => {
+    expect([...LIT_CLI_PREFERENCE_IDS]).toEqual(['auto', 'claude', 'codex']);
+    for (const id of LIT_CLI_PREFERENCE_IDS) expect(LitCliPreferenceSchema.parse(id)).toBe(id);
+    expect(LitCliPreferenceSchema.safeParse('claude-code').success).toBe(false);
+  });
+});
+
+describe('LitResultSourceSchema / UiLitProviderIdSchema', () => {
+  it('LitResult.source widens LitProviderId with ai-cli, without widening LitProviderId itself', () => {
+    expect([...LIT_RESULT_SOURCE_IDS]).toEqual(['crossref', 'openalex', 'ads', 'arxiv', 'ai-cli']);
+    for (const id of LIT_RESULT_SOURCE_IDS) expect(LitResultSourceSchema.parse(id)).toBe(id);
+    expect(LitResultSourceSchema.safeParse('scholar').success).toBe(false);
+    // the four dispatchable HTTP providers are unchanged — MCP/searchLiterature
+    // still switch exhaustively over exactly these, never 'ai-cli'.
+    expect([...LIT_PROVIDER_IDS]).toEqual(['crossref', 'openalex', 'ads', 'arxiv']);
+    expect(LitProviderIdSchema.safeParse('ai-cli').success).toBe(false);
+  });
+
+  it('the UI provider picker lists ai-cli first, then the four HTTP providers', () => {
+    expect([...UI_LIT_PROVIDER_IDS]).toEqual(['ai-cli', 'crossref', 'openalex', 'ads', 'arxiv']);
+    for (const id of UI_LIT_PROVIDER_IDS) expect(UiLitProviderIdSchema.parse(id)).toBe(id);
+  });
+});
+
 describe('LitResultSchema', () => {
   it('parses a fully populated result', () => {
     expect(LitResultSchema.parse(crossrefHit)).toEqual(crossrefHit);
+  });
+
+  it('also accepts an ai-cli-sourced result (widened source enum)', () => {
+    const aiCliHit: LitResult = { ...crossrefHit, source: 'ai-cli', id: crossrefHit.doi as string };
+    expect(LitResultSchema.parse(aiCliHit)).toEqual(aiCliHit);
   });
 
   it('accepts null for every unknown field', () => {

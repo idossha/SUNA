@@ -104,6 +104,30 @@
   border-color: var(--s-border-strong);
 }
 
+/* ---- margin comment gutter (comments/CommentGutter, prose tabs only) ------
+   Unlike the combined manuscript tab (manuscript/manuscript.css's
+   .msdoc__body, where the WHOLE page scrolls and the gutter needs
+   `position: sticky` to stay viewport-pinned), here CodeMirror's own
+   .cm-scroller is the actual scrolling element and .editor-tab__source
+   itself never scrolls — so a plain flex row with the default `align-items:
+   stretch` already keeps .cmt-gutter's box viewport-stable for free; no
+   sticky positioning needed or wanted (position: sticky requires a
+   scrolling ancestor to stick against, which .editor-tab__source isn't). */
+.editor-tab__source {
+  display: flex;
+  align-items: stretch;
+}
+
+.editor-tab__cm {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-tab__source .cmt-gutter {
+  height: 100%;
+}
+
 /* ---- content measure (prose only) ------------------------------------------ */
 
 /*

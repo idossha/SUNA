@@ -19,6 +19,8 @@ import { sunaJsonLinter } from './jsonLint'
 import { bibLanguage, bibLinter } from './bibLang'
 import { editorTheme } from './themes'
 import { contentKindFor } from './contentKind'
+import { formattingKeymap, type FormattingCallbacks } from './keymap'
+import { openContextMenu } from './ContextMenu'
 import type { EditorThemeName } from './settings'
 
 /** Extension-based language pick. Anything unknown stays plain and falls
@@ -59,6 +61,17 @@ export interface CreateEditorOptions {
   readOnly?: boolean
   onDocChanged: () => void
   onSave: () => void
+  /**
+   * Formatting UX (feature-plan-3.md §1): ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K always work on
+   * prose files (contentKindFor === 'prose'); ⌘⇧M and ⌘⇧K plus the
+   * right-click context menu's "Comment" and "Insert citation…" items only
+   * do anything when the host supplies the matching callback below — the
+   * item is simply left out of the menu, and the shortcut is unhandled
+   * (falls through to the next binding), when it's absent. Ignored for
+   * non-prose files.
+   */
+  onComment?: (view: EditorView) => void
+  onInsertCitation?: (view: EditorView) => void
 }
 
 export interface EditorHandle {
@@ -79,8 +92,12 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
 
   // Prose wraps at the content-width measure; code/data scroll horizontally
   // instead so statements and long tokens never soft-break mid-line.
-  const wrapping: Extension =
-    contentKindFor(options.fileName) === 'prose' ? EditorView.lineWrapping : []
+  const isProse = contentKindFor(options.fileName) === 'prose'
+  const wrapping: Extension = isProse ? EditorView.lineWrapping : []
+  const formattingCallbacks: FormattingCallbacks = {
+    onComment: options.onComment,
+    onInsertCitation: options.onInsertCitation
+  }
 
   const extensions: Extension[] = [
     // vim() must precede every other keymap: it installs its own high-priority
@@ -108,7 +125,21 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     EditorView.updateListener.of((update) => {
       if (update.docChanged) options.onDocChanged()
     }),
-    ...languageExtensions(options.fileName)
+    ...languageExtensions(options.fileName),
+    // Word/Flux-grade formatting UX (feature-plan-3.md §1) — prose only,
+    // and after the language/keymap extensions above so Prec.high inside
+    // formattingKeymap wins regardless of source order.
+    ...(isProse
+      ? [
+          formattingKeymap(formattingCallbacks),
+          EditorView.domEventHandlers({
+            contextmenu: (event, view) => {
+              event.preventDefault()
+              openContextMenu(view, event.clientX, event.clientY, formattingCallbacks)
+            }
+          })
+        ]
+      : [])
   ]
 
   if (options.readOnly === true) extensions.push(EditorState.readOnly.of(true))

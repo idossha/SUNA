@@ -4,6 +4,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent as ReactChangeEvent,
+  type DragEvent as ReactDragEvent,
   type JSX,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
@@ -20,6 +22,7 @@ import { checkFigureSvg, getBundledProfile, type Diagnostic } from '@suna/format
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useUiStore } from '../state/ui'
 import { useProjectStore } from '../state/project'
+import { hasDrawableContent } from './blank-canvas'
 import {
   collectUnitElements,
   firstNumber,
@@ -30,7 +33,10 @@ import {
 } from './canvas-util'
 import { registerCanvasToolsProvider } from './dev-seam'
 import { ToolRail } from './ToolRail'
+import { importOffset, nextImportGroupId, prepareSvgImport } from './import-svg'
+import { pngImageSnippet, pngSizeUserUnits } from './import-png'
 import { LayersPanel } from './LayersPanel'
+import { NewFigureButton } from './NewFigureButton'
 import { PropertiesPanel } from './PropertiesPanel'
 import { rulerTicks } from './ruler-ticks'
 import { Rulers, type RulersHandle } from './Rulers'
@@ -124,6 +130,8 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const [propsOpen, setPropsOpen] = useState(() => window.innerWidth >= 1200)
   const [rulersOn, setRulersOn] = useState(true)
   const rulersRef = useRef<RulersHandle | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
 
   const note = (text: string): void => useUiStore.getState().setStatusNote(text)
 
@@ -613,6 +621,101 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     setSelection(copies.map((c) => c.id))
   }
 
+  // ---- import (drag-drop / ⌘⇧I) ------------------------------------------------
+  /** Fresh `imported-N` id + matching `impN-` prefix, not colliding with the doc. */
+  const nextImport = (): { groupId: string; n: number; offset: { dx: number; dy: number } } => {
+    const session = sessionRef.current
+    const groupId = nextImportGroupId((id) => (session ? session.doc.getById(id) !== null : false))
+    const n = Number(groupId.slice('imported-'.length)) || 1
+    return { groupId, n, offset: importOffset(n) }
+  }
+
+  const importSvgText = (text: string): void => {
+    const { groupId, n, offset } = nextImport()
+    let svg: string
+    try {
+      svg = prepareSvgImport(text, groupId, `imp${n}-`, offset)
+    } catch (error) {
+      note(`Could not import SVG: ${error instanceof Error ? error.message : String(error)}`)
+      return
+    }
+    applyCommand({ kind: 'insert', svg }, 'Import SVG')
+  }
+
+  const importPngFile = async (file: File): Promise<void> => {
+    const session = sessionRef.current
+    if (!session) return
+    let bitmap: ImageBitmap
+    try {
+      bitmap = await createImageBitmap(file)
+    } catch (error) {
+      note(`Could not read ${file.name}: ${error instanceof Error ? error.message : String(error)}`)
+      return
+    }
+    let dataUri: string
+    try {
+      dataUri = await new Promise<string>((resolvePromise, rejectPromise) => {
+        const reader = new FileReader()
+        reader.onload = () => resolvePromise(String(reader.result))
+        reader.onerror = () => rejectPromise(reader.error ?? new Error('could not read file'))
+        reader.readAsDataURL(file)
+      })
+    } catch (error) {
+      note(`Could not read ${file.name}: ${error instanceof Error ? error.message : String(error)}`)
+      return
+    }
+    const mmPerUser = session.doc.artboard.mmPerUser ?? 1
+    const size = pngSizeUserUnits({ widthPx: bitmap.width, heightPx: bitmap.height }, mmPerUser)
+    const { groupId, offset } = nextImport()
+    const artboard = artboardRect()
+    const at = { x: artboard.x + offset.dx, y: artboard.y + offset.dy }
+    const svg = pngImageSnippet(groupId, dataUri, size, at)
+    applyCommand({ kind: 'insert', svg }, 'Import image')
+  }
+
+  /** Single dispatch point for both drag-drop and the ⌘⇧I file picker. */
+  const importFile = (file: File): void => {
+    const lower = file.name.toLowerCase()
+    if (lower.endsWith('.svg') || file.type === 'image/svg+xml') {
+      void file
+        .text()
+        .then(importSvgText)
+        .catch((error: unknown) =>
+          note(`Could not read ${file.name}: ${error instanceof Error ? error.message : String(error)}`)
+        )
+    } else if (lower.endsWith('.png') || file.type === 'image/png') {
+      void importPngFile(file)
+    } else {
+      note(`Unsupported import: ${file.name} (only .svg and .png)`)
+    }
+  }
+
+  const importFileList = (files: FileList | null | undefined): void => {
+    const first = files && files.length > 0 ? files[0] : null
+    if (first) importFile(first)
+  }
+
+  const onImportInputChange = (event: ReactChangeEvent<HTMLInputElement>): void => {
+    importFileList(event.target.files)
+    event.target.value = ''
+  }
+
+  const onCanvasDragOver = (event: ReactDragEvent): void => {
+    if (!event.dataTransfer.types.includes('Files')) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setDragOver(true)
+  }
+
+  const onCanvasDragLeave = (): void => setDragOver(false)
+
+  const onCanvasDrop = (event: ReactDragEvent): void => {
+    if (!event.dataTransfer.types.includes('Files')) return
+    event.preventDefault()
+    setDragOver(false)
+    importFileList(event.dataTransfer.files)
+  }
+
   // ---- text editing ----------------------------------------------------------
   const commitTextEdit = (text: string): void => {
     const session = sessionRef.current
@@ -829,6 +932,11 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
       duplicateSelection()
       return
     }
+    if (mod && event.shiftKey && event.key.toLowerCase() === 'i') {
+      event.preventDefault()
+      importInputRef.current?.click()
+      return
+    }
     const ctx = makeCtx(null)
     if (!ctx) return
     const toolBefore = controller.tool
@@ -1033,9 +1141,24 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           >
             Rulers
           </button>
+          {rootDir !== null && (
+            <NewFigureButton
+              rootDir={rootDir}
+              className="canvas-tab__new-figure"
+              inputClassName="canvas-tab__new-figure-input"
+              title="New figure"
+            />
+          )}
           {Math.round(view.scale * 100)}%
         </span>
       </div>
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".svg,.png,image/svg+xml,image/png"
+        className="canvas-tab__import-input"
+        onChange={onImportInputChange}
+      />
       {diagnosticsOpen && diagnostics.length > 0 && (
         <div className="canvas-diagnostics">
           {diagnostics.slice(0, 50).map((d, i) => (
@@ -1072,7 +1195,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           )}
           <div
             ref={viewportRef}
-            className={`canvas-viewport${toolId !== 'select' ? ' canvas-viewport--create' : ''}`}
+            className={`canvas-viewport${toolId !== 'select' ? ' canvas-viewport--create' : ''}${dragOver ? ' canvas-viewport--drag' : ''}`}
             tabIndex={0}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
@@ -1082,12 +1205,20 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
             onDoubleClick={onDoubleClick}
             onWheel={onWheel}
             onKeyDown={onKeyDown}
+            onDragOver={onCanvasDragOver}
+            onDragLeave={onCanvasDragLeave}
+            onDrop={onCanvasDrop}
           >
             <div
               ref={worldRef}
               className="canvas-world"
               style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})` }}
             />
+            {doc !== null && !hasDrawableContent(doc.root) && (
+              <div className="canvas-viewport__hint">
+                Drop or import a plot · ⌘⇧I import SVG/PNG · or draw with the tools
+              </div>
+            )}
             <div className="canvas-overlay">
               {overlayBoxes.map((box) => (
                 <div

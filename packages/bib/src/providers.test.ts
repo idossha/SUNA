@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LitResultSchema } from '@suna/core'
-import { lookupByDoi, searchLiterature } from './providers'
+import {
+  codexProgressFromLine,
+  lookupByDoi,
+  parseAiCliText,
+  parseClaudeCliOutput,
+  parseCodexCliOutput,
+  searchLiterature
+} from './providers'
 
 /**
  * No live network: every test stubs global fetch and asserts the URL shape,
@@ -362,5 +369,198 @@ describe('arxiv', () => {
       results: [],
       error: null
     })
+  })
+})
+
+/* ------------------------------------------------------------------ ai-cli -- */
+
+const gunnGott = {
+  title: 'On the infall of matter into clusters of galaxies',
+  authors: ['James E. Gunn', 'J. Richard Gott'],
+  year: 1972,
+  venue: 'The Astrophysical Journal',
+  doi: '10.1086/151605',
+  url: 'https://doi.org/10.1086/151605',
+  abstract: null
+}
+const abadi = {
+  title: 'Ram Pressure Stripping of Spiral Galaxies in Clusters',
+  authors: ['Mario G. Abadi', 'Ben Moore', 'Matthias Bower'],
+  year: 1999,
+  venue: 'Monthly Notices of the Royal Astronomical Society',
+  doi: '10.1046/j.1365-8711.1999.02715.x'
+}
+
+function mappedGunnGott(): unknown {
+  return {
+    source: 'ai-cli',
+    id: '10.1086/151605',
+    doi: '10.1086/151605',
+    title: 'On the infall of matter into clusters of galaxies',
+    authors: ['James E. Gunn', 'J. Richard Gott'],
+    year: 1972,
+    venue: 'The Astrophysical Journal',
+    citedByCount: null,
+    openAccessUrl: 'https://doi.org/10.1086/151605',
+    abstract: null
+  }
+}
+
+describe('parseAiCliText', () => {
+  it('parses a bare JSON array', () => {
+    const { results, error } = parseAiCliText(JSON.stringify([gunnGott]))
+    expect(error).toBeNull()
+    expect(results).toEqual([mappedGunnGott()])
+  })
+
+  it('strips a ```json fence around the whole answer', () => {
+    const fenced = '```json\n' + JSON.stringify([gunnGott]) + '\n```'
+    const { results, error } = parseAiCliText(fenced)
+    expect(error).toBeNull()
+    expect(results).toEqual([mappedGunnGott()])
+  })
+
+  it('extracts the array from prose wrapped around it', () => {
+    const prose =
+      `Here are two papers on ram pressure stripping:\n\n${JSON.stringify([gunnGott, abadi])}\n\nLet me know if you would like more.`
+    const { results, error } = parseAiCliText(prose)
+    expect(error).toBeNull()
+    expect(results).toHaveLength(2)
+    expect(results.map((r) => r.doi)).toEqual([gunnGott.doi, abadi.doi])
+  })
+
+  it('drops non-object array entries but keeps the good ones, never failing the whole search', () => {
+    const mixed = [gunnGott, null, 'not an object', 42, ['nested', 'array'], abadi]
+    const { results, error } = parseAiCliText(JSON.stringify(mixed))
+    expect(error).toBeNull()
+    expect(results).toHaveLength(2)
+    expect(results.map((r) => r.doi)).toEqual([gunnGott.doi, abadi.doi])
+  })
+
+  it('fills sensible fallbacks for a sparse-but-well-formed item, same as the other providers', () => {
+    const { results } = parseAiCliText(JSON.stringify([{ authors: ['no title given'] }]))
+    expect(results).toEqual([
+      {
+        source: 'ai-cli',
+        id: 'ai-cli-result',
+        doi: null,
+        title: '(untitled)',
+        authors: ['no title given'],
+        year: null,
+        venue: null,
+        citedByCount: null,
+        openAccessUrl: null,
+        abstract: null
+      }
+    ])
+  })
+
+  it('reports the first 300 chars of unparseable text instead of an empty list', () => {
+    const { results, error } = parseAiCliText('I could not find any papers matching that query.')
+    expect(results).toEqual([])
+    expect(error).toBe('I could not find any papers matching that query.')
+  })
+
+  it('every mapped item validates against LitResultSchema', () => {
+    const { results } = parseAiCliText(JSON.stringify([gunnGott, abadi]))
+    for (const result of results) {
+      expect(LitResultSchema.safeParse(result).success).toBe(true)
+      expect(result.source).toBe('ai-cli')
+    }
+  })
+})
+
+describe('parseClaudeCliOutput', () => {
+  function claudeEnvelope(result: string, isError = false): string {
+    return JSON.stringify({ result, is_error: isError })
+  }
+
+  it('parses the ground-truth envelope: stdout is one object, .result is a string array', () => {
+    const stdout = claudeEnvelope(JSON.stringify([gunnGott, abadi]))
+    const { results, error } = parseClaudeCliOutput(stdout, '', 0)
+    expect(error).toBeNull()
+    expect(results).toHaveLength(2)
+    expect(results[0]).toEqual(mappedGunnGott())
+  })
+
+  it('unwraps a fenced array inside .result', () => {
+    const fenced = '```json\n' + JSON.stringify([gunnGott]) + '\n```'
+    const { results, error } = parseClaudeCliOutput(claudeEnvelope(fenced), '', 0)
+    expect(error).toBeNull()
+    expect(results).toEqual([mappedGunnGott()])
+  })
+
+  it('is_error true surfaces the failure message, not an empty silent list', () => {
+    const stdout = claudeEnvelope('rate limited by the model provider', true)
+    const { results, error } = parseClaudeCliOutput(stdout, '', 0)
+    expect(results).toEqual([])
+    expect(error).toBe('rate limited by the model provider')
+  })
+
+  it('a non-zero exit surfaces the first 300 chars of stdout/stderr', () => {
+    const { results, error } = parseClaudeCliOutput('', 'command not found: claude', 127)
+    expect(results).toEqual([])
+    expect(error).toBe('command not found: claude')
+  })
+
+  it('unparseable stdout (not the promised JSON object) surfaces honestly', () => {
+    const { results, error } = parseClaudeCliOutput('not json at all', '', 0)
+    expect(results).toEqual([])
+    expect(error).toBe('not json at all')
+  })
+
+  it('truncates a very long error to 300 chars with an ellipsis', () => {
+    const long = 'x'.repeat(500)
+    const { error } = parseClaudeCliOutput(claudeEnvelope(long, true), '', 0)
+    expect(error).toHaveLength(301)
+    expect(error?.endsWith('…')).toBe(true)
+  })
+})
+
+describe('parseCodexCliOutput', () => {
+  it('parses the --output-last-message file content directly (no envelope)', () => {
+    const { results, error } = parseCodexCliOutput(JSON.stringify([gunnGott, abadi]), '', 0)
+    expect(error).toBeNull()
+    expect(results).toHaveLength(2)
+    expect(results[0]).toEqual(mappedGunnGott())
+  })
+
+  it('a non-zero exit surfaces stderr when the last-message file is empty', () => {
+    const { results, error } = parseCodexCliOutput('', 'error: not authenticated', 1)
+    expect(results).toEqual([])
+    expect(error).toBe('error: not authenticated')
+  })
+
+  it('an empty last-message with exit 0 is still an honest error, not an empty silent list', () => {
+    const { results, error } = parseCodexCliOutput('', '', 0)
+    expect(results).toEqual([])
+    expect(error).not.toBeNull()
+  })
+})
+
+describe('codexProgressFromLine', () => {
+  it('narrates the lifecycle + web_search/agent_message events verified live', () => {
+    expect(codexProgressFromLine('{"type":"thread.started","thread_id":"t1"}')).toBe(
+      'Starting Codex…'
+    )
+    expect(codexProgressFromLine('{"type":"turn.started"}')).toBe('Thinking…')
+    expect(
+      codexProgressFromLine('{"type":"item.started","item":{"type":"web_search"}}')
+    ).toBe('Searching the web…')
+    expect(
+      codexProgressFromLine('{"type":"item.completed","item":{"type":"web_search"}}')
+    ).toBe('Reading results…')
+    expect(
+      codexProgressFromLine('{"type":"item.completed","item":{"type":"agent_message","text":"[]"}}')
+    ).toBe('Compiling results…')
+    expect(codexProgressFromLine('{"type":"turn.completed","usage":{}}')).toBe('Finishing…')
+  })
+
+  it('returns null for blank lines, unparseable lines, and event types with nothing to narrate', () => {
+    expect(codexProgressFromLine('')).toBeNull()
+    expect(codexProgressFromLine('   ')).toBeNull()
+    expect(codexProgressFromLine('not json')).toBeNull()
+    expect(codexProgressFromLine('{"type":"item.started","item":{"type":"reasoning"}}')).toBeNull()
+    expect(codexProgressFromLine('{"type":"some.other.event"}')).toBeNull()
   })
 })

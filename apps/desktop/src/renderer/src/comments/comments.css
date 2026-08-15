@@ -1,7 +1,8 @@
 /* ---------------------------------------------------------------------------
-   Comments — sidebar view (CommentsView) + in-editor anchor UI
-   (anchorExtension.ts, used from manuscript/SectionEditor.tsx).
-   Complements views.css; only tokens from tokens.css.
+   Comments — margin gutter (CommentGutter.tsx, feature-plan-3 §3) + the
+   in-editor anchor UI (anchorExtension.ts) it's paired with, used from
+   manuscript/SectionEditor.tsx, manuscript/ManuscriptTab.tsx and
+   editor/EditorTab.tsx. Self-contained: only tokens from tokens.css.
    --------------------------------------------------------------------------- */
 
 /* ---- in-editor anchor decorations ----------------------------------------- */
@@ -35,85 +36,8 @@
   background: var(--s-accent);
 }
 
-/* ---- sidebar view ----------------------------------------------------------- */
-
-.cmt {
-  gap: 10px;
-}
-
-.cmt__filters {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.cmt__filter-btn {
-  padding: 3px 8px;
-  border: 1px solid var(--s-border);
-  border-radius: 999px;
-  font-size: var(--s-text-xs);
-  color: var(--s-ink-muted);
-}
-
-.cmt__filter-btn:hover {
-  border-color: var(--s-border-strong);
-  color: var(--s-ink);
-}
-
-.cmt__filter-btn[aria-pressed='true'] {
-  border-color: var(--s-accent);
-  color: var(--s-accent);
-}
-
-.cmt__filter-count {
-  color: var(--s-ink-faint);
-}
-
-.cmt__filter-btn[aria-pressed='true'] .cmt__filter-count {
-  color: var(--s-accent);
-}
-
-.cmt__author-row {
-  align-self: flex-start;
-  font-size: var(--s-text-xs);
-  color: var(--s-ink-faint);
-}
-
-.cmt__author-row:hover {
-  color: var(--s-ink-muted);
-}
-
-.cmt__author-row strong {
-  color: var(--s-ink-muted);
-  font-weight: 600;
-}
-
-.cmt__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.cmt__card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: var(--s-bg-shell);
-  border: 1px solid var(--s-border);
-  border-radius: var(--s-radius);
-}
-
-.cmt__card-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-}
-
-.cmt__card-main:disabled {
-  cursor: default;
-}
+/* ---- shared card internals (used by comments/CommentGutter's cards, both
+   the inline gutter cards and the narrow-mode popover card) ------------------ */
 
 .cmt__card-head {
   display: flex;
@@ -159,6 +83,14 @@
   font-family: var(--s-font-mono);
   font-size: 10px;
   color: var(--s-ink-faint);
+}
+
+.cmt__badge--resolved {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--s-bg-active);
+  color: var(--s-accent);
+  font-weight: 500;
 }
 
 .cmt__body {
@@ -218,16 +150,237 @@
   color: var(--s-err);
 }
 
-.cmt__replybox,
-.cmt__draft {
+.cmt__replybox {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.cmt__draft {
-  padding: 8px;
-  background: var(--s-bg-active);
-  border: 1px solid var(--s-accent);
+.cmt-textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 8px;
+  background: var(--s-bg-editor);
+  color: var(--s-ink);
+  border: 1px solid var(--s-border);
   border-radius: var(--s-radius);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  resize: vertical;
+}
+
+.cmt-textarea:focus {
+  outline: none;
+  border-color: var(--s-accent);
+}
+
+/* ---- margin gutter (comments/CommentGutter.tsx) ---------------------------
+   Rendered as a flex/grid sibling of the scrolling document (see
+   manuscript/manuscript.css's .msdoc__body and editor/editor.css's
+   .editor-tab__source), never as a child of the scrolling text itself — the
+   host keeps the gutter's own bounding rect stable while the document
+   scrolls (position: sticky for the whole-page scroller, a plain non-
+   scrolling flex sibling for the CodeMirror-internal-scroller case) and
+   diffs CodeMirror's coordsAtPos against that rect on every recompute. */
+
+.cmt-gutter {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 0;
+  font-family: var(--s-font-ui);
+}
+
+.cmt-gutter__unanchored {
+  border: 1px solid var(--s-warn);
+  border-radius: var(--s-radius);
+  padding: 4px 8px;
+  font-size: var(--s-text-xs);
+  color: var(--s-warn);
+}
+
+.cmt-gutter__unanchored summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.cmt-gutter__unanchored summary::-webkit-details-marker {
+  display: none;
+}
+
+.cmt-gutter__unanchored-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.cmt-gutter__unanchored-item .cmt__target {
+  margin-bottom: 2px;
+}
+
+.cmt-gutter__resolved-toggle {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+}
+
+.cmt-gutter__resolved-toggle:hover {
+  border-color: var(--s-border-strong);
+  color: var(--s-ink-muted);
+}
+
+/* The positioning surface: its own bounding rect (top-left corner) is the
+   coordinate origin the host's coordsAtPos diff is measured against, so
+   `top: Npx` on a slot below lines up with the anchor's on-screen row. */
+.cmt-gutter__track {
+  position: relative;
+  flex: 1;
+  min-height: 40px;
+}
+
+.cmt-gutter__slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transition: top 120ms ease;
+}
+
+.cmt-gutter__edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 3px 8px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+  text-align: center;
+}
+
+/* ---- gutter card ------------------------------------------------------- */
+
+.cmt-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.cmt-card--active {
+  border-color: var(--s-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.cmt-card--compact:hover {
+  border-color: var(--s-border-strong);
+}
+
+.cmt-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.cmt-card__body {
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  color: var(--s-ink);
+  white-space: pre-wrap;
+}
+
+.cmt-card__body--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cmt__draft {
+  background: var(--s-bg-active);
+  border-color: var(--s-accent);
+}
+
+/* ---- narrow mode (< ~1100px container width): margin dots + popover ---- */
+
+.cmt-gutter--narrow {
+  position: relative;
+  width: 22px;
+  padding: 8px 0 0;
+}
+
+.cmt-dot {
+  position: absolute;
+  left: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--s-ink-faint);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.cmt-dot--agent {
+  background: var(--s-accent);
+}
+
+.cmt-dot--active {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 2px;
+}
+
+.cmt-dot--edge {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0 0 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--s-bg-raised);
+  color: var(--s-ink-faint);
+  font-size: 9px;
+  text-align: center;
+}
+
+.cmt-dot--unanchored {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--s-warn);
+  color: var(--s-accent-ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+.cmt-popover {
+  position: absolute;
+  right: calc(100% + 8px);
+  z-index: 30;
+  width: 280px;
+  max-height: 60vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.cmt-popover--list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }

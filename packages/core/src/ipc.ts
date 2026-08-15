@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LitProviderIdSchema } from './lit';
+import { LitCliIdSchema, LitProviderIdSchema } from './lit';
 import { ProjectDirKeySchema, SunaProjectManifestSchema } from './project';
 
 export interface FsFileNode {
@@ -298,6 +298,32 @@ export const CHANNELS = {
       ),
     }),
   },
+  /** Which agent CLIs (claude, codex) `--version` answered within 5s, cached per session by main. */
+  'lit:cli-status': {
+    request: z.object({}),
+    response: z.object({ available: z.array(LitCliIdSchema) }),
+  },
+  /**
+   * Starts an 'ai-cli' search as a killable child process and returns
+   * immediately with a searchId; progress and the final outcome arrive over
+   * EVENT_CHANNELS.litProgress(searchId) / litDone(searchId). Never call
+   * 'lit:search' with this provider — the two HTTP providers channel above
+   * only knows LitProviderId, not 'ai-cli'.
+   */
+  'lit:ai-search': {
+    request: z.object({
+      provider: z.literal('ai-cli'),
+      query: z.string().min(1),
+      limit: z.number().int().positive().max(100),
+      dir: z.string().min(1),
+    }),
+    response: z.object({ searchId: z.string().min(1) }),
+  },
+  /** Kills the child process for an in-flight 'ai-cli' search. A no-op if it already finished. */
+  'lit:cancel': {
+    request: z.object({ searchId: z.string().min(1) }),
+    response: z.object({}),
+  },
 
   /**
    * Export the current figure into the project's output/ dir.
@@ -337,6 +363,29 @@ export const CHANNELS = {
     }),
     response: z.object({ figureId: z.string().min(1) }),
   },
+  /**
+   * Create figures/<slug>/{figure.svg,figure.json} from scratch: a blank
+   * artboard at `widthMm` (the caller resolves the active profile's
+   * double-column preset) with height = widthMm * 0.618. `figureId` is
+   * derived from `name`, de-duplicated against existing figure directories.
+   * The RENDERER registers the new figure in manuscript.json via
+   * 'manuscript:update'; this never touches it (same split as duplicate).
+   */
+  'figure:create': {
+    request: z.object({
+      dir: z.string().min(1),
+      name: z.string().min(1),
+      widthMm: z.number().positive(),
+    }),
+    response: z.object({
+      figureId: z.string().min(1),
+      canvasRef: z.string().regex(/\.svg$/),
+      svgPath: z.string().min(1),
+      jsonPath: z.string().min(1),
+      widthMm: z.number().positive(),
+      heightMm: z.number().positive(),
+    }),
+  },
 } as const satisfies Record<string, ChannelContract>;
 
 /**
@@ -346,6 +395,10 @@ export const CHANNELS = {
 export const EVENT_CHANNELS = {
   termData: (id: string) => `term:data:${id}`,
   termExit: (id: string) => `term:exit:${id}`,
+  /** Status-line pushes for one 'lit:ai-search' run (e.g. "Searching the web…"). */
+  litProgress: (searchId: string) => `lit:progress:${searchId}`,
+  /** Terminal event for one 'lit:ai-search' run: `{ results: unknown[], error: string | null }`. */
+  litDone: (searchId: string) => `lit:done:${searchId}`,
 } as const;
 
 export type ChannelName = keyof typeof CHANNELS;

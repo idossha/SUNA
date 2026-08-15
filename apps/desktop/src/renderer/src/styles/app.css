@@ -552,6 +552,27 @@ button {
   cursor: crosshair;
 }
 
+.canvas-viewport--drag {
+  outline: 2px dashed var(--s-accent);
+  outline-offset: -2px;
+}
+
+.canvas-viewport__hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 24px;
+  text-align: center;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-faint);
+  pointer-events: none;
+}
+
+.canvas-tab__import-input {
+  display: none;
+}
+
 .canvas-world {
   position: absolute;
   top: 0;
@@ -1118,6 +1139,37 @@ button {
   color: var(--s-accent);
   border-color: var(--s-accent);
   background: var(--s-bg-active);
+}
+
+.canvas-tab__new-figure {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  color: var(--s-ink-faint);
+  border: 1px solid var(--s-border-strong);
+  line-height: 1;
+}
+
+.canvas-tab__new-figure:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.canvas-tab__new-figure-input {
+  width: 140px;
+  padding: 1px 6px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+}
+
+.canvas-tab__new-figure-input:focus {
+  outline: none;
+  border-color: var(--s-accent);
 }
 
 .canvas-canvasarea {
