@@ -1,5 +1,19 @@
 import { create } from 'zustand'
-import type { LitCliPreference } from '@suna/core'
+import {
+  SETTINGS_DEFAULTS,
+  SETTING_KEYS,
+  SunaProjectManifestSchema,
+  mergeProjectSettings,
+  projectSettingPatch,
+  resolveSettings,
+  type LitCliPreference,
+  type ProjectSettings,
+  type ResolvedSettingKey,
+  type ResolvedSettings,
+  type SettingSource,
+  type SettingsResolution
+} from '@suna/core'
+import { useProjectStore } from './project'
 
 /**
  * App-wide settings, persisted by the MAIN process (userData) via the frozen
@@ -29,6 +43,26 @@ import type { LitCliPreference } from '@suna/core'
  *   'references.autoOpenPdf' boolean         References view (feature-plan-4
  *                                 §4): auto-open a resolved PDF beside the
  *                                 list on selecting an entry. Default on.
+ *
+ * ---------------------------------------------------------------------------
+ * TWO-LEVEL HIERARCHY (feature-plan-5 §4) — what other zones should use.
+ *
+ * `settings` above stays the GLOBAL-only view (the Settings page's own
+ * controls). Anything a project may override goes through the resolver
+ * instead, keyed by the dot-path the value has inside suna.json's `settings`
+ * block (see @suna/core's SETTING_KEYS / SETTINGS_DEFAULTS):
+ *
+ *   const { value, source } = useResolved('editor.contentWidthCh')
+ *   //  source: 'project' | 'global' | 'default'  → "from project" / "from
+ *   //  global" / "default" in the UI
+ *   getResolved('editor.fontSizePx')          // same, outside React
+ *   store.setGlobal('editor.fontSizePx', 16)  // → settings:set
+ *   store.setProject('editor.fontSizePx', 16) // → project:update-settings
+ *   store.clearProject('editor.fontSizePx')   // "Reset to global"
+ *
+ * The resolution re-runs whenever global settings change, whenever the project
+ * store's manifest changes, and whenever a file is saved (which is how a
+ * hand-edit of suna.json in the editor re-resolves without a restart).
  */
 export type EditorModeSetting = 'reading' | 'source'
 export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'high-contrast'
@@ -114,48 +148,323 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-interface SettingsState {
-  settings: GlobalSettings
-  loaded: boolean
+/**
+ * Parse a suna.json payload down to its settings block. Split out from the
+ * store so the failure wording is unit-testable: a project whose manifest went
+ * invalid keeps its last good settings and says so, rather than silently
+ * reverting every project override to the global value.
+ */
+export function parseProjectSettings(content: string): {
+  settings: ProjectSettings | null
   error: string | null
-  /** Fetch once from the main process; safe to call from several mounts. */
-  load: () => Promise<void>
-  /** Optimistic single-key write; rolls back if the IPC write fails. */
-  update: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => Promise<void>
+} {
+  let json: unknown
+  try {
+    json = JSON.parse(content) as unknown
+  } catch (error) {
+    return { settings: null, error: `suna.json is not valid JSON: ${errorMessage(error)}` }
+  }
+  const parsed = SunaProjectManifestSchema.safeParse(json)
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]
+    const where = first && first.path.length > 0 ? ` at ${first.path.join('.')}` : ''
+    return {
+      settings: null,
+      error: `suna.json is invalid${where}: ${first?.message ?? 'unknown error'}`
+    }
+  }
+  return { settings: parsed.data.settings ?? null, error: null }
 }
 
-let loadStarted = false
+interface SettingsState {
+  settings: GlobalSettings
+  /**
+   * Everything persisted globally, untyped — the resolver reads keys that the
+   * GlobalSettings view does not model (e.g. 'editor.contentWidthCh').
+   */
+  raw: Record<string, unknown>
+  /** The open project's `settings` block from suna.json; null when unset. */
+  projectSettings: ProjectSettings | null
+  /** project ?? global ?? default, with the winning level per key. */
+  resolved: SettingsResolution
+  loaded: boolean
+  error: string | null
+  /** Non-fatal: suna.json could not be read/parsed, so project overrides are stale. */
+  projectError: string | null
+  /** Fetch once from the main process; safe to call from several mounts. */
+  load: () => Promise<void>
+  /** Optimistic single-key write of a GLOBAL settings key; rolls back on failure. */
+  update: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => Promise<void>
+  /** Write a resolved key at the GLOBAL level (settings:set). */
+  setGlobal: <K extends ResolvedSettingKey>(
+    key: K,
+    value: ResolvedSettings[K]
+  ) => Promise<void>
+  /** Write a resolved key at the PROJECT level (project:update-settings). */
+  setProject: <K extends ResolvedSettingKey>(
+    key: K,
+    value: ResolvedSettings[K]
+  ) => Promise<void>
+  /** "Reset to global": removes the key from suna.json so it falls back. */
+  clearProject: (key: ResolvedSettingKey) => Promise<void>
+  /** Adopt a manifest's settings block (called on project store changes). */
+  syncProjectSettings: (next: ProjectSettings | null | undefined) => void
+  /** Re-read suna.json from disk and re-resolve (external edits). */
+  refreshProjectSettings: () => Promise<void>
+}
+
+/**
+ * In-flight load, so concurrent callers share one read instead of racing.
+ * It is NOT a "loaded once" latch: settings.json can change under us (the
+ * Settings page, another window, an agent, a reset) and every later call must
+ * actually re-read the file.
+ */
+let loadInFlight: Promise<void> | null = null
+
+function resolveFrom(
+  raw: Record<string, unknown>,
+  project: ProjectSettings | null
+): SettingsResolution {
+  return resolveSettings(raw, project ?? undefined)
+}
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: GLOBAL_SETTINGS_DEFAULTS,
+  raw: {},
+  projectSettings: null,
+  resolved: resolveSettings({}, undefined),
   loaded: false,
   error: null,
+  projectError: null,
 
   load: async () => {
-    if (loadStarted) return
-    loadStarted = true
-    try {
-      const { settings } = await window.suna.invoke('settings:get', {})
-      const coerced = coerceSettings(settings)
-      applyUiScale(coerced['appearance.uiScale'])
-      set({ settings: coerced, loaded: true, error: null })
-    } catch (error) {
-      // Defaults still apply; allow a later retry (e.g. from the Settings tab).
-      loadStarted = false
-      set({ loaded: true, error: errorMessage(error) })
-    }
+    if (loadInFlight !== null) return loadInFlight
+    loadInFlight = (async () => {
+      try {
+        const { settings } = await window.suna.invoke('settings:get', {})
+        const coerced = coerceSettings(settings)
+        applyUiScale(coerced['appearance.uiScale'])
+        // Seed the project half from whatever project is already open.
+        const projectSettings = useProjectStore.getState().manifest?.settings ?? null
+        set({
+          settings: coerced,
+          raw: settings,
+          projectSettings,
+          resolved: resolveFrom(settings, projectSettings),
+          loaded: true,
+          error: null
+        })
+      } catch (error) {
+        // Defaults still apply; a later call retries (e.g. from the Settings tab).
+        set({ loaded: true, error: errorMessage(error) })
+      } finally {
+        loadInFlight = null
+      }
+    })()
+    return loadInFlight
   },
 
   update: async (key, value) => {
     const prev = get().settings
+    const prevRaw = get().raw
     const next = { ...prev, [key]: value }
-    set({ settings: next, error: null })
+    const nextRaw = { ...prevRaw, [key]: value }
+    set({
+      settings: next,
+      raw: nextRaw,
+      resolved: resolveFrom(nextRaw, get().projectSettings),
+      error: null
+    })
     if (key === 'appearance.uiScale') applyUiScale(next['appearance.uiScale'])
     try {
       await window.suna.invoke('settings:set', { patch: { [key]: value } })
     } catch (error) {
-      set({ settings: prev, error: errorMessage(error) })
+      set({
+        settings: prev,
+        raw: prevRaw,
+        resolved: resolveFrom(prevRaw, get().projectSettings),
+        error: errorMessage(error)
+      })
       if (key === 'appearance.uiScale') applyUiScale(prev['appearance.uiScale'])
+    }
+  },
+
+  setGlobal: async (key, value) => {
+    const globalKey = SETTING_KEYS[key].globalKeys[0]
+    const prevRaw = get().raw
+    const nextRaw = { ...prevRaw, [globalKey]: value }
+    set({
+      raw: nextRaw,
+      settings: coerceSettings(nextRaw),
+      resolved: resolveFrom(nextRaw, get().projectSettings),
+      error: null
+    })
+    try {
+      await window.suna.invoke('settings:set', { patch: { [globalKey]: value } })
+    } catch (error) {
+      set({
+        raw: prevRaw,
+        settings: coerceSettings(prevRaw),
+        resolved: resolveFrom(prevRaw, get().projectSettings),
+        error: errorMessage(error)
+      })
+    }
+  },
+
+  setProject: async (key, value) => {
+    await writeProjectSetting(set, get, key, value)
+  },
+
+  clearProject: async (key) => {
+    await writeProjectSetting(set, get, key, null)
+  },
+
+  syncProjectSettings: (next) => {
+    const projectSettings = next ?? null
+    set({ projectSettings, resolved: resolveFrom(get().raw, projectSettings) })
+  },
+
+  refreshProjectSettings: async () => {
+    const rootDir = useProjectStore.getState().rootDir
+    if (rootDir === null) {
+      set({ projectSettings: null, projectError: null, resolved: resolveFrom(get().raw, null) })
+      return
+    }
+    if (typeof window === 'undefined' || typeof window.suna === 'undefined') return
+    try {
+      const { content } = await window.suna.invoke('fs:read-text', {
+        path: `${rootDir}/suna.json`
+      })
+      const { settings, error } = parseProjectSettings(content)
+      if (error !== null) {
+        // Keep the last good block: a half-typed file must not blank the UI.
+        set({ projectError: error })
+        return
+      }
+      set({
+        projectSettings: settings,
+        projectError: null,
+        resolved: resolveFrom(get().raw, settings)
+      })
+    } catch (error) {
+      set({ projectError: errorMessage(error) })
     }
   }
 }))
+
+type SettingsSet = (partial: Partial<SettingsState>) => void
+type SettingsGet = () => SettingsState
+
+/**
+ * Optimistic project-level write: merge locally, send the nested patch, adopt
+ * whatever main says the file now holds, roll back if the write failed.
+ */
+async function writeProjectSetting<K extends ResolvedSettingKey>(
+  set: SettingsSet,
+  get: SettingsGet,
+  key: K,
+  value: ResolvedSettings[K] | null
+): Promise<void> {
+  const rootDir = useProjectStore.getState().rootDir
+  if (rootDir === null) {
+    set({ projectError: 'No project is open, so it has no project settings.' })
+    return
+  }
+  const patch = projectSettingPatch(key, value)
+  const prev = get().projectSettings
+  const optimistic = mergeProjectSettings(prev ?? {}, patch) ?? null
+  set({
+    projectSettings: optimistic,
+    projectError: null,
+    resolved: resolveFrom(get().raw, optimistic)
+  })
+  try {
+    const { manifest } = await window.suna.invoke('project:update-settings', {
+      dir: rootDir,
+      patch
+    })
+    const settings = manifest.settings ?? null
+    set({ projectSettings: settings, resolved: resolveFrom(get().raw, settings) })
+    // suna.json just changed on disk, so the project store's copy is stale.
+    // load() re-seeds the project half from that manifest — without this the
+    // next load (every EditorTab mount calls one) silently reverts the
+    // override that was just written.
+    const fresh = SunaProjectManifestSchema.safeParse(manifest)
+    if (fresh.success) useProjectStore.setState({ manifest: fresh.data })
+  } catch (error) {
+    set({
+      projectSettings: prev,
+      projectError: errorMessage(error),
+      resolved: resolveFrom(get().raw, prev)
+    })
+  }
+}
+
+/**
+ * The resolved value of one key and where it came from — the unit every
+ * settings control renders ("from project" / "from global" / "default").
+ * Two primitive selectors, so the hook never hands React a fresh snapshot.
+ */
+export function useResolved<K extends ResolvedSettingKey>(
+  key: K
+): { value: ResolvedSettings[K]; source: SettingSource } {
+  const value = useSettingsStore((s) => s.resolved.value[key])
+  const source = useSettingsStore((s) => s.resolved.sources[key])
+  return { value, source }
+}
+
+/** Imperative read for non-React code (CodeMirror extensions, command handlers). */
+export function getResolved<K extends ResolvedSettingKey>(
+  key: K
+): { value: ResolvedSettings[K]; source: SettingSource } {
+  const { resolved } = useSettingsStore.getState()
+  return { value: resolved.value[key], source: resolved.sources[key] }
+}
+
+/**
+ * External-edit reactivity (feature-plan-5 §4, "watch suna.json"). Two
+ * independent triggers, because a hand-edit can arrive by two very different
+ * routes:
+ *
+ *  - IN-APP: the project store knows a project changed or a file was saved. A
+ *    manifest swap re-resolves immediately; a rootDir change or a saveBump
+ *    (raised by the editor after every successful write, including a ⌘S on
+ *    suna.json itself) re-reads the file from disk.
+ *  - OUT-OF-BAND: an agent, the integrated terminal, or another editor writes
+ *    suna.json with the app none the wiser — nothing bumps. The MAIN process
+ *    watches the project directory and pushes
+ *    EVENT_CHANNELS.projectManifestChanged; that is what the second
+ *    subscription below is for (main/services/projectWatch.ts).
+ */
+let watching = false
+
+export function watchProjectSettings(): () => void {
+  if (watching) return () => undefined
+  watching = true
+  const unsubscribeStore = useProjectStore.subscribe((state, prev) => {
+    if (state.manifest !== prev.manifest) {
+      useSettingsStore.getState().syncProjectSettings(state.manifest?.settings)
+    }
+    if (state.rootDir !== prev.rootDir || state.saveBump !== prev.saveBump) {
+      void useSettingsStore.getState().refreshProjectSettings()
+    }
+  })
+  // Guarded: unit tests import this module without a preload bridge.
+  const unsubscribePush =
+    typeof window !== 'undefined' && typeof window.suna?.onProjectManifestChanged === 'function'
+      ? window.suna.onProjectManifestChanged(({ dir }) => {
+          // Ignore a push for a project that is no longer the open one.
+          if (useProjectStore.getState().rootDir !== dir) return
+          void useSettingsStore.getState().refreshProjectSettings()
+        })
+      : () => undefined
+  return () => {
+    unsubscribeStore()
+    unsubscribePush()
+    watching = false
+  }
+}
+
+watchProjectSettings()
+
+export { SETTINGS_DEFAULTS }

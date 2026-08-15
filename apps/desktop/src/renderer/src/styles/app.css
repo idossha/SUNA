@@ -267,6 +267,128 @@ button {
   color: var(--s-ink-faint);
 }
 
+/* ---- recent projects (feature-plan-5 §1) ---------------------------------- */
+
+.recents {
+  width: 100%;
+  margin-top: 36px;
+  text-align: left;
+  font-family: var(--s-font-ui);
+}
+
+.recents__title {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+  margin-bottom: 8px;
+}
+
+.recents__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recents__item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recents__row {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: var(--s-radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--s-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recents__row:hover:not(:disabled),
+.recents__row:focus-visible {
+  background: var(--s-bg-hover);
+  border-color: var(--s-border);
+  outline: none;
+}
+
+.recents__row:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.recents__row--missing {
+  color: var(--s-ink-faint);
+}
+
+.recents__name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.recents__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-sm);
+}
+
+.recents__time {
+  flex-shrink: 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.recents__badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--s-radius);
+  border: 1px solid var(--s-warn);
+  color: var(--s-warn);
+  font-size: var(--s-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recents__remove {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.recents__remove:hover:not(:disabled) {
+  color: var(--s-err);
+  border-color: var(--s-err);
+}
+
+.recents__remove:disabled {
+  opacity: 0.4;
+}
+
+.recents__error {
+  flex-basis: 100%;
+  padding: 2px 10px 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-err);
+  text-align: left;
+}
+
 .btn {
   padding: 7px 18px;
   border-radius: var(--s-radius);

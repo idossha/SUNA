@@ -47,6 +47,35 @@ export function openFileTab(path: string): void {
   })
 }
 
+/** Onboarding wizard entry points (feature-plan-5 §5). */
+export interface OnboardingParams {
+  mode: 'create' | 'setup'
+  /** 'setup' only: the existing folder missing suna.json, run steps 2-7 against it. */
+  dir?: string
+}
+
+/**
+ * Open (or focus) the onboarding wizard tab. One tab per target: a fresh
+ * 'create' wizard is singleton (re-opening it just focuses the one in
+ * progress), while 'setup' is keyed by directory so setting up two different
+ * folders can be in flight as separate tabs.
+ */
+export function openOnboardingTab(params: OnboardingParams): void {
+  if (!dockApi) return
+  const id = params.mode === 'setup' && params.dir ? `onboarding:${params.dir}` : 'onboarding:create'
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'onboarding',
+    title: params.mode === 'setup' ? 'Set up project' : 'New project',
+    params
+  })
+}
+
 /** Open (or focus) the global Settings tab. */
 export function openSettingsTab(): void {
   if (!dockApi) return
@@ -201,6 +230,9 @@ export const dockDevSeam = {
   openFileTab,
   openInSplit,
   openViewerInSide,
+  /** feature-plan-5 §5: open the wizard the way the welcome screen's buttons do. */
+  openOnboardingTab,
+  openSettingsTab,
   sideGroupId,
   activePanelPath,
   groupCount: (): number => dockApi?.groups.length ?? 0,
@@ -220,5 +252,25 @@ export const dockDevSeam = {
    * measuring "⌘\ yields exactly 2 groups" needs a known starting dock rather
    * than whatever the previous step left behind.
    */
-  clearDock: (): void => dockApi?.clear()
+  clearDock: (): void => dockApi?.clear(),
+  /** Close one panel by id — how a driver proves "cancelling writes nothing". */
+  closePanel: (id: string): void => {
+    const panel = dockApi?.getPanel(id)
+    if (panel) dockApi?.removePanel(panel)
+  },
+  /**
+   * Re-open the welcome tab. The app adds it once at startup and `clearDock()`
+   * removes it, so a driver measuring the welcome screen's recent-projects
+   * list (feature-plan-5 §1) after a project is already open needs a way back.
+   * Deliberately not a production entry point — nothing in the UI re-opens it.
+   */
+  openWelcomeTab: (): void => {
+    if (!dockApi) return
+    const existing = dockApi.getPanel('welcome')
+    if (existing) {
+      existing.api.setActive()
+      return
+    }
+    dockApi.addPanel({ id: 'welcome', component: 'welcome', title: 'Welcome' })
+  }
 }

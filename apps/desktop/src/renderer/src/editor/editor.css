@@ -195,18 +195,59 @@
   --ed-content-font: var(--ed-body-font, var(--s-font-serif));
 }
 
-/* dimmed (not hidden) markdown syntax characters */
-.editor-tab .cm-lp-syntax {
-  color: var(--ed-ink-faint);
-  opacity: 0.75;
-  font-weight: 400;
-}
+/* ---- rendered inline formatting -------------------------------------------
+   Every mark below is a pure Decoration.mark: it never hides source, only
+   styles it. The delimiters themselves ('**', '*', '~~', backticks,
+   '[](url)') are hidden separately as zero-width 'hide' spans and reappear
+   verbatim whenever the selection touches the formatting node — see
+   livePreview.ts's LiveSpan doc comment for the exact contract. */
 
 .editor-tab .cm-lp-strong {
   font-weight: 700;
+  color: var(--ed-syn-strong);
 }
 
 .editor-tab .cm-lp-em {
+  font-style: italic;
+  color: var(--ed-syn-em);
+}
+
+.editor-tab .cm-lp-strike {
+  text-decoration: line-through;
+  color: var(--ed-ink-muted);
+}
+
+.editor-tab .cm-lp-code {
+  font-family: var(--s-font-mono);
+  font-size: 0.9em;
+  color: var(--ed-syn-code);
+  background: rgba(127, 127, 127, 0.14);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.editor-tab .cm-lp-link {
+  color: var(--ed-syn-link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ed-syn-link) 45%, transparent);
+}
+
+/* bullet glyph replacing a hidden '-'/'*'/'+' + following space. Fixed
+   width so it never becomes a per-keystroke-varying box — the comment
+   gutter's coordsAtPos anchors depend on line boxes staying predictable. */
+.editor-tab .cm-lp-bullet {
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+  color: var(--ed-ink-muted);
+}
+
+/* blockquote line accent — a border, not an inserted DOM node in the text
+   flow, so it adds zero risk to coordsAtPos-based anchoring (the comment
+   gutter measures character positions, which this never touches). */
+.editor-tab .cm-line.cm-lp-quote {
+  border-left: 3px solid var(--ed-border);
+  color: var(--ed-ink-muted);
   font-style: italic;
 }
 

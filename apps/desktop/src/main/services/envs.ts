@@ -110,3 +110,58 @@ export async function selectedEnv(dir: string): Promise<string | null> {
 export async function selectEnv(dir: string, envPath: string | null): Promise<void> {
   await writeSettings({ [selectionKey(dir)]: envPath })
 }
+
+/* ------------------------------------------------------------------ */
+/* uv (onboarding wizard §5 step 4)                                     */
+/* ------------------------------------------------------------------ */
+
+/** Injectable so availability is testable without a real child process. */
+export type UvProbe = () => Promise<boolean>
+
+async function defaultUvProbe(): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    execFile('uv', ['--version'], { timeout: 5000 }, (error) => resolvePromise(error === null))
+  })
+}
+
+/** Whether `uv` answers on PATH, so "create with uv" can be offered (or honestly disabled). */
+export async function uvAvailable(probe: UvProbe = defaultUvProbe): Promise<boolean> {
+  return probe()
+}
+
+export interface CreateEnvResult {
+  ok: boolean
+  envPath: string | null
+  error: string | null
+}
+
+/** Injectable so venv creation is testable without spawning real `uv`. */
+export type UvVenvRunner = (dir: string) => Promise<void>
+
+async function defaultUvVenvRunner(dir: string): Promise<void> {
+  await run('uv', ['venv'], { cwd: dir, timeout: 60_000 })
+}
+
+/**
+ * Runs `uv venv` in `dir` (the project directory the wizard just created).
+ * Never throws: a missing `uv` or a failed venv creation comes back as
+ * `ok: false` with a human `error`, so one failed sub-step of Create project
+ * never takes down the rest (feature-plan-5 §5 step 7).
+ */
+export async function createEnvWithUv(
+  dir: string,
+  runner: UvVenvRunner = defaultUvVenvRunner
+): Promise<CreateEnvResult> {
+  try {
+    await runner(dir)
+    return { ok: true, envPath: join(dir, '.venv'), error: null }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const notFound = (error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT'
+    return {
+      ok: false,
+      envPath: null,
+      error: notFound ? 'uv is not installed or not on PATH' : message
+    }
+  }
+}

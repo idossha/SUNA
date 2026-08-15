@@ -32,11 +32,17 @@ export const EDITOR_SETTINGS_LIMITS = {
   lineHeight: { min: 1.4, max: 2 }
 } as const
 
+/**
+ * Must match @suna/core's SETTINGS_DEFAULTS (feature-plan-5 §2: 14px / 1.6).
+ * This store is what the editor surface renders from, so a mismatch here is
+ * what the user actually sees — the resolver's defaults would never show.
+ * Persisted user values are unaffected: only the fallback changes.
+ */
 export const EDITOR_SETTINGS_DEFAULTS: EditorSettings = {
   contentWidthCh: 68,
-  fontSizePx: 16,
+  fontSizePx: 14,
   fontFamily: 'serif',
-  lineHeight: 1.7,
+  lineHeight: 1.6,
   editorTheme: 'suna-dark'
 }
 

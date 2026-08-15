@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UiLitProviderIdSchema } from './lit';
 
 export const PROJECT_DIR_KEYS = [
   'manuscript',
@@ -23,6 +24,82 @@ export const DEFAULT_PROJECT_DIRS = {
   output: 'output',
 } as const satisfies Record<ProjectDirKey, string>;
 
+/**
+ * Numeric bounds shared by three consumers: the suna.json schema below (so a
+ * hand-edited out-of-range value lints in the editor and is rejected by the
+ * writer), the resolver's validation of global values, and the Settings-page
+ * sliders. Same numbers as the editor store's EDITOR_SETTINGS_LIMITS.
+ */
+export const SETTINGS_LIMITS = {
+  contentWidthCh: { min: 50, max: 150 },
+  fontSizePx: { min: 12, max: 22 },
+  lineHeight: { min: 1.4, max: 2 },
+} as const;
+
+export const EDITOR_VIEW_MODES = ['source', 'reading'] as const;
+export const EditorViewModeSchema = z.enum(EDITOR_VIEW_MODES);
+export type EditorViewMode = z.infer<typeof EditorViewModeSchema>;
+
+export const EDITOR_FONT_FAMILIES = ['serif', 'sans', 'mono'] as const;
+export const EditorFontFamilySchema = z.enum(EDITOR_FONT_FAMILIES);
+export type EditorFontFamily = z.infer<typeof EditorFontFamilySchema>;
+
+export const EDITOR_THEME_IDS = ['suna-dark', 'suna-light', 'high-contrast'] as const;
+export const EditorThemeIdSchema = z.enum(EDITOR_THEME_IDS);
+export type EditorThemeId = z.infer<typeof EditorThemeIdSchema>;
+
+/** Figure width presets, keyed like a profile's `figures.widthPresetsMm`. */
+export const FIGURE_WIDTH_PRESETS = ['single', 'onehalf', 'double'] as const;
+export const FigureWidthPresetSchema = z.enum(FIGURE_WIDTH_PRESETS);
+export type FigureWidthPreset = z.infer<typeof FigureWidthPresetSchema>;
+
+/** How this project talks to an AI: an agent CLI, an HTTP API key, or not at all. */
+export const AI_MODES = ['cli', 'api', 'none'] as const;
+export const AiModeSchema = z.enum(AI_MODES);
+export type AiMode = z.infer<typeof AiModeSchema>;
+
+const boundedNumber = (limits: { min: number; max: number }): z.ZodNumber =>
+  z.number().min(limits.min).max(limits.max);
+
+export const ProjectEditorSettingsSchema = z.object({
+  defaultMode: EditorViewModeSchema.nullish(),
+  contentWidthCh: boundedNumber(SETTINGS_LIMITS.contentWidthCh).nullish(),
+  fontSizePx: boundedNumber(SETTINGS_LIMITS.fontSizePx).nullish(),
+  lineHeight: boundedNumber(SETTINGS_LIMITS.lineHeight).nullish(),
+  fontFamily: EditorFontFamilySchema.nullish(),
+  editorTheme: EditorThemeIdSchema.nullish(),
+  vimMotions: z.boolean().nullish(),
+});
+export type ProjectEditorSettings = z.infer<typeof ProjectEditorSettingsSchema>;
+
+/**
+ * The optional `settings` block of suna.json — the project half of the two
+ * level hierarchy (feature-plan-5 §4). EVERY key is optional and nullable:
+ * every suna.json written before this block existed stays valid, and `null`
+ * means "not set here, fall through to global" exactly like an absent key
+ * (see resolveSettings). The writer prunes cleared keys, so a null only ever
+ * appears in a hand-edited file.
+ */
+export const ProjectSettingsSchema = z.object({
+  /** Profile the preview/render surfaces use; falls back to activeProfileId. */
+  previewProfileId: z.string().min(1).nullish(),
+  editor: ProjectEditorSettingsSchema.nullish(),
+  figures: z
+    .object({ defaultWidthPreset: FigureWidthPresetSchema.nullish() })
+    .nullish(),
+  /** Committed, portable python env path (the per-machine pick lives in global settings). */
+  python: z.object({ envPath: z.string().min(1).nullish() }).nullish(),
+  literature: z.object({ provider: UiLitProviderIdSchema.nullish() }).nullish(),
+  ai: z
+    .object({
+      mode: AiModeSchema.nullish(),
+      /** Explicit CLI to spawn ('claude', 'codex'); null = auto-detect. */
+      cliCommand: z.string().min(1).nullish(),
+    })
+    .nullish(),
+});
+export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
+
 /** suna.json — the project manifest at the root of a SUNA research project. */
 export const SunaProjectManifestSchema = z.object({
   schemaVersion: z.literal(1),
@@ -30,5 +107,74 @@ export const SunaProjectManifestSchema = z.object({
   activeProfileId: z.string().min(1),
   directories: z.record(ProjectDirKeySchema, z.string().min(1)),
   createdAt: z.iso.datetime(),
+  /** Absent on every project created before feature-plan-5 §4. */
+  settings: ProjectSettingsSchema.optional(),
 });
 export type SunaProjectManifest = z.infer<typeof SunaProjectManifestSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Recent projects (feature-plan-5 §1)                                  */
+/* ------------------------------------------------------------------ */
+
+/** Global-settings key holding the recents list. */
+export const RECENT_PROJECTS_KEY = 'recentProjects';
+
+/** Welcome-screen cap; older entries fall off the end. */
+export const MAX_RECENT_PROJECTS = 10;
+
+export const RecentProjectSchema = z.object({
+  path: z.string().min(1),
+  name: z.string().min(1),
+  lastOpenedAt: z.iso.datetime(),
+});
+export type RecentProject = z.infer<typeof RecentProjectSchema>;
+
+/**
+ * Dedupe key for recents: trailing separators are noise ('/work/p' and
+ * '/work/p/' are the same project). The filesystem root stays as-is.
+ */
+export function normalizeProjectPath(path: string): string {
+  const trimmed = path.replace(/[/\\]+$/, '');
+  return trimmed === '' ? path : trimmed;
+}
+
+/**
+ * Read the persisted value defensively: it comes from a hand-editable JSON
+ * bag, so anything malformed is dropped rather than throwing. Stored order is
+ * authoritative (touchRecentProject writes most-recent first).
+ */
+export function coerceRecentProjects(raw: unknown): RecentProject[] {
+  if (!Array.isArray(raw)) return [];
+  const out: RecentProject[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const parsed = RecentProjectSchema.safeParse(entry);
+    if (!parsed.success) continue;
+    const path = normalizeProjectPath(parsed.data.path);
+    if (seen.has(path)) continue;
+    seen.add(path);
+    out.push({ ...parsed.data, path });
+    if (out.length >= MAX_RECENT_PROJECTS) break;
+  }
+  return out;
+}
+
+/** Most-recent first, deduped by normalized path, capped at MAX_RECENT_PROJECTS. */
+export function touchRecentProject(
+  list: readonly RecentProject[],
+  entry: RecentProject,
+): RecentProject[] {
+  const path = normalizeProjectPath(entry.path);
+  const head: RecentProject = { ...entry, path };
+  const rest = list.filter((item) => normalizeProjectPath(item.path) !== path);
+  return [head, ...rest].slice(0, MAX_RECENT_PROJECTS);
+}
+
+/** Drop one entry (the welcome screen's "Remove" on a missing project). */
+export function forgetRecentProject(
+  list: readonly RecentProject[],
+  path: string,
+): RecentProject[] {
+  const target = normalizeProjectPath(path);
+  return list.filter((item) => normalizeProjectPath(item.path) !== target);
+}

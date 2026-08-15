@@ -21,9 +21,19 @@
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
  */
 import { spawn, execSync, execFileSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { createRequire } from 'node:module'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -163,7 +173,52 @@ const setFieldJs = (selectorJs, value, tag = 'HTMLInputElement') =>
  * Drag-select `phrase` inside a manuscript section editor with real mouse
  * events (a synthetic DOM Selection is discarded by CodeMirror). Returns the
  * text CodeMirror ended up with selected.
+ *
+ * Since feature-plan-5 §3 the coordinates have to be re-measured *after* the
+ * caret lands, not just once up front. True live preview replaces markdown
+ * syntax with zero-width decorations and reveals it under the cursor, so
+ * moving the caret can re-wrap a line and shift every line below it — a rect
+ * measured while some *other* line was revealed points a row off by the time
+ * the press is delivered. Observed exactly that way: a drag aimed at "infall
+ * direction" selected the 16 characters directly below it, same x, one line
+ * down. So: click once to settle the reveal state, re-measure, then drag, and
+ * verify the gesture actually produced `phrase` — retrying with fresh
+ * coordinates rather than trusting a single measurement.
  */
+/**
+ * Select a phrase by setting the DOM selection directly (CodeMirror syncs
+ * from it). Use this when a *second* selection is needed in the same
+ * document: true live preview reveals a line's markdown when the caret lands
+ * on it, which re-wraps that line and shifts everything below — so
+ * coordinates measured before a drag are stale by the time the drag's own
+ * pointer motion moves the caret again. Mouse-drag selection is still
+ * exercised by dragSelectInSection in the earlier comment steps.
+ */
+async function selectPhraseInSection(phrase) {
+  return evalJs(`(() => {
+    const P = ${JSON.stringify(phrase)};
+    for (const host of document.querySelectorAll('.msdoc__editor')) {
+      const content = host.querySelector('.cm-content');
+      if (!content || !content.textContent.includes(P)) continue;
+      const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = node.textContent.indexOf(P);
+        if (i < 0) continue;
+        content.focus();
+        const r = document.createRange();
+        r.setStart(node, i);
+        r.setEnd(node, i + P.length);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        return sel.toString();
+      }
+    }
+    return null;
+  })()`)
+}
+
 async function dragSelectInSection(phrase) {
   // Scroll the phrase into view first: an off-screen rect would send the
   // mouse press to whatever else happens to sit at those coordinates.
@@ -199,44 +254,95 @@ async function dragSelectInSection(phrase) {
   // centre lands in the gap BETWEEN them, so pressing there selected a whole
   // paragraph instead of the phrase. Per-line-box rects make the gesture
   // independent of where the measure happens to break the text.
-  const box = await evalJs(`(() => {
-    const hit = ${locate};
-    if (hit === null) return null;
-    const rects = [...hit.range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
-    if (rects.length === 0) return null;
-    const first = rects[0];
-    const last = rects[rects.length - 1];
-    return {
-      lines: rects.length,
-      from: { x: first.left, y: first.top + first.height / 2 },
-      to: { x: last.right, y: last.top + last.height / 2 },
-      onScreen: first.top > 40 && last.bottom < window.innerHeight - 40
-    };
-  })()`)
-  if (box === null) return null
-  if (!box.onScreen) {
-    throw new Error(
-      `"${phrase}" is not fully on screen (first line top ${Math.round(box.from.y)})`
-    )
+  const measureBox = () =>
+    evalJs(`(() => {
+      const hit = ${locate};
+      if (hit === null) return null;
+      const rects = [...hit.range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
+      if (rects.length === 0) return null;
+      const first = rects[0];
+      const last = rects[rects.length - 1];
+      return {
+        lines: rects.length,
+        from: { x: first.left, y: first.top + first.height / 2 },
+        to: { x: last.right, y: last.top + last.height / 2 },
+        onScreen: first.top > 40 && last.bottom < window.innerHeight - 40
+      };
+    })()`)
+
+  let selection = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const probe = await measureBox()
+    if (probe === null) return null
+    if (!probe.onScreen) {
+      throw new Error(
+        `"${phrase}" is not fully on screen (first line top ${Math.round(probe.from.y)})`
+      )
+    }
+    // Land the caret on the phrase's own line FIRST. Any reveal the caret
+    // triggers happens now, so the measurement taken after it is the layout
+    // the drag will actually be delivered into.
+    await click(probe.from.x + 0.5, probe.from.y)
+    await sleep(250)
+
+    const box = await measureBox()
+    if (box === null || !box.onScreen) continue
+    await send('Input.dispatchMouseEvent', {
+      type: 'mousePressed', x: box.from.x + 0.5, y: box.from.y, button: 'left', clickCount: 1
+    })
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: (box.from.x + box.to.x) / 2,
+      y: (box.from.y + box.to.y) / 2,
+      button: 'left',
+      buttons: 1
+    })
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved', x: box.to.x - 0.5, y: box.to.y, button: 'left', buttons: 1
+    })
+    await send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased', x: box.to.x - 0.5, y: box.to.y, button: 'left', clickCount: 1
+    })
+    await sleep(220)
+    selection = await evalJs(`window.getSelection().toString()`)
+    if (selection === phrase) return selection
+    if (process.env.SUNA_SMOKE_DEBUG_SELECT) {
+      const diag = await evalJs(`(() => {
+        const at = document.elementFromPoint(${box.from.x + 0.5}, ${box.from.y});
+        const hosts = [...document.querySelectorAll('.msdoc__editor')];
+        const host = hosts.find((h) => h.querySelector('.cm-content')?.textContent.includes(${JSON.stringify(phrase)}));
+        const lines = host ? [...host.querySelectorAll('.cm-line')].map((l) => {
+          const r = l.getBoundingClientRect();
+          return { top: Math.round(r.top), h: Math.round(r.height), text: l.textContent.slice(0, 46) };
+        }) : null;
+        return {
+          hosts: hosts.length,
+          elementAtPress: at ? at.className + ' :: ' + (at.textContent ?? '').slice(0, 40) : null,
+          hostTop: host ? Math.round(host.getBoundingClientRect().top) : null,
+          scrollTop: Math.round(document.querySelector('.msdoc__body')?.scrollTop ?? -1),
+          lines
+        };
+      })()`)
+      console.log(`    [debug attempt ${attempt}] box=${JSON.stringify(box)}`)
+      console.log(`    [debug] selection=${JSON.stringify(selection)} ${JSON.stringify(diag, null, 1)}`)
+      for (const dy of [-22, -11, 0]) {
+        await click(box.from.x + 0.5, box.from.y + dy)
+        await sleep(200)
+        const where = await evalJs(`(() => {
+          const host = [...document.querySelectorAll('.msdoc__editor')]
+            .find((h) => h.querySelector('.cm-content')?.textContent.includes(${JSON.stringify(phrase)}));
+          const active = host?.querySelector('.cm-activeLine');
+          const cs = host ? getComputedStyle(host.querySelector('.cm-content')) : null;
+          return { caret: active ? active.textContent.slice(0, 44) : null,
+                   fontSize: cs?.fontSize ?? null, lineHeight: cs?.lineHeight ?? null };
+        })()`)
+        console.log(`      dy=${String(dy).padStart(3)} caret=${JSON.stringify(where.caret)} font=${where.fontSize}/${where.lineHeight}`)
+      }
+    }
   }
-  await send('Input.dispatchMouseEvent', {
-    type: 'mousePressed', x: box.from.x + 0.5, y: box.from.y, button: 'left', clickCount: 1
-  })
-  await send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved',
-    x: (box.from.x + box.to.x) / 2,
-    y: (box.from.y + box.to.y) / 2,
-    button: 'left',
-    buttons: 1
-  })
-  await send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved', x: box.to.x - 0.5, y: box.to.y, button: 'left', buttons: 1
-  })
-  await send('Input.dispatchMouseEvent', {
-    type: 'mouseReleased', x: box.to.x - 0.5, y: box.to.y, button: 'left', clickCount: 1
-  })
-  await sleep(220)
-  return evalJs(`window.getSelection().toString()`)
+  // Return whatever the last attempt produced; the caller asserts on it, so a
+  // persistent mismatch still fails loudly with the text it really selected.
+  return selection
 }
 
 /** Re-run the comments store's load — what a refresh does — and read it back. */
@@ -312,6 +418,15 @@ await sleep(500)
 // Fresh example copy every run (see header).
 rmSync(COPY_DIR, { recursive: true, force: true })
 
+// The app's global settings.json survives between runs, so a step that flips a
+// preference (vim, autosave, autoOpenPdf) poisons the NEXT run's defaults —
+// which is how a passing suite starts failing on assertions about defaults.
+// Stash the developer's real file, run against a clean slate, restore in the
+// finally block. Never delete it outright: it holds their actual preferences.
+const SETTINGS_FILE = join(USER_DATA, 'settings.json')
+const savedSettings = existsSync(SETTINGS_FILE) ? readFileSync(SETTINGS_FILE, 'utf8') : null
+rmSync(SETTINGS_FILE, { force: true })
+
 const child = spawn('pnpm', ['dev'], {
   cwd: join(ROOT, 'apps', 'desktop'),
   env: { ...process.env, SUNA_DEBUG_PORT: String(PORT) },
@@ -334,6 +449,9 @@ process.on('exit', cleanup)
 
 let FIGURE = null // <copy>/figures/fig-spectrum/figure.svg — known after open
 let originalSvg = null
+/** Scratch project directories the feature-plan-5 steps create outside the
+ *  example copy; removed in the finally block however the run ends. */
+const TEMP_PROJECT_DIRS = []
 
 let exitCode = 0
 try {
@@ -487,12 +605,21 @@ try {
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     })()`)
-    await mouse('mousePressed', h.x, h.y)
-    for (let i = 1; i <= 6; i++) {
-      await mouse('mouseMoved', h.x + i * 10, h.y)
-      await sleep(30)
-    }
-    await mouse('mouseReleased', h.x + 60, h.y)
+    // Dispatch the pointer sequence in the page rather than through CDP:
+    // Input.dispatchMouseEvent coordinates are mapped through the device-metrics
+    // override this suite installs, and on a fractional-scale display that
+    // mapping lands the press off the 4px handle (measured: a 60px drag moved
+    // the sidebar 7px). The handler under test only reads clientX/pointerId, so
+    // synthetic PointerEvents exercise exactly the same code path.
+    await evalJs(`(() => {
+      const el = document.querySelector('.sidebar__resize');
+      const opts = { bubbles: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 };
+      el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, clientX: ${h.x}, clientY: ${h.y} }));
+      for (let i = 1; i <= 6; i++) {
+        el.dispatchEvent(new PointerEvent('pointermove', { ...opts, clientX: ${h.x} + i * 10, clientY: ${h.y} }));
+      }
+      el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0, clientX: ${h.x} + 60, clientY: ${h.y} }));
+    })()`)
     await sleep(300)
     const after = await evalJs(`({
       width: document.querySelector('.sidebar').getBoundingClientRect().width,
@@ -2338,7 +2465,8 @@ try {
     // ("regular rotation pattern"), so the two sit on adjacent rows — the
     // collision case the spec calls out. Deliberately not a substring of that
     // quote, so the two anchors never nest.
-    const near = await dragSelectInSection('infall direction')
+    const near = await selectPhraseInSection('infall direction')
+    await sleep(250)
     assert(near === 'infall direction', `could not select a second anchor: ${near}`)
     await key('m', 'KeyM', 12)
     await sleep(700)
@@ -3662,6 +3790,762 @@ try {
     console.log(`    (killed ${pids.length} agent CLI process(es) started by '?')`)
   })
 
+  /* =======================================================================
+     docs/design/feature-plan-5.md — recents, typography defaults, true live
+     preview, onboarding, settings hierarchy.
+     ======================================================================= */
+
+  /**
+   * §3 — true live preview. The old behaviour DIMMED `##` and `**`; the
+   * requirement is that they are gone from the rendered text and come back
+   * only under the cursor.
+   *
+   * Measured against a purpose-written fixture rather than a demo section,
+   * because the demo manuscript has no ATX headings at all (its section
+   * titles live in manuscript.json) — a "no # is visible" assertion over it
+   * would pass vacuously. The fixture also carries the two cases the spec
+   * says must NOT transform: `**` inside inline code, and `\*` escapes.
+   */
+  const LP_FIXTURE = [
+    '## Results probe',
+    '',
+    'A **bold run** with *italic* and ~~struck~~ words.',
+    '',
+    'Literal `a ** b` backticks stay put.',
+    '',
+    'An escaped \\*star\\* stays literal.',
+    '',
+    '- first bullet',
+    '- second bullet',
+    '',
+    '> a quoted line',
+    '',
+    'See [the link text](https://example.com/page) here.',
+    ''
+  ].join('\n')
+  const LP_FILE = join(COPY_DIR, 'lp-probe.md')
+
+  /** Every `.cm-line` of the one editor tab that is actually on screen. */
+  const lpLines = () =>
+    evalJs(`(() => {
+      const hosts = [...document.querySelectorAll('.editor-tab')];
+      const host = hosts.find((h) => h.getBoundingClientRect().width > 0);
+      if (!host) throw new Error('no visible editor tab');
+      return [...host.querySelectorAll('.cm-line')].map((l) => l.textContent);
+    })()`)
+
+  await step('live-preview-hides-markdown-syntax', async () => {
+    writeFileSync(LP_FILE, LP_FIXTURE, 'utf8')
+    const bytesBefore = readFileSync(LP_FILE)
+    await evalJs(`window.__sunaDev.dock.clearDock()`)
+    await sleep(300)
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(LP_FILE)})`)
+    await sleep(1600)
+
+    const mode = await evalJs(`document.querySelector('.editor-tab__mode')?.textContent`)
+    assert(mode === 'Reading', `fixture did not open in Reading (got ${mode})`)
+
+    // Park the cursor at the end of the document — far from every construct.
+    const endOfDoc = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      const lines = [...host.querySelectorAll('.cm-line')];
+      const last = lines[lines.length - 1];
+      const r = last.getBoundingClientRect();
+      return { x: r.right - 2, y: r.top + r.height / 2 };
+    })()`)
+    await click(endOfDoc.x, endOfDoc.y)
+    await sleep(500)
+
+    const rendered = await lpLines()
+    const heading = rendered.find((t) => t.includes('Results probe'))
+    // The whole point: the rendered text EQUALS the plain text, not a dimmed
+    // copy of the markdown. `##␣` is Decoration.replace'd to zero width.
+    assert(heading === 'Results probe', `heading still shows syntax: ${JSON.stringify(heading)}`)
+    assert(!heading.includes('#'), `a '#' survived in the heading: ${JSON.stringify(heading)}`)
+
+    const boldLine = rendered.find((t) => t.includes('bold run'))
+    assert(
+      boldLine === 'A bold run with italic and struck words.',
+      `emphasis syntax survived: ${JSON.stringify(boldLine)}`
+    )
+    assert(!boldLine.includes('*'), `a '*' survived in the emphasis line`)
+    assert(!boldLine.includes('~'), `a '~' survived in the strikethrough`)
+
+    // Bullets render as a glyph; blockquote markers disappear behind a bar.
+    assert(
+      rendered.includes('•first bullet'),
+      `bullet marker not replaced by a glyph: ${JSON.stringify(rendered)}`
+    )
+    const quoted = rendered.find((t) => t.includes('a quoted line'))
+    assert(quoted === 'a quoted line', `blockquote '>' survived: ${JSON.stringify(quoted)}`)
+    // Links show their text only, with the URL hidden.
+    const linkLine = rendered.find((t) => t.includes('the link text'))
+    assert(
+      linkLine === 'See the link text here.',
+      `link brackets/URL survived: ${JSON.stringify(linkLine)}`
+    )
+
+    // …but escapes and inline-code content are NOT transformed.
+    const codeLine = rendered.find((t) => t.includes('backticks stay put'))
+    assert(
+      codeLine.includes('**'),
+      `'**' inside inline code was eaten: ${JSON.stringify(codeLine)}`
+    )
+    const escapedLine = rendered.find((t) => t.includes('stays literal'))
+    assert(
+      escapedLine.includes('\\*star\\*'),
+      `an escaped \\* was transformed: ${JSON.stringify(escapedLine)}`
+    )
+
+    // Styling still lands on the visible text (this is decoration, not deletion).
+    const styled = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      return {
+        strong: [...host.querySelectorAll('.cm-lp-strong')].map((e) => e.textContent),
+        em: [...host.querySelectorAll('.cm-lp-em')].map((e) => e.textContent),
+        strike: [...host.querySelectorAll('.cm-lp-strike')].map((e) => e.textContent),
+        code: [...host.querySelectorAll('.cm-lp-code')].map((e) => e.textContent),
+        link: [...host.querySelectorAll('.cm-lp-link')].map((e) => e.textContent),
+        h2: host.querySelectorAll('.cm-line.cm-lp-h2').length,
+        quote: host.querySelectorAll('.cm-line.cm-lp-quote').length,
+        bullets: host.querySelectorAll('.cm-lp-bullet').length
+      };
+    })()`)
+    assert(styled.strong.join('|') === 'bold run', `strong mark: ${JSON.stringify(styled.strong)}`)
+    assert(styled.em.join('|') === 'italic', `em mark: ${JSON.stringify(styled.em)}`)
+    assert(styled.strike.join('|') === 'struck', `strike mark: ${JSON.stringify(styled.strike)}`)
+    assert(styled.code.join('|') === 'a ** b', `code mark: ${JSON.stringify(styled.code)}`)
+    assert(styled.link.join('|') === 'the link text', `link mark: ${JSON.stringify(styled.link)}`)
+    assert(styled.h2 === 1 && styled.quote === 1 && styled.bullets === 2,
+      `line classes/widgets: ${JSON.stringify(styled)}`)
+    await screenshot('live-preview-clean.png')
+
+    // --- cursor in the heading line reveals '## ' -------------------------
+    const headingPoint = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      const line = [...host.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('Results probe'));
+      const r = line.getBoundingClientRect();
+      return { x: r.left + Math.min(40, r.width / 3), y: r.top + r.height / 2 };
+    })()`)
+    await click(headingPoint.x, headingPoint.y)
+    await sleep(500)
+    const revealedHeading = (await lpLines()).find((t) => t.includes('Results probe'))
+    assert(
+      revealedHeading === '## Results probe',
+      `clicking the heading did not reveal '## ': ${JSON.stringify(revealedHeading)}`
+    )
+
+    // --- cursor inside the bold node reveals BOTH '**' runs, and only that
+    //     node — the italic and strikethrough beside it stay rendered.
+    const boldPoint = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      const el = host.querySelector('.cm-lp-strong');
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`)
+    await click(boldPoint.x, boldPoint.y)
+    await sleep(500)
+    const revealedBold = (await lpLines()).find((t) => t.includes('bold run'))
+    assert(
+      revealedBold === 'A **bold run** with italic and struck words.',
+      `bold reveal is not node-scoped: ${JSON.stringify(revealedBold)}`
+    )
+
+    // --- move away: everything hides again --------------------------------
+    await click(endOfDoc.x, endOfDoc.y)
+    await sleep(500)
+    const hidden = await lpLines()
+    assert(
+      hidden.find((t) => t.includes('Results probe')) === 'Results probe',
+      'the heading did not re-render after the cursor left'
+    )
+    assert(
+      hidden.find((t) => t.includes('bold run')) === 'A bold run with italic and struck words.',
+      'emphasis did not re-render after the cursor left'
+    )
+
+    // --- none of that touched the file ------------------------------------
+    assert(
+      bytesBefore.equals(readFileSync(LP_FILE)),
+      'the live-preview decorations changed the file on disk'
+    )
+
+    // --- ⌘B still round-trips (through the hidden decorations) ------------
+    const wordBox = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      const line = [...host.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('a quoted line'));
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = node.textContent.indexOf('quoted');
+        if (i < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, i); range.setEnd(node, i + 'quoted'.length);
+        const r = range.getBoundingClientRect();
+        return { from: { x: r.left, y: r.top + r.height / 2 }, to: { x: r.right, y: r.top + r.height / 2 } };
+      }
+      return null;
+    })()`)
+    assert(wordBox !== null, 'could not locate the word "quoted" to select')
+    // Select via the DOM rather than a drag: pressing inside the blockquote
+    // reveals its '>' marker, which re-wraps the line under the pointer, so a
+    // drag measured a moment earlier lands on different text. CodeMirror syncs
+    // from the DOM selection, and the mouse-drag path is covered elsewhere.
+    const selected = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      const content = host.querySelector('.cm-content');
+      const line = [...host.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('a quoted line'));
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = node.textContent.indexOf('quoted');
+        if (i < 0) continue;
+        content.focus();
+        const range = document.createRange();
+        range.setStart(node, i);
+        range.setEnd(node, i + 'quoted'.length);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return sel.toString();
+      }
+      return null;
+    })()`)
+    await sleep(250)
+    assert(selected === 'quoted', `selection for ⌘B was ${JSON.stringify(selected)}`)
+    await key('b', 'KeyB', 4)
+    await sleep(300)
+    await key('s', 'KeyS', 4)
+    await sleep(700)
+    assert(
+      readFileSync(LP_FILE, 'utf8').includes('> a **quoted** line'),
+      `⌘B did not write '**quoted**':\n${readFileSync(LP_FILE, 'utf8')}`
+    )
+    await key('b', 'KeyB', 4)
+    await sleep(300)
+    await key('s', 'KeyS', 4)
+    await sleep(700)
+    assert(
+      bytesBefore.equals(readFileSync(LP_FILE)),
+      '⌘B did not round-trip the file back to byte-identical'
+    )
+  })
+
+  /**
+   * §2 — the shipped typography defaults. "Settings cleared" means all three
+   * levels: the localStorage appearance store, the project's suna.json block,
+   * and the global userData keys. Measured as COMPUTED style on `.cm-content`,
+   * so it is what the surface really renders, not what a store holds.
+   */
+  await step('typography-defaults-14px-1_6', async () => {
+    await evalJs(`(async () => {
+      localStorage.removeItem('suna-editor-settings');
+      window.__sunaDev.editorSettings.getState().reset();
+      const store = window.__sunaDev.settingsStore.getState();
+      for (const key of ['editor.fontSizePx', 'editor.lineHeight', 'editor.contentWidthCh']) {
+        await store.clearProject(key);
+      }
+      await window.suna.invoke('settings:set', {
+        patch: { 'editor.fontSizePx': null, 'editor.lineHeight': null, 'editor.contentWidthCh': null }
+      });
+    })()`)
+    await sleep(800)
+    await evalJs(`window.__sunaDev.dock.clearDock()`)
+    await sleep(300)
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(LP_FILE)})`)
+    await sleep(1500)
+
+    const typography = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      const cs = getComputedStyle(host.querySelector('.cm-content'));
+      const resolved = window.__sunaDev.settingsStore.getState().resolved;
+      return {
+        fontSize: cs.fontSize,
+        lineHeight: cs.lineHeight,
+        resolvedFont: resolved.value['editor.fontSizePx'],
+        resolvedLine: resolved.value['editor.lineHeight'],
+        fontSource: resolved.sources['editor.fontSizePx'],
+        lineSource: resolved.sources['editor.lineHeight']
+      };
+    })()`)
+    assert(typography.fontSize === '14px', `computed font-size ${typography.fontSize} (want 14px)`)
+    // line-height computes to px: 14 × 1.6 = 22.4.
+    const lh = Number.parseFloat(typography.lineHeight)
+    assert(
+      Math.abs(lh - 22.4) < 0.5,
+      `computed line-height ${typography.lineHeight} (want 22.4px = 14 × 1.6)`
+    )
+    assert(
+      typography.resolvedFont === 14 && typography.resolvedLine === 1.6,
+      `the resolver disagrees with the surface: ${JSON.stringify(typography)}`
+    )
+    assert(
+      typography.fontSource === 'default' && typography.lineSource === 'default',
+      `something is still overriding typography: ${JSON.stringify(typography)}`
+    )
+  })
+
+  /**
+   * §4 — two levels, one resolver. The criterion that matters is that neither
+   * level ever writes the other's file, so userData/settings.json is compared
+   * as BYTES across a project-level write.
+   */
+  await step('settings-project-vs-global-scopes', async () => {
+    const SUNA_JSON = join(COPY_DIR, 'suna.json')
+    const USER_SETTINGS = join(USER_DATA, 'settings.json')
+    // Earlier steps drive the appearance popover, which legitimately writes a
+    // GLOBAL width — so clear that key first to get back to the pristine
+    // "default" baseline this step measures the precedence chain from.
+    // The appearance popover's store is persisted in localStorage and mirrors
+    // its values into global settings asynchronously, so a write from an
+    // earlier step can land after a single reset. Reset both layers and poll
+    // until the resolver actually reports the pristine baseline.
+    let baseline = null
+    for (let attempt = 0; attempt < 8; attempt++) {
+      baseline = await evalJs(`(async () => {
+        window.__sunaDev.editorSettings.getState().reset();
+        await window.suna.invoke('settings:set', {
+          patch: { 'editor.contentWidthCh': null, 'editor.fontSizePx': null, 'editor.lineHeight': null }
+        });
+        await window.__sunaDev.settingsStore.getState().load();
+        return window.__sunaDev.settingsStore.getState().resolved?.sources?.['editor.contentWidthCh'] ?? null;
+      })()`)
+      if (baseline === 'default') break
+      await sleep(400)
+    }
+    assert(baseline === 'default', `could not reach a pristine width baseline: ${baseline}`)
+    await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
+    await sleep(1200)
+
+    const scopes = await evalJs(`[...document.querySelectorAll('.settings__scope')].map((s) => s.dataset.scope)`)
+    assert(
+      scopes.join(',') === 'global,project',
+      `the Settings page is not split into two scopes: ${JSON.stringify(scopes)}`
+    )
+
+    const before = await evalJs(`(() => {
+      const input = document.querySelector('#proj-content-width');
+      const row = input.closest('.settings-tab__row');
+      return { value: input.value, badge: row.querySelector('.settings__source').textContent,
+               resetDisabled: row.querySelector('.settings__reset').disabled };
+    })()`)
+    assert(before.badge === 'default', `content width starts at ${before.badge}, want "default"`)
+    assert(before.resetDisabled === true, '"Reset to global" is enabled with no override set')
+
+    const userBytes = readFileSync(USER_SETTINGS)
+    await evalJs(setFieldJs(`document.querySelector('#proj-content-width')`, '97'))
+    await evalJs(`document.querySelector('#proj-content-width').blur()`)
+    await sleep(1000)
+
+    const manifest = JSON.parse(readFileSync(SUNA_JSON, 'utf8'))
+    assert(
+      manifest.settings?.editor?.contentWidthCh === 97,
+      `suna.json did not gain settings.editor.contentWidthCh: ${JSON.stringify(manifest.settings)}`
+    )
+    assert(
+      readFileSync(USER_SETTINGS).equals(userBytes),
+      'a PROJECT-level write also changed userData/settings.json'
+    )
+    const validManifest = await evalJs(
+      `window.__sunaDev.validateFile('manuscript', ${JSON.stringify(join(COPY_DIR, 'manuscript', 'manuscript.json'))})`
+    )
+    assert(validManifest.ok, `manuscript.json stopped validating: ${JSON.stringify(validManifest.issues)}`)
+
+    const after = await evalJs(`(() => {
+      const input = document.querySelector('#proj-content-width');
+      const row = input.closest('.settings-tab__row');
+      const resolved = window.__sunaDev.settingsStore.getState().resolved;
+      return { value: input.value, badge: row.querySelector('.settings__source').textContent,
+               resetDisabled: row.querySelector('.settings__reset').disabled,
+               source: resolved.sources['editor.contentWidthCh'],
+               resolved: resolved.value['editor.contentWidthCh'] };
+    })()`)
+    assert(after.badge === 'from project', `badge reads ${JSON.stringify(after.badge)}`)
+    assert(after.source === 'project' && after.resolved === 97, `resolver: ${JSON.stringify(after)}`)
+    assert(after.resetDisabled === false, '"Reset to global" stayed disabled with an override set')
+
+    // The override must actually reach the editor surface, or the hierarchy
+    // is decorative (this is what state/editorSettingsBridge.ts exists for).
+    // Bring a PROSE editor to the front and measure that: '.editor-tab' is
+    // also worn by the data-grid tab (which sets no --ed-* variables), and
+    // with the Settings tab focused no editor surface need be mounted at all.
+    await evalJs(
+      `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md'))})`
+    )
+    await sleep(1200)
+    const surface = await evalJs(`(() => {
+      const host = document.querySelector('.editor-tab--prose');
+      return { cssVar: host?.style.getPropertyValue('--ed-content-width') ?? null,
+               store: window.__sunaDev.editorSettings.getState().contentWidthCh };
+    })()`)
+    // Opening that editor moved focus off the Settings tab; the assertions
+    // below query its DOM again.
+    await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
+    await sleep(900)
+    assert(
+      surface.cssVar === '97ch' && surface.store === 97,
+      `the project override never reached the editor: ${JSON.stringify(surface)}`
+    )
+    await screenshot('settings-scopes.png')
+
+    // --- Reset to global removes the key and the value falls back ---------
+    await evalJs(`document.querySelector('#proj-content-width').closest('.settings-tab__row')
+      .querySelector('.settings__reset').click()`)
+    await sleep(1000)
+    const reset = JSON.parse(readFileSync(SUNA_JSON, 'utf8'))
+    assert(
+      reset.settings?.editor?.contentWidthCh === undefined,
+      `Reset to global left the key behind: ${JSON.stringify(reset.settings)}`
+    )
+    // Read the Settings row while it is focused, then bring the editor forward
+    // for its own measurement: dockview unmounts hidden panels, so the two
+    // surfaces are never in the DOM at the same time.
+    const afterResetRow = await evalJs(`(() => {
+      const input = document.querySelector('#proj-content-width');
+      const row = input.closest('.settings-tab__row');
+      return { value: input.value, badge: row.querySelector('.settings__source').textContent };
+    })()`)
+    await evalJs(
+      `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md'))})`
+    )
+    await sleep(1200)
+    const afterReset = {
+      ...afterResetRow,
+      cssVar: await evalJs(
+        `document.querySelector('.editor-tab--prose')?.style.getPropertyValue('--ed-content-width') ?? null`
+      )
+    }
+    assert(afterReset.badge === 'default', `after reset the badge reads ${afterReset.badge}`)
+    assert(afterReset.value === '68', `after reset the value is ${afterReset.value} (want the 68 default)`)
+    assert(
+      afterReset.cssVar === '68ch',
+      `the editor stayed on the reset override: ${afterReset.cssVar}`
+    )
+
+    // --- an OUT-OF-BAND edit re-resolves with no restart ------------------
+    // Written straight from node — no IPC, no save, nothing in the app knows.
+    // This is the "or an agent" half of §4's watch requirement.
+    // Bring Settings back to the front: the measurement above left the editor
+    // focused, and dockview unmounts the hidden panel's DOM.
+    await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
+    await sleep(900)
+    const handEdited = JSON.parse(readFileSync(SUNA_JSON, 'utf8'))
+    handEdited.settings = { editor: { contentWidthCh: 123 } }
+    writeFileSync(SUNA_JSON, JSON.stringify(handEdited, null, 2) + '\n', 'utf8')
+    let watched = null
+    for (let i = 0; i < 20 && watched?.resolved !== 123; i++) {
+      await sleep(300)
+      watched = await evalJs(`(() => {
+        const resolved = window.__sunaDev.settingsStore.getState().resolved;
+        return { resolved: resolved.value['editor.contentWidthCh'],
+                 source: resolved.sources['editor.contentWidthCh'],
+                 uiValue: document.querySelector('#proj-content-width')?.value ?? null };
+      })()`)
+    }
+    assert(
+      watched.resolved === 123 && watched.source === 'project',
+      `an external suna.json edit never re-resolved: ${JSON.stringify(watched)}`
+    )
+    assert(watched.uiValue === '123', `the Settings page shows ${watched.uiValue} after the external edit`)
+
+    // --- an out-of-range value is rejected by the writer -------------------
+    const rejected = await evalJs(`(async () => {
+      try {
+        await window.suna.invoke('project:update-settings', {
+          dir: ${JSON.stringify(COPY_DIR)}, patch: { editor: { contentWidthCh: 9999 } }
+        });
+        return false;
+      } catch { return true; }
+    })()`)
+    assert(rejected, 'the writer accepted a content width of 9999')
+    assert(
+      JSON.parse(readFileSync(SUNA_JSON, 'utf8')).settings?.editor?.contentWidthCh === 123,
+      'the rejected write still changed suna.json'
+    )
+
+    // put the project back the way the run found it
+    await evalJs(`window.__sunaDev.settingsStore.getState().clearProject('editor.contentWidthCh')`)
+    await sleep(800)
+  })
+
+  /**
+   * §1 — recent projects. A real second project is created through
+   * 'project:create' (the same handler the welcome screen's flow uses), which
+   * is what puts it at the head of the list.
+   */
+  // realpath: on macOS os.tmpdir() is /var/... which is a symlink to
+  // /private/var/..., and the app reports the resolved path — comparing the
+  // unresolved one fails for a reason that has nothing to do with recents.
+  const RECENTS_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'suna-smoke-recent-')))
+  TEMP_PROJECT_DIRS.push(RECENTS_DIR)
+  await step('recent-projects-list-open-and-forget', async () => {
+    const created = await evalJs(`window.suna.invoke('project:create', {
+      dir: ${JSON.stringify(RECENTS_DIR)}, name: 'Recents Probe'
+    })`)
+    assert(created.name === 'Recents Probe', `project:create returned ${JSON.stringify(created.name)}`)
+
+    // Persisted in userData — this is what survives an actual relaunch.
+    const persisted = JSON.parse(readFileSync(join(USER_DATA, 'settings.json'), 'utf8'))
+    const stored = persisted['recentProjects']
+    assert(Array.isArray(stored) && stored[0]?.path === RECENTS_DIR,
+      `the new project is not first in userData: ${JSON.stringify(stored?.slice(0, 2))}`)
+    assert(stored[0].name === 'Recents Probe', `stored name: ${stored[0].name}`)
+    assert(stored.length <= 10, `recents exceeded the documented cap of 10 (${stored.length})`)
+
+    // Re-read over the channel the welcome screen uses, then render it.
+    const { recents } = await evalJs(`window.suna.invoke('project:recents', {})`)
+    assert(recents[0].path === RECENTS_DIR && recents[0].exists === true,
+      `project:recents head: ${JSON.stringify(recents[0])}`)
+
+    await evalJs(`window.__sunaDev.dock.clearDock()`)
+    await sleep(300)
+    await evalJs(`window.__sunaDev.dock.openWelcomeTab()`)
+    await sleep(1200)
+    const listed = await evalJs(`(() => {
+      const nav = document.querySelector('.recents');
+      if (!nav) return null;
+      return [...nav.querySelectorAll('.recents__item')].map((li) => ({
+        name: li.querySelector('.recents__name')?.textContent ?? null,
+        parent: li.querySelector('.recents__path')?.textContent ?? null,
+        time: li.querySelector('.recents__time')?.textContent ?? null,
+        missing: !!li.querySelector('.recents__badge'),
+        tag: li.querySelector('.recents__row')?.tagName ?? null
+      }));
+    })()`)
+    assert(listed !== null && listed.length > 0, 'the welcome screen shows no recent projects')
+    assert(listed[0].name === 'Recents Probe', `first row is ${JSON.stringify(listed[0])}`)
+    // The row shows the project's PARENT directory; the project itself was
+    // created at RECENTS_DIR.
+    assert(
+      listed[0].parent === dirname(RECENTS_DIR),
+      `parent path shown: ${listed[0].parent} (want ${dirname(RECENTS_DIR)})`
+    )
+    assert(/ago|now/.test(listed[0].time ?? ''), `no relative time: ${listed[0].time}`)
+    // Keyboard reachable: a real button, focusable, not a div with onClick.
+    assert(listed[0].tag === 'BUTTON', `recent rows are <${listed[0].tag}>, not buttons`)
+    const focused = await evalJs(`(() => {
+      const row = document.querySelector('.recents__row');
+      row.focus();
+      return document.activeElement === row;
+    })()`)
+    assert(focused, 'a recent-project row cannot take keyboard focus')
+    await screenshot('recents.png')
+
+    // --- deleting the directory outside SUNA shows Missing + Remove -------
+    rmSync(RECENTS_DIR, { recursive: true, force: true })
+    await evalJs(`window.__sunaDev.dock.closePanel('welcome')`)
+    await sleep(300)
+    await evalJs(`window.__sunaDev.dock.openWelcomeTab()`)
+    await sleep(1200)
+    const missing = await evalJs(`(() => {
+      const li = [...document.querySelectorAll('.recents__item')]
+        .find((n) => n.querySelector('.recents__name')?.textContent === 'Recents Probe');
+      if (!li) return null;
+      return { missing: !!li.querySelector('.recents__badge'),
+               badge: li.querySelector('.recents__badge')?.textContent ?? null,
+               remove: !!li.querySelector('.recents__remove') };
+    })()`)
+    assert(missing !== null, 'the deleted project vanished from the list instead of showing Missing')
+    assert(missing.missing && missing.badge === 'Missing', `missing state: ${JSON.stringify(missing)}`)
+    assert(missing.remove, 'a missing project offers no Remove action')
+
+    // --- Remove clears it from settings -----------------------------------
+    await evalJs(`(() => {
+      const li = [...document.querySelectorAll('.recents__item')]
+        .find((n) => n.querySelector('.recents__name')?.textContent === 'Recents Probe');
+      li.querySelector('.recents__remove').click();
+    })()`)
+    await sleep(1200)
+    const names = await evalJs(`[...document.querySelectorAll('.recents__name')].map((n) => n.textContent)`)
+    assert(!names.includes('Recents Probe'), `Remove left the row on screen: ${JSON.stringify(names)}`)
+    const afterForget = JSON.parse(readFileSync(join(USER_DATA, 'settings.json'), 'utf8'))['recentProjects']
+    assert(
+      !afterForget.some((r) => r.path === RECENTS_DIR),
+      'Remove did not clear the entry from userData/settings.json'
+    )
+
+    // --- opening a listed project restores it ------------------------------
+    await evalJs(`(() => {
+      const li = [...document.querySelectorAll('.recents__item')]
+        .find((n) => n.querySelector('.recents__name')?.textContent.includes('Ram-pressure'));
+      li.querySelector('.recents__row').click();
+    })()`)
+    await sleep(2500)
+    const reopened = await evalJs(`(() => {
+      const s = window.__sunaDev.projectStore.getState();
+      return { rootDir: s.rootDir, name: s.manifest?.name ?? null, children: s.tree?.children?.length ?? 0 };
+    })()`)
+    assert(reopened.rootDir === COPY_DIR, `clicking a recent opened ${reopened.rootDir}`)
+    assert(reopened.children > 0, 'the project tree did not reload after opening from recents')
+  })
+
+  /**
+   * §5 — the onboarding wizard. Step 1's folder picker is a NATIVE dialog CDP
+   * cannot drive (same wall as "Attach PDF…"), so `__sunaDev.onboarding.patch`
+   * supplies the parent directory the picker would have returned and every
+   * other step is driven through the wizard's real inputs and buttons — its
+   * gating, its validation, its Review preview and its Create all run.
+   */
+  const WIZARD_PARENT = mkdtempSync(join(tmpdir(), 'suna-smoke-wizard-'))
+  TEMP_PROJECT_DIRS.push(WIZARD_PARENT)
+  const WIZARD_DIR = join(WIZARD_PARENT, 'wizard-paper')
+  await step('onboarding-creates-exactly-what-review-showed', async () => {
+    const wizardState = () => evalJs(`(() => {
+      const s = window.__sunaDev.onboarding.getState();
+      const next = document.querySelector('.onboard__next');
+      const create = document.querySelector('.onboard__create');
+      return {
+        step: s?.step ?? null,
+        title: document.querySelector('.onboard__step-title')?.textContent ?? null,
+        nextDisabled: next ? next.disabled : null,
+        createDisabled: create ? create.disabled : null,
+        error: document.querySelector('.onboard__field-error')?.textContent ?? null
+      };
+    })()`)
+
+    await evalJs(`window.__sunaDev.dock.clearDock()`)
+    await sleep(300)
+    await evalJs(`window.__sunaDev.dock.openOnboardingTab({ mode: 'create' })`)
+    await sleep(1000)
+
+    const start = await wizardState()
+    assert(start.step === 1 && start.title === 'Where & what', `wizard start: ${JSON.stringify(start)}`)
+    assert(start.nextDisabled === true, 'Next is enabled before a folder is chosen')
+
+    await evalJs(`window.__sunaDev.onboarding.patch({ parentDir: ${JSON.stringify(WIZARD_PARENT)} })`)
+    await sleep(300)
+
+    // A name colliding with an existing directory is blocked, with a reason.
+    mkdirSync(join(WIZARD_PARENT, 'taken'), { recursive: true })
+    await evalJs(setFieldJs(`document.querySelector('#onboard-name')`, 'taken'))
+    await sleep(900)
+    const collision = await wizardState()
+    assert(collision.nextDisabled === true, 'a colliding project name did not block Next')
+    assert(
+      /already exists/.test(collision.error ?? ''),
+      `no visible reason for the collision: ${JSON.stringify(collision.error)}`
+    )
+
+    await evalJs(setFieldJs(`document.querySelector('#onboard-name')`, 'wizard-paper'))
+    await sleep(1000)
+    const named = await wizardState()
+    assert(named.nextDisabled === false, `Next still blocked: ${JSON.stringify(named)}`)
+    const shownPath = await evalJs(`document.querySelector('.onboard__path')?.textContent`)
+    assert(shownPath === WIZARD_DIR, `step 1 shows ${shownPath}, want ${WIZARD_DIR}`)
+
+    // Walk 1 → 7 through the real Next button.
+    const titles = []
+    for (let i = 0; i < 8; i++) {
+      const at = await wizardState()
+      titles.push(`${at.step}:${at.title}`)
+      if (at.step === 7) break
+      assert(at.nextDisabled === false, `Next disabled on step ${at.step} (${at.title})`)
+      await evalJs(`document.querySelector('.onboard__next').click()`)
+      await sleep(700)
+    }
+    assert(titles.length === 7, `walked ${titles.length} steps: ${titles.join(' → ')}`)
+    assert(
+      titles.join(' → ') ===
+        '1:Where & what → 2:Target journal → 3:What to scaffold → 4:Python environment → 5:AI → 6:Defaults → 7:Review',
+      `unexpected step order: ${titles.join(' → ')}`
+    )
+
+    // NOTHING may be on disk yet.
+    assert(!existsSync(WIZARD_DIR), 'the wizard wrote the project before "Create project"')
+    assert(
+      readdirSync(WIZARD_PARENT).join(',') === 'taken',
+      `the wizard wrote into the parent: ${JSON.stringify(readdirSync(WIZARD_PARENT))}`
+    )
+
+    const review = await evalJs(`(() => ({
+      tree: document.querySelector('.onboard__tree')?.textContent ?? null,
+      json: document.querySelector('.onboard__review-json')?.textContent ?? null
+    }))()`)
+    assert(review.tree && review.json, 'the Review step shows no tree/manifest preview')
+    const previewManifest = JSON.parse(review.json)
+    await screenshot('onboarding-review.png')
+
+    // --- Create ------------------------------------------------------------
+    await evalJs(`document.querySelector('.onboard__create').click()`)
+    for (let i = 0; i < 40 && !existsSync(join(WIZARD_DIR, 'suna.json')); i++) await sleep(400)
+    await sleep(1500)
+
+    const wizardError = await evalJs(`window.__sunaDev.onboarding.getState()?.createError ?? null`)
+    assert(wizardError === null, `the wizard reported an error: ${wizardError}`)
+
+    // The tree matches what Review displayed, entry for entry. `.git` is the
+    // one addition — git init is a listed create substep, not a tree row.
+    const onDisk = readdirSync(WIZARD_DIR).filter((n) => n !== '.git').sort()
+    const previewTop = review.tree
+      .split('\n')
+      .slice(1)
+      .filter((line) => /^ {2}\S/.test(line))
+      .map((line) => line.trim().replace(/\/$/, ''))
+      .sort()
+    assert(
+      onDisk.join(',') === previewTop.join(','),
+      `created tree ≠ Review tree\n  disk:    ${onDisk.join(',')}\n  preview: ${previewTop.join(',')}`
+    )
+    for (const relative of ['manuscript/manuscript.json', 'manuscript/references.bib',
+      'manuscript/sections/01-introduction.md']) {
+      assert(existsSync(join(WIZARD_DIR, relative)), `missing ${relative}`)
+    }
+
+    // The suna.json written equals the one Review displayed, apart from
+    // createdAt (Review necessarily previews a timestamp; the writer stamps
+    // its own at create time — the wizard says so in its own comment).
+    const written = JSON.parse(readFileSync(join(WIZARD_DIR, 'suna.json'), 'utf8'))
+    const strip = (m) => JSON.stringify({ ...m, createdAt: null })
+    assert(
+      strip(written) === strip(previewManifest),
+      `written suna.json ≠ Review preview\n  written: ${strip(written)}\n  preview: ${strip(previewManifest)}`
+    )
+    assert(!Number.isNaN(Date.parse(written.createdAt)), `createdAt is not a date: ${written.createdAt}`)
+
+    // Every file the wizard wrote is schema-valid, through the REAL schemas.
+    const validSuna = await evalJs(
+      `window.__sunaDev.validateFile('manuscript', ${JSON.stringify(join(WIZARD_DIR, 'manuscript', 'manuscript.json'))})`
+    )
+    assert(validSuna.ok, `manuscript.json invalid: ${JSON.stringify(validSuna.issues)}`)
+    const reopenedManifest = await evalJs(
+      `window.suna.invoke('project:open', { dir: ${JSON.stringify(WIZARD_DIR)} })`
+    )
+    assert(reopenedManifest.manifest.name === 'wizard-paper',
+      `suna.json does not reopen as a project: ${JSON.stringify(reopenedManifest.manifest?.name)}`)
+
+    // git initialized with exactly one commit, and a clean tree.
+    const log = execSync(`git -C ${JSON.stringify(WIZARD_DIR)} log --oneline`, { encoding: 'utf8' })
+      .trim().split('\n').filter(Boolean)
+    assert(log.length === 1, `git history has ${log.length} commits:\n${log.join('\n')}`)
+    const dirty = execSync(`git -C ${JSON.stringify(WIZARD_DIR)} status --porcelain`, { encoding: 'utf8' }).trim()
+    assert(dirty === '', `the initial commit left files uncommitted:\n${dirty}`)
+
+    // --- cancelling a fresh wizard at step 3 writes nothing ---------------
+    const CANCEL_PARENT = mkdtempSync(join(tmpdir(), 'suna-smoke-cancel-'))
+    await evalJs(`window.__sunaDev.dock.openOnboardingTab({ mode: 'create' })`)
+    await sleep(900)
+    await evalJs(`window.__sunaDev.onboarding.patch({ parentDir: ${JSON.stringify(CANCEL_PARENT)} })`)
+    await evalJs(setFieldJs(`document.querySelector('#onboard-name')`, 'never-created'))
+    await sleep(1000)
+    await evalJs(`document.querySelector('.onboard__next').click()`)
+    await sleep(600)
+    await evalJs(`document.querySelector('.onboard__next').click()`)
+    await sleep(600)
+    const atThree = await wizardState()
+    assert(atThree.step === 3, `expected to be on step 3, got ${JSON.stringify(atThree)}`)
+    await evalJs(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+    await sleep(900)
+    assert(
+      (await evalJs(`window.__sunaDev.onboarding.isOpen()`)) === false,
+      'Escape did not cancel the wizard'
+    )
+    assert(
+      readdirSync(CANCEL_PARENT).length === 0,
+      `cancelling wrote files: ${JSON.stringify(readdirSync(CANCEL_PARENT))}`
+    )
+    rmSync(CANCEL_PARENT, { recursive: true, force: true })
+  })
+
   console.log(`\nALL ${results.length} STEPS PASSED`)
 } catch {
   exitCode = 1
@@ -3669,10 +4553,38 @@ try {
   console.error(`\nFAILED: ${failed.map((f) => f.name).join(', ')}`)
   console.error(`artifacts: ${ARTIFACTS}`)
 } finally {
+  // hand the developer back the settings this run replaced
+  if (savedSettings !== null) {
+    mkdirSync(USER_DATA, { recursive: true })
+    writeFileSync(SETTINGS_FILE, savedSettings)
+  } else {
+    rmSync(SETTINGS_FILE, { force: true })
+  }
   // leave the example copy's figure pristine for whoever opens it next
   if (FIGURE && originalSvg !== null && existsSync(FIGURE)) {
     writeFileSync(FIGURE, originalSvg)
   }
+  // Scratch projects the feature-plan-5 steps created, and the recents rows
+  // pointing at them — otherwise every run leaves a dead "Missing" entry on
+  // the next run's welcome screen (userData/settings.json is NOT reset).
+  // The app is stopped FIRST: the main process holds settings.json in a cache
+  // it rewrites wholesale, so editing the file under a live app can be undone.
   cleanup()
+  for (const dir of TEMP_PROJECT_DIRS) {
+    rmSync(dir, { recursive: true, force: true })
+  }
+  try {
+    const settingsFile = join(USER_DATA, 'settings.json')
+    if (existsSync(settingsFile)) {
+      const settings = JSON.parse(readFileSync(settingsFile, 'utf8'))
+      const recents = settings['recentProjects']
+      if (Array.isArray(recents)) {
+        settings['recentProjects'] = recents.filter(
+          (entry) => !TEMP_PROJECT_DIRS.some((dir) => String(entry?.path ?? '').startsWith(dir))
+        )
+        writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n')
+      }
+    }
+  } catch { /* a settings file we cannot parse is not this suite's problem */ }
 }
 process.exit(exitCode)

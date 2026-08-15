@@ -23,9 +23,11 @@ describe('CHANNELS', () => {
       'comments:write',
       'dialog:pick-directory',
       'dialog:pick-file',
+      'env:create',
       'env:detect',
       'env:select',
       'env:selected',
+      'env:uv-available',
       'figure:create',
       'figure:duplicate',
       'figure:export',
@@ -52,10 +54,17 @@ describe('CHANNELS', () => {
       'lit:search',
       'lit:set-key',
       'manuscript:update',
+      'project:check-target',
       'project:create',
+      'project:forget-recent',
+      'project:list-importable',
       'project:open',
       'project:open-example',
+      'project:recents',
+      'project:scaffold',
       'project:scaffold-status',
+      'project:touch-recent',
+      'project:update-settings',
       'settings:get',
       'settings:set',
       'term:create',
@@ -106,6 +115,132 @@ describe('CHANNELS', () => {
       dirs: { manuscript: true },
     };
     expect(CHANNELS['project:scaffold-status'].response.safeParse(bad).success).toBe(false);
+  });
+
+  it('validates a project:update-settings patch and rejects an out-of-range one', () => {
+    const req: RequestOf<'project:update-settings'> = {
+      dir: '/work/my-paper',
+      patch: { editor: { contentWidthCh: 90 } },
+    };
+    expect(CHANNELS['project:update-settings'].request.parse(req)).toEqual(req);
+    // null is how "Reset to global" travels
+    expect(
+      CHANNELS['project:update-settings'].request.safeParse({
+        dir: req.dir,
+        patch: { editor: { contentWidthCh: null } },
+      }).success,
+    ).toBe(true);
+    expect(
+      CHANNELS['project:update-settings'].request.safeParse({
+        dir: req.dir,
+        patch: { editor: { contentWidthCh: 4000 } },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('returns the whole manifest from project:update-settings', () => {
+    const res: ResponseOf<'project:update-settings'> = {
+      manifest: {
+        schemaVersion: 1,
+        name: 'My Paper',
+        activeProfileId: 'nature-astronomy',
+        directories: DEFAULT_PROJECT_DIRS,
+        createdAt: '2026-08-13T09:30:00Z',
+        settings: { editor: { contentWidthCh: 90 } },
+      },
+    };
+    expect(CHANNELS['project:update-settings'].response.parse(res)).toEqual(res);
+  });
+
+  it('carries a freshly stat-ed exists flag on every recents row', () => {
+    const res: ResponseOf<'project:recents'> = {
+      recents: [
+        {
+          path: '/work/my-paper',
+          name: 'My Paper',
+          lastOpenedAt: '2026-08-15T10:00:00.000Z',
+          exists: true,
+        },
+      ],
+    };
+    expect(CHANNELS['project:recents'].response.parse(res)).toEqual(res);
+    expect(
+      CHANNELS['project:recents'].response.safeParse({
+        recents: [{ path: '/work/p', name: 'P', lastOpenedAt: '2026-08-15T10:00:00.000Z' }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('requires a path and name on project:touch-recent and a path on forget', () => {
+    const req: RequestOf<'project:touch-recent'> = { path: '/work/my-paper', name: 'My Paper' };
+    expect(CHANNELS['project:touch-recent'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['project:touch-recent'].request.safeParse({ path: req.path }).success).toBe(
+      false,
+    );
+    expect(CHANNELS['project:forget-recent'].request.safeParse({ path: '' }).success).toBe(false);
+  });
+
+  it('validates project:check-target request/response shapes', () => {
+    const req: RequestOf<'project:check-target'> = { parentDir: '/work', name: 'my-paper' };
+    expect(CHANNELS['project:check-target'].request.parse(req)).toEqual(req);
+    const res: ResponseOf<'project:check-target'> = {
+      path: '/work/my-paper',
+      exists: false,
+      parentWritable: true,
+    };
+    expect(CHANNELS['project:check-target'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates project:list-importable response and rejects an unknown extension', () => {
+    const res: ResponseOf<'project:list-importable'> = {
+      files: [{ path: '/work/paper/intro.md', name: 'intro.md', ext: 'md' }],
+    };
+    expect(CHANNELS['project:list-importable'].response.parse(res)).toEqual(res);
+    expect(
+      CHANNELS['project:list-importable'].response.safeParse({
+        files: [{ path: '/x/a.docx', name: 'a.docx', ext: 'docx' }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates project:scaffold request/response and rejects an unknown scaffold kind', () => {
+    const req: RequestOf<'project:scaffold'> = {
+      dir: '/work/my-paper',
+      name: 'My Paper',
+      activeProfileId: 'nature-astronomy',
+      scaffold: 'starter',
+      importDir: null,
+      settings: { editor: { contentWidthCh: 90 } },
+    };
+    expect(CHANNELS['project:scaffold'].request.parse(req)).toEqual(req);
+    expect(
+      CHANNELS['project:scaffold'].request.safeParse({ ...req, scaffold: 'template' }).success,
+    ).toBe(false);
+    const res: ResponseOf<'project:scaffold'> = {
+      manifest: {
+        schemaVersion: 1,
+        name: 'My Paper',
+        activeProfileId: 'nature-astronomy',
+        directories: DEFAULT_PROJECT_DIRS,
+        createdAt: '2026-08-15T10:00:00.000Z',
+      },
+      gitInitialized: true,
+      warnings: [],
+    };
+    expect(CHANNELS['project:scaffold'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates env:uv-available and env:create shapes', () => {
+    const uvRes: ResponseOf<'env:uv-available'> = { available: false };
+    expect(CHANNELS['env:uv-available'].response.parse(uvRes)).toEqual(uvRes);
+    const createReq: RequestOf<'env:create'> = { dir: '/work/my-paper' };
+    expect(CHANNELS['env:create'].request.parse(createReq)).toEqual(createReq);
+    const createRes: ResponseOf<'env:create'> = {
+      ok: false,
+      envPath: null,
+      error: 'uv is not installed or not on PATH',
+    };
+    expect(CHANNELS['env:create'].response.parse(createRes)).toEqual(createRes);
   });
 
   it('validates fs:write-text round trip shapes', () => {

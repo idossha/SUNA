@@ -219,7 +219,15 @@ export const SectionEditor = forwardRef<SectionEditorHandle, SectionEditorProps>
               (commentId) => onActivateCommentRef.current(commentId)
             ),
             EditorView.updateListener.of((u) => {
-              if (u.docChanged || u.viewportChanged || u.geometryChanged) scheduleRecompute()
+              // `selectionSet` matters since feature-plan-5 §3: live preview
+              // now REPLACES markdown syntax with zero-width decorations and
+              // reveals it under the cursor, so moving the caret can re-wrap a
+              // line and shift every anchor below it. Before that change a
+              // selection never altered geometry. The recompute is rAF-
+              // debounced, so adding a trigger costs one measure per frame.
+              if (u.docChanged || u.viewportChanged || u.geometryChanged || u.selectionSet) {
+                scheduleRecompute()
+              }
             })
           ])
         })
