@@ -165,7 +165,10 @@ function figureBlocks(figureId: string, content: ExportContent): SpecBlock[] {
   const widthMm = widthMmForPreset(fig.figure.widthPreset, content.profile)
   const titleText = plainTextField(fig.figure.caption.title, content)
   const bodyText = plainTextField(fig.figure.caption.body, content)
-  const caption = `${fig.label}. ${titleText}${bodyText !== '' ? ` ${bodyText}` : ''}`
+  // NO label prefix here: docx-tools numbers figures itself and writes its own
+  // bold "Figure N. " ahead of whatever caption it is given. Passing our label
+  // too produced "Figure 1. Figure 1. …" in the built document.
+  const caption = `${titleText}${bodyText !== '' ? ` ${bodyText}` : ''}`
   return [{ type: 'figure', image: fig.pngPath, caption, width: widthMm / 25.4 }]
 }
 
@@ -224,7 +227,7 @@ interface BuiltSpec {
   authorsJson: Record<string, unknown>
 }
 
-function buildSpecObjects(content: ExportContent, options: ExportOptions, bibPath: string): BuiltSpec {
+export function buildSpecObjects(content: ExportContent, options: ExportOptions, bibPath: string): BuiltSpec {
   const m = content.manuscript
 
   const authorsJson = {

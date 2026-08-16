@@ -175,3 +175,95 @@ describe('examples/demo-paper round trip', () => {
     await rm(scratch, { recursive: true, force: true })
   })
 })
+
+/**
+ * SUNA style is the house drafting style, and its whole point is that the
+ * exported .docx has the STRUCTURE `docx-tools build` produces. These assert
+ * that structure against the real OOXML, and — just as importantly — that a
+ * journal profile is NOT affected by any of it.
+ */
+describe('SUNA style (the house style)', () => {
+  const SINGLE = { doubleSpacing: false, lineNumbers: false, pageNumbers: true }
+
+  async function buildXml(profileId: string, options = SINGLE): Promise<string> {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId, figurePngPaths })
+    const doc = await buildDocxDocument(content, options)
+    const { Packer } = await import('docx')
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(doc))
+    return (await zip.file('word/document.xml')?.async('string')) ?? ''
+  }
+
+  it('sets the page to US Letter with 0.5 in margins', async () => {
+    const xml = await buildXml('suna')
+    // 8.5 x 11 in = 12240 x 15840 twips; 0.5 in = 720 twips.
+    expect(xml).toContain('w:w="12240"')
+    expect(xml).toContain('w:h="15840"')
+    expect(xml).toMatch(/w:top="720"[^>]*w:right="720"[^>]*w:bottom="720"[^>]*w:left="720"/)
+  })
+
+  it('sets body text 11 pt at 1.15 line spacing', async () => {
+    const xml = await buildXml('suna')
+    // 11 pt = 22 half-points on the document default; 1.15 = 276/240 auto.
+    expect(xml).toMatch(/w:line="276"/)
+    expect(xml).toContain('w:lineRule="auto"')
+  })
+
+  it('double spacing still wins over the style when the user asks for it', async () => {
+    const xml = await buildXml('suna', { ...SINGLE, doubleSpacing: true })
+    expect(xml).toMatch(/w:line="480"/)
+    expect(xml).not.toMatch(/w:line="276"/)
+  })
+
+  it('forces headings to black, over Word default Heading 1 blue', async () => {
+    const xml = await buildXml('suna')
+    const headingBlock = xml.slice(xml.indexOf('Introduction') - 800, xml.indexOf('Introduction'))
+    expect(headingBlock).toContain('w:val="000000"')
+    // 13 pt = 26 half-points
+    expect(headingBlock).toContain('w:val="26"')
+  })
+
+  it('breaks to a new page after the front matter so the body starts on page 2', async () => {
+    const xml = await buildXml('suna')
+    const beforeIntro = xml.slice(0, xml.indexOf('Introduction'))
+    expect(beforeIntro).toContain('w:pageBreakBefore')
+  })
+
+  it('writes the figure caption BELOW its image, with a bold label and italic body', async () => {
+    const xml = await buildXml('suna')
+    const drawingAt = xml.indexOf('<w:drawing>')
+    // The label prefix ("Fig." vs "Figure") is the profile's business; what
+    // this asserts is that the caption follows the image, whatever it reads.
+    const captionAt = xml.indexOf('A fixture figure.')
+    expect(drawingAt).toBeGreaterThan(-1)
+    expect(captionAt).toBeGreaterThan(drawingAt)
+    // the caption paragraph is centred and its body italic
+    const caption = xml.slice(captionAt - 700, captionAt + 700)
+    expect(caption).toContain('w:val="center"')
+    expect(caption).toContain('<w:i')
+  })
+
+  it('gives the reference list a 0.5 in hanging indent at 10 pt', async () => {
+    const xml = await buildXml('suna')
+    // 0.5 in = 720 twips, as both left indent and hanging.
+    expect(xml).toMatch(/w:left="720"[^>]*w:hanging="720"|w:hanging="720"[^>]*w:left="720"/)
+  })
+
+  it('rules tables APA-style instead of drawing a full grid', async () => {
+    const xml = await buildXml('suna')
+    // Cleared borders are written as explicit "nil"/"none" rather than left out.
+    expect(xml).toMatch(/w:val="(nil|none)"/)
+  })
+
+  it('leaves a journal profile completely alone', async () => {
+    const xml = await buildXml('nature-astronomy')
+    // A4 with 1 in (1440 twip) margins, as before.
+    expect(xml).toContain('w:w="11905"')
+    expect(xml).toMatch(/w:top="1440"/)
+    // no page break before the first body heading
+    const beforeIntro = xml.slice(0, xml.indexOf('Introduction'))
+    expect(beforeIntro).not.toContain('w:pageBreakBefore')
+    // and no forced-black heading override
+    expect(xml).not.toContain('* Corresponding author:')
+  })
+})

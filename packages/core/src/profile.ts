@@ -202,6 +202,66 @@ export const ManuscriptRulesSchema = z.object({
 });
 export type ManuscriptRules = z.infer<typeof ManuscriptRulesSchema>;
 
+/**
+ * Document TYPOGRAPHY — how the exported manuscript is set on the page, as
+ * opposed to the rules a journal states (which is what every other block in
+ * this schema carries).
+ *
+ * Deliberately optional and deliberately separate. Journal profiles leave it
+ * absent, because the published author guidelines this project is built from
+ * (ADR-002) do not state page geometry or point sizes for the *submitted
+ * manuscript* — inventing them per journal would be exactly the kind of guess
+ * this codebase refuses to make. It exists so a HOUSE style can state them:
+ * `suna.json` sets every field, which is what makes "SUNA style" a real,
+ * reproducible layout rather than a set of magic numbers buried in the DOCX
+ * writer.
+ *
+ * Sizes are in POINTS and lengths in MILLIMETRES — the units the writers
+ * already think in — and are converted at the edge (half-points/twips for
+ * OOXML, CSS units for HTML) so the two renderers cannot drift apart.
+ */
+export const DocumentStyleSchema = z.object({
+  /** Human-readable name shown in the export dialog, e.g. "SUNA style". */
+  name: z.string().min(1),
+  page: z.object({
+    widthMm: z.number().positive(),
+    heightMm: z.number().positive(),
+    marginMm: z.number().nonnegative(),
+  }),
+  fonts: z.object({
+    body: z.string().min(1),
+    mono: z.string().min(1),
+  }),
+  /** Point sizes for each role. */
+  sizesPt: z.object({
+    body: z.number().positive(),
+    title: z.number().positive(),
+    author: z.number().positive(),
+    affiliation: z.number().positive(),
+    heading1: z.number().positive(),
+    heading2: z.number().positive(),
+    caption: z.number().positive(),
+    reference: z.number().positive(),
+    tableCell: z.number().positive(),
+    footer: z.number().positive(),
+  }),
+  /** Multiple of single spacing applied to every paragraph, e.g. 1.15. */
+  lineSpacing: z.number().positive(),
+  /** Space after a body paragraph, in points. */
+  bodySpaceAfterPt: z.number().nonnegative(),
+  /** Reference-list hanging indent, in millimetres. */
+  referenceHangingMm: z.number().nonnegative(),
+  /** Default figure width when the profile states no preset width, in millimetres. */
+  figureWidthMm: z.number().positive(),
+  /** Where a figure caption sits relative to its image. */
+  figureCaptionPosition: z.enum(['above', 'below']),
+  /** Where a table caption sits relative to its table. */
+  tableCaptionPosition: z.enum(['above', 'below']),
+  /** Start the body on a fresh page after the front matter. */
+  pageBreakAfterFrontMatter: z.boolean(),
+});
+export type DocumentStyle = z.infer<typeof DocumentStyleSchema>;
+
 export const PublisherProfileSchema = z.object({
   schemaVersion: z.literal(3),
   id: ProfileIdSchema,
@@ -213,6 +273,8 @@ export const PublisherProfileSchema = z.object({
   citations: CitationRulesSchema,
   figures: FigureRulesSchema,
   manuscript: ManuscriptRulesSchema,
+  /** Present only on house styles; see DocumentStyleSchema. */
+  documentStyle: DocumentStyleSchema.optional(),
   notes: z.array(z.string()),
 });
 export type PublisherProfile = z.infer<typeof PublisherProfileSchema>;

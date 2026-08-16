@@ -20,7 +20,7 @@ import {
   TextRun,
   type ISectionPropertiesOptions
 } from 'docx'
-import type { ExportOptions, HeadingLevel as ManuscriptHeadingLevel } from '@suna/core'
+import type { DocumentStyle, ExportOptions, HeadingLevel as ManuscriptHeadingLevel } from '@suna/core'
 import { renderCluster, type Run as BibRun } from '@suna/bib'
 import { parseSciMark, type CrossRefKind, type SciMarkRoot } from '@suna/markdown'
 import {
@@ -42,6 +42,14 @@ import { writeFileAtomic } from './atomic'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 import { buildViaDocxTools, docxToolsAvailable } from './docx-tools-accelerator'
+import {
+  documentStyleFor,
+  halfPoints,
+  isHouseStyle,
+  lineSpacingTwips,
+  mmToTwips,
+  ptToTwips
+} from './export-style'
 
 /**
  * DOCX export (feature-plan-6 §3), built entirely with the bundled 'docx'
@@ -92,6 +100,8 @@ interface DocxCtx {
   content: ExportContent
   doubleSpacing: boolean
   figureAssets: ReadonlyMap<string, FigureAsset>
+  /** Typography for this export — see export-style.ts. */
+  style: DocumentStyle
 }
 
 /** twips-per-96dpi-pixel conversion docx's ImageRun transformation expects (EMU math handled internally by the lib at 9525 EMU/px). */
@@ -99,11 +109,25 @@ function px96(mm: number): number {
   return Math.max(1, Math.round((mm / 25.4) * 96))
 }
 
+/**
+ * Paragraph spacing for body-level content.
+ *
+ * Double spacing (a journal submission rule) always wins when the user asked
+ * for it. Otherwise the style's own line spacing applies — 1.15 for SUNA
+ * style, which is the value Word's default template carries and therefore the
+ * one docx-tools inherits for every paragraph it writes.
+ */
 function bodySpacing(ctx: DocxCtx, extra?: { before?: number; after?: number }) {
+  const line = ctx.doubleSpacing ? 480 : lineSpacingTwips(ctx.style.lineSpacing)
   return {
     ...extra,
-    ...(ctx.doubleSpacing ? { line: 480, lineRule: LineRuleType.AUTO } : {})
+    ...(line !== 240 ? { line, lineRule: LineRuleType.AUTO } : {})
   }
+}
+
+/** A run at one of the style's point sizes. */
+function sizeOf(ctx: DocxCtx, role: keyof DocumentStyle['sizesPt']): number {
+  return halfPoints(ctx.style.sizesPt[role])
 }
 
 function textRun(text: string, style: RunStyle = {}): TextRun {
@@ -206,6 +230,21 @@ function inlineChildren(nodes: readonly RootChild[], ctx: DocxCtx, style: RunSty
   return out
 }
 
+/** Body runs carry the style's size under a house style; journal exports keep the document default. */
+function bodyRunStyle(ctx: DocxCtx): RunStyle {
+  return isHouseStyle(ctx.content.profile) ? { size: sizeOf(ctx, 'body') } : {}
+}
+
+/** Flatten phrasing content to plain text — headings carry no inline styling of their own. */
+function plainText(nodes: readonly RootChild[]): string {
+  let out = ''
+  for (const node of nodes as readonly (RootChild & { children?: RootChild[]; value?: string })[]) {
+    if (typeof node.value === 'string') out += node.value
+    else if (node.children !== undefined) out += plainText(node.children)
+  }
+  return out
+}
+
 /** Parse a plain string (a figure/table caption) and pull just its inline runs — captions are one paragraph of prose, never headings/lists/tables. */
 function inlineFromText(text: string, ctx: DocxCtx, style: RunStyle = {}): DocxInline[] {
   if (text.trim() === '') return []
@@ -217,19 +256,61 @@ function inlineFromText(text: string, ctx: DocxCtx, style: RunStyle = {}): DocxI
   return out
 }
 
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' } as const
+const RULE = { style: BorderStyle.SINGLE, size: 8, color: '000000' } as const
+
+/**
+ * A markdown table.
+ *
+ * Under a house style this follows docx-tools' APA treatment: every border
+ * cleared, then exactly three horizontal rules — above and below the header
+ * row, and under the last row. Header cells are bold and centred, the first
+ * column is left-aligned and the rest centred. That is the single change that
+ * makes an exported table read as a scientific table rather than a spreadsheet
+ * grid, which is what Word's default full-border table looks like.
+ */
 function tableFromMdast(node: TableNode, ctx: DocxCtx): Table {
-  const rows = node.children.map(
-    (row) =>
-      new TableRow({
-        children: row.children.map(
-          (cell) =>
-            new TableCell({
-              children: [new Paragraph({ children: inlineChildren(cell.children, ctx) })],
-              margins: { top: 60, bottom: 60, left: 100, right: 100 }
+  const house = isHouseStyle(ctx.content.profile)
+  const cellSize = sizeOf(ctx, 'tableCell')
+  const lastIndex = node.children.length - 1
+
+  const rows = node.children.map((row, rowIndex) => {
+    const isHeader = rowIndex === 0
+    const isLast = rowIndex === lastIndex
+    return new TableRow({
+      ...(isHeader ? { tableHeader: true } : {}),
+      children: row.children.map((cell, colIndex) => {
+        const runStyle: RunStyle = house ? { size: cellSize, bold: isHeader } : {}
+        const alignment = !house
+          ? undefined
+          : isHeader || colIndex > 0
+            ? AlignmentType.CENTER
+            : AlignmentType.LEFT
+        return new TableCell({
+          children: [
+            new Paragraph({
+              ...(alignment !== undefined ? { alignment } : {}),
+              ...(house ? { spacing: { before: 0, after: 0 } } : {}),
+              children: inlineChildren(cell.children, ctx, runStyle)
             })
-        )
+          ],
+          margins: house
+            ? { top: isHeader ? 40 : 20, bottom: isHeader ? 40 : 20, left: 60, right: 60 }
+            : { top: 60, bottom: 60, left: 100, right: 100 },
+          ...(house
+            ? {
+                borders: {
+                  top: isHeader ? RULE : NO_BORDER,
+                  bottom: isHeader || isLast ? RULE : NO_BORDER,
+                  left: NO_BORDER,
+                  right: NO_BORDER
+                }
+              }
+            : {})
+        })
       })
-  )
+    })
+  })
   return new Table({ rows, width: { size: 100, type: 'pct' } })
 }
 
@@ -275,11 +356,17 @@ function figureBlock(figureId: string, ctx: DocxCtx): Paragraph[] {
   const fig = ctx.content.figures.find((f) => f.figure.id === figureId)
   const asset = ctx.figureAssets.get(figureId)
   if (fig === undefined || asset === undefined) return []
-  const widthMm = widthMmForPreset(fig.figure.widthPreset, ctx.content.profile)
+  const house = isHouseStyle(ctx.content.profile)
+  // A journal preset wins when the profile states one; otherwise the style's
+  // own default width (5 in under SUNA style, matching docx-tools).
+  const presetMm = widthMmForPreset(fig.figure.widthPreset, ctx.content.profile)
+  const widthMm = house && fig.figure.widthPreset === null ? ctx.style.figureWidthMm : presetMm
   const heightMm = widthMm * (asset.height / asset.width)
+
   const image = new Paragraph({
     alignment: AlignmentType.CENTER,
-    spacing: { before: 200, after: 80 },
+    keepNext: true,
+    spacing: house ? { before: ptToTwips(6), after: 0 } : { before: 200, after: 80 },
     children: [
       new ImageRun({
         type: 'png',
@@ -288,21 +375,44 @@ function figureBlock(figureId: string, ctx: DocxCtx): Paragraph[] {
       })
     ]
   })
-  const captionRuns: DocxInline[] = [textRun(`${fig.label}. `, { bold: true })]
-  captionRuns.push(...inlineFromText(fig.figure.caption.title, ctx))
+
+  // "Figure N." bold, then the caption body in italic — docx-tools' shape.
+  const capSize = sizeOf(ctx, 'caption')
+  const captionRuns: DocxInline[] = [
+    textRun(`${fig.label}. `, house ? { bold: true, size: capSize } : { bold: true })
+  ]
+  const bodyStyle: RunStyle = house ? { italics: true, size: capSize } : {}
+  captionRuns.push(...inlineFromText(fig.figure.caption.title, ctx, bodyStyle))
   if (fig.figure.caption.body.trim() !== '') {
-    captionRuns.push(textRun(' '))
-    captionRuns.push(...inlineFromText(fig.figure.caption.body, ctx))
+    captionRuns.push(textRun(' ', bodyStyle))
+    captionRuns.push(...inlineFromText(fig.figure.caption.body, ctx, bodyStyle))
   }
-  const caption = new Paragraph({ spacing: { after: 240 }, children: captionRuns })
-  return [image, caption]
+  const caption = new Paragraph({
+    ...(house ? { alignment: AlignmentType.CENTER } : {}),
+    spacing: house ? { before: ptToTwips(4), after: ptToTwips(12) } : { after: 240 },
+    children: captionRuns
+  })
+
+  return ctx.style.figureCaptionPosition === 'above' ? [caption, image] : [image, caption]
 }
 
 function blockNode(node: RootChild, ctx: DocxCtx): (Paragraph | Table)[] {
   switch (node.type) {
     case 'paragraph':
-      return [new Paragraph({ spacing: bodySpacing(ctx, { after: 120 }), children: inlineChildren(node.children, ctx) })]
+      return [
+        new Paragraph({
+          spacing: bodySpacing(ctx, {
+            after: isHouseStyle(ctx.content.profile) ? ptToTwips(ctx.style.bodySpaceAfterPt) : 120
+          }),
+          children: inlineChildren(node.children, ctx, bodyRunStyle(ctx))
+        })
+      ]
     case 'heading': {
+      if (isHouseStyle(ctx.content.profile)) {
+        // Prose headings nest under the section heading they sit in, so a
+        // markdown "##" inside a section is an H2, not another H1.
+        return [headingParagraph(ctx, node.depth <= 1 ? 'A' : 'B', plainText(node.children))]
+      }
       const level =
         node.depth <= 1 ? HeadingLevel.HEADING_2 : node.depth === 2 ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_4
       return [new Paragraph({ heading: level, children: inlineChildren(node.children, ctx) })]
@@ -352,47 +462,123 @@ function blocksFromRoot(root: SciMarkRoot, ctx: DocxCtx): (Paragraph | Table)[] 
   return root.children.flatMap((node) => blockNode(node, ctx))
 }
 
-function headingParagraph(level: ManuscriptHeadingLevel, text: string): Paragraph {
-  switch (level) {
-    case 'A':
-      return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: false, children: [textRun(text)] })
-    case 'B':
-      return new Paragraph({ heading: HeadingLevel.HEADING_2, children: [textRun(text)] })
-    case 'C-runin':
-      // Run-in headings are page-typesetting (ADR-002 out of scope) —
-      // rendered as their own bold+italic line rather than inline with the
-      // following paragraph.
-      return new Paragraph({ spacing: { before: 160, after: 40 }, children: [textRun(text, { bold: true, italics: true })] })
+/**
+ * A section heading.
+ *
+ * Under a house style these are still Word's built-in Heading styles (so the
+ * navigation pane, TOC and outline all work), but with the size and colour
+ * stated explicitly — Word's default Heading 1 is 16 pt BLUE, which is the
+ * single biggest reason an untouched Word export does not look like a
+ * manuscript. docx-tools forces pure black at 13 pt for H1 and 11 pt below;
+ * SUNA style does the same, and keeps `keepNext` so a heading never sits alone
+ * at the foot of a page.
+ */
+function headingParagraph(
+  ctx: DocxCtx,
+  level: ManuscriptHeadingLevel,
+  text: string,
+  // Must be passed in rather than applied by the caller: `Paragraph` is a
+  // class, so spreading one into a new Paragraph({...}) yields its internal
+  // fields, not its options, and silently produces an EMPTY paragraph.
+  opts: { pageBreakBefore?: boolean } = {}
+): Paragraph {
+  const house = isHouseStyle(ctx.content.profile)
+  const breakBefore = opts.pageBreakBefore === true
+  if (!house) {
+    switch (level) {
+      case 'A':
+        return new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          pageBreakBefore: breakBefore,
+          children: [textRun(text)]
+        })
+      case 'B':
+        return new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          pageBreakBefore: breakBefore,
+          children: [textRun(text)]
+        })
+      case 'C-runin':
+        // Run-in headings are page-typesetting (ADR-002 out of scope) —
+        // rendered as their own bold+italic line rather than inline with the
+        // following paragraph.
+        return new Paragraph({
+          pageBreakBefore: breakBefore,
+          spacing: { before: 160, after: 40 },
+          children: [textRun(text, { bold: true, italics: true })]
+        })
+    }
   }
+
+  const isTop = level === 'A'
+  const size = isTop ? sizeOf(ctx, 'heading1') : sizeOf(ctx, 'heading2')
+  if (level === 'C-runin') {
+    return new Paragraph({
+      keepNext: true,
+      pageBreakBefore: breakBefore,
+      spacing: { before: ptToTwips(8), after: ptToTwips(4) },
+      children: [textRun(text, { bold: true, italics: true, size, color: '000000' })]
+    })
+  }
+  return new Paragraph({
+    heading: isTop ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2,
+    keepNext: true,
+    pageBreakBefore: breakBefore,
+    spacing: { before: ptToTwips(isTop ? 12 : 8), after: ptToTwips(4) },
+    children: [textRun(text, { bold: true, size, color: '000000' })]
+  })
 }
 
-function titlePageParagraphs(content: ExportContent): Paragraph[] {
+/**
+ * Front matter, in docx-tools' order and shape (see resources/profiles/
+ * suna.json's notes for what that is and where each value comes from):
+ * title, authors, affiliations, corresponding line, highlights, then the
+ * abstract — with the abstract LAST because docx-tools treats highlights as
+ * front matter and the abstract as the first ordinary heading+body.
+ *
+ * Point sizes and spacing all come from the style, so a journal profile keeps
+ * the older generic look and SUNA style gets the docx-tools one.
+ */
+function titlePageParagraphs(ctx: DocxCtx): Paragraph[] {
+  const content = ctx.content
   const m = content.manuscript
+  const style = ctx.style
+  const house = isHouseStyle(content.profile)
   const out: Paragraph[] = []
 
   out.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 240 },
-      children: texRuns(m.title, { bold: true, size: 32 })
+      spacing: { after: house ? ptToTwips(4) : 240 },
+      children: texRuns(m.title, { bold: true, size: sizeOf(ctx, 'title') })
     })
   )
 
   const authorRuns: DocxInline[] = []
+  const authorSize = sizeOf(ctx, 'author')
   content.authors.authors.forEach((author, i) => {
-    if (i > 0) authorRuns.push(textRun(', '))
-    authorRuns.push(textRun(`${author.given} ${author.family}`))
+    if (i > 0) authorRuns.push(textRun(', ', { size: authorSize }))
+    authorRuns.push(textRun(`${author.given} ${author.family}`, { size: authorSize }))
     const markers = authorMarkers(author, content.affiliations.numberOf)
-    if (markers.length > 0) authorRuns.push(textRun(markers.join(','), { superScript: true }))
+    if (markers.length > 0) {
+      authorRuns.push(textRun(markers.join(','), { superScript: true, size: authorSize }))
+    }
   })
-  out.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 160 }, children: authorRuns }))
+  out.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: house ? ptToTwips(6) : 160 },
+      children: authorRuns
+    })
+  )
 
+  const affSize = sizeOf(ctx, 'affiliation')
   content.affiliations.ordered.forEach((a, i) => {
     out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 20 },
-        children: [textRun(String(i + 1), { superScript: true, size: 18 }), textRun(` ${a.text}`, { size: 18 })]
+        spacing: house ? { before: 0, after: ptToTwips(1) } : { after: 20 },
+        children: [textRun(String(i + 1), { superScript: true, size: affSize }), textRun(` ${a.text}`, { size: affSize })]
       })
     )
   })
@@ -402,68 +588,139 @@ function titlePageParagraphs(content: ExportContent): Paragraph[] {
     .map((a) => a.email)
     .filter((e): e is string => e !== null)
   if (corresponding.length > 0) {
+    // docx-tools writes "* Corresponding author: <email>"; the legacy look
+    // used "*e-mail: …". Both are the same information, so the style picks.
+    const text = house
+      ? `* Corresponding author: ${corresponding.join(', ')}`
+      : `*e-mail: ${corresponding.join(', ')}`
     out.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 120, after: 200 },
-        children: [textRun(`*e-mail: ${corresponding.join(', ')}`, { italics: true, size: 18 })]
+        spacing: house ? { after: ptToTwips(14) } : { before: 120, after: 200 },
+        children: [textRun(text, { italics: true, size: affSize })]
       })
     )
   }
 
-  out.push(new Paragraph({ spacing: { before: 160 }, children: [textRun('Abstract', { bold: true })] }))
-  out.push(new Paragraph({ spacing: { after: 200 }, children: texRuns(m.abstract.content) }))
+  if (m.highlights != null && m.highlights.length > 0) {
+    out.push(
+      new Paragraph({
+        spacing: house ? { before: ptToTwips(10), after: ptToTwips(4) } : {},
+        children: [textRun('Highlights', { bold: true, size: sizeOf(ctx, 'body') })]
+      })
+    )
+    for (const h of m.highlights) {
+      out.push(
+        house
+          ? // docx-tools sets its own bullet glyph with a hanging indent rather
+            // than using a Word list, so the exported file has no numbering
+            // definitions to renumber or inherit.
+            new Paragraph({
+              indent: { left: mmToTwips(6.35), hanging: mmToTwips(3.81) },
+              spacing: { before: 0, after: ptToTwips(2) },
+              children: [textRun('•  ', { size: sizeOf(ctx, 'caption') }), ...texRuns(h, { size: sizeOf(ctx, 'caption') })]
+            })
+          : new Paragraph({ bullet: { level: 0 }, children: texRuns(h) })
+      )
+    }
+    if (house) out.push(new Paragraph({ spacing: { after: ptToTwips(6) }, children: [] }))
+  }
 
   if (m.significance != null) {
-    out.push(new Paragraph({ children: [textRun('Significance', { bold: true })] }))
-    out.push(new Paragraph({ spacing: { after: 200 }, children: texRuns(m.significance) }))
+    out.push(headingParagraph(ctx, 'A', 'Significance'))
+    out.push(
+      new Paragraph({
+        spacing: bodySpacing(ctx, { after: house ? ptToTwips(style.bodySpaceAfterPt) : 200 }),
+        children: texRuns(m.significance, { size: sizeOf(ctx, 'body') })
+      })
+    )
   }
-  if (m.highlights != null && m.highlights.length > 0) {
-    out.push(new Paragraph({ children: [textRun('Highlights', { bold: true })] }))
-    for (const h of m.highlights) out.push(new Paragraph({ bullet: { level: 0 }, children: texRuns(h) }))
-  }
+
+  out.push(headingParagraph(ctx, 'A', 'Abstract'))
+  out.push(
+    new Paragraph({
+      spacing: bodySpacing(ctx, { after: house ? ptToTwips(style.bodySpaceAfterPt) : 200 }),
+      children: texRuns(m.abstract.content, { size: sizeOf(ctx, 'body') })
+    })
+  )
 
   return out
 }
 
 function tablesParagraphs(content: ExportContent, ctx: DocxCtx): Paragraph[] {
   if (content.tables.length === 0) return []
-  const out: Paragraph[] = [new Paragraph({ heading: HeadingLevel.HEADING_1, children: [textRun('Tables')] })]
+  const out: Paragraph[] = [headingParagraph(ctx, 'A', 'Tables')]
   for (const t of content.tables) out.push(tableCaptionParagraph(t, ctx))
   return out
 }
 
+/**
+ * A table's caption. Same shape as a figure's under a house style — a bold
+ * "Table N." followed by an italic body — but left-aligned and, per
+ * `tableCaptionPosition`, written ABOVE the table it describes.
+ */
 function tableCaptionParagraph(t: ExportTableContent, ctx: DocxCtx): Paragraph {
-  const runs: DocxInline[] = [textRun(`${t.label}. `, { bold: true }), ...inlineFromText(t.table.caption.title, ctx)]
+  const house = isHouseStyle(ctx.content.profile)
+  const capSize = sizeOf(ctx, 'caption')
+  const bodyStyle: RunStyle = house ? { italics: true, size: capSize } : {}
+  const runs: DocxInline[] = [
+    textRun(`${t.label}. `, house ? { bold: true, size: capSize } : { bold: true }),
+    ...inlineFromText(t.table.caption.title, ctx, bodyStyle)
+  ]
   if (t.table.caption.body !== undefined && t.table.caption.body.trim() !== '') {
-    runs.push(textRun(' '))
-    runs.push(...inlineFromText(t.table.caption.body, ctx))
+    runs.push(textRun(' ', bodyStyle))
+    runs.push(...inlineFromText(t.table.caption.body, ctx, bodyStyle))
   }
   for (const note of t.table.footnotes) {
-    runs.push(textRun(` [${note.mark}] ${note.text}`, { italics: true, size: 18 }))
+    runs.push(textRun(` [${note.mark}] ${note.text}`, { italics: true, size: house ? capSize : 18 }))
   }
-  return new Paragraph({ spacing: { after: 200 }, children: runs })
+  return new Paragraph({
+    ...(house ? { keepNext: true } : {}),
+    spacing: house ? { before: ptToTwips(4), after: ptToTwips(4) } : { after: 200 },
+    children: runs
+  })
 }
 
-function referencesParagraphs(content: ExportContent): Paragraph[] {
+function referencesParagraphs(ctx: DocxCtx): Paragraph[] {
+  const content = ctx.content
+  const house = isHouseStyle(content.profile)
   const numeric = isNumericCitationMode(content.profile)
+  const refSize = sizeOf(ctx, 'reference')
+  // References always start a fresh page, in both styles.
   const out: Paragraph[] = [
-    new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [textRun('References')] })
+    house
+      ? new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          pageBreakBefore: true,
+          keepNext: true,
+          spacing: { before: ptToTwips(12), after: ptToTwips(4) },
+          children: [textRun('References', { bold: true, size: sizeOf(ctx, 'heading1'), color: '000000' })]
+        })
+      : new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          pageBreakBefore: true,
+          children: [textRun('References')]
+        })
   ]
+  const hanging = mmToTwips(ctx.style.referenceHangingMm)
   for (const row of content.referenceRows) {
     const runs = formatReferenceRow(row, content.profile)
-    const children: DocxInline[] = numeric ? [textRun(`${row.number}. `, { bold: true })] : []
+    const style: RunStyle = house ? { size: refSize } : {}
+    const children: DocxInline[] = numeric ? [textRun(`${row.number}. `, { ...style, bold: true })] : []
     if (runs === null) {
       children.push(
-        textRun(`@${row.key} — cited but not found in ${content.manuscript.bibliography}`, { color: 'AA0000' })
+        textRun(`@${row.key} — cited but not found in ${content.manuscript.bibliography}`, {
+          ...style,
+          color: 'AA0000'
+        })
       )
     } else {
-      children.push(...bibRunsToDocx(runs))
+      children.push(...bibRunsToDocx(runs, style))
     }
     out.push(
       new Paragraph({
-        indent: { left: convertMillimetersToTwip(8), hanging: convertMillimetersToTwip(8) },
-        spacing: { after: 120 },
+        indent: { left: hanging, hanging },
+        spacing: house ? { after: ptToTwips(4) } : { after: 120 },
         children
       })
     )
@@ -481,31 +738,38 @@ async function buildFigureAssets(content: ExportContent): Promise<Map<string, Fi
   return map
 }
 
-/** US-letter-adjacent, fixed generic manuscript geometry — see module doc: the profile schema has no page-geometry fields (ADR-002). */
-const PAGE_WIDTH_MM = 210 // A4
-const PAGE_HEIGHT_MM = 297
-const MARGIN_MM = 25.4 // 1 inch
-
 export async function buildDocxDocument(content: ExportContent, options: ExportOptions): Promise<Document> {
   const figureAssets = await buildFigureAssets(content)
-  const ctx: DocxCtx = { content, doubleSpacing: options.doubleSpacing, figureAssets }
+  const style = documentStyleFor(content.profile)
+  const ctx: DocxCtx = { content, doubleSpacing: options.doubleSpacing, figureAssets, style }
+  const house = isHouseStyle(content.profile)
 
   const bodyChildren: (Paragraph | Table)[] = []
-  for (const section of content.sections) {
-    if (section.heading !== null) bodyChildren.push(headingParagraph(section.level, section.heading))
+  content.sections.forEach((section, index) => {
+    // The body starts on its own page when the style says so — docx-tools
+    // breaks after the front matter, so the Introduction opens page 2.
+    const breakHere = style.pageBreakAfterFrontMatter && index === 0
+    if (section.heading !== null) {
+      bodyChildren.push(headingParagraph(ctx, section.level, section.heading, { pageBreakBefore: breakHere }))
+    } else if (breakHere) {
+      bodyChildren.push(new Paragraph({ pageBreakBefore: true, spacing: { before: 0, after: 0 }, children: [] }))
+    }
     if (section.root !== null) bodyChildren.push(...blocksFromRoot(section.root, ctx))
-  }
+  })
   bodyChildren.push(...tablesParagraphs(content, ctx))
-  bodyChildren.push(...referencesParagraphs(content))
+  bodyChildren.push(...referencesParagraphs(ctx))
 
   const sectionProperties: ISectionPropertiesOptions = {
     page: {
-      size: { width: convertMillimetersToTwip(PAGE_WIDTH_MM), height: convertMillimetersToTwip(PAGE_HEIGHT_MM) },
+      size: {
+        width: convertMillimetersToTwip(style.page.widthMm),
+        height: convertMillimetersToTwip(style.page.heightMm)
+      },
       margin: {
-        top: convertMillimetersToTwip(MARGIN_MM),
-        bottom: convertMillimetersToTwip(MARGIN_MM),
-        left: convertMillimetersToTwip(MARGIN_MM),
-        right: convertMillimetersToTwip(MARGIN_MM)
+        top: convertMillimetersToTwip(style.page.marginMm),
+        bottom: convertMillimetersToTwip(style.page.marginMm),
+        left: convertMillimetersToTwip(style.page.marginMm),
+        right: convertMillimetersToTwip(style.page.marginMm)
       }
     },
     ...(options.lineNumbers ? { lineNumbers: { countBy: 1, restart: LineNumberRestartFormat.CONTINUOUS } } : {})
@@ -517,7 +781,12 @@ export async function buildDocxDocument(content: ExportContent, options: ExportO
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ children: [PageNumber.CURRENT] })]
+              children: [
+                new TextRun({
+                  children: [PageNumber.CURRENT],
+                  ...(house ? { size: sizeOf(ctx, 'footer'), font: style.fonts.body } : {})
+                })
+              ]
             })
           ]
         })
@@ -528,16 +797,19 @@ export async function buildDocxDocument(content: ExportContent, options: ExportO
     title: content.manuscript.title,
     creator: '',
     description: '',
-    // The profile schema has no manuscript body font/size field (ADR-002 —
-    // see module doc); this is a fixed, generic submission-manuscript
-    // default (12pt Times New Roman), matching export-html.ts's own PDF
-    // default rather than a per-journal rule that doesn't exist in the data.
-    styles: { default: { document: { run: { font: 'Times New Roman', size: 24 } } } },
+    // Font and size come from the style: journal profiles state no page setup
+    // (ADR-002) and keep the generic 12 pt default, while a house style like
+    // SUNA states all of it.
+    styles: {
+      default: {
+        document: { run: { font: style.fonts.body, size: halfPoints(style.sizesPt.body) } }
+      }
+    },
     sections: [
       {
         properties: sectionProperties,
         footers,
-        children: [...titlePageParagraphs(content), ...bodyChildren]
+        children: [...titlePageParagraphs(ctx), ...bodyChildren]
       }
     ]
   })

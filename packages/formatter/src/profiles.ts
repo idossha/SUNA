@@ -11,12 +11,16 @@ import sleep from '../../../resources/profiles/sleep.json';
 import sleepAdvances from '../../../resources/profiles/sleep-advances.json';
 import jne from '../../../resources/profiles/jne.json';
 import jneurosci from '../../../resources/profiles/jneurosci.json';
+import suna from '../../../resources/profiles/suna.json';
 
 /**
  * Ids of the publisher profiles bundled with SUNA, one JSON document each
  * under resources/profiles/<id>.json at the repo root.
  */
 export const BUNDLED_PROFILE_IDS = [
+  // The house style comes first: it is what a new project drafts in, and the
+  // only entry here that is NOT derived from a journal's author guidelines.
+  'suna',
   'nature-astronomy',
   'science',
   'apj-aas',
@@ -35,6 +39,7 @@ export type BundledProfileId = (typeof BUNDLED_PROFILE_IDS)[number];
 
 /** Raw (unvalidated) bundled profile documents, keyed by id — the default `extends` registry. */
 export const BUNDLED_RAW: Readonly<Record<string, unknown>> = {
+  suna,
   'apj-aas': apjAas,
   mnras,
   'nature-astronomy': natureAstronomy,

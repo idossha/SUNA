@@ -190,16 +190,27 @@ function collectEquationLabels(source: string): (string | undefined)[] {
 
 const DEFAULT_LABEL_WORDS = { figure: 'Fig.', table: 'Table' } as const
 
+/**
+ * How figures and tables are named in captions and cross-references. Journal
+ * profiles keep the abbreviated "Fig." they have always used; the SUNA house
+ * style spells it "Figure", which is what docx-tools writes.
+ */
+export interface ExportLabelWords {
+  figure: string
+  table: string
+}
+
 export function buildLabelMap(
   figures: readonly Identified[],
   tables: readonly Identified[],
-  sections: readonly LabelMapSection[]
+  sections: readonly LabelMapSection[],
+  words: ExportLabelWords = DEFAULT_LABEL_WORDS
 ): LabelMap {
   const figureMap = new Map<string, string>()
-  figures.forEach((figure, i) => figureMap.set(figure.id, `${DEFAULT_LABEL_WORDS.figure} ${i + 1}`))
+  figures.forEach((figure, i) => figureMap.set(figure.id, `${words.figure} ${i + 1}`))
 
   const tableMap = new Map<string, string>()
-  tables.forEach((table, i) => tableMap.set(table.id, `${DEFAULT_LABEL_WORDS.table} ${i + 1}`))
+  tables.forEach((table, i) => tableMap.set(table.id, `${words.table} ${i + 1}`))
 
   const equationMap = new Map<string, string>()
   let eqNumber = 0
@@ -455,7 +466,8 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
   const labels = buildLabelMap(
     manuscript.figures,
     manuscript.tables,
-    sections.map((s) => ({ heading: s.heading, source: s.source }))
+    sections.map((s) => ({ heading: s.heading, source: s.source })),
+    profile.documentStyle !== undefined ? { figure: 'Figure', table: 'Table' } : DEFAULT_LABEL_WORDS
   )
 
   const figures: ExportFigureContent[] = manuscript.figures.map((figure) => {
