@@ -82,6 +82,26 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
    Folder…, Rename… (inline input, basename pre-selected), Delete
    (two-step *Confirm delete?*; files go to the system trash, never
    `rm`). The header buttons create at the project root.
+
+   **Selection and keyboard** — click the tree once to focus it, then:
+   ↑/↓ move, →/← expand/collapse (← on a file jumps to its folder),
+   Home/End jump to the ends, Enter opens the selection (or toggles a
+   folder), F2 renames, ⌘A selects everything visible, Esc clears.
+   **⌘-click toggles a row into the selection and shift-click takes the
+   range**; shift+↑/↓ extends it. With more than one row selected the
+   context menu acts on all of them (*Delete N items*, still two-step)
+   and Rename… is disabled, since it takes one name. Note **⌘-click now
+   means "add to selection", so open-to-the-side moved to ⌥-click**.
+
+   **Open-tab indicators** — a file open in a tab shows a gold dot on
+   the right and brighter text; the frontmost tab additionally gets a
+   gold rule down its left edge and bold text. Close the tab and both
+   disappear.
+
+   **Live updates** — the tree follows the project directory itself, not
+   just the app's own writes. Create/rename/delete a file in Finder or in
+   the built-in terminal (`touch data/new.csv`), or run an export, and
+   the row appears/disappears within ~150 ms without touching anything.
 6. **Manuscript view** (activity bar): **clicking the activity-bar icon
    opens (or focuses) the manuscript tab directly** — the old *Open full
    manuscript* button is gone (feature-plan-7 §2). The sidebar still
@@ -865,6 +885,19 @@ Note that `pnpm typecheck | tail` **hides a failure** — the pipe reports
 | `packages/agent/src/mcp/verbs.test.ts` | `read_manuscript`/`write_manuscript`/`list_outline` and the legacy `read_section`/`write_section` aliases |
 | `apps/desktop/src/main/services/export-content.test.ts`, `docx-import.test.ts` | export and DOCX import against the flat layout |
 | `apps/desktop/src/renderer/src/state/project.test.ts`, `state/dock.test.ts` | `openProjectAt` and `closeProjectTabs` (the project switcher's two halves) |
+
+### Explorer coverage (nav-bar items 1–4)
+
+| Test file | Covers |
+| --- | --- |
+| `apps/desktop/src/renderer/src/shell/explorer-rows.test.ts` | flattening the tree to the VISIBLE rows the keyboard steps through (collapsed subtrees hidden, per-row depth, ancestors of a pending create forced open, a name-prefix sibling *not* forced open), and the default two-level expansion |
+| `apps/desktop/src/renderer/src/state/explorer.test.ts` | selection semantics — plain/⌘/shift click, backwards ranges, re-shift replacing rather than growing a range, ⌘A, Esc — plus multi-target delete (deletes what it can, names what it could not) and right-click inside vs outside the selection |
+| `apps/desktop/src/main/services/projectTreeWatch.test.ts` | the live-refresh watcher: one notification per burst, ignored paths (`.git`, `node_modules`) not waking it, recursive→flat fallback, one project watched at a time, and no notification after being stopped mid-debounce |
+| `apps/desktop/src/renderer/src/state/dock.test.ts` | the dock fake now emits dockview's panel events, so the open-tab set the explorer's indicators read from is kept in sync by the real code path |
+
+Not covered by unit tests: that the OS actually delivers `fs.watch` events
+for a given directory (platform behaviour), and the CSS that distinguishes
+selected / focused / open / active rows — both are manual checks in step 5.
 
 ### Verifying the shipped example and the migration by hand
 

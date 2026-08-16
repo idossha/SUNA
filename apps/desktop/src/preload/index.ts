@@ -77,6 +77,27 @@ const api = {
   },
 
   /**
+   * Subscribe to "something in the open project's directory changed"
+   * (EVENT_CHANNELS.projectTreeChanged) — a file created, deleted, renamed or
+   * moved by anything, including writers outside the renderer (exports,
+   * agents, the terminal, Finder). Returns an unsubscribe function.
+   */
+  onProjectTreeChanged: (listener: (payload: { dir: string }) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.projectTreeChanged
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      const dir =
+        typeof payload === 'object' && payload !== null && 'dir' in payload
+          ? (payload as { dir: unknown }).dir
+          : null
+      if (typeof dir === 'string') listener({ dir })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
    * Subscribe to status-line pushes for one 'lit:ai-search' run
    * (EVENT_CHANNELS.litProgress). Returns an unsubscribe function.
    */

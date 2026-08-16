@@ -745,6 +745,18 @@ export const EVENT_CHANNELS = {
    * for a project the renderer already closed can be ignored.
    */
   projectManifestChanged: 'project:manifest-changed',
+  /**
+   * Something inside the open project's directory was created, deleted,
+   * renamed, or moved — by an export, an agent, the terminal, or another app.
+   * Payload: `{ dir: string }`, the project root whose contents moved, so a
+   * stale push for a project the renderer already closed can be ignored.
+   *
+   * Deliberately says only "something changed" rather than naming the path:
+   * the renderer's response is always the same (re-list the tree), and a
+   * recursive watch on macOS coalesces events in ways that make a precise
+   * path unreliable.
+   */
+  projectTreeChanged: 'project:tree-changed',
 } as const;
 
 export type ChannelName = keyof typeof CHANNELS;

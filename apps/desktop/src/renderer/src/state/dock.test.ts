@@ -51,6 +51,16 @@ function fakeDock(): {
   const groups: FakeGroup[] = []
   let active: FakePanel | null = null
   let nextGroup = 1
+  // dockview's panel events, which setDockApi subscribes to in order to keep
+  // useOpenTabsStore (the explorer's open-tab indicators) in sync.
+  const listeners: Array<() => void> = []
+  const emit = (): void => {
+    for (const listener of listeners) listener()
+  }
+  const subscribe = (listener: () => void): { dispose: () => void } => {
+    listeners.push(listener)
+    return { dispose: () => undefined }
+  }
 
   const groupOf = (panel: FakePanel): FakeGroup | undefined =>
     groups.find((group) => group.panels.includes(panel))
@@ -62,6 +72,9 @@ function fakeDock(): {
   }
 
   const api = {
+    onDidAddPanel: subscribe,
+    onDidRemovePanel: subscribe,
+    onDidActivePanelChange: subscribe,
     get groups() {
       return groups
     },
@@ -85,6 +98,7 @@ function fakeDock(): {
         api: {
           setActive: () => {
             active = panel
+            emit()
           },
           close: () => {
             const group = groupOf(panel)
@@ -92,6 +106,7 @@ function fakeDock(): {
             group.panels = group.panels.filter((p) => p !== panel)
             if (group.panels.length === 0) groups.splice(groups.indexOf(group), 1)
             if (active === panel) active = null
+            emit()
           }
         }
       }
@@ -108,6 +123,7 @@ function fakeDock(): {
       if (!group) group = makeGroup()
       group.panels.push(panel)
       active = panel
+      emit()
       return panel
     }
   }

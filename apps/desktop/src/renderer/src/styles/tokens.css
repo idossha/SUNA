@@ -12,6 +12,9 @@
   --s-bg-raised: #23232c;
   --s-bg-hover: rgba(255, 255, 255, 0.05);
   --s-bg-active: rgba(232, 180, 92, 0.12);
+  /* selected rows in a list (explorer multi-selection): reads above both the
+     panel and the hover tint, so a swept-over selection stays visible */
+  --s-bg-selected: rgba(232, 180, 92, 0.18);
 
   /* ink */
   --s-ink: #e8e6e1;

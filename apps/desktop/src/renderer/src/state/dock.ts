@@ -1,9 +1,33 @@
 import type { DockviewApi, DockviewGroupPanel, IDockviewPanel } from 'dockview'
+import { isFilePanelId, useOpenTabsStore } from './openTabs'
 
 let dockApi: DockviewApi | null = null
 
+/**
+ * Push the current set of open file tabs into useOpenTabsStore, which the
+ * explorer subscribes to in order to mark open/active rows. Called on every
+ * dockview panel event — cheap (a walk of at most a few dozen panels) and far
+ * simpler than trying to mirror adds/removes incrementally.
+ */
+function syncOpenTabs(): void {
+  if (!dockApi) return
+  const paths = new Set<string>()
+  for (const panel of dockApi.panels) {
+    if (isFilePanelId(panel.id)) paths.add(panel.id)
+  }
+  const activeId = dockApi.activePanel?.id ?? null
+  const activePath = activeId !== null && isFilePanelId(activeId) ? activeId : null
+  useOpenTabsStore.getState().setOpenTabs(paths, activePath)
+}
+
 export function setDockApi(api: DockviewApi): void {
   dockApi = api
+  // Guarded: tests attach partial fakes (and `null` for the no-dock case).
+  // Real dockview always emits all three.
+  api?.onDidAddPanel?.(syncOpenTabs)
+  api?.onDidRemovePanel?.(syncOpenTabs)
+  api?.onDidActivePanelChange?.(syncOpenTabs)
+  syncOpenTabs()
 }
 
 /** Split targets we offer: beside the reference group, or under it. */
