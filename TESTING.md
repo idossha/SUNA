@@ -132,22 +132,35 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
    document from one measure — the title page, every section editor, and
    the reference list reflow together, and a title-page paragraph and a
    section line always render at the same text width.
-9. **Cross-references resolve live** in the document: `@eq:stripping`
+9. **Figures render as images.** `![[fig:fig-spectrum]]` shows the actual
+   plot — the SVG from `figures/<id>/figure.svg`, inlined so it stays crisp
+   at any zoom and scales to the measure — with a numbered caption
+   (*Fig. 1*) beneath it, drawn from the same label map cross-references
+   use. Plain markdown images (`![alt](images/plot.png)`) render too,
+   resolved relative to the file that contains them; PNG/JPEG/GIF/WebP are
+   read as data URIs. While a file is being read the old dashed placeholder
+   shows, so the layout does not jump; a figure whose file is missing says
+   so in red rather than going blank, and a remote `https://` image reports
+   that it cannot be loaded instead of failing silently (the renderer's CSP
+   blocks external hosts). Figures render in a plain editor tab too, not
+   only in the manuscript — but only the manuscript numbers the caption,
+   since numbering is a document-wide fact.
+10. **Cross-references resolve live** in the document: `@eq:stripping`
    reads *equation (1)*, the display equation's own right-margin label
    reads *(1)*, `@fig:fig-spectrum` reads *Fig. 1*, and the
    parenthesised, panel-suffixed form `(@fig:fig-spectrum{a})` reads
    *(Fig. 1a)*. An id nothing matches keeps its raw `kind:id` text in a
    dashed red warning style rather than blanking out.
-10. **Figures view**: one card per `figures/*/figure.svg` with a live SVG
+11. **Figures view**: one card per `figures/*/figure.svg` with a live SVG
     thumbnail, caption title, and width-preset chip. Clicking a card opens
     the figure on the canvas.
-11. **Canvas**: `figures/fig-spectrum/figure.svg` reads *180.0 × 58.0 mm*.
+12. **Canvas**: `figures/fig-spectrum/figure.svg` reads *180.0 × 58.0 mm*.
     Click a panel title or legend text — the selection names the semantic
     element (`ax0.title`, `ax0.legend`). Drag it; **⌘Z** undoes; **⌘S**
     saves. Scroll pans, ⌘-scroll (or pinch) zooms. The tool rail adds
     rects/ellipses/lines/arrows/text; layers + properties panels sit
     left/right.
-12. **References view**: filter the 11 entries, click one, and flip
+13. **References view**: filter the 11 entries, click one, and flip
     *Rendered as* between the four bundled journal styles. This is the
     one control for the whole app: switching to **ApJ (AAS)** turns the
     manuscript body's superscript numerals into author–year
@@ -155,23 +168,23 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     alphabetically and unnumbered; switching back to **Nat. Astron.**
     restores the superscripts and the appearance numbering. The `[@]`
     button copies a citation key for pasting into a section.
-13. **Source control view**: the example copy is already a repo (branch
+14. **Source control view**: the example copy is already a repo (branch
     `main`, one *Initial commit*). Edit any file, and the view lists it
     with a status letter; clicking shows the colored diff; *Commit all*
     with a message grows the history.
-14. **Agent view**: pick Anthropic/OpenAI (paste an API key — stored
+15. **Agent view**: pick Anthropic/OpenAI (paste an API key — stored
     encrypted via safeStorage, never written in plain text) or Ollama
     (local, no key). Chat runs with the manuscript title in the system
     prompt. ⌘⏎ sends.
-15. **Compliance**: the example figures are clean. To see diagnostics,
+16. **Compliance**: the example figures are clean. To see diagnostics,
     edit a figure's text to a large size — an *N issues* chip appears in
     the canvas toolbar; click it for the list (rule id, measured value vs
     the journal's stated rule).
-16. **Reproducibility**: rerun a figure's `source/plot.py` (command
+17. **Reproducibility**: rerun a figure's `source/plot.py` (command
     above) and reopen — canvas edits saved to the SVG are currently
     overwritten by regeneration; the provenance overlay that replays them
     lands next.
-17. **Editable title page**: in the combined manuscript tab, click the
+18. **Editable title page**: in the combined manuscript tab, click the
     title, the running title, the abstract, the significance statement,
     or a highlight — each becomes an inline editor in place, at the same
     typography (Escape cancels, blur/⌘⏎ commits). Clicking the author
@@ -185,7 +198,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     `manuscript.json` from disk, merges, validates, and writes
     atomically; type a malformed ORCID and you get an inline error with
     the file left byte-identical.
-18. **Comments in the margin** (no activity-bar entry any more): select
+19. **Comments in the margin** (no activity-bar entry any more): select
     any text in a section of the combined manuscript tab and press
     **⌘⇧M** — a composer opens in the **right margin gutter**, beside the
     text, quoting your selection. Post it and the text carries a subtle
@@ -206,7 +219,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     popover. The gutter appears in the combined manuscript tab and in
     single-file prose editor tabs. Agents reach the same file over MCP
     (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`).
-19. **Canvas parity rail** (right panel of a figure tab): **Align**
+20. **Canvas parity rail** (right panel of a figure tab): **Align**
     (6 buttons + Distribute H/V, disabled with a hint under 2/3 selected),
     **Figure** (artboard W/H mm with a live `= W × H mm` readout,
     background colour, *Duplicate figure*, *Auto-letter panels* — one
@@ -223,7 +236,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     1 mm minor ticks, labels every 10 mm, origin at the artboard's
     top-left, and a live cursor marker — they track pan and zoom.
     Everything lands in the project's `output/`.
-20. **Literature search**: References view → **Search** tab. With Claude
+21. **Literature search**: References view → **Search** tab. With Claude
     Code or Codex installed, **AI search** is listed first and selected by
     default: it spawns the CLI from the main process with the project as
     its cwd, narrates progress ("Searching the web… / Reading sources… /
@@ -246,7 +259,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     best-effort. Agents get `search_literature`, `lookup_doi` and
     `add_reference` over MCP — deliberately **without** the `ai-cli`
     provider, so an agent never recurses into another agent CLI.
-21. **Word-grade text editing** (prose files, both modes): select a word
+22. **Word-grade text editing** (prose files, both modes): select a word
     and press **⌘B** — the markdown becomes `**word**`; press it again
     and the markers come off. Same for **⌘I**, **⌘⇧C** (code), **⌘⇧X**
     (strikethrough) and **⌘K** (link, with `url` preselected). Each is a
@@ -262,7 +275,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     selection-only items grey out and you get the plain
     Insert/Cut/Copy/Paste group. Menu *Comment* and ⌘⇧M produce the
     identical anchored draft.
-22. **Create a figure from scratch**: the Figures view header **+** (or
+23. **Create a figure from scratch**: the Figures view header **+** (or
     the canvas tab's own **+**) asks only for a name, then writes
     `figures/<slug>/{figure.svg,figure.json}` with a blank artboard at
     the active profile's **double-column** width (180 mm for Nature
@@ -274,7 +287,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     `impN-` prefix — so importing the demo figure's 193 ids introduces
     **zero** collisions — and a PNG embeds as a data-URI `<image>` sized
     at 300 dpi. Either way it is one command: a single ⌘Z removes it.
-23. **Split view, viewers, reference PDFs, command palette**. Open the
+24. **Split view, viewers, reference PDFs, command palette**. Open the
     intro section and press **⌘\** — the tab is duplicated into a second
     group beside it (⌘⇧\ splits downward). Press it again: still two
     groups, never three, because the split reuses the group it already
@@ -314,7 +327,7 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     project directory and drops the answer into the Agent transcript,
     with progress and a **Cancel** that really kills the child. Escape
     closes with nothing changed.
-24. **Project switcher in the title bar** (feature-plan-7 §3). The title
+25. **Project switcher in the title bar** (feature-plan-7 §3). The title
     bar's `SUNA · <project name>` is now a **button** with a chevron
     (with no project open it reads *Open project*). Click it: a menu
     lists up to 8 **recent projects**, each with its parent path, then
@@ -933,6 +946,19 @@ not a layout difference.
 | `packages/formatter/src/profiles.test.ts` | the house style's invariants: it is the ONLY profile with a `documentStyle`, it enforces nothing (every limit null), and it claims no journal as a source; journal profiles are asserted to carry no typography |
 | `apps/desktop/src/main/services/export-docx.test.ts` | the real OOXML: Letter/0.5 in page, 1.15 line spacing (and double spacing still overriding it), black 13 pt headings, the page break after the front matter, caption after image, 0.5 in hanging references, cleared table borders — plus that a journal profile is left completely alone |
 | `apps/desktop/src/main/services/docx-tools-accelerator.test.ts` | that figure captions are passed to docx-tools WITHOUT our label, since it writes its own (this was producing "Figure 1. Figure 1. …") |
+
+### Figure and image rendering
+
+| Test file | Covers |
+| --- | --- |
+| `apps/desktop/src/renderer/src/editor/figureAssets.test.ts` | path resolution (`figures/<id>/figure.svg`, relative/absolute/`..`/query/fragment urls, remote urls refused), the mime table, stripping the XML prolog + DOCTYPE off a matplotlib SVG so it can be inlined, and the load cache (read once, concurrent loads coalesced, failures reported as `missing` rather than thrown) |
+| `apps/desktop/src/renderer/src/editor/livePreview.test.ts` | markdown images extracted as block spans with their url and alt, including no-alt, and NOT extracted inside a code fence |
+| `apps/desktop/src/renderer/src/manuscript/citeChips.test.ts` | caption numbering: a known figure becomes *Fig. 1*, an unknown one keeps `fig:<id>`, and so does a figure rendered before the label map resolves |
+
+Not covered by unit tests: the widget DOM itself (this package has no DOM
+test environment — the pure decision functions above are the tested part) and
+how a figure actually looks at the measure. Step 9 of the walkthrough is the
+manual check.
 
 ### Explorer coverage (nav-bar items 1–4)
 

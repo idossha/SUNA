@@ -247,3 +247,51 @@ export function applyEquationLabels(
     el.dataset['sunaEqSig'] = signature
   }
 }
+
+/**
+ * Number a rendered figure embed's caption — "Fig. 1" — using the same label
+ * map every cross-reference resolves through, so `@fig:spectrum` in the prose
+ * and the caption under the image can never disagree.
+ *
+ * The widget itself (editor/livePreview.ts) only knows the figure's id, since
+ * numbering is a document-wide fact it has no access to; this is the same
+ * split as `.cm-lp-xref`, which the widget also renders raw for this pass to
+ * resolve. A figure the map doesn't know keeps its raw `fig:<id>`.
+ */
+export interface FigureCaption {
+  text: string
+  /** True when the label map knew this figure, so it carries a real number. */
+  numbered: boolean
+}
+
+/**
+ * What a figure embed's caption should read. Pure, so the numbering rule is
+ * testable without a DOM (this package has no DOM test environment — see
+ * editor/livePreview.ts's note). An id the map doesn't know keeps its raw
+ * `fig:<id>` rather than rendering a wrong or blank number.
+ */
+export function figureCaptionText(
+  id: string,
+  render: XrefRenderData | null
+): FigureCaption {
+  const label = render === null ? undefined : render.labels.figures.get(id)
+  return label === undefined ? { text: `fig:${id}`, numbered: false } : { text: label, numbered: true }
+}
+
+export function applyFigureCaptions(
+  host: HTMLElement,
+  render: (XrefRenderData & { serial: number }) | null
+): void {
+  const signature = render === null ? 'raw' : String(render.serial)
+  for (const figure of host.querySelectorAll<HTMLElement>('.cm-lp-figure')) {
+    const id = figure.dataset['sunaFigureId']
+    if (id === undefined) continue
+    const caption = figure.querySelector<HTMLElement>('.cm-lp-figure__caption')
+    if (caption === null) continue
+    if (caption.dataset['sunaFigSig'] === signature) continue
+    const { text, numbered } = figureCaptionText(id, render)
+    if (caption.textContent !== text) caption.textContent = text
+    caption.classList.toggle('cm-lp-figure__caption--numbered', numbered)
+    caption.dataset['sunaFigSig'] = signature
+  }
+}

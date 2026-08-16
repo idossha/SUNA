@@ -63,7 +63,7 @@ export type ResolvedSettingKey = keyof ResolvedSettings;
 export const SETTINGS_DEFAULTS: ResolvedSettings = {
   previewProfileId: null,
   'editor.defaultMode': 'reading',
-  'editor.contentWidthCh': 68,
+  'editor.contentWidthCh': 140,
   'editor.fontSizePx': 14,
   'editor.lineHeight': 1.6,
   'editor.fontFamily': 'serif',

@@ -63,7 +63,7 @@ describe('useEditorSettings store', () => {
 
   it('starts at the documented defaults', () => {
     const state = useEditorSettings.getState()
-    expect(state.contentWidthCh).toBe(68)
+    expect(state.contentWidthCh).toBe(140)
     // feature-plan-5 §2: 14px / 1.6, matching @suna/core's SETTINGS_DEFAULTS
     expect(state.fontSizePx).toBe(14)
     expect(state.fontFamily).toBe('serif')

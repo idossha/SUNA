@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { assignNumbers, type BibEntry, type CitationStyleConfig } from '@suna/bib'
-import { citeChipText, parseRawCiteLabel, parseRawEqLabel, parseRawXref } from './citeChips'
+import {
+  citeChipText,
+  figureCaptionText,
+  parseRawCiteLabel,
+  parseRawEqLabel,
+  parseRawXref
+} from './citeChips'
 
 function entry(key: string, families: string[], year: string): BibEntry {
   return {
@@ -143,5 +149,35 @@ describe('parseRawEqLabel', () => {
     expect(parseRawEqLabel('(fig:spectrum)')).toBeNull()
     expect(parseRawEqLabel('(eq:)')).toBeNull()
     expect(parseRawEqLabel(null)).toBeNull()
+  })
+})
+
+describe('figureCaptionText', () => {
+  const labels = {
+    figures: new Map([['fig-spectrum', 'Fig. 1']]),
+    tables: new Map<string, string>(),
+    equations: new Map<string, string>(),
+    equationNumbers: new Map<string, number>(),
+    sections: new Map<string, string>()
+  }
+
+  it('numbers a figure the label map knows', () => {
+    expect(figureCaptionText('fig-spectrum', { labels })).toEqual({
+      text: 'Fig. 1',
+      numbered: true
+    })
+  })
+
+  it('keeps the raw id for a figure nothing matches, rather than blanking it', () => {
+    expect(figureCaptionText('nope', { labels })).toEqual({ text: 'fig:nope', numbered: false })
+  })
+
+  it('keeps the raw id before any labels have been computed', () => {
+    // the manuscript tab renders before the label map resolves; a figure must
+    // still say what it is rather than flashing an empty caption
+    expect(figureCaptionText('fig-spectrum', null)).toEqual({
+      text: 'fig:fig-spectrum',
+      numbered: false
+    })
   })
 })

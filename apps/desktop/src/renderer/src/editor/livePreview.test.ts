@@ -33,6 +33,29 @@ describe('extractSpans', () => {
     expect(source.slice(block.from, block.to)).toBe('![[fig:overview]]')
   })
 
+  it('finds a markdown image as a block span, with its url and alt', () => {
+    const source = 'Intro.\n\n![A spectrum](images/plot.png)\n\nMore.\n'
+    const { blocks } = extractSpans(source)
+    const image = blocks.find((span) => span.kind === 'image')
+    if (image?.kind !== 'image') throw new Error('expected image span')
+    expect(image.url).toBe('images/plot.png')
+    expect(image.alt).toBe('A spectrum')
+    expect(source.slice(image.from, image.to)).toBe('![A spectrum](images/plot.png)')
+  })
+
+  it('keeps an image with no alt text', () => {
+    const { blocks } = extractSpans('![](p.png)\n')
+    const image = blocks.find((span) => span.kind === 'image')
+    if (image?.kind !== 'image') throw new Error('expected image span')
+    expect(image.alt).toBe('')
+  })
+
+  it('does not treat an image inside a code fence as an image', () => {
+    const source = '```\n![alt](p.png)\n```\n'
+    const { blocks } = extractSpans(source)
+    expect(blocks.some((span) => span.kind === 'image')).toBe(false)
+  })
+
   it('finds inline math at exact offsets', () => {
     const source = 'The value $x^2$ grows.\n'
     const { inline } = extractSpans(source)

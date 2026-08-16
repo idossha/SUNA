@@ -12,9 +12,36 @@ import {
   type EditorSelection,
   type EditorState,
   type Extension,
+  Facet,
   type Range,
   StateField
 } from '@codemirror/state'
+import {
+  cachedAsset,
+  figureSvgPath,
+  loadAsset,
+  resolveImageUrl,
+  type FigureAsset
+} from './figureAssets'
+
+/**
+ * Where the editor's images live. Carried in a facet rather than closed over
+ * by `livePreview()` because the decoration state field is module-level and
+ * shared — the facet is what lets one editor resolve figures against its own
+ * project without every editor needing its own field instance.
+ */
+export interface LivePreviewConfig {
+  /** Project root, for `figures/<id>/figure.svg`. Null outside a project. */
+  rootDir: string | null
+  /** Absolute path of the edited file, for resolving relative image urls. */
+  filePath: string | null
+}
+
+const NO_PATHS: LivePreviewConfig = { rootDir: null, filePath: null }
+
+export const livePreviewConfigFacet = Facet.define<LivePreviewConfig, LivePreviewConfig>({
+  combine: (values) => values[0] ?? NO_PATHS
+})
 
 /* ---------------------------------------------------------------------------
    Span extraction.
@@ -40,6 +67,8 @@ export type LiveSpan =
   | { kind: 'blockMath'; from: number; to: number; tex: string; label: string | undefined }
   | { kind: 'inlineMath'; from: number; to: number; tex: string }
   | { kind: 'figure'; from: number; to: number; figureId: string }
+  /** A markdown image written in the prose: ![alt](url). */
+  | { kind: 'image'; from: number; to: number; url: string; alt: string }
   /** GFM table block; `md` is the raw source, re-rendered by the widget. */
   | { kind: 'table'; from: number; to: number; md: string }
   | { kind: 'cite'; from: number; to: number; keys: string[] }
@@ -104,6 +133,8 @@ interface MdNode {
   meta?: string | null
   depth?: number
   figureId?: string
+  url?: string
+  alt?: string | null
   ordered?: boolean | null
   position?: { start: { offset?: number | undefined }; end: { offset?: number | undefined } }
 }
@@ -286,6 +317,22 @@ export function extractSpans(source: string): SpanIndex {
       case 'figureEmbed': {
         if (range && node.figureId !== undefined) {
           blocks.push({ kind: 'figure', from: range.from, to: range.to, figureId: node.figureId })
+          exclude.push(range)
+        }
+        return
+      }
+      case 'image': {
+        // Rendered as a block: an image sitting inside a line of prose is
+        // rare in a manuscript, and a block widget is what lets it size to
+        // the measure instead of the line height.
+        if (range && node.url !== undefined) {
+          blocks.push({
+            kind: 'image',
+            from: range.from,
+            to: range.to,
+            url: node.url,
+            alt: node.alt ?? ''
+          })
           exclude.push(range)
         }
         return
@@ -666,17 +713,150 @@ class TableWidget extends WidgetType {
   }
 }
 
+/**
+ * Paint a loaded asset into `host`, or an explanatory placeholder when it
+ * could not be read. Shared by the figure-embed and markdown-image widgets so
+ * both fail the same, visible way instead of one of them going blank.
+ */
+function paintAsset(host: HTMLElement, asset: FigureAsset, fallbackLabel: string): void {
+  host.replaceChildren()
+  if (asset.kind === 'svg') {
+    // The figure IS an SVG document (the canvas edits its DOM directly), so
+    // inlining keeps it crisp at any zoom instead of rasterizing it.
+    const holder = document.createElement('div')
+    holder.className = 'cm-lp-figure__svg'
+    holder.innerHTML = asset.svg
+    // A figure authored at mm scale carries width/height in mm; drop them so
+    // it scales to the measure, keeping viewBox to preserve aspect ratio.
+    const svg = holder.querySelector('svg')
+    if (svg !== null) {
+      svg.removeAttribute('width')
+      svg.removeAttribute('height')
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+    }
+    host.appendChild(holder)
+    return
+  }
+  if (asset.kind === 'raster') {
+    const img = document.createElement('img')
+    img.className = 'cm-lp-figure__img'
+    img.src = asset.dataUri
+    img.alt = fallbackLabel
+    host.appendChild(img)
+    return
+  }
+  const missing = document.createElement('div')
+  missing.className = 'cm-lp-figure__missing'
+  missing.textContent = `${fallbackLabel} — ${asset.reason}`
+  host.appendChild(missing)
+}
+
+/**
+ * `![[fig:id]]` — renders the figure's own SVG from
+ * `<rootDir>/figures/<id>/figure.svg`, with its id beneath as a caption line.
+ *
+ * The asset is loaded asynchronously (see figureAssets.ts) and painted into
+ * the element this returns, because CodeMirror builds widgets synchronously.
+ * Without a rootDir — a loose markdown file opened outside a project — it
+ * falls back to naming the figure, which is what this widget used to do for
+ * every case.
+ */
 class FigureWidget extends WidgetType {
-  constructor(readonly figureId: string) {
+  constructor(
+    readonly figureId: string,
+    readonly rootDir: string | null
+  ) {
     super()
   }
   override eq(other: FigureWidget): boolean {
-    return other.figureId === this.figureId
+    return other.figureId === this.figureId && other.rootDir === this.rootDir
   }
   override toDOM(): HTMLElement {
-    const el = document.createElement('div')
+    const el = document.createElement('figure')
     el.className = 'cm-lp-figure'
-    el.textContent = `fig:${this.figureId}`
+    el.dataset['sunaFigureId'] = this.figureId
+
+    const body = document.createElement('div')
+    body.className = 'cm-lp-figure__body'
+    el.appendChild(body)
+
+    const caption = document.createElement('figcaption')
+    caption.className = 'cm-lp-figure__caption'
+    caption.textContent = `fig:${this.figureId}`
+    el.appendChild(caption)
+
+    if (this.rootDir === null) {
+      body.textContent = `fig:${this.figureId}`
+      return el
+    }
+
+    const path = figureSvgPath(this.rootDir, this.figureId)
+    const cached = cachedAsset(path)
+    if (cached !== undefined) {
+      paintAsset(body, cached, `fig:${this.figureId}`)
+    } else {
+      body.className = 'cm-lp-figure__body cm-lp-figure__body--loading'
+      body.textContent = `fig:${this.figureId}`
+      void loadAsset(path).then((asset) => {
+        // The widget may have been replaced while the read was in flight.
+        if (!body.isConnected) return
+        body.className = 'cm-lp-figure__body'
+        paintAsset(body, asset, `fig:${this.figureId}`)
+      })
+    }
+    return el
+  }
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
+/**
+ * A markdown image — `![alt](path)` — written directly in the prose, as
+ * opposed to a managed figure. Resolved relative to the file that contains
+ * it. Remote urls are named rather than fetched: the renderer's CSP blocks
+ * external hosts, so a silent broken image would be the alternative.
+ */
+class ImageWidget extends WidgetType {
+  constructor(
+    readonly url: string,
+    readonly alt: string,
+    readonly filePath: string | null
+  ) {
+    super()
+  }
+  override eq(other: ImageWidget): boolean {
+    return other.url === this.url && other.alt === this.alt && other.filePath === this.filePath
+  }
+  override toDOM(): HTMLElement {
+    const el = document.createElement('figure')
+    el.className = 'cm-lp-figure cm-lp-image'
+    const body = document.createElement('div')
+    body.className = 'cm-lp-figure__body'
+    el.appendChild(body)
+    if (this.alt !== '') {
+      const caption = document.createElement('figcaption')
+      caption.className = 'cm-lp-figure__caption'
+      caption.textContent = this.alt
+      el.appendChild(caption)
+    }
+
+    const label = this.alt !== '' ? this.alt : this.url
+    const resolved = this.filePath === null ? null : resolveImageUrl(this.url, this.filePath)
+    if (resolved === null) {
+      paintAsset(body, { kind: 'missing', reason: `cannot resolve ${this.url}` }, label)
+      return el
+    }
+    const cached = cachedAsset(resolved)
+    if (cached !== undefined) {
+      paintAsset(body, cached, label)
+    } else {
+      body.textContent = label
+      void loadAsset(resolved).then((asset) => {
+        if (!body.isConnected) return
+        paintAsset(body, asset, label)
+      })
+    }
     return el
   }
   override ignoreEvent(): boolean {
@@ -707,12 +887,20 @@ const bulletWidget = new BulletWidget()
 const hideDecoration = Decoration.replace({})
 const bulletDecoration = Decoration.replace({ widget: bulletWidget })
 
-function decorationFor(span: LiveSpan): Decoration {
+function decorationFor(span: LiveSpan, config: LivePreviewConfig): Decoration {
   switch (span.kind) {
     case 'blockMath':
       return Decoration.replace({ widget: new BlockMathWidget(span.tex, span.label), block: true })
     case 'figure':
-      return Decoration.replace({ widget: new FigureWidget(span.figureId), block: true })
+      return Decoration.replace({
+        widget: new FigureWidget(span.figureId, config.rootDir),
+        block: true
+      })
+    case 'image':
+      return Decoration.replace({
+        widget: new ImageWidget(span.url, span.alt, config.filePath),
+        block: true
+      })
     case 'table':
       return Decoration.replace({ widget: new TableWidget(span.md), block: true })
     case 'inlineMath':
@@ -760,7 +948,7 @@ function buildBlockDeco(index: SpanIndex, state: EditorState): DecorationSet {
   for (const span of index.blocks) {
     if (span.to > state.doc.length) continue
     if (selectionTouches(state.selection, span.from, span.to)) continue
-    ranges.push(decorationFor(span).range(span.from, span.to))
+    ranges.push(decorationFor(span, state.facet(livePreviewConfigFacet)).range(span.from, span.to))
   }
   return Decoration.set(ranges, true)
 }
@@ -802,7 +990,7 @@ export function buildInlineDecorations(
       seen.add(span)
       const reveal = revealRangeFor(span)
       if (selectionTouches(selection, reveal.from, reveal.to)) continue
-      ranges.push(decorationFor(span).range(span.from, span.to))
+      ranges.push(decorationFor(span, state.facet(livePreviewConfigFacet)).range(span.from, span.to))
     }
     for (const mark of index.marks) {
       if (mark.to < from || mark.from > to || mark.to > doc.length) continue
@@ -837,6 +1025,6 @@ const inlinePlugin = ViewPlugin.fromClass(
 )
 
 /** Obsidian-style live preview: editable document with rendered decorations. */
-export function livePreview(): Extension {
-  return [liveField, inlinePlugin]
+export function livePreview(config: LivePreviewConfig = NO_PATHS): Extension {
+  return [livePreviewConfigFacet.of(config), liveField, inlinePlugin]
 }

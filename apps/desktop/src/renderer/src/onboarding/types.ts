@@ -108,7 +108,7 @@ export const FALLBACK_DEFAULTS: WizardDefaults = {
   editorTheme: 'suna-dark',
   fontSizePx: 14,
   lineHeight: 1.6,
-  contentWidthCh: 68
+  contentWidthCh: 140
 }
 
 /** A fresh wizard state; pass overrides for whatever a caller/test cares about. */

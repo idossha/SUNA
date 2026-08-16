@@ -26,7 +26,12 @@ import '../comments/comments.css'
 import { commentsByPath, useCommentsStore } from '../state/comments'
 import { devSeam } from '../state/devSeam'
 import { useUiStore } from '../state/ui'
-import { applyCiteChips, applyCrossRefChips, applyEquationLabels } from './citeChips'
+import {
+  applyCiteChips,
+  applyCrossRefChips,
+  applyEquationLabels,
+  applyFigureCaptions
+} from './citeChips'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
 
 const NO_COMMENTS: Comment[] = []
@@ -178,6 +183,10 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
             parent: hostRef.current,
             doc: content,
             fileName,
+            // Lets the live preview find figures/<id>/figure.svg and resolve
+            // relative image urls against the prose file itself.
+            filePath: absPath,
+            rootDir,
             theme: useEditorSettings.getState().editorTheme,
             live: true,
             onDocChanged: () => {
@@ -311,6 +320,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
       applyCiteChips(host, citationRender)
       applyCrossRefChips(host, citationRender)
       applyEquationLabels(host, citationRender)
+      applyFigureCaptions(host, citationRender)
       let scheduled = false
       const observer = new MutationObserver(() => {
         if (scheduled) return
@@ -320,6 +330,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
           const latest = useManuscriptDocStore.getState().citationRender
           applyCiteChips(host, latest)
           applyCrossRefChips(host, latest)
+          applyFigureCaptions(host, latest)
           applyEquationLabels(host, latest)
         })
       })

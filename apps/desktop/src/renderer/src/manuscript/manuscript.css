@@ -88,8 +88,47 @@
   align-items: flex-start;
 }
 
+/* Counterweight for the comment gutter: without it, .msdoc__page's `margin:
+   0 auto` centers the measure in the space LEFT OVER after the gutter, so the
+   whole document (title page included) reads as shifted left by half the
+   gutter. This mirrors the gutter's width on the leading side so the page
+   stays centered in the tab. Widths track comments.css (.cmt-gutter 260px,
+   .cmt-gutter--narrow 22px); no gutter rendered -> no spacer. */
+   Both this spacer and the gutter collapse to 0 while the document has no
+   comments (see the rule below): an empty gutter otherwise reserved 260px,
+   and this spacer mirrored it, so ~520px of the panel was blank margin the
+   measure could never use — which is what made the width setting look inert
+   on a ~1000px panel. */
+.msdoc__body:has(> .cmt-gutter)::before {
+  content: '';
+  flex: 0 0 260px;
+}
+
+.msdoc__body:has(> .cmt-gutter--narrow)::before {
+  flex-basis: 22px;
+}
+
+/* No cards and no dots -> nothing to hold space for. The gutter stays mounted
+   (ManuscriptTab measures anchor positions through its track ref); it just
+   stops occupying a column, and the spacer above matches it. */
+.msdoc__body > .cmt-gutter:not(:has(.cmt, .cmt-dot)) {
+  width: 0;
+  padding-inline: 0; /* comments.css gives it 8px each side, content-box */
+}
+
+.msdoc__body:has(> .cmt-gutter:not(:has(.cmt, .cmt-dot)))::before {
+  flex-basis: 0;
+}
+
+/* flex-basis is the measure (not `auto`): as a flex item the page would
+   otherwise size to max-content and a short title page would sit in a
+   narrower column than the body. Positive free space is absorbed by the auto
+   margins, which — with the spacer mirroring the gutter — centers the page in
+   the tab; negative free space is taken from the spacer first (above). */
 .msdoc__page {
-  max-width: var(--ed-content-width, 68ch);
+  flex: 0 1 var(--ed-content-width, 140ch);
+  min-width: 0;
+  max-width: var(--ed-content-width, 140ch);
   margin: 0 auto;
   padding: 56px 0 120px;
   font-family: var(--ed-body-font, var(--s-font-serif));

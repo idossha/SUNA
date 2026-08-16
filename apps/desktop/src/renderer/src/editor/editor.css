@@ -156,7 +156,7 @@
    scroller and starts flush against the gutter, matching plain CodeMirror.
 */
 .editor-tab--prose .editor-tab__source .cm-content {
-  max-width: calc(var(--ed-content-width, 68ch) + 2 * var(--ed-line-pad));
+  max-width: calc(var(--ed-content-width, 140ch) + 2 * var(--ed-line-pad));
 }
 
 /*
@@ -348,9 +348,27 @@
   color: var(--ed-syn-link);
 }
 
-/* figure embed placeholder — mirrors reading view's .figure--unresolved */
+/* ---- figure embeds and markdown images ---------------------------------- */
+
+/* The figure itself, once loaded, is the content — so the frame is quiet:
+   no border, just centred art with a caption under it. */
 .editor-tab .cm-lp-figure {
-  margin: 6px 16px;
+  margin: 12px 0 16px;
+  padding: 0;
+  text-align: center;
+}
+
+.editor-tab .cm-lp-figure__body {
+  display: flex;
+  justify-content: center;
+}
+
+/* Still reading the file: keep the old dashed placeholder so the layout does
+   not jump when the image arrives, and so a slow read is visibly a load
+   rather than a blank. */
+.editor-tab .cm-lp-figure__body--loading,
+.editor-tab .cm-lp-figure__missing {
+  display: block;
   padding: 20px;
   border: 1px dashed var(--ed-border);
   border-radius: var(--s-radius);
@@ -358,6 +376,40 @@
   font-family: var(--s-font-ui);
   font-size: var(--s-text-sm);
   text-align: center;
+  width: 100%;
+}
+
+.editor-tab .cm-lp-figure__missing {
+  border-color: var(--s-err);
+  color: var(--s-err);
+}
+
+/* Scale to the measure, never past it, and keep the aspect ratio. */
+.editor-tab .cm-lp-figure__svg {
+  max-width: 100%;
+  line-height: 0;
+}
+
+.editor-tab .cm-lp-figure__svg svg {
+  max-width: 100%;
+  height: auto;
+  /* Figures are authored on white; keep that ground in a dark editor so a
+     dark-on-transparent plot does not turn into an invisible smudge. */
+  background: #fff;
+  border-radius: 2px;
+}
+
+.editor-tab .cm-lp-figure__img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 2px;
+}
+
+.editor-tab .cm-lp-figure__caption {
+  margin-top: 6px;
+  color: var(--ed-ink-faint);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
 }
 
 /* ---- settings popover ----------------------------------------------------- */
