@@ -1,9 +1,27 @@
-import { useEffect, useMemo, useRef, type JSX, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  type JSX,
+  type KeyboardEvent as ReactKeyboardEvent
+} from 'react'
+import type { ProjectDirKey } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useExplorerStore, type ExplorerEditing, type ExplorerRow } from '../state/explorer'
 import { useOpenTabsStore } from '../state/openTabs'
 import { openFileTab, openInSplit } from '../state/dock'
-import { defaultExpanded, forcesOpen, parentDirOf, visibleRows } from './explorer-rows'
+import {
+  defaultExpanded,
+  forcesOpen,
+  hasChildren,
+  iconKindForFile,
+  parentDirOf,
+  rowPaddingLeft,
+  semanticDirs,
+  visibleRows
+} from './explorer-rows'
+import { FILE_ICONS, FolderIcon, FolderOpenIcon, PROJECT_DIR_ICONS, TreeChevronIcon } from './icons'
 import './explorer.css'
 
 function EditRow({ depth, initial }: { depth: number; initial: string }): JSX.Element {
@@ -22,7 +40,14 @@ function EditRow({ depth, initial }: { depth: number; initial: string }): JSX.El
   }, [initial])
 
   return (
-    <div className="tree__row tree__row--edit" style={{ paddingLeft: `${8 + depth * 14}px` }}>
+    <div className="tree__row tree__row--edit" style={{ paddingLeft: `${rowPaddingLeft(depth)}px` }}>
+      {/* Empty stand-ins for the chevron and icon columns. rowPaddingLeft
+          alone only aligns the row's left EDGE; a TreeRow puts 40px of icon
+          columns before .tree__name, so without these the input's text starts
+          40px left of every sibling filename and the row visibly jumps on F2.
+          The input's own 6px of border+padding is the remaining offset. */}
+      <span className="tree__chevron" aria-hidden="true" />
+      <span className="tree__icon" aria-hidden="true" />
       <input
         ref={inputRef}
         className="tree__edit-input"
@@ -54,6 +79,8 @@ interface TreeRowProps {
   isOpen: boolean
   isActive: boolean
   expanded: boolean
+  /** Set when this row is one of the directories suna.json declares. */
+  semantic: ProjectDirKey | undefined
 }
 
 function TreeRow({
@@ -64,7 +91,8 @@ function TreeRow({
   focused,
   isOpen,
   isActive,
-  expanded
+  expanded,
+  semantic
 }: TreeRowProps): JSX.Element {
   const { node, depth } = row
   const openMenu = useExplorerStore((s) => s.openMenu)
@@ -76,9 +104,20 @@ function TreeRow({
   if (renaming) return <EditRow depth={depth} initial={node.name} />
 
   const isDir = node.kind === 'dir'
+  // An empty directory has nothing to expand: no chevron, no aria-expanded.
+  const expandable = isDir && hasChildren(node)
+  const RowIcon = isDir
+    ? semantic !== undefined
+      ? PROJECT_DIR_ICONS[semantic]
+      : expandable && expanded
+        ? FolderOpenIcon
+        : FolderIcon
+    : FILE_ICONS[iconKindForFile(node.name)]
   const className = [
     'tree__row',
     isDir ? 'tree__row--dir' : 'tree__row--file',
+    semantic !== undefined ? 'tree__row--semantic' : '',
+    isDir && !expandable ? 'tree__row--empty' : '',
     selected ? 'tree__row--selected' : '',
     focused ? 'tree__row--focused' : '',
     isOpen ? 'tree__row--open' : '',
@@ -90,11 +129,15 @@ function TreeRow({
   return (
     <div
       className={className}
-      style={{ paddingLeft: `${8 + depth * 14}px` }}
+      style={{ paddingLeft: `${rowPaddingLeft(depth)}px` }}
       role="treeitem"
       aria-selected={selected}
-      aria-expanded={isDir ? expanded : undefined}
+      aria-expanded={expandable ? expanded : undefined}
+      aria-level={depth + 1}
+      title={isOpen ? `${node.name} — open${isActive ? ' (active tab)' : ''}` : node.name}
       data-path={node.path}
+      data-open={isOpen || undefined}
+      data-active={isActive || undefined}
       onMouseDown={(e) => {
         const additive = e.metaKey || e.ctrlKey
         const range = e.shiftKey
@@ -116,9 +159,21 @@ function TreeRow({
         openMenu(node, e.clientX, e.clientY)
       }}
     >
-      <span className="tree__chevron">{isDir ? (expanded ? '▾' : '▸') : ''}</span>
+      {/* The chevron stays inside the row's single click target: a nested
+          button here would put a second tab stop inside every treeitem. */}
+      <span
+        className={expandable && expanded ? 'tree__chevron tree__chevron--open' : 'tree__chevron'}
+        aria-hidden="true"
+      >
+        {expandable && <TreeChevronIcon />}
+      </span>
+      <span className="tree__icon" aria-hidden="true">
+        <RowIcon />
+      </span>
       <span className="tree__name">{node.name}</span>
-      {isOpen && <span className="tree__open-dot" aria-label="open in a tab" />}
+      {/* Open/active are announced through the row's title, not from inside
+          its accessible name. */}
+      {isOpen && <span className="tree__open-dot" aria-hidden="true" />}
     </div>
   )
 }
@@ -206,6 +261,7 @@ function ExplorerMenu(): JSX.Element | null {
 export function ExplorerView(): JSX.Element {
   const tree = useProjectStore((s) => s.tree)
   const rootDir = useProjectStore((s) => s.rootDir)
+  const manifest = useProjectStore((s) => s.manifest)
   const editing = useExplorerStore((s) => s.editing)
   const expanded = useExplorerStore((s) => s.expanded)
   const seededFor = useExplorerStore((s) => s.seededFor)
@@ -226,6 +282,11 @@ export function ExplorerView(): JSX.Element {
   const rows = useMemo(
     () => (tree === null ? [] : visibleRows(tree, expanded, editing)),
     [tree, expanded, editing]
+  )
+
+  const semantic = useMemo(
+    () => semanticDirs(rootDir, manifest?.directories),
+    [rootDir, manifest]
   )
 
   // keep the keyboard-focused row on screen
@@ -346,7 +407,9 @@ export function ExplorerView(): JSX.Element {
         const creatingHere =
           editing !== null && editing.kind !== 'rename' && editing.parentPath === path
         return (
-          <div key={path}>
+          // A Fragment, not a wrapper div: role="treeitem" rows must be
+          // direct children of role="tree".
+          <Fragment key={path}>
             <TreeRow
               row={row}
               rows={rows}
@@ -356,9 +419,10 @@ export function ExplorerView(): JSX.Element {
               isOpen={openPaths.has(path)}
               isActive={activePath === path}
               expanded={expanded.has(path) || forcesOpen(editing, path)}
+              semantic={semantic.get(path)}
             />
             {creatingHere && <EditRow depth={row.depth + 1} initial="" />}
-          </div>
+          </Fragment>
         )
       })}
       <ExplorerMenu />

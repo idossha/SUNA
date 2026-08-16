@@ -82,9 +82,11 @@
 
 /* Selected: the row the next action applies to. Reads as a filled band, and
    stays legible under the hover tint so a multi-selection does not appear to
-   lose members as the pointer sweeps across it. */
-.tree__row--selected,
-.tree__row--selected:hover {
+   lose members as the pointer sweeps across it. The `.tree` prefix is load
+   order, not taste: app.css is injected after this file, so at equal
+   specificity its `.tree__row:hover` would repaint a hovered selected row. */
+.tree .tree__row--selected,
+.tree .tree__row--selected:hover {
   color: var(--s-ink);
   background: var(--s-bg-selected, rgba(197, 160, 89, 0.18));
 }
@@ -96,13 +98,67 @@
   box-shadow: inset 0 0 0 1px var(--s-accent);
 }
 
+/* ---- explorer: row icons -------------------------------------------------- */
+
+/* Every row carries one: a folder, one of the suna.json project directories,
+   or the file kind. Icons are stroked in currentColor, so the row states
+   below tint them by setting a colour and nothing else. */
+.tree__icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--s-ink-faint);
+}
+
+.tree__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Hover is the WEAKEST of the icon tints, so it is written so that it cannot
+   outrank the state tints below. Without the `:not(…)` this rule is (0,3,0)
+   and beats both `.tree__row--open .tree__icon` and
+   `.tree__row--semantic .tree__icon` at (0,2,0) — the open-file indicator
+   would vanish from the one row the pointer is on. Same defect class as the
+   selection band above, and the same fix. */
+.tree__row:hover:not(.tree__row--open):not(.tree__row--semantic) .tree__icon {
+  color: var(--s-ink-muted);
+}
+
+/* A directory suna.json declares is part of the project's structure, not an
+   arbitrary folder someone made. */
+.tree .tree__row--semantic .tree__icon {
+  color: var(--s-ink-muted);
+}
+
+.tree__row--semantic .tree__name {
+  color: var(--s-ink);
+  letter-spacing: 0.02em;
+}
+
+/* Nothing to expand, and no chevron drawn to promise otherwise.
+
+   The dimming is on the CONTENT, never the row box: compositing the whole row
+   would take the selection band and the keyboard focus ring down with it, and
+   four of P077's nine top-level rows are empty semantic directories — exactly
+   the rows the keyboard cursor has to stay visible on. */
+.tree__row--empty .tree__icon,
+.tree__row--empty .tree__name {
+  opacity: 0.62;
+}
+
 /* ---- explorer: open-in-a-tab indicators ---------------------------------- */
 
-/* A file that is open in a tab reads brighter than one that is not, and
-   carries a dot on the right. Two signals rather than one: the dot is
-   unambiguous, the weight makes the pattern legible when scanning the tree. */
-.tree__row--open .tree__name {
-  color: var(--s-ink);
+/* A file open in a tab carries an accent icon and a dot on the right. Two
+   signals rather than one: the dot is unambiguous, the tinted icon makes the
+   pattern legible when scanning the tree. The tint lands on the ICON and not
+   on the name, which would resolve to the same --s-ink a directory row
+   already uses and make an open file read as a folder. `.tree`-prefixed so it
+   outranks the hover tint above whatever the pointer is doing. */
+.tree .tree__row--open .tree__icon {
+  color: var(--s-accent);
 }
 
 .tree__open-dot {

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 import {
   AlignmentType,
   BorderStyle,
@@ -25,14 +25,18 @@ import { renderCluster, type Run as BibRun } from '@suna/bib'
 import { parseSciMark, type CrossRefKind, type SciMarkRoot } from '@suna/markdown'
 import {
   authorMarkers,
+  blockImagesOf,
   buildExportContent,
+  collectBlockImages,
   formatReferenceRow,
   isNumericCitationMode,
+  markdownImagePath,
   pngDimensions,
   splitTexSpans,
   widthMmForPreset,
   type ExportContent,
   type ExportTableContent,
+  type ImageNode,
   type ListItemNode,
   type ListNode,
   type RootChild,
@@ -41,7 +45,7 @@ import {
 import { writeFileAtomic } from './atomic'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
-import { buildViaDocxTools, docxToolsAvailable } from './docx-tools-accelerator'
+import { buildViaDocxTools, docxToolsAvailable, docxToolsSupports } from './docx-tools-accelerator'
 import {
   documentStyleFor,
   halfPoints,
@@ -100,6 +104,8 @@ interface DocxCtx {
   content: ExportContent
   doubleSpacing: boolean
   figureAssets: ReadonlyMap<string, FigureAsset>
+  /** Loaded bytes for the markdown block images, keyed by their AST node. */
+  imageAssets: ReadonlyMap<RootChild, FigureAsset>
   /** Typography for this export — see export-style.ts. */
   style: DocumentStyle
 }
@@ -259,6 +265,22 @@ function inlineFromText(text: string, ctx: DocxCtx, style: RunStyle = {}): DocxI
 const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' } as const
 const RULE = { style: BorderStyle.SINGLE, size: 8, color: '000000' } as const
 
+type ColumnAlign = NonNullable<TableNode['align']>[number]
+
+/**
+ * A column's alignment. A GFM delimiter row (`:---`, `:---:`, `---:`) is the
+ * author stating it outright and wins everywhere — it is what reading mode and
+ * the PDF already honour. Only an UNSPECIFIED column falls back to the house
+ * APA convention below; a journal profile states nothing and lets Word decide.
+ */
+function cellAlignment(align: ColumnAlign | undefined, house: boolean, isHeader: boolean, colIndex: number) {
+  if (align === 'left') return AlignmentType.LEFT
+  if (align === 'center') return AlignmentType.CENTER
+  if (align === 'right') return AlignmentType.RIGHT
+  if (!house) return undefined
+  return isHeader || colIndex > 0 ? AlignmentType.CENTER : AlignmentType.LEFT
+}
+
 /**
  * A markdown table.
  *
@@ -281,11 +303,7 @@ function tableFromMdast(node: TableNode, ctx: DocxCtx): Table {
       ...(isHeader ? { tableHeader: true } : {}),
       children: row.children.map((cell, colIndex) => {
         const runStyle: RunStyle = house ? { size: cellSize, bold: isHeader } : {}
-        const alignment = !house
-          ? undefined
-          : isHeader || colIndex > 0
-            ? AlignmentType.CENTER
-            : AlignmentType.LEFT
+        const alignment = cellAlignment(node.align?.[colIndex], house, isHeader, colIndex)
         return new TableCell({
           children: [
             new Paragraph({
@@ -311,7 +329,20 @@ function tableFromMdast(node: TableNode, ctx: DocxCtx): Table {
       })
     })
   })
-  return new Table({ rows, width: { size: 100, type: 'pct' } })
+  // Shrink to fit and centre, matching reading mode and the PDF stylesheet —
+  // a full-width table is a spreadsheet grid, not a scientific table.
+  return new Table({ rows, alignment: AlignmentType.CENTER, width: { size: 0, type: 'auto' } })
+}
+
+/**
+ * The block images of a paragraph, but only when EVERY one of them has bytes
+ * loaded. All-or-nothing on purpose: a paragraph that renders half its images
+ * and drops the rest loses content silently, so a partial load falls back to
+ * the alt-text paragraph, which still names all of them.
+ */
+function loadedBlockImages(node: RootChild, ctx: DocxCtx): ImageNode[] {
+  const images = blockImagesOf(node)
+  return images.length > 0 && images.every((image) => ctx.imageAssets.has(image)) ? images : []
 }
 
 function listParagraphs(node: ListNode, ctx: DocxCtx, level = 0): (Paragraph | Table)[] {
@@ -320,8 +351,25 @@ function listParagraphs(node: ListNode, ctx: DocxCtx, level = 0): (Paragraph | T
   node.children.forEach((item: ListItemNode, i) => {
     const prefix = node.ordered === true ? `${(node.start ?? 1) + i}. ` : undefined
     const runs: DocxInline[] = prefix !== undefined ? [textRun(prefix)] : []
+    const flush = (): void => {
+      if (runs.length === 0) return
+      out.push(
+        new Paragraph({
+          indent,
+          bullet: node.ordered === true ? undefined : { level },
+          spacing: bodySpacing(ctx, { after: 40 }),
+          children: runs.splice(0, runs.length)
+        })
+      )
+    }
     for (const child of item.children) {
-      if (child.type === 'paragraph') {
+      if (child.type === 'paragraph' && loadedBlockImages(child, ctx).length > 0) {
+        // A list item whose paragraph IS an image goes through blockNode like
+        // any other block image; routing it through inlineChildren wrote the
+        // alt text and dropped the picture.
+        flush()
+        out.push(...blockNode(child, ctx))
+      } else if (child.type === 'paragraph') {
         runs.push(...inlineChildren(child.children, ctx))
       } else if (child.type === 'list') {
         // flush what we have as one paragraph, then recurse for the nested list
@@ -388,7 +436,7 @@ function figureBlock(figureId: string, ctx: DocxCtx): Paragraph[] {
     captionRuns.push(...inlineFromText(fig.figure.caption.body, ctx, bodyStyle))
   }
   const caption = new Paragraph({
-    ...(house ? { alignment: AlignmentType.CENTER } : {}),
+    alignment: AlignmentType.CENTER,
     spacing: house ? { before: ptToTwips(4), after: ptToTwips(12) } : { after: 240 },
     children: captionRuns
   })
@@ -396,9 +444,72 @@ function figureBlock(figureId: string, ctx: DocxCtx): Paragraph[] {
   return ctx.style.figureCaptionPosition === 'above' ? [caption, image] : [image, caption]
 }
 
+/**
+ * A `{width=…}` attribute block in millimetres, or null when the image carries
+ * none. `%` is against the printable width, a bare number or `px` is a CSS
+ * pixel at 96 dpi — the same reading `@suna/markdown` gives it for HTML.
+ */
+export function requestedWidthMm(width: string | undefined, textWidthMm: number): number | null {
+  if (width === undefined) return null
+  const match = /^(\d+(?:\.\d+)?)(%|px)?$/.exec(width.trim())
+  const digits = match?.[1]
+  if (digits === undefined) return null
+  const value = Number(digits)
+  if (!Number.isFinite(value) || value <= 0) return null
+  return match?.[2] === '%' ? (value / 100) * textWidthMm : (value / 96) * 25.4
+}
+
+/**
+ * A markdown block image — `![alt](../figures/x.png)` on its own line, the
+ * loose form that is NOT a managed `![[fig:id]]` figure, so it carries no
+ * caption and takes no figure number.
+ *
+ * Sized to its natural pixel size at 96 dpi, narrowed by a `{width=…}`
+ * attribute block, then shrunk to fit the printable box. The attribute is a
+ * CEILING in every renderer (see @suna/markdown's ImageData.width), so this
+ * takes the minimum rather than the requested value — that is what makes Word,
+ * the PDF and reading mode agree. Both axes are derived from the same scale
+ * factor: fixing one and clamping the other is what distorts an image.
+ */
+function markdownImageBlock(node: ImageNode, ctx: DocxCtx): Paragraph[] {
+  const asset = ctx.imageAssets.get(node)
+  if (asset === undefined) return []
+  const page = ctx.style.page
+  const textWidthMm = page.widthMm - 2 * page.marginMm
+  const textHeightMm = page.heightMm - 2 * page.marginMm
+  const requested = requestedWidthMm(node.data?.width, textWidthMm)
+  const naturalMm = (asset.width / 96) * 25.4
+  let widthMm = Math.min(naturalMm, requested ?? naturalMm, textWidthMm)
+  let heightMm = widthMm * (asset.height / asset.width)
+  if (heightMm > textHeightMm) {
+    heightMm = textHeightMm
+    widthMm = heightMm * (asset.width / asset.height)
+  }
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: bodySpacing(ctx, { before: ptToTwips(6), after: ptToTwips(6) }),
+      children: [
+        new ImageRun({
+          type: 'png',
+          data: asset.buffer,
+          transformation: { width: px96(widthMm), height: px96(heightMm) }
+        })
+      ]
+    })
+  ]
+}
+
 function blockNode(node: RootChild, ctx: DocxCtx): (Paragraph | Table)[] {
   switch (node.type) {
-    case 'paragraph':
+    case 'paragraph': {
+      // A paragraph that is nothing but images is the block image form — one
+      // centred paragraph each, which is how the HTML renderer's `<br/>`
+      // between two soft-broken images reads on a page. It only applies when
+      // EVERY image's bytes loaded; otherwise the paragraph falls through and
+      // writes its alt text, rather than losing half of itself.
+      const images = loadedBlockImages(node, ctx)
+      if (images.length > 0) return images.flatMap((image) => markdownImageBlock(image, ctx))
       return [
         new Paragraph({
           spacing: bodySpacing(ctx, {
@@ -407,6 +518,9 @@ function blockNode(node: RootChild, ctx: DocxCtx): (Paragraph | Table)[] {
           children: inlineChildren(node.children, ctx, bodyRunStyle(ctx))
         })
       ]
+    }
+    case 'image':
+      return markdownImageBlock(node, ctx)
     case 'heading': {
       if (isHouseStyle(ctx.content.profile)) {
         // Prose headings nest under the section heading they sit in, so a
@@ -738,10 +852,43 @@ async function buildFigureAssets(content: ExportContent): Promise<Map<string, Fi
   return map
 }
 
+/**
+ * Bytes for the markdown block images, keyed by their AST node.
+ *
+ * PNG only: `pngDimensions` is this codebase's one natural-size reader, and an
+ * `ImageRun` needs the source pixel aspect to size its transformation. An
+ * `.svg` url in particular cannot be embedded through this path at all (docx
+ * carries SVG only alongside a raster fallback nothing here can rasterize —
+ * `rasterizeFigures.ts` is renderer-side and only knows MANAGED figures). Those
+ * keep their alt text, reported here rather than silently dropped.
+ */
+async function buildMarkdownImageAssets(content: ExportContent): Promise<Map<RootChild, FigureAsset>> {
+  const map = new Map<RootChild, FigureAsset>()
+  for (const section of content.sections) {
+    if (section.root === null) continue
+    for (const node of collectBlockImages(section.root.children)) {
+      const path = markdownImagePath(node.url, content.manuscriptDir)
+      if (path === null || extname(path).toLowerCase() !== '.png') {
+        console.warn(`export:docx — "${node.url}" is not an embeddable PNG; writing its alt text instead`)
+        continue
+      }
+      try {
+        const buffer = await readFile(assertInsideAllowedRoot(path))
+        const { width, height } = pngDimensions(buffer)
+        map.set(node, { buffer, width, height })
+      } catch (error) {
+        console.warn(`export:docx — "${node.url}" left as its alt text:`, error)
+      }
+    }
+  }
+  return map
+}
+
 export async function buildDocxDocument(content: ExportContent, options: ExportOptions): Promise<Document> {
   const figureAssets = await buildFigureAssets(content)
+  const imageAssets = await buildMarkdownImageAssets(content)
   const style = documentStyleFor(content.profile)
-  const ctx: DocxCtx = { content, doubleSpacing: options.doubleSpacing, figureAssets, style }
+  const ctx: DocxCtx = { content, doubleSpacing: options.doubleSpacing, figureAssets, imageAssets, style }
   const house = isHouseStyle(content.profile)
 
   const bodyChildren: (Paragraph | Table)[] = []
@@ -839,7 +986,7 @@ export async function exportDocx(req: ExportDocxRequest): Promise<ExportDocxResu
   const outputDir = await projectSubdir(root, 'output')
   const target = join(outputDir, `${req.outputName}.docx`)
 
-  if (req.useDocxTools) {
+  if (req.useDocxTools && docxToolsSupports(content)) {
     const available = await docxToolsAvailable()
     if (available) {
       try {

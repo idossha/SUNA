@@ -4,8 +4,9 @@ import { EditorView } from '@codemirror/view'
 import type { Comment } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { devSeam } from '../state/devSeam'
-import { useSettingsStore } from '../state/settings'
+import { getResolved, useResolved, useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
+import { useVimModeStore } from '../state/vimMode'
 import { useProjectStore } from '../state/project'
 import { commentsByPath, useCommentsStore } from '../state/comments'
 import { locate, makeAnchor } from '../comments/anchor'
@@ -62,15 +63,17 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   const handleRef = useRef<EditorHandle | null>(null)
   const dirtyRef = useRef(false)
 
-  // App-wide defaults (persisted by the main process); the editor-local
-  // appearance store stays separate and is not written from here.
-  const defaultMode = useSettingsStore((s) => s.settings['editor.defaultMode'])
-  const vimMotions = useSettingsStore((s) => s.settings['editor.vimMotions'])
+  // Resolved through the two-level hierarchy (project ?? global ?? default),
+  // NOT the global-only `settings` slice — a suna.json override the Settings
+  // tab writes has to actually reach the editor. The editor-local appearance
+  // store stays separate and is not written from here.
+  const defaultMode = useResolved('editor.defaultMode').value
+  const vimMotions = useResolved('editor.vimMotions').value
 
-  // Markdown opens in the app-wide default mode (reading unless overridden);
+  // Markdown opens in the resolved default mode (reading unless overridden);
   // everything else is source-only.
   const [mode, setMode] = useState<EditorViewMode>(() =>
-    isMarkdown ? useSettingsStore.getState().settings['editor.defaultMode'] : 'source'
+    isMarkdown ? getResolved('editor.defaultMode').value : 'source'
   )
   const [loadError, setLoadError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -171,8 +174,18 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           theme: useEditorSettings.getState().editorTheme,
           live: isMarkdown && modeRef.current === 'reading',
           vim: vimRef.current,
+          onVimMode: useVimModeStore.getState().setMode,
           onDocChanged: () => markDirty(true),
-          onSave: () => void save(),
+          onSave: () => save(),
+          // `:q` must not destroy an unwritten buffer — real vim answers "E37:
+          // No write since last change" and stays put. Returning false is what
+          // surfaces that; `:q!` (force) and `:wq` (which writes first) are the
+          // two ways through.
+          onClose: (force) => {
+            if (dirtyRef.current && !force) return false
+            api.close()
+            return true
+          },
           // ⌘⇧M / context-menu "Comment": same anchored-comment flow as the
           // gutter's own drag-to-comment gesture below — only markdown files
           // opened from inside <rootDir>/manuscript/ have a valid comment

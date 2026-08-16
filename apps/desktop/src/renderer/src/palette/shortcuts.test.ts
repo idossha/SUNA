@@ -60,6 +60,17 @@ describe('matchesShortcut', () => {
   it('rejects a different physical key entirely', () => {
     expect(matchesShortcut(event({ code: 'KeyK', metaKey: true }), 'Mod-Backslash')).toBe(false)
   })
+
+  it('keeps ⌘B (bold) clear of the left-nav toggles', () => {
+    expect(matchesShortcut(event({ code: 'KeyB', metaKey: true }), 'Mod-Shift-KeyB')).toBe(false)
+    expect(matchesShortcut(event({ code: 'KeyB', metaKey: true }), 'Mod-Alt-KeyB')).toBe(false)
+    expect(
+      matchesShortcut(event({ code: 'KeyB', metaKey: true, shiftKey: true }), 'Mod-Shift-KeyB')
+    ).toBe(true)
+    expect(
+      matchesShortcut(event({ code: 'KeyB', metaKey: true, altKey: true }), 'Mod-Alt-KeyB')
+    ).toBe(true)
+  })
 })
 
 describe('formatShortcut', () => {
@@ -68,6 +79,8 @@ describe('formatShortcut', () => {
     expect(formatShortcut('Mod-Shift-Backslash')).toBe('⌘⇧\\')
     expect(formatShortcut('Mod-KeyK')).toBe('⌘K')
     expect(formatShortcut('Mod-Shift-KeyP')).toBe('⌘⇧P')
+    expect(formatShortcut('Mod-Shift-KeyB')).toBe('⌘⇧B')
+    expect(formatShortcut('Mod-Alt-KeyB')).toBe('⌘⌥B')
   })
 
   it('falls back to the bare code for anything unrecognized', () => {

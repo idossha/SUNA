@@ -1,4 +1,4 @@
-import type { Paragraph, PhrasingContent, RootContent } from 'mdast';
+import type { Image, Paragraph, PhrasingContent, RootContent } from 'mdast';
 import { describe, expect, it } from 'vitest';
 import { parseSciMark } from './parse';
 
@@ -160,6 +160,84 @@ describe('figure embeds', () => {
   it('leaves paragraphs with extra text around the embed untouched', () => {
     const root = parseSciMark('before ![[fig:x]] after');
     expect(narrow(root.children[0], 'paragraph').type).toBe('paragraph');
+  });
+});
+
+describe('image width attributes', () => {
+  function image(source: string): Image {
+    return narrow<PhrasingContent, 'image'>(inlineNodes(source)[0], 'image');
+  }
+
+  it('reads a percentage width', () => {
+    expect(image('![a](f.png){width=50%}').data?.width).toBe('50%');
+  });
+
+  it('reads a px width', () => {
+    expect(image('![a](f.png){width=320px}').data?.width).toBe('320px');
+  });
+
+  it('reads a bare number as px, and a fractional value', () => {
+    expect(image('![a](f.png){width=320}').data?.width).toBe('320px');
+    expect(image('![a](f.png){width=33.5%}').data?.width).toBe('33.5%');
+  });
+
+  it('leaves an image with no attribute block untouched', () => {
+    const nodes = inlineNodes('![a](f.png)');
+    expect(nodes).toHaveLength(1);
+    expect(narrow(nodes[0], 'image').data?.width).toBeUndefined();
+  });
+
+  it('consumes the block, so nothing of it is left to render', () => {
+    expect(inlineNodes('![a](f.png){width=50%}')).toHaveLength(1);
+    const nodes = inlineNodes('![a](f.png){width=50%} and more.');
+    expect(nodes).toHaveLength(2);
+    expect(narrow(nodes[1], 'text').value).toBe(' and more.');
+  });
+
+  // The image node's end is what reading mode replaces, so covering the
+  // braces here is what hides them there — no second decoration involved.
+  it('extends the image node over the block it consumed', () => {
+    const source = 'Intro ![a](f.png){width=50%} tail.';
+    const node = narrow(inlineNodes(source)[1], 'image');
+    const start = node.position?.start.offset;
+    const end = node.position?.end.offset;
+    expect(source.slice(start, end)).toBe('![a](f.png){width=50%}');
+  });
+
+  it('advances the following text node past the block it lost', () => {
+    const source = '![a](f.png){width=50%} and more.';
+    const text = narrow(inlineNodes(source)[1], 'text');
+    const start = text.position?.start.offset;
+    expect(source.slice(start)).toBe(' and more.');
+  });
+
+  it('leaves a malformed or unrecognised block as literal text', () => {
+    for (const block of [
+      '{width=abc}',
+      '{width=50 %}',
+      '{ width=50% }',
+      '{width=50%,height=20%}',
+      '{width=0}',
+      '{height=200px}',
+      '{.wide}',
+      '{width=}',
+    ]) {
+      const nodes = inlineNodes(`![a](f.png)${block}`);
+      expect(narrow(nodes[0], 'image').data?.width).toBeUndefined();
+      expect(narrow(nodes[1], 'text').value).toBe(block);
+    }
+  });
+
+  it('requires the block to touch the image', () => {
+    const nodes = inlineNodes('![a](f.png) {width=50%}');
+    expect(narrow(nodes[0], 'image').data?.width).toBeUndefined();
+    expect(narrow(nodes[1], 'text').value).toBe(' {width=50%}');
+  });
+
+  it('does not read a block after a reference image', () => {
+    const root = parseSciMark('![a][ref]{width=50%}\n\n[ref]: f.png');
+    const nodes = narrow<RootContent, 'paragraph'>(root.children[0], 'paragraph').children;
+    expect(narrow(nodes[1], 'text').value).toBe('{width=50%}');
   });
 });
 

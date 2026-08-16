@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { crc32, deflateSync } from 'node:zlib'
 import JSZip from 'jszip'
 import { buildExportContent } from './export-content'
 import { buildDocxDocument, exportDocx } from './export-docx'
-import { writeFixtureProject } from './export-fixture'
+import { FIXTURE_MANUSCRIPT_MD, writeFixtureProject } from './export-fixture'
 import { allowRoot } from './roots'
 
 let dir = ''
@@ -20,6 +21,75 @@ afterEach(async () => {
 })
 
 const OPTIONS = { doubleSpacing: true, lineNumbers: true, pageNumbers: true }
+
+/** A byte-valid 1x1 PNG, same one export-fixture.ts uses for the managed figure. */
+const ONE_PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64'
+)
+
+/**
+ * A byte-valid PNG of a given pixel size, so a `{width=…}` cap has something
+ * bigger than itself to narrow. Built rather than fixtured because the sizing
+ * rule reads the IHDR, and a 1x1 image can only ever be its own natural size.
+ */
+function pngOfSize(width: number, height: number): Buffer {
+  const chunk = (type: string, body: Buffer): Buffer => {
+    const head = Buffer.alloc(4)
+    head.writeUInt32BE(body.length)
+    const typed = Buffer.concat([Buffer.from(type, 'ascii'), body])
+    const crc = Buffer.alloc(4)
+    crc.writeUInt32BE(crc32(typed))
+    return Buffer.concat([head, typed, crc])
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(width, 0)
+  ihdr.writeUInt32BE(height, 4)
+  ihdr[8] = 8 // bit depth
+  ihdr[9] = 0 // greyscale
+  // One filter byte plus `width` samples per row, all zero.
+  const raw = Buffer.alloc(height * (width + 1))
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0))
+  ])
+}
+
+/** `<wp:extent>` of the LAST drawing in the document, in EMU. */
+function lastExtent(xml: string): { cx: number; cy: number } {
+  const matches = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)]
+  const last = matches[matches.length - 1]
+  return { cx: Number(last?.[1] ?? 0), cy: Number(last?.[2] ?? 0) }
+}
+
+/** Appends prose to the fixture's manuscript.md — the fixture itself has no markdown image. */
+async function appendProse(markdown: string): Promise<void> {
+  await writeFile(join(dir, 'manuscript', 'manuscript.md'), `${FIXTURE_MANUSCRIPT_MD}\n${markdown}\n`, 'utf8')
+}
+
+async function documentXmlFor(profileId: string, options = OPTIONS): Promise<string> {
+  const content = await buildExportContent({
+    dir,
+    profileId,
+    figurePngPaths: { 'fig-a': join(dir, 'output', 'fig-a.png') }
+  })
+  const doc = await buildDocxDocument(content, options)
+  const { Packer } = await import('docx')
+  const zip = await JSZip.loadAsync(await Packer.toBuffer(doc))
+  return (await zip.file('word/document.xml')?.async('string')) ?? ''
+}
+
+/** The `w:jc` values of the cell paragraphs of the LAST table in the document, row by row. */
+function cellAlignments(xml: string): string[][] {
+  const table = xml.slice(xml.lastIndexOf('<w:tbl>'))
+  return [...table.matchAll(/<w:tr>[\s\S]*?<\/w:tr>/g)].map((row) =>
+    [...(row[0] ?? '').matchAll(/<w:tc>[\s\S]*?<\/w:tc>/g)].map(
+      (cell) => /<w:jc w:val="([a-z]+)"\/>/.exec(cell[0] ?? '')?.[1] ?? 'none'
+    )
+  )
+}
 
 describe('buildDocxDocument + Packer', () => {
   it('produces a .docx whose document.xml contains the title, an author, a heading and a reference', async () => {
@@ -112,6 +182,174 @@ describe('buildDocxDocument + Packer', () => {
     const referenceList = documentXml.slice(referencesStart)
     expect(referenceList.indexOf('Jones')).toBeGreaterThan(-1)
     expect(referenceList.indexOf('Jones')).toBeLessThan(referenceList.indexOf('Smith'))
+  })
+})
+
+/**
+ * The bug this guards: /Users/idohaber/Desktop/P077/output/p077.docx has ZERO
+ * word/media entries and ZERO <w:drawing> elements — every markdown image in
+ * the manuscript was replaced by its alt text as a literal run.
+ */
+describe('markdown images', () => {
+  it('embeds a lone markdown image as a centred ImageRun, not its alt text', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
+    await appendProse('![Registration QC](../figures/x.png)')
+
+    const xml = await documentXmlFor('suna')
+    // Two <w:drawing>s now: the managed figure and the markdown image.
+    expect((xml.match(/<w:drawing>/g) ?? []).length).toBe(2)
+    expect(xml).not.toContain('Registration QC')
+
+    const drawing = xml.slice(xml.lastIndexOf('<w:p>', xml.lastIndexOf('<w:drawing>')))
+    expect(drawing).toContain('w:val="center"')
+  })
+
+  it('carries the image bytes into the package as a word/media entry', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
+    await appendProse('![Registration QC](../figures/x.png)')
+
+    const content = await buildExportContent({
+      dir,
+      profileId: 'suna',
+      figurePngPaths: { 'fig-a': join(dir, 'output', 'fig-a.png') }
+    })
+    const { Packer } = await import('docx')
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(await buildDocxDocument(content, OPTIONS)))
+    const media = Object.keys(zip.files).filter((name) => name.startsWith('word/media/'))
+    expect(media.length).toBe(2)
+  })
+
+  it('degrades an .svg url to its alt text rather than throwing', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'method.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>', 'utf8')
+    await appendProse('![Method](../figures/method.svg)')
+
+    const xml = await documentXmlFor('suna')
+    expect(xml).toContain('Method')
+    expect((xml.match(/<w:drawing>/g) ?? []).length).toBe(1)
+  })
+
+  it('keeps an image that sits inside a sentence as alt text', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
+    await appendProse('See ![Registration QC](../figures/x.png) inline.')
+
+    const xml = await documentXmlFor('suna')
+    expect(xml).toContain('Registration QC')
+    expect((xml.match(/<w:drawing>/g) ?? []).length).toBe(1)
+  })
+
+  /**
+   * `{width=…}` was read by the HTML renderer and ignored here, so the same
+   * source produced a quarter-width figure on screen and in the PDF and a
+   * full-width one in Word.
+   */
+  it('honours a `{width=…}` attribute block as a ceiling', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'wide.png'), pngOfSize(600, 300))
+
+    await appendProse('![Tall](../figures/wide.png)')
+    const natural = lastExtent(await documentXmlFor('suna'))
+
+    await appendProse('![Tall](../figures/wide.png){width=25%}')
+    const narrowed = lastExtent(await documentXmlFor('suna'))
+
+    expect(narrowed.cx).toBeLessThan(natural.cx)
+    // Both axes scale by the same factor: clamping one alone distorts.
+    expect(narrowed.cx / narrowed.cy).toBeCloseTo(natural.cx / natural.cy, 2)
+  })
+
+  it('never UPSCALES past the natural size, which is what the other renderers do', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'small.png'), pngOfSize(80, 40))
+
+    await appendProse('![Icon](../figures/small.png)')
+    const natural = lastExtent(await documentXmlFor('suna'))
+
+    await appendProse('![Icon](../figures/small.png){width=100%}')
+    expect(lastExtent(await documentXmlFor('suna'))).toEqual(natural)
+  })
+
+  it('embeds both images of a soft-broken paragraph, not their alt text', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
+    await appendProse('![Panel one](../figures/x.png)\n![Panel two](../figures/x.png)')
+
+    const xml = await documentXmlFor('suna')
+    // The managed figure plus both markdown images.
+    expect((xml.match(/<w:drawing>/g) ?? []).length).toBe(3)
+    expect(xml).not.toContain('Panel one')
+    expect(xml).not.toContain('Panel two')
+  })
+
+  it('embeds an image that is the whole of a list item', async () => {
+    await writeFixtureProject(dir)
+    await mkdir(join(dir, 'figures'), { recursive: true })
+    await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
+    await appendProse('- ![Panel A](../figures/x.png)\n')
+
+    const xml = await documentXmlFor('suna')
+    expect((xml.match(/<w:drawing>/g) ?? []).length).toBe(2)
+    expect(xml).not.toContain('Panel A')
+  })
+})
+
+/**
+ * GFM column alignment survived to the screen and the PDF but was silently
+ * dropped in Word: `tableFromMdast` never read `node.align`.
+ */
+describe('markdown table alignment', () => {
+  const ALIGNED = '| a | b | c |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |'
+
+  it('honours an explicit GFM delimiter row under a house profile', async () => {
+    await writeFixtureProject(dir)
+    await appendProse(ALIGNED)
+    expect(cellAlignments(await documentXmlFor('suna'))).toEqual([
+      ['left', 'center', 'right'],
+      ['left', 'center', 'right']
+    ])
+  })
+
+  it('honours it under a journal profile too, which otherwise states no alignment', async () => {
+    await writeFixtureProject(dir)
+    await appendProse(ALIGNED)
+    expect(cellAlignments(await documentXmlFor('nature-astronomy'))).toEqual([
+      ['left', 'center', 'right'],
+      ['left', 'center', 'right']
+    ])
+  })
+
+  it('keeps the APA fallback for an unspecified column', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |')
+    // House: header all centred, body first column left and the rest centred.
+    expect(cellAlignments(await documentXmlFor('suna'))).toEqual([
+      ['center', 'center', 'center'],
+      ['left', 'center', 'center']
+    ])
+    // Journal: nothing stated at all.
+    expect(cellAlignments(await documentXmlFor('nature-astronomy'))).toEqual([
+      ['none', 'none', 'none'],
+      ['none', 'none', 'none']
+    ])
+  })
+
+  it('shrink-wraps and centres the table instead of stretching it to 100%', async () => {
+    await writeFixtureProject(dir)
+    const xml = await documentXmlFor('suna')
+    const table = xml.slice(xml.lastIndexOf('<w:tbl>'))
+    expect(table).toContain('w:type="auto"')
+    expect(table).not.toContain('w:type="pct"')
+    expect(table.slice(0, table.indexOf('<w:tr>'))).toContain('<w:jc w:val="center"/>')
   })
 })
 

@@ -29,6 +29,22 @@
   height: 12px;
 }
 
+/* Vim mode chip — same accent as .statusbar__profile, in the monospace/small
+   register the env chip uses. */
+.statusbar__vim {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+}
+
 .statusbar__env {
   position: relative;
 }

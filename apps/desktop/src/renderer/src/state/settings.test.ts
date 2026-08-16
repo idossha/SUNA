@@ -88,14 +88,30 @@ describe('coerceSettings', () => {
 describe('parseProjectSettings', () => {
   it('extracts the settings block of a valid manifest', () => {
     const content = JSON.stringify({ ...manifest, settings: { editor: { fontSizePx: 18 } } })
-    expect(parseProjectSettings(content)).toEqual({
+    expect(parseProjectSettings(content)).toMatchObject({
       settings: { editor: { fontSizePx: 18 } },
       error: null
     })
   })
 
   it('returns a null block for a manifest without settings', () => {
-    expect(parseProjectSettings(JSON.stringify(manifest))).toEqual({ settings: null, error: null })
+    expect(parseProjectSettings(JSON.stringify(manifest))).toMatchObject({
+      settings: null,
+      error: null
+    })
+  })
+
+  /**
+   * The manifest comes back alongside the settings block so
+   * refreshProjectSettings can re-seed useProjectStore from the SAME read.
+   * Without that the two copies of suna.json diverge, and load() — which every
+   * editor mount calls — silently reverts an out-of-band edit.
+   */
+  it('returns the whole manifest, so the project store can be kept in step', () => {
+    expect(parseProjectSettings(JSON.stringify(manifest)).manifest).toEqual(manifest)
+    expect(parseProjectSettings('{ not json').manifest).toBeNull()
+    const invalid = JSON.stringify({ ...manifest, settings: { editor: { fontSizePx: 400 } } })
+    expect(parseProjectSettings(invalid).manifest).toBeNull()
   })
 
   it('names the offending path when a value is out of range', () => {
@@ -206,6 +222,21 @@ describe('resolved settings store', () => {
     await useSettingsStore.getState().refreshProjectSettings()
     expect(getResolved('editor.lineHeight')).toEqual({ value: 1.9, source: 'project' })
     expect(useSettingsStore.getState().projectError).toMatch(/not valid JSON/)
+  })
+
+  // The trap that made a project's vim override inert: `settings` is the
+  // GLOBAL-only view (coerceSettings over the persisted record) and knows
+  // nothing about suna.json. Anything a project may override has to be read
+  // through `resolved` / useResolved / getResolved.
+  it('a project vimMotions override moves resolved but never the global-only slice', async () => {
+    invoke.mockResolvedValue({ settings: {} })
+    await useSettingsStore.getState().setGlobal('editor.vimMotions', true)
+    expect(getResolved('editor.vimMotions')).toEqual({ value: true, source: 'global' })
+    expect(useSettingsStore.getState().settings['editor.vimMotions']).toBe(true)
+
+    useSettingsStore.getState().syncProjectSettings({ editor: { vimMotions: false } })
+    expect(getResolved('editor.vimMotions')).toEqual({ value: false, source: 'project' })
+    expect(useSettingsStore.getState().settings['editor.vimMotions']).toBe(true)
   })
 
   it('drops project settings when the project closes', async () => {

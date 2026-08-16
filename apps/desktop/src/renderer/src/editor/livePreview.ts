@@ -67,8 +67,12 @@ export type LiveSpan =
   | { kind: 'blockMath'; from: number; to: number; tex: string; label: string | undefined }
   | { kind: 'inlineMath'; from: number; to: number; tex: string }
   | { kind: 'figure'; from: number; to: number; figureId: string }
-  /** A markdown image written in the prose: ![alt](url). */
-  | { kind: 'image'; from: number; to: number; url: string; alt: string }
+  /**
+   * A markdown image written in the prose: ![alt](url). `width` is the CSS
+   * length from a `{width=…}` attribute block, which the parser has already
+   * folded into [from,to) — so replacing the span hides the braces too.
+   */
+  | { kind: 'image'; from: number; to: number; url: string; alt: string; width: string | undefined }
   /** GFM table block; `md` is the raw source, re-rendered by the widget. */
   | { kind: 'table'; from: number; to: number; md: string }
   | { kind: 'cite'; from: number; to: number; keys: string[] }
@@ -135,6 +139,7 @@ interface MdNode {
   figureId?: string
   url?: string
   alt?: string | null
+  data?: { width?: string }
   ordered?: boolean | null
   position?: { start: { offset?: number | undefined }; end: { offset?: number | undefined } }
 }
@@ -331,7 +336,8 @@ export function extractSpans(source: string): SpanIndex {
             from: range.from,
             to: range.to,
             url: node.url,
-            alt: node.alt ?? ''
+            alt: node.alt ?? '',
+            width: node.data?.width
           })
           exclude.push(range)
         }
@@ -714,6 +720,65 @@ class TableWidget extends WidgetType {
 }
 
 /**
+ * The `width`/`height` an inlined `<svg>` should carry, read off its viewBox.
+ * Returns null when the attribute is absent or malformed — the caller then
+ * leaves both attributes off and the block-level holder fills the measure.
+ * Pure (no DOM) so the sizing rule is unit-testable.
+ */
+export function intrinsicSizeFromViewBox(
+  viewBox: string | null
+): { width: number; height: number } | null {
+  if (viewBox === null) return null
+  const parts = viewBox.trim().split(/[\s,]+/)
+  if (parts.length !== 4) return null
+  const width = Number(parts[2])
+  const height = Number(parts[3])
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null
+  if (width <= 0 || height <= 0) return null
+  return { width, height }
+}
+
+/** A `width`/`height` attribute that states a real physical size, normalised. */
+const ABSOLUTE_LENGTH = /^(\d+(?:\.\d+)?)(px|pt|pc|mm|cm|in|q)?$/i
+
+function absoluteLength(value: string | null): string | null {
+  if (value === null) return null
+  const match = ABSOLUTE_LENGTH.exec(value.trim())
+  const digits = match?.[1]
+  if (digits === undefined || Number(digits) <= 0) return null
+  return `${digits}${match?.[2] ?? ''}`
+}
+
+/**
+ * The `width`/`height` an inlined `<svg>` should end up carrying.
+ *
+ * The AUTHORED size wins whenever both attributes state an absolute length:
+ * matplotlib writes `width="249.448819pt"` alongside `viewBox="0 0 249.448819
+ * 198.425197"`, and re-stating that extent as a unitless (= px) number renders
+ * the figure at 75% of the size its author asked for. Only when the file has
+ * no usable size of its own — a viewBox-only SVG, or one sized in `%`, which
+ * has no intrinsic size at all and collapses — is the viewBox extent used, as
+ * unitless numbers.
+ *
+ * Either way the element ends up with the same kind of intrinsic size an
+ * `<img>` has, so editor.css's one `max-width`/`max-height` clamp scales both
+ * asset kinds identically. Pure (no DOM) so the sizing rule is unit-testable.
+ */
+export function intrinsicSvgSize(
+  width: string | null,
+  height: string | null,
+  viewBox: string | null
+): { width: string; height: string } | null {
+  const authoredWidth = absoluteLength(width)
+  const authoredHeight = absoluteLength(height)
+  if (authoredWidth !== null && authoredHeight !== null) {
+    return { width: authoredWidth, height: authoredHeight }
+  }
+  const box = intrinsicSizeFromViewBox(viewBox)
+  return box === null ? null : { width: String(box.width), height: String(box.height) }
+}
+
+/**
  * Paint a loaded asset into `host`, or an explanatory placeholder when it
  * could not be read. Shared by the figure-embed and markdown-image widgets so
  * both fail the same, visible way instead of one of them going blank.
@@ -726,12 +791,23 @@ function paintAsset(host: HTMLElement, asset: FigureAsset, fallbackLabel: string
     const holder = document.createElement('div')
     holder.className = 'cm-lp-figure__svg'
     holder.innerHTML = asset.svg
-    // A figure authored at mm scale carries width/height in mm; drop them so
-    // it scales to the measure, keeping viewBox to preserve aspect ratio.
+    // Give the element an intrinsic size — its own authored one where the file
+    // states an absolute length, the viewBox extent otherwise (see
+    // intrinsicSvgSize). Without one a viewBox-only SVG collapses; with the
+    // wrong one a matplotlib figure renders at 75% of its authored size.
     const svg = holder.querySelector('svg')
     if (svg !== null) {
+      const size = intrinsicSvgSize(
+        svg.getAttribute('width'),
+        svg.getAttribute('height'),
+        svg.getAttribute('viewBox')
+      )
       svg.removeAttribute('width')
       svg.removeAttribute('height')
+      if (size !== null) {
+        svg.setAttribute('width', size.width)
+        svg.setAttribute('height', size.height)
+      }
       svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
     }
     host.appendChild(holder)
@@ -816,30 +892,47 @@ class FigureWidget extends WidgetType {
  * opposed to a managed figure. Resolved relative to the file that contains
  * it. Remote urls are named rather than fetched: the renderer's CSP blocks
  * external hosts, so a silent broken image would be the alternative.
+ *
+ * No caption element: the convention in this repo's manuscripts is a
+ * `**Figure N.**` paragraph written directly beneath the image, so echoing
+ * the alt text here would show two captions under every figure. The alt text
+ * stays where it belongs, on the `<img>`.
  */
 class ImageWidget extends WidgetType {
   constructor(
     readonly url: string,
     readonly alt: string,
+    readonly width: string | undefined,
     readonly filePath: string | null
   ) {
     super()
   }
   override eq(other: ImageWidget): boolean {
-    return other.url === this.url && other.alt === this.alt && other.filePath === this.filePath
+    return (
+      other.url === this.url &&
+      other.alt === this.alt &&
+      other.width === this.width &&
+      other.filePath === this.filePath
+    )
   }
   override toDOM(): HTMLElement {
     const el = document.createElement('figure')
     el.className = 'cm-lp-figure cm-lp-image'
     const body = document.createElement('div')
     body.className = 'cm-lp-figure__body'
+    // A source `{width=…}` narrows the holder, not the art: an inlined <svg>
+    // given a definite width keeps its own intrinsic height and letterboxes,
+    // while narrowing the holder scales both asset kinds through the single
+    // max-width clamp in editor.css — which is also what keeps an over-wide
+    // value from escaping the measure.
+    //
+    // The export agrees with this exactly: @suna/markdown emits
+    // `max-width:min(<w>,100%)` on the <img>, and export-docx takes
+    // min(natural, requested, textWidth). Measured against both stylesheets in
+    // Chromium — 1000x500 at {width=50%} renders 330x165 in reading mode and
+    // 330x165 on the page; 240x120 stays 240x120 in both.
+    if (this.width !== undefined) body.style.width = this.width
     el.appendChild(body)
-    if (this.alt !== '') {
-      const caption = document.createElement('figcaption')
-      caption.className = 'cm-lp-figure__caption'
-      caption.textContent = this.alt
-      el.appendChild(caption)
-    }
 
     const label = this.alt !== '' ? this.alt : this.url
     const resolved = this.filePath === null ? null : resolveImageUrl(this.url, this.filePath)
@@ -851,9 +944,11 @@ class ImageWidget extends WidgetType {
     if (cached !== undefined) {
       paintAsset(body, cached, label)
     } else {
+      body.className = 'cm-lp-figure__body cm-lp-figure__body--loading'
       body.textContent = label
       void loadAsset(resolved).then((asset) => {
         if (!body.isConnected) return
+        body.className = 'cm-lp-figure__body'
         paintAsset(body, asset, label)
       })
     }
@@ -898,7 +993,7 @@ function decorationFor(span: LiveSpan, config: LivePreviewConfig): Decoration {
       })
     case 'image':
       return Decoration.replace({
-        widget: new ImageWidget(span.url, span.alt, config.filePath),
+        widget: new ImageWidget(span.url, span.alt, span.width, config.filePath),
         block: true
       })
     case 'table':
@@ -986,6 +1081,12 @@ export function buildInlineDecorations(
   for (const { from, to } of visibleRanges) {
     for (const span of index.inline) {
       if (span.to < from || span.from > to || span.to > doc.length) continue
+      // A plugin may not supply a replace decoration that spans a line break:
+      // CodeMirror throws and the editor renders empty. remark-math accepts a
+      // single-dollar span across a newline (`$x\ny$`), so this is reachable
+      // from ordinary prose. Leaving such a span undecorated shows its source,
+      // which is survivable; throwing is not.
+      if (doc.lineAt(span.from).number !== doc.lineAt(span.to).number) continue
       if (seen.has(span)) continue
       seen.add(span)
       const reveal = revealRangeFor(span)

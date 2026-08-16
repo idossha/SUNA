@@ -14,6 +14,12 @@
      measure rule below can add it back — see the --ed-content-width note. */
   --ed-line-pad: 16px;
 
+  /* Ceiling for rendered art. Viewport-relative rather than pane-relative:
+     `cqh` would need `container-type: size` on an ancestor, which fights
+     CodeMirror's own height math. Retune to min(60vh, 520px) if a short
+     docked pane ever matters. */
+  --ed-img-max-h: 60vh;
+
   /* suna-dark: the default, matches the app's dark-adapted instrument look */
   --ed-bg: var(--s-bg-editor);
   --ed-ink: var(--s-ink);
@@ -291,17 +297,26 @@
   display: inline-block;
 }
 
+/* Symmetric padding, so the KaTeX centre lands on the measure centre rather
+   than 16px left of it. The equation-number chip is taken out of flow below,
+   so the room it needs is reserved on .katex-display instead — inset there
+   still leaves the equation's own centre on the measure centre, which
+   reserving it asymmetrically here did not. */
 .editor-tab .cm-lp-math-block {
   position: relative;
-  padding: 10px 48px 10px 16px;
+  padding: 10px var(--ed-line-pad);
   text-align: center;
   overflow-x: auto;
   overflow-y: hidden;
 }
 
+.editor-tab .cm-lp-math-block .katex-display {
+  padding-inline: 48px;
+}
+
 .editor-tab .cm-lp-eq-label {
   position: absolute;
-  right: 16px;
+  right: var(--ed-line-pad);
   top: 50%;
   transform: translateY(-50%);
   color: var(--ed-ink-muted);
@@ -309,25 +324,33 @@
   font-size: 12px;
 }
 
-/* rendered GFM table — mirrors the reading view's .scimark table rules
-   (compact, horizontal rules only, sans-serif header) */
+/* rendered GFM table — compact, horizontal rules only, sans-serif header. The
+   surface these have to agree with is `pageCss` in
+   apps/desktop/src/main/services/export-html.ts, which styles the same markup
+   for HTML/PDF export. */
 .editor-tab .cm-lp-table {
   margin: 6px 0;
   padding: 0 var(--ed-line-pad);
   overflow-x: auto;
 }
 
+/* A table shrink-wraps its content, so the auto margins are what centre it on
+   the measure. */
 .editor-tab .cm-lp-table table {
   border-collapse: collapse;
   font-size: 0.875em;
+  margin-inline: auto;
 }
 
+/* `start`, not `left`: packages/markdown/src/html.ts already emits an inline
+   `style="text-align:…"` for every GFM-aligned column, and that inline style
+   must be the only thing that ever moves a cell. */
 .editor-tab .cm-lp-table th,
 .editor-tab .cm-lp-table td {
   padding: 5px 12px;
   border-top: 1px solid var(--ed-border);
   border-bottom: 1px solid var(--ed-border);
-  text-align: left;
+  text-align: start;
 }
 
 .editor-tab .cm-lp-table th {
@@ -348,19 +371,41 @@
   color: var(--ed-syn-link);
 }
 
+/* An image inside a cell renders through @suna/markdown's <img>, which carries
+   none of the figure classes below — keep it from widening the column. */
+.editor-tab .cm-lp-table img {
+  max-width: 100%;
+  height: auto;
+}
+
 /* ---- figure embeds and markdown images ---------------------------------- */
 
 /* The figure itself, once loaded, is the content — so the frame is quiet:
-   no border, just centred art with a caption under it. */
+   no border, just centred art with a caption under it.
+
+   A block widget is a sibling of .cm-line, not a child, so it has to add
+   themes.ts's line padding back by hand to share the prose's left edge —
+   same reason .cm-lp-table and .cm-lp-math-block do.
+
+   Never set `text-align: left` here: centring the art is this declaration
+   inheriting down to the replaced element. The body below is deliberately
+   NOT a flex container — a viewBox-only SVG is a flex item with base size 0,
+   which is what made every SVG figure render invisible. */
 .editor-tab .cm-lp-figure {
   margin: 12px 0 16px;
-  padding: 0;
+  padding: 0 var(--ed-line-pad);
   text-align: center;
 }
 
+/* A `![alt](x.png){width=…}` image sets an inline width on this element (see
+   ImageWidget in livePreview.ts). The auto margins keep the narrowed holder
+   centred, and the max-width is what stops an over-wide value escaping the
+   measure — the attribute can only ever make a figure smaller, which is the
+   one reading of it the editor, the PDF and Word can all agree on. */
 .editor-tab .cm-lp-figure__body {
-  display: flex;
-  justify-content: center;
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
 }
 
 /* Still reading the file: keep the old dashed placeholder so the layout does
@@ -384,24 +429,32 @@
   color: var(--s-err);
 }
 
-/* Scale to the measure, never past it, and keep the aspect ratio. */
 .editor-tab .cm-lp-figure__svg {
-  max-width: 100%;
+  display: block;
   line-height: 0;
 }
 
-.editor-tab .cm-lp-figure__svg svg {
-  max-width: 100%;
+/* One clamp for both an inlined <svg> (given a unitless intrinsic size from
+   its viewBox by paintAsset) and an <img>, so the two size identically.
+
+   BOTH axes must stay `auto`. A definite width or height combined with the
+   opposite max-* stretches the picture instead of scaling it, because
+   `object-fit` defaults to `fill` — measured, a 1.09 aspect ratio rendered at
+   1.87. For the same reason: no `object-fit`, no `aspect-ratio`. */
+.editor-tab .cm-lp-figure__svg > svg,
+.editor-tab .cm-lp-figure__img {
+  display: inline-block;
+  /* The <img> has no line-height:0 holder of its own, so without this the
+     line box adds a 4px descender strip under it and the two paths stop
+     agreeing on the figure's height. */
+  vertical-align: middle;
+  width: auto;
   height: auto;
+  max-width: 100%;
+  max-height: var(--ed-img-max-h);
   /* Figures are authored on white; keep that ground in a dark editor so a
      dark-on-transparent plot does not turn into an invisible smudge. */
   background: #fff;
-  border-radius: 2px;
-}
-
-.editor-tab .cm-lp-figure__img {
-  max-width: 100%;
-  height: auto;
   border-radius: 2px;
 }
 

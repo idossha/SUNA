@@ -25,7 +25,9 @@ import {
 import '../comments/comments.css'
 import { commentsByPath, useCommentsStore } from '../state/comments'
 import { devSeam } from '../state/devSeam'
+import { useResolved, useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
+import { useVimModeStore } from '../state/vimMode'
 import {
   applyCiteChips,
   applyCrossRefChips,
@@ -41,6 +43,8 @@ export interface ManuscriptEditorHandle {
   recomputePositions: () => void
   /** The live CodeMirror view, once mounted — for the tab's coordsAtPos-driven scroll-spy and click-to-scroll. */
   getView: () => EditorView | null
+  /** Swap reading ⇄ source. A compartment reconfigure, so document state, scroll and comment anchors survive. */
+  setLive: (on: boolean) => void
 }
 
 interface ManuscriptEditorProps {
@@ -48,6 +52,8 @@ interface ManuscriptEditorProps {
   /** Path relative to manuscript/ — the manuscript.json `manuscriptFile`, e.g. "manuscript.md". */
   contentPath: string
   onDirtyChange: (dirty: boolean) => void
+  /** Reading mode (live-preview decorations). Read once at mount; use the handle's `setLive` to change it after. */
+  live: boolean
   /** Fired once the editor has mounted (or failed to load) and again with false on unmount. */
   onSettled: (settled: boolean) => void
   /** Fired (debounced) with the outline of the editor's CURRENT buffer, on mount and on every edit. */
@@ -71,7 +77,7 @@ const OUTLINE_DEBOUNCE_MS = 500
  */
 export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProps>(
   function ManuscriptEditor(
-    { rootDir, contentPath, onDirtyChange, onSettled, onOutlineChange, gutterRef, onPositionsChange, onActivateComment },
+    { rootDir, contentPath, onDirtyChange, live, onSettled, onOutlineChange, gutterRef, onPositionsChange, onActivateComment },
     ref
   ) {
     const hostRef = useRef<HTMLDivElement>(null)
@@ -81,6 +87,16 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     const [loadError, setLoadError] = useState<string | null>(null)
 
     const editorTheme = useEditorSettings((s) => s.editorTheme)
+    // Resolved through the two-level hierarchy (project ?? global ?? default),
+    // and read through a ref by the async create effect below, which settles
+    // after mount.
+    const vimMotions = useResolved('editor.vimMotions').value
+    const vimRef = useRef(vimMotions)
+    vimRef.current = vimMotions
+    // Same ref treatment as vim: the create effect is async, so it must read
+    // the value that is current when it finally runs, not when it was queued.
+    const liveRef = useRef(live)
+    liveRef.current = live
 
     // latest callbacks without re-creating the editor
     const onDirtyChangeRef = useRef(onDirtyChange)
@@ -117,7 +133,8 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
       ref,
       () => ({
         recomputePositions: () => recomputeRef.current(),
-        getView: () => handleRef.current?.view ?? null
+        getView: () => handleRef.current?.view ?? null,
+        setLive: (on: boolean) => handleRef.current?.setLive(on)
       }),
       []
     )
@@ -132,6 +149,9 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     useEffect(() => {
       const fileName = contentPath.split('/').pop() ?? contentPath
       const absPath = `${rootDir}/manuscript/${contentPath}`
+      // idempotent; a project opens straight onto this tab, so this editor can
+      // mount before the status bar's own load has settled
+      void useSettingsStore.getState().load()
 
       const markDirty = (dirty: boolean): void => {
         if (dirtyRef.current === dirty) return
@@ -188,12 +208,18 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
             filePath: absPath,
             rootDir,
             theme: useEditorSettings.getState().editorTheme,
-            live: true,
+            live: liveRef.current,
+            vim: vimRef.current,
+            onVimMode: useVimModeStore.getState().setMode,
+            // No onClose: this view IS the tab, so there is no file for `:q`
+            // to close. The registry says so in the status bar rather than
+            // doing nothing at all, which read as "vim is half-broken here".
             onDocChanged: () => {
               markDirty(true)
               scheduleOutline()
             },
-            onSave: () => void save(),
+            // Returns the promise, so vim's `:wq` can wait for the write.
+            onSave: () => save(),
             // ⌘⇧M / context-menu "Comment": same anchored-comment flow as the
             // gutter's own drag-to-comment gesture dispatched below.
             onComment: (view) => {
@@ -285,6 +311,20 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     useEffect(() => {
       handleRef.current?.setTheme(editorTheme)
     }, [editorTheme])
+
+    // Toggling vim swaps a compartment rather than rebuilding the view, so
+    // scroll position, comment anchors and the outline all survive — which is
+    // why vimMotions is deliberately NOT in the create effect's deps.
+    //
+    // Known limitation on this surface: Ctrl-d/Ctrl-u/Ctrl-f/Ctrl-b and
+    // zz/zt/zb do nothing, because the vim shim scrolls by writing
+    // view.scrollDOM.scrollTop while manuscript.css gives .cm-scroller
+    // `overflow: visible` and lets the outer .msdoc scroll instead. Cursor
+    // motions (G, gg, }) still scroll, since those go through
+    // EditorView.scrollIntoView, which walks ancestor scrollers.
+    useEffect(() => {
+      handleRef.current?.setVim(vimMotions)
+    }, [vimMotions])
 
     // push comment-list changes (new/resolved/deleted comments anywhere) into
     // this editor's live anchor decorations, and re-diff their positions —

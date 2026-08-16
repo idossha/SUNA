@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { FsNode } from '@suna/core'
-import { defaultExpanded, forcesOpen, parentDirOf, visibleRows } from './explorer-rows'
+import {
+  defaultExpanded,
+  forcesOpen,
+  hasChildren,
+  iconKindForFile,
+  parentDirOf,
+  rowPaddingLeft,
+  semanticDirs,
+  visibleRows
+} from './explorer-rows'
 
 const dir = (path: string, children: FsNode[]): FsNode => ({
   kind: 'dir',
@@ -127,5 +136,87 @@ describe('forcesOpen', () => {
   it('does not treat a sibling with a shared name prefix as an ancestor', () => {
     // '/work/paper/data-old' must not be forced open by a create in '/work/paper/data'
     expect(forcesOpen({ kind: 'create-file', parentPath: '/work/paper/data' }, '/work/paper/data-old')).toBe(false)
+  })
+})
+
+describe('iconKindForFile', () => {
+  it('maps the extensions this app opens to their own icon', () => {
+    expect(iconKindForFile('manuscript.md')).toBe('markdown')
+    expect(iconKindForFile('notes.markdown')).toBe('markdown')
+    expect(iconKindForFile('references.bib')).toBe('bib')
+    expect(iconKindForFile('suna.json')).toBe('json')
+    expect(iconKindForFile('fig4_method.svg')).toBe('figure')
+    expect(iconKindForFile('fig7_scatter.png')).toBe('image')
+    expect(iconKindForFile('p077.pdf')).toBe('pdf')
+    expect(iconKindForFile('spectrum.csv')).toBe('table')
+    expect(iconKindForFile('plot.py')).toBe('code')
+    expect(iconKindForFile('paper.tex')).toBe('tex')
+  })
+
+  it('reads the extension from the LAST dot', () => {
+    // examples/demo-paper/figures/fig-spectrum/figure.svg.suna.json is the
+    // sidecar, not the figure it describes
+    expect(iconKindForFile('figure.svg.suna.json')).toBe('json')
+  })
+
+  it('is case-insensitive', () => {
+    expect(iconKindForFile('IMG.PNG')).toBe('image')
+    expect(iconKindForFile('README.MD')).toBe('markdown')
+  })
+
+  it('falls back to a plain file for anything it cannot open by extension', () => {
+    expect(iconKindForFile('Makefile')).toBe('file')
+    expect(iconKindForFile('p077.docx')).toBe('file')
+    // a leading dot is not an extension
+    expect(iconKindForFile('.gitignore')).toBe('file')
+    expect(iconKindForFile('')).toBe('file')
+  })
+})
+
+describe('semanticDirs', () => {
+  const DIRS = {
+    manuscript: 'manuscript',
+    figures: 'figures',
+    code: 'code',
+    data: 'data',
+    analysis: 'analysis',
+    results: 'results',
+    output: 'output'
+  }
+
+  it('maps every declared directory, at the top level only', () => {
+    const map = semanticDirs('/work/paper', DIRS)
+    expect(map.get('/work/paper/figures')).toBe('figures')
+    expect(map.get('/work/paper/manuscript')).toBe('manuscript')
+    expect(map.size).toBe(7)
+    // a figures/ nested inside manuscript/ is not the project's figures dir
+    expect(map.has('/work/paper/manuscript/figures')).toBe(false)
+  })
+
+  it('follows the manifest when a folder has been renamed', () => {
+    const map = semanticDirs('/work/paper', { ...DIRS, figures: 'plots' })
+    expect(map.get('/work/paper/plots')).toBe('figures')
+    expect(map.has('/work/paper/figures')).toBe(false)
+  })
+
+  it('is empty with no manifest and with no project open', () => {
+    expect(semanticDirs('/work/paper', undefined).size).toBe(0)
+    expect(semanticDirs(null, DIRS).size).toBe(0)
+  })
+})
+
+describe('hasChildren', () => {
+  it('is true only for a directory with entries', () => {
+    expect(hasChildren(dir('/p/data', [file('/p/data/a.csv')]))).toBe(true)
+    expect(hasChildren(dir('/p/data', []))).toBe(false)
+    expect(hasChildren(file('/p/a.md'))).toBe(false)
+  })
+})
+
+describe('rowPaddingLeft', () => {
+  it('steps in by one level per depth', () => {
+    expect(rowPaddingLeft(0)).toBe(8)
+    expect(rowPaddingLeft(1)).toBeGreaterThan(rowPaddingLeft(0))
+    expect(rowPaddingLeft(2) - rowPaddingLeft(1)).toBe(rowPaddingLeft(1) - rowPaddingLeft(0))
   })
 })

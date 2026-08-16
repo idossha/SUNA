@@ -42,21 +42,41 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
 
 export function App(): JSX.Element {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible)
+  const railVisible = useUiStore((s) => s.railVisible)
 
   const handleDockReady = useCallback((api: DockviewApi) => {
     setDockApi(api)
     api.addPanel({ id: 'welcome', component: 'welcome', title: 'Welcome' })
   }, [])
 
+  // Three nav states, and no width transition on any of them: an animated
+  // width would re-fire DockHost's and CodeMirror's resize observers every
+  // frame. Unmounting a grid child is picked up by DockHost's observer; CM's
+  // own is GUARDED — @codemirror/view drops a resize that lands within 75 ms
+  // of a document update — so on a fast keystroke-then-toggle its height map
+  // can stay computed for the old width until the next doc change or scroll.
+  // Accepted: it self-heals on the next keystroke and the alternative is a
+  // remeasure on every toggle for a transient scrollbar-extent error.
+  //
+  // The grid class is derived from BOTH flags rather than from railVisible
+  // alone, so the store's rail-implies-panel invariant cannot be broken by a
+  // caller that bypasses commitChrome (`useUiStore.setState`, which
+  // scripts/e2e/smoke.mjs does use): a single-column grid with <SideBar/>
+  // still mounted would push .dock-stage into an implicit auto-sized column.
+  const navHidden = !railVisible && !sidebarVisible
+  const workbenchClass = [
+    'workbench',
+    !sidebarVisible && !navHidden ? 'workbench--sidebar-hidden' : '',
+    navHidden ? 'workbench--nav-hidden' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div className="app">
       <TitleBar />
-      <div
-        className={
-          sidebarVisible ? 'workbench' : 'workbench workbench--sidebar-hidden'
-        }
-      >
-        <ActivityBar />
+      <div className={workbenchClass}>
+        {(railVisible || sidebarVisible) && <ActivityBar />}
         {sidebarVisible && <SideBar />}
         <div className="dock-stage">
           <DockHost components={DOCK_COMPONENTS} onReady={handleDockReady} />

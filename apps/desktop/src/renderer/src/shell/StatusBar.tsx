@@ -5,6 +5,7 @@ import { useProjectStore } from '../state/project'
 import { envLabelFor, useEnvsStore } from '../state/envs'
 import { useSettingsStore } from '../state/settings'
 import { useTerminalPanelStore } from '../state/terminal'
+import { useVimModeStore } from '../state/vimMode'
 import { openSettingsTab } from '../state/dock'
 import './statusbar.css'
 
@@ -129,6 +130,7 @@ function EnvChip({ rootDir }: { rootDir: string }): JSX.Element {
 
 export function StatusBar(): JSX.Element {
   const statusNote = useUiStore((s) => s.statusNote)
+  const vimMode = useVimModeStore((s) => s.mode)
   const manifest = useProjectStore((s) => s.manifest)
   const rootDir = useProjectStore((s) => s.rootDir)
   const termOpen = useTerminalPanelStore((s) => s.open)
@@ -151,6 +153,14 @@ export function StatusBar(): JSX.Element {
         <span>SUNA 0.1</span>
         {profile && <span className="statusbar__profile">{profile.journalName}</span>}
         {rootDir !== null && <EnvChip rootDir={rootDir} />}
+        {/* Nothing at all when no editor has vim installed — the only feedback
+            that normal mode is swallowing plain typing, so it must be there
+            the moment vim is. */}
+        {vimMode !== null && (
+          <span className="statusbar__vim" title="Vim mode">
+            {vimMode}
+          </span>
+        )}
         {statusNote && <span className="statusbar__note">{statusNote}</span>}
       </div>
       <div className="statusbar__group">

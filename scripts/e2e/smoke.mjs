@@ -36,6 +36,7 @@ import { createRequire } from 'node:module'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { crc32, deflateSync } from 'node:zlib'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ARTIFACTS = join(ROOT, 'scripts', 'e2e', '.artifacts')
@@ -101,6 +102,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // ---------------------------------------------------------------- harness
 const results = []
+/**
+ * Diagnostic mode: keep running after a failed step instead of aborting the
+ * run. The exit code and the FAILED summary are unchanged, so it can never
+ * turn a red run green — it exists because one broken step otherwise hides
+ * every assertion below it, and the steps are largely independent (each opens
+ * the view or tab it measures). Never set it in CI: a step that fails halfway
+ * leaves state the next one did not ask for.
+ */
+const KEEP_GOING = process.env.SUNA_SMOKE_KEEP_GOING === '1'
 async function step(name, fn) {
   try {
     await fn()
@@ -110,7 +120,7 @@ async function step(name, fn) {
     results.push({ name, ok: false, error: String(error.message ?? error) })
     console.error(`  ✗ ${name}: ${error.message ?? error}`)
     await screenshot(`FAIL-${name}.png`).catch(() => {})
-    throw error
+    if (!KEEP_GOING) throw error
   }
 }
 
@@ -118,20 +128,24 @@ function assert(cond, message) {
   if (!cond) throw new Error(message)
 }
 
-/** Click an activity-bar view button by its title attribute. */
+/** Click an activity-bar view button by its label. Prefix rather than
+ *  equality: the title is now `<label> (<shortcut> to toggle)`. */
 const activateView = (title) =>
   evalJs(`(() => {
     const btn = [...document.querySelectorAll('.activitybar__item')]
-      .find((b) => b.title === ${JSON.stringify(title)});
+      .find((b) => b.title.startsWith(${JSON.stringify(title)}));
     if (!btn) throw new Error('activity item missing: ${title}');
     btn.click();
   })()`)
 
-/** Open the explorer context menu on the tree row whose name matches. */
+/** Open the explorer context menu on the tree row for `name`. Matched on the
+ *  basename of `data-path`, not on textContent: a row's text is now an icon
+ *  plus a name, and it also carries a title, so anything read off the row's
+ *  own text would break the moment a row grows a second label. */
 const openTreeMenu = (name) =>
   evalJs(`(() => {
     const row = [...document.querySelectorAll('.tree__row')]
-      .find((r) => r.textContent.trim().replace(/^[▾▸]\\s*/, '') === ${JSON.stringify(name)});
+      .find((r) => (r.dataset.path ?? '').split('/').pop() === ${JSON.stringify(name)});
     if (!row) throw new Error('tree row missing: ${name}');
     const r = row.getBoundingClientRect();
     row.dispatchEvent(new MouseEvent('contextmenu', {
@@ -380,6 +394,43 @@ async function pdfPageCountHeadless(file) {
   return doc.numPages
 }
 
+/**
+ * Write a flat grey PNG of exactly `width`×`height`.
+ *
+ * The block-layout step needs raster art whose intrinsic size it can assert
+ * the rendered box against, and the demo project ships none — every figure in
+ * it is SVG. Encoded here (8-bit greyscale, one zlib'd IDAT, no pHYs chunk so
+ * one image pixel is one CSS pixel) rather than checked in as a binary, since
+ * CLAUDE.md keeps binaries out of the sources of truth.
+ */
+function writePng(file, width, height) {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
+    const out = Buffer.alloc(body.length + 8)
+    out.writeUInt32BE(data.length, 0)
+    body.copy(out, 4)
+    out.writeUInt32BE(crc32(body) >>> 0, body.length + 4)
+    return out
+  }
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(width, 0)
+  ihdr.writeUInt32BE(height, 4)
+  ihdr[8] = 8 // bit depth
+  ihdr[9] = 0 // colour type: greyscale
+  // Each scanline is prefixed with its filter byte; 0 = none.
+  const raw = Buffer.alloc((width + 1) * height, 0x88)
+  for (let y = 0; y < height; y++) raw[y * (width + 1)] = 0
+  writeFileSync(
+    file,
+    Buffer.concat([
+      Buffer.from('89504e470d0a1a0a', 'hex'),
+      chunk('IHDR', ihdr),
+      chunk('IDAT', deflateSync(raw)),
+      chunk('IEND', Buffer.alloc(0))
+    ])
+  )
+}
+
 /** Dimensions a PNG really has, decoded from its IHDR chunk. */
 function pngIhdr(file) {
   const bytes = readFileSync(file)
@@ -563,14 +614,19 @@ try {
     )
     FIGURE = join(rootDir, 'figures', 'fig-spectrum', 'figure.svg')
     originalSvg = readFileSync(FIGURE, 'utf8')
-    // Normalize the two persisted view preferences before anything asserts on
-    // them: the editor appearance store (localStorage) and the per-project
-    // 'Rendered as' override. The example COPY is recreated every run but
-    // localStorage is not, so without this a run that ended on MNRAS would
-    // decide the *next* run's citation numbering.
+    // Normalize the persisted view preferences before anything asserts on
+    // them: the editor appearance store (localStorage), the per-project
+    // 'Rendered as' override, and the left nav's two visibility flags. The
+    // example COPY is recreated every run but localStorage is not, so without
+    // this a run that ended on MNRAS would decide the *next* run's citation
+    // numbering — and a run that ended with the nav hidden would start the
+    // next one with no explorer tree and no activity bar to click.
     await evalJs(`(() => {
       window.__sunaDev.editorSettings.getState().reset();
       window.__sunaDev.renderProfileStore.setState({ byProject: {} });
+      const ui = window.__sunaDev.uiStore.getState();
+      ui.setRailVisible(true);
+      ui.setSidebarVisible(true);
     })()`)
     await sleep(1200)
     const state = await evalJs(`({
@@ -1190,6 +1246,760 @@ try {
       readFileSync(methodsPath, 'utf8') === methodsOriginal,
       'undo+save did not restore the Methods section byte-identical'
     )
+  })
+
+  /* =======================================================================
+     Measured geometry and shell behaviour.
+
+     Every assertion in the four steps below has a KNOWN-BAD baseline measured
+     against the build before this batch, so each one fails on the old code
+     and passes on the new. None of them can move into a unit test:
+     apps/desktop has no jsdom, so every renderer test is node-env and pure,
+     and what is being asserted here is the size of a real box.
+     ======================================================================= */
+
+  /**
+   * Open (or focus) the combined manuscript tab. Activating the Manuscript
+   * view IS the open gesture since feature-plan-7 §2 — there is no longer a
+   * button in the view to click — and the action toggles the sidebar when its
+   * own view is already active, so this always activates it from another one.
+   */
+  const openManuscript = async () => {
+    await evalJs(`(() => {
+      const ui = window.__sunaDev.uiStore;
+      if (ui.getState().activeView === 'manuscript') ui.setState({ activeView: 'explorer' });
+      ui.getState().setActiveView('manuscript');
+    })()`)
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      if (await evalJs(`!!document.querySelector('.msdoc__editor .cm-content')`)) return
+      await sleep(300)
+    }
+    throw new Error('the combined manuscript tab did not come forward')
+  }
+
+  /**
+   * A document the demo project does not contain: a viewBox-only SVG figure,
+   * a raster taller than the viewport, a raster narrower than the measure, a
+   * GFM-aligned table and a display equation — the five block kinds whose
+   * geometry the reading surface has to get right, in one file so they are
+   * measured against the SAME measure.
+   *
+   * Written into the project copy (the fs IPC is root-confined, so nothing
+   * outside it can be read) and deleted again in the step's finally: the
+   * git-view step below asserts the working tree holds exactly ONE change.
+   */
+  const BL_FILE = join(COPY_DIR, 'block-probe.md')
+  const BL_TALL = join(COPY_DIR, 'block-probe-tall.png')
+  const BL_SMALL = join(COPY_DIR, 'block-probe-small.png')
+  const BL_TALL_PX = { width: 600, height: 1500 }
+  const BL_SMALL_PX = { width: 120, height: 80 }
+  // Two properties of the running order matter. The file opens with the
+  // caret at offset 0 and live preview reveals the source under it, so line 1
+  // is BLANK — otherwise the first construct is raw text and not a widget to
+  // measure. And the tall image goes last, because it alone is 60vh: with it
+  // anywhere earlier, everything after it starts below the fold, where
+  // CodeMirror has not rendered a line to measure.
+  const BL_FIXTURE = [
+    '',
+    '$$',
+    'E = mc^2',
+    '$$',
+    '',
+    '| Left | Centre | Right |',
+    '| :--- | :----: | ----: |',
+    '| a | b | c |',
+    '',
+    '![[fig:fig-spectrum]]',
+    '',
+    '![small raster](block-probe-small.png)',
+    '',
+    'Plain prose line for the left-edge reference.',
+    '',
+    '![tall raster](block-probe-tall.png)',
+    ''
+  ].join('\n')
+
+  await step('block-layout', async () => {
+    try {
+      // --- title block: centred on screen, as both exporters already write it
+      await openManuscript()
+      const title = await evalJs(`(() => {
+        const el = document.querySelector('.msdoc__title');
+        if (!el) throw new Error('the manuscript tab has no title block');
+        return {
+          title: getComputedStyle(el).textAlign,
+          authors: getComputedStyle(document.querySelector('.msdoc__authors')).textAlign
+        };
+      })()`)
+      // Baseline: 'start' for both, while export-html's pageCss and
+      // export-docx's title paragraphs centre them.
+      assert(title.title === 'center', `.msdoc__title text-align: ${title.title} (want center)`)
+      assert(title.authors === 'center', `.msdoc__authors text-align: ${title.authors}`)
+
+      // Centring must not leak into the click-to-edit faces: those are form
+      // rows mounted INSIDE .msdoc__authors, so they inherit it unless they
+      // opt back out.
+      await evalJs(`document.querySelector('.msdoc__authors.tp__group').click()`)
+      await sleep(500)
+      const editing = await evalJs(`(() => {
+        const el = document.querySelector('.tp__authors-editor');
+        if (!el) throw new Error('clicking the authors block did not open its editor');
+        return getComputedStyle(el).textAlign;
+      })()`)
+      assert(editing === 'left', `.tp__authors-editor text-align: ${editing} (want left)`)
+      await key('Escape', 'Escape')
+      await sleep(400)
+
+      // --- block geometry, on the fixture
+      writePng(BL_TALL, BL_TALL_PX.width, BL_TALL_PX.height)
+      writePng(BL_SMALL, BL_SMALL_PX.width, BL_SMALL_PX.height)
+      assert(
+        pngIhdr(BL_TALL).height === BL_TALL_PX.height &&
+          pngIhdr(BL_SMALL).width === BL_SMALL_PX.width,
+        'the generated PNG fixtures do not decode at the sizes they were written at'
+      )
+      writeFileSync(BL_FILE, BL_FIXTURE, 'utf8')
+      // A persisted slider position must not decide what this step measures.
+      await evalJs(`window.__sunaDev.editorSettings.getState().reset()`)
+      await evalJs(`window.__sunaDev.dock.clearDock()`)
+      await sleep(300)
+      await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(BL_FILE)})`)
+      await sleep(1600)
+      const mode = await evalJs(`document.querySelector('.editor-tab__mode')?.textContent`)
+      assert(mode === 'Reading', `fixture did not open in Reading (got ${mode})`)
+
+      // Both assets are read over IPC, so the widgets paint themselves in
+      // asynchronously — measuring before that is measuring the placeholder.
+      let painted = false
+      for (let i = 0; i < 40 && !painted; i++) {
+        painted = await evalJs(`(() => {
+          const svg = document.querySelector('.cm-lp-figure__svg > svg');
+          const imgs = [...document.querySelectorAll('.cm-lp-image .cm-lp-figure__img')];
+          return svg !== null && imgs.length === 2 &&
+            imgs.every((i) => i.complete && i.naturalWidth > 0);
+        })()`)
+        if (!painted) await sleep(300)
+      }
+      assert(painted, 'the figure/image widgets never finished loading their assets')
+      await sleep(400)
+      await screenshot('block-layout.png')
+
+      const geometry = await evalJs(`(() => {
+        const host = [...document.querySelectorAll('.editor-tab')]
+          .find((h) => h.getBoundingClientRect().width > 0);
+        if (!host) throw new Error('no visible editor tab');
+        const content = host.querySelector('.cm-content');
+        // Content-box left, not the border box: a block widget shares the
+        // prose's left edge by carrying .cm-line's own padding, so the border
+        // boxes are equal either way and only the content edges tell them apart.
+        const box = (el, what) => {
+          if (!el) throw new Error('missing from the reading surface: ' + what);
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          return {
+            width: r.width,
+            height: r.height,
+            right: r.right,
+            centre: r.left + r.width / 2,
+            contentLeft: r.left + parseFloat(cs.paddingLeft)
+          };
+        };
+        const svg = host.querySelector('.cm-lp-figure__svg > svg');
+        const viewBox = (svg ? svg.getAttribute('viewBox') : '').trim().split(/[\\s,]+/);
+        // Picked by natural size rather than document order, so reordering
+        // the fixture cannot silently swap which image each guard measures.
+        const imgs = [...host.querySelectorAll('.cm-lp-image .cm-lp-figure__img')];
+        const shot = (naturalHeight, what) => {
+          const img = imgs.find((i) => i.naturalHeight === naturalHeight);
+          return {
+            ...box(img, what),
+            naturalRatio: img.naturalWidth / img.naturalHeight
+          };
+        };
+        return {
+          viewportHeight: window.innerHeight,
+          imageCap: getComputedStyle(host).getPropertyValue('--ed-img-max-h').trim(),
+          content: box(content, '.cm-content'),
+          line: box(
+            [...host.querySelectorAll('.cm-line')].find((l) => l.textContent.includes('Plain prose')),
+            'the plain prose line'
+          ),
+          figure: box(host.querySelector('.cm-lp-figure:not(.cm-lp-image)'), 'the figure embed'),
+          svg: box(svg, 'the inlined figure SVG'),
+          svgRatio: Number(viewBox[2]) / Number(viewBox[3]),
+          table: box(host.querySelector('.cm-lp-table'), 'the table widget'),
+          tableInner: box(host.querySelector('.cm-lp-table table'), 'the rendered table'),
+          math: box(host.querySelector('.cm-lp-math-block'), 'the display-math widget'),
+          katex: box(host.querySelector('.cm-lp-math-block .katex-display'), 'the rendered equation'),
+          tall: shot(${BL_TALL_PX.height}, 'the tall raster'),
+          small: shot(${BL_SMALL_PX.height}, 'the small raster')
+        };
+      })()`)
+
+      // 1. An inlined viewBox-only SVG has a real size. Baseline: 0×0 — it was
+      //    a flex item with no intrinsic size, so every SVG figure in reading
+      //    mode was invisible.
+      assert(
+        geometry.svg.width > 0 && geometry.svg.height > 0,
+        `the inlined figure SVG renders ${geometry.svg.width}×${geometry.svg.height} (want non-zero)`
+      )
+      assert(
+        Math.abs(geometry.svg.width / geometry.svg.height - geometry.svgRatio) < 0.01,
+        `figure SVG aspect ${geometry.svg.width / geometry.svg.height} ≠ viewBox ${geometry.svgRatio}`
+      )
+
+      // 2. A tall raster is clamped, and clamping scales it rather than
+      //    squashing it. Baseline: no max-height anywhere in the editor zone,
+      //    so a 2074×1895 PNG rendered 1012×925 — taller than the window.
+      assert(geometry.imageCap === '60vh', `image cap token: ${geometry.imageCap} (want 60vh)`)
+      const cap = geometry.viewportHeight * 0.6
+      assert(
+        geometry.tall.height <= cap + 1,
+        `a ${BL_TALL_PX.width}×${BL_TALL_PX.height} PNG renders ${geometry.tall.height}px tall (cap ${cap})`
+      )
+      assert(
+        geometry.tall.width <= geometry.content.width,
+        `the tall image is ${geometry.tall.width}px wide, past the ${geometry.content.width}px measure`
+      )
+      assert(
+        Math.abs(geometry.tall.width / geometry.tall.height - geometry.tall.naturalRatio) < 0.01,
+        `clamping distorted the raster: ${geometry.tall.width / geometry.tall.height} vs natural ${geometry.tall.naturalRatio}`
+      )
+      // 3. …and the clamp is max-*, not a definite size: an image smaller than
+      //    the measure is not blown up to fill it.
+      assert(
+        Math.abs(geometry.small.width - BL_SMALL_PX.width) < 0.5 &&
+          Math.abs(geometry.small.height - BL_SMALL_PX.height) < 0.5,
+        `a ${BL_SMALL_PX.width}×${BL_SMALL_PX.height} PNG was resized to ${geometry.small.width}×${geometry.small.height}`
+      )
+
+      // 4. Every block widget starts where the prose starts. Baseline: the
+      //    figure overhung its neighbours by 16px per side, because
+      //    .cm-lp-figure had `padding: 0` while its siblings added .cm-line's
+      //    own padding back by hand.
+      for (const [what, measured] of [
+        ['figure', geometry.figure],
+        ['table', geometry.table],
+        ['math block', geometry.math]
+      ]) {
+        assert(
+          Math.abs(measured.contentLeft - geometry.line.contentLeft) < 0.5,
+          `the ${what}'s left edge is at ${measured.contentLeft}, prose is at ${geometry.line.contentLeft}`
+        )
+      }
+
+      // 5. A display equation sits on the measure centre. Baseline: 943.0
+      //    against a content centre of 959.0 — the equation-number chip's room
+      //    was reserved asymmetrically on the padding.
+      assert(
+        Math.abs(geometry.katex.centre - geometry.content.centre) <= 1,
+        `equation centre ${geometry.katex.centre} vs measure centre ${geometry.content.centre}`
+      )
+      // 6. …and so does a table. Baseline: 629.5 against 959.0 — a shrink-wrapped
+      //    table with neither a width nor auto margins hugs the left edge.
+      assert(
+        Math.abs(geometry.tableInner.centre - geometry.content.centre) <= 1,
+        `table centre ${geometry.tableInner.centre} vs measure centre ${geometry.content.centre}`
+      )
+      assert(
+        geometry.tableInner.width < geometry.table.width,
+        `the table did not shrink-wrap (${geometry.tableInner.width} of ${geometry.table.width}) — centring it proves nothing`
+      )
+    } finally {
+      for (const file of [BL_FILE, BL_TALL, BL_SMALL]) rmSync(file, { force: true })
+      await evalJs(`window.__sunaDev.dock.closePanel(${JSON.stringify(BL_FILE)})`).catch(() => {})
+      await evalJs(`window.__sunaDev.projectStore.getState().refreshTree()`).catch(() => {})
+    }
+  })
+
+  await step('vim-motions', async () => {
+    // The suite deletes the developer's settings.json before launch, so vim is
+    // off for every other step and this one has to turn it on itself — and
+    // turn it back off, or every later step's typing lands in normal mode.
+    const VIM_FILE = join(COPY_DIR, 'vim-probe.md')
+    try {
+      writeFileSync(VIM_FILE, 'first line\nsecond line\nthird line\n', 'utf8')
+      await evalJs(
+        `window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', true)`
+      )
+      let resolved = null
+      for (let i = 0; i < 20 && resolved !== true; i++) {
+        resolved = await evalJs(
+          `window.__sunaDev.settingsStore.getState().resolved.value['editor.vimMotions']`
+        )
+        if (resolved !== true) await sleep(250)
+      }
+      assert(resolved === true, `the resolver never reported vim on: ${resolved}`)
+
+      // Both surfaces, each measured while it is the frontmost panel: dockview
+      // renders `onlyWhenVisible`, so a hidden panel's DOM is detached and a
+      // single read could only ever see one of them. Baseline: the single-file
+      // tab was true and the manuscript tab false — ManuscriptEditor built its
+      // editor options without a `vim` key at all, and a project lands on it.
+      const vimClassOn = (selector) =>
+        evalJs(`(() => {
+          const el = document.querySelector(${JSON.stringify(selector)});
+          return el === null ? null : el.classList.contains('cm-vimMode');
+        })()`)
+      await openManuscript()
+      await sleep(1200)
+      const source = await evalJs(
+        `window.__sunaDev.settingsStore.getState().resolved.sources['editor.vimMotions']`
+      )
+      assert(source === 'global', `vim resolved from ${source} (want global)`)
+      assert(
+        (await vimClassOn('.msdoc__editor .cm-scroller')) === true,
+        'the manuscript editor has no vim keymap'
+      )
+
+      // The mode chip: the only feedback that normal mode is swallowing plain
+      // typing, so it has to be on screen the moment vim is.
+      const chip = await evalJs(`(() => {
+        const el = document.querySelector('.statusbar__vim');
+        if (!el) throw new Error('no vim mode indicator in the status bar');
+        return { text: el.textContent.trim(), transform: getComputedStyle(el).textTransform };
+      })()`)
+      assert(chip.transform === 'uppercase', `mode chip text-transform: ${chip.transform}`)
+      assert(chip.text === 'normal', `mode chip reads ${JSON.stringify(chip.text)} (want normal)`)
+
+      // Normal-mode motion in the MANUSCRIPT editor, which had no vim at all.
+      // `j` must move the caret and leave the document alone; without vim it
+      // would type the letter.
+      const caretAt = () => evalJs(`(() => {
+        const host = document.querySelector('.msdoc__editor');
+        return {
+          line: host.querySelector('.cm-activeLine')?.textContent ?? null,
+          doc: host.querySelector('.cm-content').textContent,
+          blockCursor: host.querySelectorAll('.cm-vimCursorLayer .cm-fat-cursor').length
+        };
+      })()`)
+      // The title page sits above the editor inside the scrolling .msdoc, so
+      // the first prose line can start below the fold — measure after
+      // scrolling it into view, or the click lands on whatever is at those
+      // coordinates instead.
+      await evalJs(
+        `document.querySelector('.msdoc__editor .cm-line').scrollIntoView({ block: 'center' })`
+      )
+      await sleep(500)
+      const first = await evalJs(`(() => {
+        const line = document.querySelector('.msdoc__editor .cm-line');
+        const r = line.getBoundingClientRect();
+        return { x: r.left + Math.min(30, r.width / 2), y: r.top + r.height / 2 };
+      })()`)
+      await click(first.x, first.y)
+      await sleep(300)
+      await key('Escape', 'Escape')
+      await sleep(300)
+      const before = await caretAt()
+      assert(before.blockCursor > 0, 'normal mode draws no block cursor in the manuscript editor')
+      for (let i = 0; i < 3; i++) {
+        await key('j', 'KeyJ')
+        await sleep(120)
+      }
+      await sleep(300)
+      const after = await caretAt()
+      assert(after.doc === before.doc, "'j' in normal mode typed into the manuscript instead of moving")
+      assert(
+        after.line !== before.line,
+        `'j' did not move the caret (active line stayed ${JSON.stringify(before.line)})`
+      )
+
+      // `i` → insert, Escape → normal, both reported by the chip.
+      const chipText = () =>
+        evalJs(`document.querySelector('.statusbar__vim')?.textContent.trim() ?? null`)
+      await key('i', 'KeyI')
+      await sleep(300)
+      assert((await chipText()) === 'insert', `mode chip after 'i': ${await chipText()}`)
+      await key('Escape', 'Escape')
+      await sleep(300)
+      assert((await chipText()) === 'normal', `mode chip after Escape: ${await chipText()}`)
+
+      // `:w` on a scratch file in a single-file tab — the other surface, and
+      // the one `:q` and `:w` were written for. Baseline: `:w` was a
+      // guaranteed no-op, because vim's own `write` is
+      // `CM.commands.save ?? cm.save()` and the CM6 shim defines neither.
+      await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(VIM_FILE)})`)
+      await sleep(1800)
+      assert(
+        (await vimClassOn('.editor-tab__cm .cm-scroller')) === true,
+        'the single-file editor tab has no vim keymap'
+      )
+      await evalJs(`document.querySelector('.editor-tab__cm .cm-content').focus()`)
+      await sleep(200)
+      await key('Escape', 'Escape')
+      await sleep(200)
+      await key('i', 'KeyI')
+      await sleep(200)
+      await insertText('VIMSMOKE ')
+      await sleep(300)
+      await key('Escape', 'Escape')
+      await sleep(300)
+      await evalJs(`window.__sunaDev.uiStore.getState().setStatusNote(null)`)
+      await key(':', 'Semicolon', 8)
+      await sleep(500)
+      const commandLine = await evalJs(
+        `document.querySelector('.editor-tab .cm-panels-bottom input') !== null`
+      )
+      assert(commandLine, "':' did not open vim's command line")
+      await insertText('w')
+      await sleep(250)
+      const typed = await evalJs(
+        `document.querySelector('.editor-tab .cm-panels-bottom input').value`
+      )
+      assert(typed === 'w', `the command line holds ${JSON.stringify(typed)} (want "w")`)
+      // The vim dialog's own submit handler tests `event.keyCode == 13`, and
+      // CDP leaves keyCode at 0 unless the virtual key code is passed — so
+      // this Enter cannot go through the suite's `key()` helper.
+      for (const type of ['keyDown', 'keyUp']) {
+        await send('Input.dispatchKeyEvent', {
+          type,
+          key: 'Enter',
+          code: 'Enter',
+          windowsVirtualKeyCode: 13,
+          nativeVirtualKeyCode: 13
+        })
+      }
+      await sleep(900)
+      const saved = await evalJs(`window.__sunaDev.uiStore.getState().statusNote`)
+      assert(
+        String(saved).startsWith('Saved'),
+        `':w' did not reach the host's save path (status note: ${JSON.stringify(saved)})`
+      )
+      assert(
+        readFileSync(VIM_FILE, 'utf8').includes('VIMSMOKE'),
+        `':w' did not write the file:\n${readFileSync(VIM_FILE, 'utf8')}`
+      )
+    } finally {
+      await evalJs(
+        `window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', false)`
+      ).catch(() => {})
+      await sleep(600)
+      await evalJs(`window.__sunaDev.dock.closePanel(${JSON.stringify(VIM_FILE)})`).catch(() => {})
+      rmSync(VIM_FILE, { force: true })
+      await evalJs(`window.__sunaDev.projectStore.getState().refreshTree()`).catch(() => {})
+    }
+  })
+
+  await step('left-nav-collapse', async () => {
+    /** Everything the three nav states are asserted on, in one read. */
+    const chrome = () => evalJs(`(() => {
+      const workbench = document.querySelector('.workbench');
+      const toggle = document.querySelector('.titlebar__nav-toggle');
+      const stage = document.querySelector('.dock-stage');
+      const ui = window.__sunaDev.uiStore.getState();
+      return {
+        cls: workbench.className,
+        rail: !!document.querySelector('.activitybar'),
+        panel: !!document.querySelector('.sidebar'),
+        toggleVisible: toggle !== null && toggle.getBoundingClientRect().width > 0,
+        stageWidth: stage.getBoundingClientRect().width,
+        panelWidth: document.querySelector('.sidebar')?.getBoundingClientRect().width ?? 0,
+        storeWidth: ui.sidebarWidth,
+        savedWidth: window.localStorage.getItem('suna.sidebarWidth'),
+        savedPanel: window.localStorage.getItem('suna.sidebarVisible'),
+        savedRail: window.localStorage.getItem('suna.activityBarVisible')
+      };
+    })()`)
+    const runCommand = (id) =>
+      evalJs(`window.__sunaDev.commands.runCommand(${JSON.stringify(id)})`)
+
+    /**
+     * Put the shell back however this step ends. It is the only step that can
+     * leave the app with no activity bar, and every later step reaches its
+     * view by clicking one — so a failure here would otherwise fail the whole
+     * suite behind it. showView writes the store directly and cannot restore
+     * railVisible, so this goes through the actions.
+     */
+    const restoreChrome = async () => {
+      await evalJs(`(() => {
+        const ui = window.__sunaDev.uiStore.getState();
+        ui.setRailVisible(true);
+        ui.setSidebarVisible(true);
+        ui.setSidebarWidth(272);
+      })()`)
+      await evalJs(`window.__sunaDev.dock.clearDock()`)
+      await sleep(500)
+    }
+
+    try {
+      // A non-default width, so "restores what the user chose" is a real claim.
+      await evalJs(`window.__sunaDev.uiStore.getState().setSidebarWidth(330)`)
+      await sleep(400)
+      const full = await chrome()
+      assert(full.rail && full.panel, 'the nav did not start in its full state')
+      assert(Math.round(full.panelWidth) === 330, `sidebar width: ${full.panelWidth} (want 330)`)
+
+      // full → rail only
+      assert(await runCommand('view.sidebar.toggle'), 'view.sidebar.toggle is not registered')
+      await sleep(500)
+      const rail = await chrome()
+      assert(rail.cls.includes('workbench--sidebar-hidden'), `rail-only class: ${rail.cls}`)
+      assert(rail.rail && !rail.panel, `rail-only state: rail=${rail.rail} panel=${rail.panel}`)
+      assert(
+        Math.abs(rail.stageWidth - (full.stageWidth + 330)) <= 1,
+        `hiding the panel widened the dock by ${rail.stageWidth - full.stageWidth} (want 330)`
+      )
+
+      // rail only → nothing. Baseline: unreachable — sidebarVisible was the
+      // only flag, ActivityBar rendered unconditionally, neither was persisted.
+      assert(await runCommand('view.leftnav.toggle'), 'view.leftnav.toggle is not registered')
+      await sleep(500)
+      const hidden = await chrome()
+      assert(hidden.cls.includes('workbench--nav-hidden'), `nav-hidden class: ${hidden.cls}`)
+      assert(!hidden.rail && !hidden.panel, `hidden: rail=${hidden.rail} panel=${hidden.panel}`)
+      assert(
+        Math.abs(hidden.stageWidth - (full.stageWidth + 330 + 46)) <= 1,
+        `hiding the rail widened the dock by ${hidden.stageWidth - full.stageWidth} (want 376)`
+      )
+      assert(
+        hidden.savedPanel === 'false' && hidden.savedRail === 'false',
+        `the hidden state was not persisted: ${JSON.stringify(hidden)}`
+      )
+      // The restore button in EVERY state, this one above all: the flags
+      // survive a restart, so an app that starts fully hidden with a
+      // conditional button would have no way back.
+      for (const [what, state] of [['full', full], ['rail-only', rail], ['hidden', hidden]]) {
+        assert(state.toggleVisible, `.titlebar__nav-toggle is not visible in the ${what} state`)
+      }
+      await screenshot('left-nav-hidden.png')
+
+      // …and back, to the width the user chose rather than the default.
+      assert(await runCommand('view.leftnav.toggle'), 'view.leftnav.toggle did not run twice')
+      await sleep(500)
+      const restored = await chrome()
+      assert(
+        restored.rail && restored.panel && !restored.cls.includes('--hidden'),
+        `restoring the nav left ${restored.cls}`
+      )
+      assert(
+        Math.round(restored.panelWidth) === 330,
+        `restored width ${restored.panelWidth} (want the chosen 330, not the 272 default)`
+      )
+      assert(
+        restored.savedPanel === 'true' && restored.savedRail === 'true',
+        `the restored state was not persisted: ${JSON.stringify(restored)}`
+      )
+
+      // Dragging the handle past the collapse threshold hides the panel and
+      // leaves the remembered width alone. Baseline: clampSidebarWidth floored
+      // at 180, so a drag to the left edge just parked there.
+      const handle = await evalJs(`(() => {
+        const el = document.querySelector('.sidebar__resize');
+        const aside = document.querySelector('.sidebar');
+        const r = el.getBoundingClientRect();
+        const a = aside.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, target: a.left - 60 };
+      })()`)
+      // Synthetic PointerEvents for the same reason sidebar-resize uses them:
+      // CDP mouse coordinates go through the device-metrics override and miss
+      // the 4px handle on a fractional-scale display.
+      await evalJs(`(() => {
+        const el = document.querySelector('.sidebar__resize');
+        const opts = { bubbles: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 };
+        el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, clientX: ${handle.x}, clientY: ${handle.y} }));
+        el.dispatchEvent(new PointerEvent('pointermove', { ...opts, clientX: ${handle.target}, clientY: ${handle.y} }));
+        el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0, clientX: ${handle.target}, clientY: ${handle.y} }));
+      })()`)
+      await sleep(500)
+      const dragged = await chrome()
+      assert(!dragged.panel, 'dragging the handle past the collapse threshold did not hide the panel')
+      assert(dragged.rail, 'collapsing the panel by drag also took the rail with it')
+      assert(
+        dragged.storeWidth === 330 && dragged.savedWidth === '330',
+        `the collapse drag overwrote the remembered width: ${dragged.storeWidth}/${dragged.savedWidth}`
+      )
+
+      // With an editor open, hiding the whole nav has to leave CodeMirror's
+      // coordinate map correct — the only real proof that no manual
+      // remeasure() is needed after the grid loses a column. Measured on the
+      // SCROLLER: .cm-content is capped at the content-width measure on a
+      // prose file, so it does not grow with the pane and would prove nothing.
+      await evalJs(`window.__sunaDev.dock.clearDock()`)
+      await sleep(300)
+      await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'README.md'))})`)
+      await sleep(1600)
+      const scroller = () =>
+        evalJs(`document.querySelector('.editor-tab .cm-scroller').getBoundingClientRect().width`)
+      const narrow = await scroller()
+      await runCommand('view.leftnav.toggle')
+      await sleep(700)
+      const wide = await scroller()
+      assert(
+        Math.abs(wide - (narrow + 46)) <= 1,
+        `hiding the rail widened the editor by ${wide - narrow} (want the rail's 46px)`
+      )
+      const secondLine = await evalJs(`(() => {
+        const line = [...document.querySelectorAll('.cm-line')][1];
+        const r = line.getBoundingClientRect();
+        return { text: line.textContent, x: r.left + 2, y: r.top + r.height / 2 };
+      })()`)
+      await click(secondLine.x, secondLine.y)
+      await sleep(400)
+      const landed = await evalJs(`document.querySelector('.cm-activeLine')?.textContent ?? null`)
+      assert(
+        landed === secondLine.text,
+        `after the resize a click on line 2 landed on ${JSON.stringify(landed)} (want ${JSON.stringify(secondLine.text)})`
+      )
+    } finally {
+      await restoreChrome()
+    }
+    const finalState = await chrome()
+    assert(
+      finalState.rail && finalState.panel,
+      `the nav was left in ${finalState.cls} for the steps below`
+    )
+  })
+
+  await step('tree-icons', async () => {
+    const EMPTY_DIR = join(COPY_DIR, 'empty-e2e')
+    const BIB = join(COPY_DIR, 'manuscript', 'references.bib')
+    try {
+      await evalJs(`(async () => {
+        await window.suna.invoke('fs:mkdir', { path: ${JSON.stringify(EMPTY_DIR)} });
+        await window.__sunaDev.projectStore.getState().refreshTree();
+      })()`)
+      await showView('explorer')
+      await sleep(600)
+      // A file open in a tab, so the open-row treatment has something to mark.
+      await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(BIB)})`)
+      await sleep(1200)
+      await showView('explorer')
+      await sleep(500)
+
+      const rows = await evalJs(`(() => {
+        const all = [...document.querySelectorAll('.tree__row')];
+        const byName = (name) => all.find((r) => (r.dataset.path ?? '').split('/').pop() === name);
+        const icon = (row) => row.querySelector('.tree__icon svg');
+        const railIcon = [...document.querySelectorAll('.activitybar__item')]
+          .find((b) => b.title.startsWith('Figures'))?.querySelector('svg');
+        const figures = byName('figures');
+        const empty = byName('empty-e2e');
+        const manuscript = byName('manuscript.md');
+        const bib = byName('references.bib');
+        if (!figures || !empty || !manuscript || !bib) {
+          throw new Error('expected tree rows are missing: ' + all.map((r) => r.dataset.path).join(','));
+        }
+        return {
+          total: all.length,
+          withOneIcon: all.filter((r) => r.querySelectorAll('.tree__icon svg').length === 1).length,
+          glyphRows: all.filter((r) => /[▾▸]/.test(r.textContent)).length,
+          figuresIcon: icon(figures).innerHTML,
+          railFiguresIcon: railIcon ? railIcon.innerHTML : null,
+          manuscriptIcon: icon(manuscript).innerHTML,
+          bibIcon: icon(bib).innerHTML,
+          folderClosed: icon(empty).innerHTML,
+          emptyClass: empty.className,
+          emptyChevron: empty.querySelectorAll('.tree__chevron svg').length,
+          emptyExpanded: empty.getAttribute('aria-expanded'),
+          openIcon: getComputedStyle(bib.querySelector('.tree__icon')).color,
+          plainIcon: getComputedStyle(manuscript.querySelector('.tree__icon')).color
+        };
+      })()`)
+      // Baseline: rows carried a '▾'/'▸' text glyph and no icon element at all.
+      assert(
+        rows.withOneIcon === rows.total,
+        `${rows.total - rows.withOneIcon} of ${rows.total} tree rows carry no single .tree__icon svg`
+      )
+      assert(rows.glyphRows === 0, `${rows.glyphRows} tree rows still print a chevron text glyph`)
+      assert(
+        rows.manuscriptIcon !== rows.bibIcon,
+        'manuscript.md and references.bib draw the same icon — the file-kind map is not wired'
+      )
+      assert(
+        rows.figuresIcon === rows.railFiguresIcon,
+        'the figures/ folder does not reuse the Figures activity-bar icon'
+      )
+      assert(
+        rows.folderClosed !== rows.figuresIcon,
+        'a plain folder and a project directory draw the same icon'
+      )
+      // An empty directory promises nothing it cannot deliver.
+      assert(rows.emptyClass.includes('tree__row--empty'), `empty folder classes: ${rows.emptyClass}`)
+      assert(rows.emptyChevron === 0, 'an empty folder still draws a disclosure chevron')
+      assert(rows.emptyExpanded === null, `an empty folder reports aria-expanded=${rows.emptyExpanded}`)
+      // The open marker moved onto the icon: tinting the NAME would resolve to
+      // the same --s-ink a directory row uses and make an open file read as
+      // a folder.
+      assert(
+        rows.openIcon !== rows.plainIcon,
+        `an open file's icon is not distinguished (${rows.openIcon})`
+      )
+
+      // Folder open vs closed are two different marks, not one rotated glyph.
+      // Measured on fig-spectrum/, not on a suna.json directory: those carry
+      // their own semantic icon and never switch.
+      const folderIcon = () => evalJs(`(() => {
+        const row = [...document.querySelectorAll('.tree__row')]
+          .find((r) => (r.dataset.path ?? '').split('/').pop() === 'fig-spectrum');
+        if (!row) throw new Error('no fig-spectrum/ row in the tree');
+        return { path: row.dataset.path, icon: row.querySelector('.tree__icon svg').innerHTML,
+                 expanded: row.getAttribute('aria-expanded') };
+      })()`)
+      const opened = await folderIcon()
+      assert(opened.expanded === 'true', `fig-spectrum/ starts collapsed (${opened.expanded})`)
+      await evalJs(
+        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(opened.path)})`
+      )
+      await sleep(400)
+      const closed = await folderIcon()
+      assert(closed.expanded === 'false', `collapsing fig-spectrum/ left aria-expanded=${closed.expanded}`)
+      assert(
+        closed.icon !== opened.icon,
+        'the folder icon is identical open and closed — no open/closed mark is drawn'
+      )
+      await evalJs(
+        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(opened.path)})`
+      )
+      await sleep(300)
+
+      // The confirmed CSS load-order defect: app.css is injected after
+      // explorer.css, so at equal specificity its .tree__row:hover repainted a
+      // hovered selected row with the hover tint.
+      const hovered = await evalJs(`(() => {
+        const row = [...document.querySelectorAll('.tree__row')]
+          .find((r) => (r.dataset.path ?? '').split('/').pop() === 'references.bib');
+        window.__sunaDev.explorerStore.setState({ selection: [row.dataset.path] });
+        const r = row.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      })()`)
+      await sleep(300)
+      await mouse('mouseMoved', hovered.x, hovered.y)
+      await sleep(300)
+      const bands = await evalJs(`(() => {
+        const row = [...document.querySelectorAll('.tree__row')]
+          .find((r) => (r.dataset.path ?? '').split('/').pop() === 'references.bib');
+        const norm = (v) => v.replace(/\\s+/g, '');
+        const root = getComputedStyle(document.documentElement);
+        return {
+          hovering: row.matches(':hover'),
+          background: norm(getComputedStyle(row).backgroundColor),
+          selected: norm(root.getPropertyValue('--s-bg-selected')),
+          hover: norm(root.getPropertyValue('--s-bg-hover')),
+          icon: getComputedStyle(row.querySelector('.tree__icon')).color
+        };
+      })()`)
+      assert(bands.hovering, 'the pointer is not over the selected row — the band test proves nothing')
+      assert(
+        bands.background === bands.selected,
+        `a hovered selected row paints ${bands.background} (want the selected band ${bands.selected}, not the hover tint ${bands.hover})`
+      )
+      // Same defect class, one layer down: `.tree__row:hover .tree__icon` is
+      // (0,3,0) and `.tree__row--open .tree__icon` is (0,2,0), so hovering an
+      // open row used to erase the only per-row 'this file is open' signal.
+      // references.bib is open (a tab was opened above) and is the row the
+      // pointer is on, so this is the exact case.
+      assert(
+        bands.icon === rows.openIcon,
+        `hovering an open row repaints its icon ${bands.icon} (unhovered it is ${rows.openIcon})`
+      )
+      await screenshot('tree-icons.png')
+    } finally {
+      await evalJs(`window.__sunaDev.dock.closePanel(${JSON.stringify(BIB)})`).catch(() => {})
+      await evalJs(`window.__sunaDev.explorerStore.setState({ selection: [] })`).catch(() => {})
+      rmSync(EMPTY_DIR, { recursive: true, force: true })
+      await evalJs(`window.__sunaDev.projectStore.getState().refreshTree()`).catch(() => {})
+    }
   })
 
   await step('figures-view', async () => {
@@ -4546,6 +5356,9 @@ try {
     rmSync(CANCEL_PARENT, { recursive: true, force: true })
   })
 
+  // Under KEEP_GOING a failed step did not throw, so the summary is decided
+  // here rather than by having reached this line.
+  if (results.some((r) => !r.ok)) throw new Error('one or more steps failed')
   console.log(`\nALL ${results.length} STEPS PASSED`)
 } catch {
   exitCode = 1

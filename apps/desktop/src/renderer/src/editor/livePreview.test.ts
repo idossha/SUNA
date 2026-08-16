@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { EditorSelection, EditorState, type SelectionRange } from '@codemirror/state'
 import { type DecorationSet, EditorView } from '@codemirror/view'
-import { buildInlineDecorations, extractSpans, livePreview, renderTableHtml } from './livePreview'
+import {
+  buildInlineDecorations,
+  extractSpans,
+  intrinsicSizeFromViewBox,
+  intrinsicSvgSize,
+  livePreview,
+  renderTableHtml
+} from './livePreview'
 
 describe('extractSpans', () => {
   it('finds display math with an equation label at exact offsets', () => {
@@ -48,6 +55,39 @@ describe('extractSpans', () => {
     const image = blocks.find((span) => span.kind === 'image')
     if (image?.kind !== 'image') throw new Error('expected image span')
     expect(image.alt).toBe('')
+  })
+
+  it('carries an explicit width and swallows the attribute block into the span', () => {
+    const source = 'Intro.\n\n![A spectrum](images/plot.png){width=50%}\n\nMore.\n'
+    const { blocks } = extractSpans(source)
+    const image = blocks.find((span) => span.kind === 'image')
+    if (image?.kind !== 'image') throw new Error('expected image span')
+    expect(image.width).toBe('50%')
+    // The braces being inside [from,to) is what hides them in reading mode.
+    expect(source.slice(image.from, image.to)).toBe('![A spectrum](images/plot.png){width=50%}')
+  })
+
+  it('reads a px width and a bare number as px', () => {
+    const px = extractSpans('![a](p.png){width=320px}\n').blocks[0]
+    expect(px?.kind === 'image' && px.width).toBe('320px')
+    const bare = extractSpans('![a](p.png){width=320}\n').blocks[0]
+    expect(bare?.kind === 'image' && bare.width).toBe('320px')
+  })
+
+  it('leaves a plain image with no width — the common case', () => {
+    const { blocks } = extractSpans('![A spectrum](images/plot.png)\n')
+    const image = blocks.find((span) => span.kind === 'image')
+    if (image?.kind !== 'image') throw new Error('expected image span')
+    expect(image.width).toBeUndefined()
+  })
+
+  it('leaves a malformed attribute block outside the span, so it stays visible', () => {
+    const source = '![a](p.png){width=abc}\n'
+    const { blocks } = extractSpans(source)
+    const image = blocks.find((span) => span.kind === 'image')
+    if (image?.kind !== 'image') throw new Error('expected image span')
+    expect(image.width).toBeUndefined()
+    expect(source.slice(image.from, image.to)).toBe('![a](p.png)')
   })
 
   it('does not treat an image inside a code fence as an image', () => {
@@ -394,20 +434,108 @@ describe('extractSpans', () => {
   })
 })
 
+/* ---------------------------------------------------------------------------
+   The sizing seam paintAsset uses on an inlined <svg>. An SVG carrying only a
+   viewBox has no intrinsic size and collapses to 0x0 — invisible — so these
+   pin the recovery of a real width/height from the viewBox, and the fallback
+   to "no attributes at all" for anything unusable (never `width="0"`).
+   ------------------------------------------------------------------------- */
+
+describe('intrinsicSizeFromViewBox', () => {
+  it('recovers the extent from a plain space-separated viewBox', () => {
+    expect(intrinsicSizeFromViewBox('0 0 940 500')).toEqual({ width: 940, height: 500 })
+  })
+
+  it('accepts comma separators, a non-zero origin, and surrounding whitespace', () => {
+    expect(intrinsicSizeFromViewBox('0,0,940,500')).toEqual({ width: 940, height: 500 })
+    expect(intrinsicSizeFromViewBox('10 20 940 500')).toEqual({ width: 940, height: 500 })
+    expect(intrinsicSizeFromViewBox('  0 0 940 500  ')).toEqual({ width: 940, height: 500 })
+    expect(intrinsicSizeFromViewBox('0,  0 , 940 ,500')).toEqual({ width: 940, height: 500 })
+  })
+
+  // matplotlib writes pt-derived fractions — examples/demo-paper's figures are
+  // exactly these two strings, so a whole-number-only parser would drop them.
+  it('keeps fractional extents from matplotlib output', () => {
+    expect(intrinsicSizeFromViewBox('0 0 510.23622 164.409449')).toEqual({
+      width: 510.23622,
+      height: 164.409449
+    })
+    expect(intrinsicSizeFromViewBox('0 0 249.448819 198.425197')).toEqual({
+      width: 249.448819,
+      height: 198.425197
+    })
+  })
+
+  it('returns null for an absent, empty or wrong-arity viewBox', () => {
+    expect(intrinsicSizeFromViewBox(null)).toBeNull()
+    expect(intrinsicSizeFromViewBox('')).toBeNull()
+    expect(intrinsicSizeFromViewBox('   ')).toBeNull()
+    expect(intrinsicSizeFromViewBox('0 0 940')).toBeNull()
+    expect(intrinsicSizeFromViewBox('0 0 940 500 60')).toBeNull()
+  })
+
+  it('returns null for a non-numeric token', () => {
+    expect(intrinsicSizeFromViewBox('0 0 940px 500px')).toBeNull()
+    expect(intrinsicSizeFromViewBox('0 0 auto 500')).toBeNull()
+  })
+
+  it('returns null for a zero or negative extent, so no width="0" is ever written', () => {
+    expect(intrinsicSizeFromViewBox('0 0 0 500')).toBeNull()
+    expect(intrinsicSizeFromViewBox('0 0 940 0')).toBeNull()
+    expect(intrinsicSizeFromViewBox('0 0 -940 500')).toBeNull()
+  })
+})
+
+describe('intrinsicSvgSize', () => {
+  // The regression: re-stating a pt viewBox as unitless numbers renders a
+  // matplotlib figure at 75% of its authored physical size (1pt = 4/3 px).
+  it('keeps the authored physical size when the file states one', () => {
+    expect(
+      intrinsicSvgSize('249.448819pt', '198.425197pt', '0 0 249.448819 198.425197')
+    ).toEqual({ width: '249.448819pt', height: '198.425197pt' })
+    expect(intrinsicSvgSize('180mm', '120mm', '0 0 180 120')).toEqual({
+      width: '180mm',
+      height: '120mm'
+    })
+    expect(intrinsicSvgSize('940', '500', '0 0 940 500')).toEqual({ width: '940', height: '500' })
+  })
+
+  it('falls back to the viewBox extent when the file has no usable size', () => {
+    expect(intrinsicSvgSize(null, null, '0 0 940 500')).toEqual({ width: '940', height: '500' })
+    // `%` is relative to a containing block, i.e. no intrinsic size at all.
+    expect(intrinsicSvgSize('100%', '100%', '0 0 940 500')).toEqual({
+      width: '940',
+      height: '500'
+    })
+    // One axis alone cannot describe a size.
+    expect(intrinsicSvgSize('940', null, '0 0 940 500')).toEqual({ width: '940', height: '500' })
+  })
+
+  it('returns null when nothing usable is on offer, so no attribute is written', () => {
+    expect(intrinsicSvgSize(null, null, null)).toBeNull()
+    expect(intrinsicSvgSize('100%', '100%', null)).toBeNull()
+    expect(intrinsicSvgSize('0pt', '0pt', null)).toBeNull()
+  })
+})
+
 describe('livePreview block decorations (headless state field)', () => {
-  function countBlockDecorations(state: EditorState): number {
+  function blockDecorationRanges(state: EditorState): OffsetPair[] {
     const sets = state
       .facet(EditorView.decorations)
       .filter((value): value is DecorationSet => typeof value !== 'function')
-    let count = 0
+    const ranges: OffsetPair[] = []
     for (const set of sets) {
       const cursor = set.iter()
       while (cursor.value !== null) {
-        count += 1
+        ranges.push({ from: cursor.from, to: cursor.to })
         cursor.next()
       }
     }
-    return count
+    return ranges
+  }
+
+  function countBlockDecorations(state: EditorState): number {
+    return blockDecorationRanges(state).length
   }
 
   it('replaces display math while the selection is elsewhere', () => {
@@ -439,12 +567,41 @@ describe('livePreview block decorations (headless state field)', () => {
     expect(countBlockDecorations(left)).toBe(1)
   })
 
+  // The attribute block is hidden by the image's own block replacement, not by
+  // a decoration of its own — so the range has to reach past the closing brace
+  // or the braces would be left dangling under the rendered picture.
+  it('replaces a width-attributed image over its attribute block too', () => {
+    const doc = 'Intro.\n\n![a](p.png){width=50%}\n\nAfter.\n'
+    const state = EditorState.create({ doc, extensions: [livePreview()] })
+    expect(blockDecorationRanges(state)).toEqual([
+      { from: doc.indexOf('!['), to: doc.indexOf('}') + 1 }
+    ])
+  })
+
+  it('reveals the attribute block with the image source when the cursor enters it', () => {
+    const doc = 'Intro.\n\n![a](p.png){width=50%}\n\nAfter.\n'
+    const outside = EditorState.create({ doc, extensions: [livePreview()] })
+    const inside = outside.update({ selection: EditorSelection.cursor(doc.indexOf('50%')) }).state
+    expect(countBlockDecorations(inside)).toBe(0)
+    const left = inside.update({ selection: EditorSelection.cursor(0) }).state
+    expect(countBlockDecorations(left)).toBe(1)
+  })
+
   it('renders table markdown to an HTML table through @suna/markdown', () => {
     const html = renderTableHtml('| a | b |\n| --- | --- |\n| 1 | 2 |')
     expect(html).toContain('<table')
     expect(html).toContain('<th')
     expect(html).toContain('<td')
     expect(html).toContain('</table>')
+  })
+
+  // editor.css's cell default is `text-align: start`, deliberately weaker than
+  // this inline style — if the renderer ever stopped emitting it, GFM column
+  // alignment would silently vanish from reading mode with no other symptom.
+  it('keeps the inline GFM column alignment the reading-mode table styling defers to', () => {
+    const html = renderTableHtml('| a | b |\n| :--- | :---: |\n| 1 | 2 |')
+    expect(html).toContain('style="text-align:center"')
+    expect(html).toContain('style="text-align:left"')
   })
 
   it('rebuilds spans when the document changes', () => {
@@ -644,5 +801,28 @@ describe('buildInlineDecorations: hide + reveal', () => {
     expect(visibleLineText(multi.state, multi.deco, 1)).toBe('## First')
     expect(visibleLineText(multi.state, multi.deco, 3)).toBe('Second')
     expect(visibleLineText(multi.state, multi.deco, 5)).toBe('## Third')
+  })
+})
+
+describe('buildInlineDecorations: line-break safety', () => {
+  it('drops an inline replace span that crosses a line break', () => {
+    // remark-math reads `$x\ny$` as a single inlineMath node, so an ordinary
+    // paragraph can produce an inline span across a newline. A plugin may not
+    // supply a replace decoration over a line break — CodeMirror throws
+    // "Decorations that replace line breaks may not be specified via plugins"
+    // and the editor renders empty, losing the whole document view.
+    const doc = '# T\n\npara\n\n$\nE = mc^2\n$\n\nmore\n'
+    const { inline } = extractSpans(doc)
+    expect(inline.some((span) => span.kind === 'inlineMath')).toBe(true)
+
+    const { state, deco } = decoBuild(doc, EditorSelection.cursor(0))
+    let crossing = 0
+    deco.between(0, doc.length, (from, to, value) => {
+      if (to <= from) return
+      const spec = value.spec as { class?: string; widget?: unknown }
+      if (spec.widget === undefined && spec.class !== undefined) return
+      if (state.doc.lineAt(from).number !== state.doc.lineAt(to).number) crossing += 1
+    })
+    expect(crossing).toBe(0)
   })
 })

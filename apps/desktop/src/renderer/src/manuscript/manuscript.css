@@ -88,36 +88,23 @@
   align-items: flex-start;
 }
 
-/* Counterweight for the comment gutter: without it, .msdoc__page's `margin:
-   0 auto` centers the measure in the space LEFT OVER after the gutter, so the
-   whole document (title page included) reads as shifted left by half the
-   gutter. This mirrors the gutter's width on the leading side so the page
-   stays centered in the tab. Widths track comments.css (.cmt-gutter 260px,
-   .cmt-gutter--narrow 22px); no gutter rendered -> no spacer. */
-   Both this spacer and the gutter collapse to 0 while the document has no
-   comments (see the rule below): an empty gutter otherwise reserved 260px,
-   and this spacer mirrored it, so ~520px of the panel was blank margin the
-   measure could never use — which is what made the width setting look inert
-   on a ~1000px panel. */
-.msdoc__body:has(> .cmt-gutter)::before {
-  content: '';
-  flex: 0 0 260px;
-}
-
-.msdoc__body:has(> .cmt-gutter--narrow)::before {
-  flex-basis: 22px;
-}
+/* NO leading counterweight for the comment gutter. Mirroring the gutter's
+   260px on the leading side does center the page against the tab, but it
+   puts the prose in a different place than the single-file editor tab puts
+   the same file — which is the whole complaint this rule used to cause. The
+   page centers in the space left over after the gutter instead, matching
+   .editor-tab__source--reading.
+   (A rule here did reserve that 260px, but only briefly: for most of its life
+   a stray comment terminator above it made the selector invalid, so browsers
+   dropped it and nobody saw the spacer. Repairing the comment switched it on
+   for the first time and immediately shifted the document right.) */
 
 /* No cards and no dots -> nothing to hold space for. The gutter stays mounted
    (ManuscriptTab measures anchor positions through its track ref); it just
-   stops occupying a column, and the spacer above matches it. */
+   stops occupying a column. */
 .msdoc__body > .cmt-gutter:not(:has(.cmt, .cmt-dot)) {
   width: 0;
   padding-inline: 0; /* comments.css gives it 8px each side, content-box */
-}
-
-.msdoc__body:has(> .cmt-gutter:not(:has(.cmt, .cmt-dot)))::before {
-  flex-basis: 0;
 }
 
 /* flex-basis is the measure (not `auto`): as a flex item the page would
@@ -180,18 +167,24 @@
   user-select: text;
 }
 
+/* The title block is centred, matching what both exporters already write
+   (export-html.ts's pageCss and export-docx.ts's title/author/affiliation
+   paragraphs) — screen and page must not disagree about it. The `tp__*`
+   editor rows below opt back out; see the click-to-edit note there. */
 .msdoc__title {
   margin: 0 0 0.7em;
   font-family: var(--s-font-serif);
   font-size: 1.55em;
   font-weight: 650;
   line-height: 1.3;
+  text-align: center;
   color: var(--ed-ink, var(--s-ink));
 }
 
 .msdoc__authors {
   margin-bottom: 0.5em;
   font-size: 1.02em;
+  text-align: center;
   color: var(--ed-ink, var(--s-ink));
 }
 
@@ -205,6 +198,7 @@
   margin-bottom: 0.4em;
   font-size: 0.82em;
   line-height: 1.55;
+  text-align: center;
   color: var(--ed-ink-muted, var(--s-ink-muted));
 }
 
@@ -215,6 +209,7 @@
 
 .msdoc__correspondence {
   font-size: 0.82em;
+  text-align: center;
   color: var(--ed-ink-faint, var(--s-ink-faint));
 }
 
@@ -255,7 +250,10 @@
 
 /* ---- the embedded editor: sizes to content, the outer document scrolls ---- */
 
-.msdoc .msdoc__editor {
+/* Reading mode takes the body font; source mode leaves --ed-content-font
+   unset so themes.ts falls back to the mono stack — the same split
+   .editor-tab__source--reading makes for the single-file tab. */
+.msdoc--reading .msdoc__editor {
   --ed-content-font: var(--ed-body-font, var(--s-font-serif));
 }
 
@@ -439,13 +437,15 @@
 
 /* title-page meta row: running title (editable, previously unshown) +
    article type select — only rendered when editable, so it never disturbs
-   the read-only look */
+   the read-only look. `text-align: left` opts out of the centred title block:
+   these are form rows, not typeset front matter. */
 .tp__meta-row {
   display: flex;
   align-items: baseline;
   gap: 20px;
   margin: -0.3em 0 0.9em;
   padding: 0 16px;
+  text-align: left;
   font-family: var(--s-font-ui);
   font-size: var(--s-text-xs);
   color: var(--ed-ink-faint, var(--s-ink-faint));
@@ -482,12 +482,16 @@
 
 /* ---- authors / affiliations compact row editors --------------------------- */
 
+/* These mount inside the EditableGroup display face, which reuses
+   .msdoc__authors / .msdoc__affiliations — so they inherit the centring the
+   title block now carries. `text-align: left` opts the form rows back out. */
 .tp__authors-editor,
 .tp__affiliations-editor {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin: 0 16px 0.4em;
+  text-align: left;
   font-family: var(--s-font-ui);
   font-size: var(--s-text-sm);
 }
