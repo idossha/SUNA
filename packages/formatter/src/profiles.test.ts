@@ -27,10 +27,38 @@ function articleType(profile: PublisherProfile, id: string): ArticleTypeRules {
   return found;
 }
 
+// feature-plan-6.md §1: journal-profile research pass 2 (2026-08-15) added these
+// eight journals; author-guidelines-findings-2.json is the source of every
+// non-null value below. lastVerified differs from the first research pass
+// (2026-08-13) because these were extracted in a separate session.
+const SECOND_PASS_IDS = [
+  'nature',
+  'neuron',
+  'pnas',
+  'brain-stimulation',
+  'sleep',
+  'sleep-advances',
+  'jne',
+  'jneurosci',
+] as const;
+
 describe('bundled publisher profiles', () => {
-  it('lists exactly the four bundled ids', () => {
+  it('lists exactly the twelve bundled ids', () => {
     expect([...BUNDLED_PROFILE_IDS].sort()).toEqual(
-      ['apj-aas', 'mnras', 'nature-astronomy', 'science'].sort(),
+      [
+        'apj-aas',
+        'mnras',
+        'nature-astronomy',
+        'science',
+        'nature',
+        'neuron',
+        'pnas',
+        'brain-stimulation',
+        'sleep',
+        'sleep-advances',
+        'jne',
+        'jneurosci',
+      ].sort(),
     );
   });
 
@@ -45,7 +73,10 @@ describe('bundled publisher profiles', () => {
 
       it('id matches its filename and lastVerified is the extraction date', () => {
         expect(profile.id).toBe(id);
-        expect(profile.lastVerified).toBe('2026-08-13');
+        const expectedDate = (SECOND_PASS_IDS as readonly string[]).includes(id)
+          ? '2026-08-15'
+          : '2026-08-13';
+        expect(profile.lastVerified).toBe(expectedDate);
       });
 
       it('every section carries at least one official source URL', () => {
@@ -209,6 +240,309 @@ describe('mnras facts from the OUP instructions to authors', () => {
   });
 });
 
+// The eight describe blocks below cover the journals added by the second
+// research pass (feature-plan-6.md §1); every assertion cites the specific
+// finding in docs/design/author-guidelines-findings-2.json it traces to.
+
+describe('nature facts from the flagship Nature formatting guide', () => {
+  const nat = profiles['nature'];
+
+  it('citations: numeric superscript, >5-author et al. truncation, 50-ref guideline', () => {
+    // findings-2.json Nature.citations: "reference numbers are superscript...";
+    // "more than five, in which case only the first author...followed by 'et al.'"
+    expect(nat.citations.mode).toBe('numeric-superscript');
+    expect(nat.citations.authorYear).toBeNull();
+    expect(nat.citations.referenceList.authorTruncation).toEqual({
+      etAlAllowed: true,
+      truncateWhenMoreThan: 5,
+      keepFirstN: 1,
+    });
+    expect(articleType(nat, 'article').maxReferences).toBe(50);
+  });
+
+  it('figures: 89/183 mm columns (final-submission spec), 5-7 pt text, 0.25-1 pt lines, no palette requirement', () => {
+    // findings-2.json Nature.figureRules: Final submission page numbers, chosen
+    // over the conflicting Formatting-guide numbers (recorded in provenance).
+    expect(nat.figures.widthPresetsMm.single).toBe(89);
+    expect(nat.figures.widthPresetsMm.double).toBe(183);
+    expect(nat.figures.minFontPt).toBe(5);
+    expect(nat.figures.maxFontPt).toBe(7);
+    expect(nat.figures.lineWeightPt).toEqual({ min: 0.25, max: 1 });
+    // Unlike nature-astronomy, the flagship pages state no colorblind-safe
+    // palette rule — this profile must not borrow the sibling's requirement.
+    expect(nat.figures.palette.requirement).toBe('none-stated');
+    expect(nat.figures.palette.suggestedHex).toBeNull();
+  });
+
+  it('manuscript: only "article" exists (no Letter format), 75-char title, 200-word summary, double-spaced with line numbers', () => {
+    // findings-2.json Nature.notes: "NATURE HAS NO 'LETTER' OR 'BRIEF
+    // COMMUNICATION' RESEARCH FORMAT".
+    expect(nat.manuscript.articleTypes.map((t) => t.id)).toEqual(['article']);
+    const article = articleType(nat, 'article');
+    expect(article.titleLimitChars).toBe(75);
+    expect(article.abstractWordLimit).toBe(200);
+    expect(article.wordLimit?.hard).toBe(false);
+    expect(nat.manuscript.submissionFormat.doubleSpacing).toBe(true);
+    expect(nat.manuscript.submissionFormat.lineNumbers).toBe(true);
+    expect(nat.manuscript.availabilityStatements).toEqual({ data: true, code: true });
+  });
+});
+
+describe('neuron facts from the Cell Press guidelines', () => {
+  const neuron = profiles['neuron'];
+
+  it('citations: numeric superscript, et al. only after 10 authors', () => {
+    // findings-2.json Neuron.citations: Cell Press referencing-style
+    // announcement, "'Et al.' should be used only after 10 author names".
+    expect(neuron.citations.mode).toBe('numeric-superscript');
+    expect(neuron.citations.referenceList.authorTruncation).toEqual({
+      etAlAllowed: true,
+      truncateWhenMoreThan: 10,
+      keepFirstN: 10,
+    });
+  });
+
+  it('manuscript: Article 7000 words / 150-word Summary / 8 items; Report 4000 words / 4 items', () => {
+    // findings-2.json Neuron.manuscriptLimits.
+    const article = articleType(neuron, 'article');
+    expect(article.wordLimit?.max).toBe(7000);
+    expect(article.abstractWordLimit).toBe(150);
+    expect(article.maxDisplayItems).toBe(8);
+    const report = articleType(neuron, 'report');
+    expect(report.wordLimit?.max).toBe(4000);
+    expect(report.maxDisplayItems).toBe(4);
+    expect(neuron.manuscript.availabilityStatements).toEqual({ data: true, code: true });
+  });
+
+  it('figures: 300 dpi floor from the tiered color/grayscale/line-art resolution rule', () => {
+    // findings-2.json Neuron.figureRules: "at least 300 dpi is required...
+    // at least 500 dpi... at least 1,000 dpi".
+    expect(neuron.figures.formats.minDpi).toBe(300);
+  });
+});
+
+describe('pnas facts from the PNAS author center', () => {
+  const pnas = profiles['pnas'];
+
+  it('citations: parenthetical numeric (not italic, not superscript), order of appearance', () => {
+    // findings-2.json PNAS.citations: "(1, 2)" not italicized, distinguishing
+    // it from Science's italic-parenthetical style.
+    expect(pnas.citations.mode).toBe('parenthetical-numeric');
+    expect(pnas.citations.referenceList.sortOrder).toBe('appearance');
+  });
+
+  it('manuscript: Research Report ~4000 words/50 refs/4 items, 250-word abstract; Brief Report 1600 words/15 refs', () => {
+    // findings-2.json PNAS.manuscriptLimits.
+    const report = articleType(pnas, 'research-report');
+    expect(report.wordLimit?.max).toBe(4000);
+    expect(report.abstractWordLimit).toBe(250);
+    expect(report.maxReferences).toBe(50);
+    expect(report.maxDisplayItems).toBe(4);
+    const brief = articleType(pnas, 'brief-report');
+    expect(brief.wordLimit?.max).toBe(1600);
+    expect(brief.maxReferences).toBe(15);
+  });
+
+  it('requiredSections places Results before Materials and Methods (PNAS-distinctive ordering)', () => {
+    const ids = pnas.manuscript.requiredSections.map((s) => s.id);
+    expect(ids.indexOf('results')).toBeLessThan(ids.indexOf('materials-methods'));
+  });
+});
+
+describe('brain-stimulation facts from the Elsevier guide for authors', () => {
+  const brainStim = profiles['brain-stimulation'];
+
+  it('citations: Vancouver-numbered family; most fields left null (guide-for-authors page returned 403)', () => {
+    // findings-2.json Brain Stimulation.notes: sparsest profile in the batch.
+    expect(brainStim.citations.referenceList.authorTruncation.truncateWhenMoreThan).toBeNull();
+  });
+
+  it('manuscript: 250-word structured abstract is the one confirmed limit', () => {
+    // findings-2.json Brain Stimulation.manuscriptLimits: "Abstracts must not
+    // exceed 250 words".
+    expect(articleType(brainStim, 'original-article').abstractWordLimit).toBe(250);
+    expect(articleType(brainStim, 'original-article').wordLimit).toBeNull();
+  });
+
+  it('figures: 300 dpi TIFF/JPG/PNG for photographs is the one confirmed figure rule', () => {
+    // findings-2.json Brain Stimulation.figureRules.
+    expect(brainStim.figures.formats.minDpi).toBe(300);
+    expect(brainStim.figures.formats.rasterAccepted).toEqual(
+      expect.arrayContaining(['tiff', 'jpg', 'png']),
+    );
+    expect(brainStim.figures.widthPresetsMm.single).toBeNull();
+  });
+});
+
+describe('sleep facts from the Oxford Academic author guidelines', () => {
+  const sleep = profiles['sleep'];
+
+  it('citations: bracketed numeric with hyphenated ranges, truncation starting AT 7 authors', () => {
+    // findings-2.json SLEEP.citations: "Arabic numerals placed in brackets";
+    // "a hyphen should be used to join the first and last numbers of a
+    // series"; "Provide all authors' names when fewer than seven; when seven
+    // or more, list the first three and add et al."
+    expect(sleep.citations.collapseRanges).toBe(true);
+    expect(sleep.citations.referenceList.authorTruncation).toEqual({
+      etAlAllowed: true,
+      // 6, not 7: the field is "the largest author count still printed in
+      // full", and SLEEP truncates AT seven authors. Encoding 7 here would
+      // print all seven names on a 7-author reference, which the rule forbids.
+      truncateWhenMoreThan: 6,
+      keepFirstN: 3,
+    });
+  });
+
+  /**
+   * Guards the off-by-one directly, in the consumer's terms: `maxAuthorsFor`
+   * (export-content.ts) truncates only when `authorCount > truncateWhenMoreThan`,
+   * so the boundary between six and seven authors is where SLEEP's rule bites.
+   */
+  it('citations: a 6-author reference stays full, a 7-author one truncates', () => {
+    const { truncateWhenMoreThan } = sleep.citations.referenceList.authorTruncation;
+    expect(truncateWhenMoreThan).not.toBeNull();
+    const truncatesAt = (authorCount: number): boolean =>
+      authorCount > (truncateWhenMoreThan as number);
+    expect(truncatesAt(6)).toBe(false);
+    expect(truncatesAt(7)).toBe(true);
+  });
+
+  it('manuscript: 250-word abstract, 120-word Statement of Significance section, no running title', () => {
+    // findings-2.json SLEEP.manuscriptLimits.
+    expect(articleType(sleep, 'original-article').abstractWordLimit).toBe(250);
+    expect(
+      sleep.manuscript.requiredSections.some((s) => s.id === 'statement-of-significance'),
+    ).toBe(true);
+    expect(sleep.manuscript.runningHeadLimitChars).toBeNull();
+  });
+
+  it('submissionFormat: double-spaced but explicitly NO line numbers (opposite of Nature)', () => {
+    // findings-2.json SLEEP.submissionFormat: "Do not number the lines."
+    expect(sleep.manuscript.submissionFormat.doubleSpacing).toBe(true);
+    expect(sleep.manuscript.submissionFormat.lineNumbers).toBe(false);
+  });
+});
+
+describe('sleep-advances facts from the Oxford Academic author guidelines', () => {
+  const sleepAdv = profiles['sleep-advances'];
+
+  it('does not inherit SLEEP\'s citation rules — every citation-mode field is a flagged placeholder', () => {
+    // findings-2.json Sleep Advances.citations: the page is silent on
+    // citation style; no-sibling-inference rule forbids borrowing SLEEP's.
+    const entry = sleepAdv.citations.provenance?.find((e) => e.claim.includes('mode / collapseRanges'));
+    expect(entry?.basis).toBe('inferred');
+    expect(entry?.source).toBeNull();
+    expect(sleepAdv.citations.referenceList.authorTruncation.truncateWhenMoreThan).toBeNull();
+  });
+
+  it('manuscript: Brief Research Report (2000 words/4 items/no abstract) is SLEEP-Advances-specific', () => {
+    // findings-2.json Sleep Advances.manuscriptLimits.
+    const brief = articleType(sleepAdv, 'brief-research-report');
+    expect(brief.wordLimit).toEqual({
+      max: 2000,
+      scope: 'excluding figure/table legends and references',
+      hard: true,
+    });
+    expect(brief.maxDisplayItems).toBe(4);
+    // Editorial differs from SLEEP's own 1200-word limit.
+    expect(articleType(sleepAdv, 'editorial').wordLimit?.max).toBe(1500);
+  });
+
+  it('figures section is genuinely empty (page fetched in full, states nothing) not a retrieval gap', () => {
+    expect(sleepAdv.figures.palette.requirement).toBe('none-stated');
+    expect(sleepAdv.figures.formats.vectorPreferred).toEqual([]);
+  });
+});
+
+describe('jne facts from the IOP Publishing support pages', () => {
+  const jne = profiles['jne'];
+
+  it('citations: iopart-num numbered style, >10-author et al., appearance order', () => {
+    // findings-2.json JNE.citations: iopart-num CTAN docs; "For more than
+    // ten authors, the name of the first author should be given followed by
+    // et al."
+    expect(jne.citations.referenceList.sortOrder).toBe('appearance');
+    expect(jne.citations.referenceList.authorTruncation).toEqual({
+      etAlAllowed: true,
+      truncateWhenMoreThan: 10,
+      keepFirstN: 1,
+    });
+  });
+
+  it('figures: 85/150 mm columns, 8-12 pt text, lowercase parenthesized panel labels, color discouraged as sole delimiter', () => {
+    // findings-2.json JNE.figureRules.
+    expect(jne.figures.widthPresetsMm.single).toBe(85);
+    expect(jne.figures.widthPresetsMm.double).toBe(150);
+    expect(jne.figures.minFontPt).toBe(8);
+    expect(jne.figures.maxFontPt).toBe(12);
+    expect(jne.figures.panelLabel).toEqual({ letterCase: 'lower', weight: null, wrapper: 'parens' });
+    expect(jne.figures.palette.colorAsSoleDelimiter).toBe('discouraged');
+  });
+
+  it('manuscript: Paper 12000 words, structured 300-word abstract (Objective/Approach/Main results/Significance)', () => {
+    // findings-2.json JNE.manuscriptLimits.
+    const paper = articleType(jne, 'paper');
+    expect(paper.wordLimit?.max).toBe(12000);
+    expect(paper.abstractWordLimit).toBe(300);
+    expect(jne.manuscript.availabilityStatements.data).toBe(true);
+    expect(jne.manuscript.submissionFormat.lineNumbers).toBe(false);
+  });
+});
+
+describe('jneurosci facts from the Society for Neuroscience information for authors', () => {
+  const jneuro = profiles['jneurosci'];
+
+  it('citations: author-year (parenthetical, NOT numbered), 6-author reference-list truncation', () => {
+    // findings-2.json JNeurosci.citations: "actually uses an author-date
+    // (parenthetical) citation system rather than a numbered format";
+    // "List all authors unless there are more than six...list the first six".
+    expect(jneuro.citations.mode).toBe('author-year');
+    expect(jneuro.citations.referenceList.authorTruncation).toEqual({
+      etAlAllowed: true,
+      truncateWhenMoreThan: 6,
+      keepFirstN: 6,
+    });
+  });
+
+  it('manuscript: Research Article has no whole-document word cap — 650/1500-word Intro/Discussion budgets instead', () => {
+    // findings-2.json JNeurosci.manuscriptLimits: "restricted to 650-word
+    // introductions and 1,500-word discussions"; "no limit on the number of
+    // figures, diagrams, or references".
+    const ra = articleType(jneuro, 'research-article');
+    expect(ra.wordLimit).toBeNull();
+    expect(ra.maxReferences).toBeNull();
+    expect(
+      jneuro.manuscript.requiredSections.find((s) => s.id === 'introduction')?.label,
+    ).toContain('650-word');
+    const review = articleType(jneuro, 'review');
+    expect(review.abstractWordLimit).toBe(250);
+  });
+
+  it('submissionFormat: double-spaced text including references', () => {
+    expect(jneuro.manuscript.submissionFormat.doubleSpacing).toBe(true);
+  });
+});
+
+describe('no profile is bundled for a journal the findings marked found:false', () => {
+  it('every journal in author-guidelines-findings-2.json with found:false has no matching resources/profiles/*.json', () => {
+    const findingsPath = join(here, '..', '..', '..', 'docs', 'design', 'author-guidelines-findings-2.json');
+    const findings = JSON.parse(readFileSync(findingsPath, 'utf8')) as Array<{
+      journals: Array<{ name: string; found: boolean }>;
+    }>;
+    const dropped = findings[0]?.journals.filter((j) => !j.found) ?? [];
+    // This asserts the mechanism holds even though the current research pass
+    // found guidelines for all nine requested journals (nothing was dropped
+    // this round) — if a future pass records found:false, this test starts
+    // enforcing it automatically.
+    for (const journal of dropped) {
+      const slug = journal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      expect(
+        (BUNDLED_PROFILE_IDS as readonly string[]).some((id) => id === slug),
+      ).toBe(false);
+    }
+  });
+});
+
 describe('provenance annotations on the bundled profiles', () => {
   it('every bundled profile annotates all three sections', () => {
     for (const id of BUNDLED_PROFILE_IDS) {
@@ -267,7 +601,8 @@ describe('provenance annotations on the bundled profiles', () => {
   });
 
   it('the other bundled profiles state no stage severity mapping', () => {
-    for (const id of ['apj-aas', 'mnras', 'science'] as const) {
+    for (const id of BUNDLED_PROFILE_IDS) {
+      if (id === 'nature-astronomy') continue;
       expect(profiles[id].manuscript.stageSeverity).toBeUndefined();
     }
   });

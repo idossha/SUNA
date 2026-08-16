@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 3,
+  "id": "sleep-advances",
+  "journalName": "SLEEP Advances",
+  "publisher": "Oxford University Press (for the Sleep Research Society and Australasian Sleep Association)",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "parenthetical-numeric",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": null,
+        "book": null,
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": null,
+        "truncateWhenMoreThan": null,
+        "keepFirstN": null
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": null,
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "mode / collapseRanges / textualTokens / sortOrder: SLEEP Advances' author-guidelines page does not state a citation style at all (mode / collapseRanges / textualTokens / sortOrder are all silent). These four fields are non-nullable in the schema, so a placeholder value was required to produce a valid document. The placeholder does NOT borrow SLEEP's documented convention (that would violate the no-sibling-inference rule) — it is the most conservative structural default available, and it is NOT a documented fact. Verify directly against the live guidelines before relying on it.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": null,
+      "onehalf": null,
+      "double": null
+    },
+    "maxHeightMm": null,
+    "minFontPt": null,
+    "maxFontPt": null,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [],
+      "rasterAccepted": [],
+      "minDpi": null
+    },
+    "panelLabel": {
+      "letterCase": null,
+      "weight": null,
+      "wrapper": null
+    },
+    "sources": [
+      "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "The author-guidelines page was fetched directly and in full; it states no figure-preparation rules at all (widths, fonts, line weights, resolution, formats, color/accessibility) — genuinely 'none-stated' rather than a retrieval gap, unlike the Neuron/PNAS/Brain Stimulation/JNeurosci entries in this batch. palette.requirement='none-stated' and empty format arrays are the schema's built-in representation of this and required no placeholder inference.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "original-article",
+        "name": "Original Articles",
+        "wordLimit": null,
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "brief-research-report",
+        "name": "Brief Research Report",
+        "wordLimit": {
+          "max": 2000,
+          "scope": "excluding figure/table legends and references",
+          "hard": true
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": 4,
+        "maxReferences": null
+      },
+      {
+        "id": "perspective",
+        "name": "Perspective",
+        "wordLimit": {
+          "max": 4000,
+          "scope": "total",
+          "hard": false
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": 50
+      },
+      {
+        "id": "editorial",
+        "name": "Editorial",
+        "wordLimit": {
+          "max": 1500,
+          "scope": "total, plus as many references as needed; may include one figure or table",
+          "hard": true
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": 1,
+        "maxReferences": null
+      },
+      {
+        "id": "letter",
+        "name": "Letter to the Editor",
+        "wordLimit": {
+          "max": 1000,
+          "scope": "plus references (max 10); may include one figure or table",
+          "hard": true
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": 1,
+        "maxReferences": 10
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [],
+    "availabilityStatements": {
+      "data": null,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": null,
+      "acceptedFileTypes": []
+    },
+    "sources": [
+      "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "Brief Research Report: “Maximum word length is 2,000 words excluding figure/table legends and references”; “Maximum figures/tables: 4”; “No limit on references”; “No Abstract of Statement of Significance allowed” (page's own wording) — a SLEEP-Advances-specific article type not offered by SLEEP itself.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+      },
+      {
+        "claim": "Perspective/Editorial/Letter limits: Perspective “should not exceed 4,000 words in length and 50 references” (matches SLEEP); Editorial “maximum word length of 1,500 words” (SLEEP's own Editorial limit is 1,200 — 300 words more here, a genuine difference between the two journals, not an error); Letters “no more than 1,000 words plus references, ... limited to a maximum of ten.”",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+      },
+      {
+        "claim": "requiredSections left empty: the page states a substructure only for the SLEEP-Advances-specific 'Protocol Paper' type (“Introduction and Rationale, Methods, Analytic strategies, Discussion”), not a general required-section list for Original Articles; that type-specific structure is not modeled as the profile's general requiredSections to avoid implying it applies to all article types.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleepadvances/pages/author-guidelines"
+      }
+    ]
+  },
+  "notes": [
+    "Directly fetched in full from academic.oup.com — high confidence for what IS present, but the page is materially thinner than SLEEP's own author-guidelines page: it documents article-type word/reference/figure limits reasonably well but is silent on citation style, figure preparation, and submission formatting entirely.",
+    "Per the hard rule against inferring one journal's rules from a sibling, NONE of SLEEP's citation/figure/submission rules were carried over even though the two journals share a publisher and society (Sleep Research Society, Oxford University Press). This produces a profile with several null/empty sections; that sparseness is a direct, honest reflection of what THIS journal's own page states, not a research shortfall for this pass — a more detailed 'Preparing your manuscript' sub-page may exist and was not located.",
+    "SLEEP Advances' author-guidelines page does not state a citation style at all (mode / collapseRanges / textualTokens / sortOrder are all silent). These four fields are non-nullable in the schema, so a placeholder value was required to produce a valid document. The placeholder does NOT borrow SLEEP's documented convention (that would violate the no-sibling-inference rule) — it is the most conservative structural default available, and it is NOT a documented fact. Verify directly against the live guidelines before relying on it.",
+    "Two explicit differences from SLEEP worth flagging: Editorial word limit is 1,500 here vs SLEEP's 1,200; Brief Research Reports (2,000 words, 4 items, unlimited references, no abstract) are a SLEEP-Advances-specific article type not offered by SLEEP itself."
+  ]
+}

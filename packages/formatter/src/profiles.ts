@@ -3,6 +3,14 @@ import apjAas from '../../../resources/profiles/apj-aas.json';
 import mnras from '../../../resources/profiles/mnras.json';
 import natureAstronomy from '../../../resources/profiles/nature-astronomy.json';
 import science from '../../../resources/profiles/science.json';
+import nature from '../../../resources/profiles/nature.json';
+import neuron from '../../../resources/profiles/neuron.json';
+import pnas from '../../../resources/profiles/pnas.json';
+import brainStimulation from '../../../resources/profiles/brain-stimulation.json';
+import sleep from '../../../resources/profiles/sleep.json';
+import sleepAdvances from '../../../resources/profiles/sleep-advances.json';
+import jne from '../../../resources/profiles/jne.json';
+import jneurosci from '../../../resources/profiles/jneurosci.json';
 
 /**
  * Ids of the publisher profiles bundled with SUNA, one JSON document each
@@ -13,6 +21,14 @@ export const BUNDLED_PROFILE_IDS = [
   'science',
   'apj-aas',
   'mnras',
+  'nature',
+  'neuron',
+  'pnas',
+  'brain-stimulation',
+  'sleep',
+  'sleep-advances',
+  'jne',
+  'jneurosci',
 ] as const;
 
 export type BundledProfileId = (typeof BUNDLED_PROFILE_IDS)[number];
@@ -23,6 +39,14 @@ export const BUNDLED_RAW: Readonly<Record<string, unknown>> = {
   mnras,
   'nature-astronomy': natureAstronomy,
   science,
+  nature,
+  neuron,
+  pnas,
+  'brain-stimulation': brainStimulation,
+  sleep,
+  'sleep-advances': sleepAdvances,
+  jne,
+  jneurosci,
 };
 
 export interface LoadProfileOptions {

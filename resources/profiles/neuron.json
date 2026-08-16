@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 3,
+  "id": "neuron",
+  "journalName": "Neuron",
+  "publisher": "Cell Press (Elsevier)",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "numeric-superscript",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": null,
+        "book": null,
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 10,
+        "keepFirstN": 10
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": null,
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.cell.com/neuron/information-for-authors",
+      "https://www.cell.com/news-do/cell-press-referencing-style",
+      "https://www.cell.com/information-for-authors/figure-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "mode: numeric-superscript — Cell Press's own announcement: “Cell Press now requires all new and revised submissions [after October 2022] to format citations using the superscript numbered referencing style” (e.g. 'this observation1,2'); Neuron is explicitly named in the list of affected journals.",
+        "basis": "documented",
+        "source": "https://www.cell.com/news-do/cell-press-referencing-style"
+      },
+      {
+        "claim": "authorTruncation: “'Et al.' should be used only after 10 author names” — confirmed identically across two independent search retrievals of the same page.",
+        "basis": "documented",
+        "source": "https://www.cell.com/news-do/cell-press-referencing-style"
+      },
+      {
+        "claim": "collapseRanges / sortOrder: not independently confirmed with a worked example; inferred from the numbered-superscript system (numbers are necessarily assigned/read in order of appearance, and collation of adjacent numbers is standard practice for such systems) rather than from an explicit statement.",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "entryTemplates / journalAbbreviation / doiPolicy: left null — cell.com/neuron/information-for-authors and /information-for-authors/figure-guidelines returned HTTP 403 on every direct-fetch attempt in this session; no search excerpt surfaced a verbatim reference-entry pattern for Neuron specifically, and third-party aggregators (manusights.com, Paperpile, EndNote) were excluded as non-primary sources.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": null,
+      "onehalf": null,
+      "double": null
+    },
+    "maxHeightMm": 200,
+    "minFontPt": null,
+    "maxFontPt": null,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [],
+      "rasterAccepted": [],
+      "minDpi": 300
+    },
+    "panelLabel": {
+      "letterCase": null,
+      "weight": null,
+      "wrapper": null
+    },
+    "sources": [
+      "https://www.cell.com/information-for-authors/figure-guidelines",
+      "https://www.cell.com/pb-assets/journals/EM/MasterFFCs/NEURONFFC-1766175479360.pdf"
+    ],
+    "provenance": [
+      {
+        "claim": "formats.minDpi: “For color or grayscale figures, at least 300 dpi is required; for black and white figures, at least 500 dpi; for line-art figures, at least 1,000 dpi at the desired print size.” Encoded minDpi as the 300dpi floor; the 500/1000dpi tiers for B&W/line-art are recorded here rather than modeled (schema has one minDpi field).",
+        "basis": "documented",
+        "source": "https://www.cell.com/information-for-authors/figure-guidelines"
+      },
+      {
+        "claim": "maxHeightMm: Neuron's Final File Requirements state “Figures should be a maximum of 6.5 x 8 in (16.5 x 20 cm) to allow for page margins and text” — an overall page-fit maximum, not a single/double-column preset system like Nature/Science use, so only the height (20cm) is encoded in maxHeightMm; the 16.5cm width maximum is recorded here rather than forced into widthPresetsMm.single/double, which would misrepresent it as a column-preset system Neuron does not appear to use.",
+        "basis": "documented",
+        "source": "https://www.cell.com/pb-assets/journals/EM/MasterFFCs/NEURONFFC-1766175479360.pdf"
+      },
+      {
+        "claim": "minFontPt/maxFontPt/lineWeightPt/preferredFontFamilies/palette/panelLabel: could not be confirmed — cell.com/information-for-authors/figure-guidelines returned HTTP 403 on every fetch attempt in this session.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "article",
+        "name": "Article",
+        "wordLimit": {
+          "max": 7000,
+          "scope": "total word count including title page; excludes STAR Methods text, supplemental video/table legends, and References",
+          "hard": false
+        },
+        "abstractWordLimit": 150,
+        "titleLimitChars": null,
+        "maxDisplayItems": 8,
+        "maxReferences": null
+      },
+      {
+        "id": "report",
+        "name": "Report",
+        "wordLimit": {
+          "max": 4000,
+          "scope": "same exclusions as Article (STAR Methods text, supplemental legends, References excluded)",
+          "hard": false
+        },
+        "abstractWordLimit": 150,
+        "titleLimitChars": null,
+        "maxDisplayItems": 4,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      {
+        "id": "title-authors-affiliations",
+        "label": "Title, Authors, Affiliations",
+        "required": true
+      },
+      {
+        "id": "summary",
+        "label": "Summary (150-word, un-headed abstract)",
+        "required": true
+      },
+      {
+        "id": "introduction",
+        "label": "Introduction",
+        "required": true
+      },
+      {
+        "id": "results",
+        "label": "Results",
+        "required": true
+      },
+      {
+        "id": "discussion",
+        "label": "Discussion",
+        "required": true
+      },
+      {
+        "id": "star-methods",
+        "label": "STAR Methods (Resource availability incl. Data and Code Availability; Experimental Model and Study Participant Details; Method Details; Quantification and Statistical Analysis)",
+        "required": true
+      },
+      {
+        "id": "acknowledgments",
+        "label": "Acknowledgments",
+        "required": false
+      },
+      {
+        "id": "author-contributions",
+        "label": "Author Contributions",
+        "required": true
+      },
+      {
+        "id": "declaration-of-interests",
+        "label": "Declaration of Interests",
+        "required": true
+      },
+      {
+        "id": "references",
+        "label": "References",
+        "required": true
+      }
+    ],
+    "availabilityStatements": {
+      "data": true,
+      "code": true
+    },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": null,
+      "acceptedFileTypes": []
+    },
+    "sources": [
+      "https://www.cell.com/neuron/information-for-authors",
+      "https://www.cell.com/neuron/information-for-authors/article-types",
+      "https://www.cell.com/information-for-authors/star-authors-guide"
+    ],
+    "provenance": [
+      {
+        "claim": "Article: “total word count of an article must be under 7,000 (including main figure legends but excluding the STAR Methods text, supplemental item legends, and references section)”; “The abstract limit is 150 words.”",
+        "basis": "documented",
+        "source": "https://www.cell.com/neuron/information-for-authors/article-types"
+      },
+      {
+        "claim": "Report: “fewer than 4,000 words (including main figure legends but excluding the STAR Methods text, supplemental item legends, and references section)... no more than 4 figures and/or tables.”",
+        "basis": "documented",
+        "source": "https://www.cell.com/neuron/information-for-authors/article-types"
+      },
+      {
+        "claim": "Report.abstractWordLimit: the 150-word Summary limit is documented for Articles; carried over to Report because Neuron uses one Summary format journal-wide, but this specific number is not independently re-stated for Reports on the pages retrieved — flagged as inferred rather than documented for the Report row.",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "requiredSections / availabilityStatements: STAR Methods' “Resource availability” section requires a “comprehensive and accurate data and code availability statement” as a mandatory subsection for every submission.",
+        "basis": "documented",
+        "source": "https://www.cell.com/information-for-authors/star-authors-guide"
+      },
+      {
+        "claim": "submissionFormat: could not be confirmed (spacing, line numbers, accepted file types) — cell.com/neuron/information-for-authors and /revise-manuscript both returned HTTP 403 on every attempt.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "notes": [
+    "RETRIEVAL CAVEAT (applies to this entire profile): cell.com returned HTTP 403 to the WebFetch tool on every path attempted in this research session — information-for-authors, article-types, figure-guidelines, star-authors-guide, both PDFs, and the news page. Every 'documented' claim above was corroborated through Google-indexed search-engine excerpts of those official pages rather than a direct primary-source read; entries that only surfaced once, vaguely, or exclusively from a third-party formatting-checker blog were left null instead of guessed.",
+    "This is materially lower-confidence sourcing than the Nature and Science entries in this batch (both of which had direct-fetch or browser-session access). The user should independently re-verify against the live cell.com pages before relying on any 'documented' claim here for a hard compliance check.",
+    "maxHeightMm (200mm) and the implied max width (165mm) come from Neuron's Final File Requirements PDF and represent an overall page-fit maximum, not a Nature/Science-style single/double-column preset system — Cell Press figures are not laid out on the same fixed-column grid, so widthPresetsMm is left null rather than forcing the 165mm figure into a 'double column' slot it doesn't represent.",
+    "The Cell Press numbered-superscript style (October 2022 changeover) explicitly lists Neuron among the affected journals, alongside Cell, Cell Reports, Cell Metabolism, Cell Stem Cell, Molecular Cell, Immunity, iScience, Developmental Cell, and others — all now share the same >10-author et al. rule and superscript in-text format.",
+    "Figure resolution is tiered by content type (300dpi color/grayscale, 500dpi black-and-white, 1000dpi line-art) rather than a single floor; minDpi is encoded as the 300dpi floor with the tiers recorded here since the schema has one minDpi field."
+  ]
+}

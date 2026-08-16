@@ -61,6 +61,14 @@ if (import.meta.env.DEV) {
       // Split view (§1): openInSplit/openViewerInSide plus the group/panel
       // readouts the "exactly 2 groups" / "exactly one PDF tab" acceptance
       // checks measure (state/dock.ts).
+      //
+      // --- feature-plan-6 --------------------------------------------------
+      // Also carries openDocxImportTab (§2) and openExportTab (§3/§4), which
+      // bypass the native file/folder pickers a CDP driver cannot operate.
+      // NOT yet seamed: the import review's own "Import into new project…"
+      // button still opens a native directory picker, so a full
+      // analyze→review→commit e2e needs a target-directory seam inside
+      // import/DocxImportTab.tsx (see docs/design/roadmap.md).
       dock: dockDevSeam,
       // Command registry (§5): list/inspect/run a command by id, so a driver
       // can assert '>split right' without synthesizing every keystroke.

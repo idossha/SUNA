@@ -13,7 +13,7 @@ import { createNewFigure } from '../canvas/new-figure'
 import { activeCanvasPaletteContext } from '../canvas/palette-actions'
 import { exportActiveFigurePdf, exportActiveFigurePng } from '../canvas/palette-export'
 import { scanFigures } from '../views/figures-scan'
-import { activePanelPath, openInSplit, openManuscriptTab, openSettingsTab } from './dock'
+import { activePanelPath, openExportTab, openInSplit, openManuscriptTab, openSettingsTab } from './dock'
 import { useProjectStore } from './project'
 import { resolvePreviewProfileId, useRenderProfileStore } from './renderProfile'
 import { useTerminalPanelStore } from './terminal'
@@ -215,6 +215,17 @@ registerCommand({
   run: () => {
     const rootDir = currentRootDir()
     if (rootDir !== null) openManuscriptTab(rootDir)
+  }
+})
+
+registerCommand({
+  id: 'manuscript.export',
+  title: 'Export Manuscript (Word/PDF)…',
+  category: 'Manuscript',
+  enabled: () => currentRootDir() !== null,
+  run: () => {
+    const rootDir = currentRootDir()
+    if (rootDir !== null) openExportTab(rootDir)
   }
 })
 

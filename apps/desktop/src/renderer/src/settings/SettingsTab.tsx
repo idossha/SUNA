@@ -22,6 +22,7 @@ import {
 } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { openFileTab } from '../state/dock'
+import { profileLabel } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
 import {
   UI_SCALE_CHOICES,
@@ -60,14 +61,6 @@ const AI_MODE_LABELS: Record<AiMode, string> = {
   cli: 'Agent CLI (uses your subscription)',
   api: 'API key',
   none: 'Off'
-}
-
-/** Same abbreviations the References view's 'Rendered as' picker uses. */
-const PROFILE_LABELS: Record<BundledProfileId, string> = {
-  'nature-astronomy': 'Nat. Astron.',
-  science: 'Science',
-  'apj-aas': 'ApJ (AAS)',
-  mnras: 'MNRAS'
 }
 
 function isBundledProfile(id: string): id is BundledProfileId {
@@ -510,7 +503,7 @@ function PreviewProfileRow(): JSX.Element {
     activeProfileId === null
       ? 'project default'
       : isBundledProfile(activeProfileId)
-        ? PROFILE_LABELS[activeProfileId]
+        ? profileLabel(activeProfileId)
         : activeProfileId
 
   return (
@@ -521,7 +514,7 @@ function PreviewProfileRow(): JSX.Element {
       hint="Which publisher profile the References view and the combined manuscript preview render as."
       autoLabel={`Auto (${activeLabel})`}
       options={BUNDLED_PROFILE_IDS}
-      labelFor={(id) => (isBundledProfile(id) ? PROFILE_LABELS[id] : id)}
+      labelFor={(id) => (isBundledProfile(id) ? profileLabel(id) : id)}
     />
   )
 }

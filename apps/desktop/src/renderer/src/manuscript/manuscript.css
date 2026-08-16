@@ -35,10 +35,31 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   height: 40px;
   padding: 0 16px;
   background: var(--ed-bg, var(--s-bg-editor));
   border-bottom: 1px solid var(--ed-border, var(--s-border-strong));
+}
+
+/* Export entry point (feature-plan-6 §3/§4) — opens the Word/PDF export dialog. */
+.msdoc__export-btn {
+  background: transparent;
+  border: 1px solid var(--ed-border, var(--s-border-strong));
+  border-radius: 4px;
+  color: var(--ed-ink, var(--s-ink));
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.msdoc__export-btn:hover:not(:disabled) {
+  background: var(--ed-border, var(--s-border-strong));
+}
+
+.msdoc__export-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* Row for the page + its margin comment gutter (comments/CommentGutter),

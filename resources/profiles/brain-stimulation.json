@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 3,
+  "id": "brain-stimulation",
+  "journalName": "Brain Stimulation: Basic, Translational, and Clinical Research in Neuromodulation",
+  "publisher": "Elsevier",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "parenthetical-numeric",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": null,
+        "book": null,
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": null,
+        "truncateWhenMoreThan": null,
+        "keepFirstN": null
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": null,
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.sciencedirect.com/journal/brain-stimulation/publish/guide-for-authors",
+      "https://www.elsevier.com/journals/brain-stimulation/1935-861x/guide-for-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "citation family: “The Brain Stimulation journal uses the Elsevier #3 Vancouver Numbered citation style” (elsarticle-num); the journal 'adheres to ICMJE guidelines'. The exact in-text delimiter (square brackets vs superscript vs parentheses) could not be confirmed on the journal's own page — 'parenthetical-numeric' is the schema's closest fit for a Vancouver-numbered system and is a best-fit mapping, not a literal quote of a stated delimiter.",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "collapseRanges / sortOrder: standard Vancouver-numbered convention (order of citation, collated ranges); not independently confirmed on Brain Stimulation's own page specifically.",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "entryTemplates / authorTruncation / journalAbbreviation / doiPolicy: could not be confirmed — sciencedirect.com, elsevier.com, and the journal's own brainstimjrnl.com domain all returned HTTP 403 on every direct-fetch attempt in this session.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": null,
+      "onehalf": null,
+      "double": null
+    },
+    "maxHeightMm": null,
+    "minFontPt": null,
+    "maxFontPt": null,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [],
+      "rasterAccepted": [
+        "tiff",
+        "jpg",
+        "png"
+      ],
+      "minDpi": 300
+    },
+    "panelLabel": {
+      "letterCase": null,
+      "weight": null,
+      "wrapper": null
+    },
+    "sources": [
+      "https://www.sciencedirect.com/journal/brain-stimulation/publish/guide-for-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "formats/minDpi: “Color or grayscale photographs (halftones) should be saved as TIFF, JPG or PNG files using a minimum of 300 dpi” — the one figure-format fact independently corroborated across multiple queries.",
+        "basis": "documented",
+        "source": "https://www.sciencedirect.com/journal/brain-stimulation/publish/guide-for-authors"
+      },
+      {
+        "claim": "widthPresetsMm / lineWeightPt / preferredFontFamilies / panelLabel: could not be confirmed — the guide-for-authors page returned HTTP 403 on every direct-fetch attempt.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "original-article",
+        "name": "Original Article",
+        "wordLimit": null,
+        "abstractWordLimit": 250,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [],
+    "availabilityStatements": {
+      "data": null,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": null,
+      "acceptedFileTypes": []
+    },
+    "sources": [
+      "https://www.sciencedirect.com/journal/brain-stimulation/publish/guide-for-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "abstractWordLimit: “Abstracts must not exceed 250 words” — structured via headings covering context/background, purpose, procedures, and “main findings with specific effect sizes and their statistical significance”; “Abstracts must be able to stand alone.” 'Highlights' are also required at submission (not modeled as a schema field).",
+        "basis": "documented",
+        "source": "https://www.sciencedirect.com/journal/brain-stimulation/publish/guide-for-authors"
+      },
+      {
+        "claim": "wordLimit / requiredSections / availabilityStatements / submissionFormat: could not be confirmed with primary-source confidence — a single weakly-sourced result suggested 5,000 words for Original Articles and 2,000 for Brief Reports, but this could not be corroborated a second time with independent phrasing, so it is NOT encoded as documented and is left null instead.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "notes": [
+    "RETRIEVAL CAVEAT: sciencedirect.com/journal/brain-stimulation/publish/guide-for-authors, its elsevier.com redirect target, and the journal's own brainstimjrnl.com domain (both the guide-for-authors deep link and the homepage) all returned HTTP 403 to every WebFetch attempt in this session.",
+    "This is the SPARSEST profile in this batch. Only the citation-style family (Vancouver numbered / elsarticle-num, ICMJE-aligned), the 250-word structured-abstract requirement, and the 300dpi TIFF/JPG/PNG photograph spec were corroborated with enough independent, consistent phrasing to record as documented. Everything else a full Elsevier Guide for Authors normally states — word limits per article type, reference-list entry template, figure column widths, line weights, required-section list, spacing/line-number policy, author-truncation threshold — returned either nothing or single, unconfirmed, inconsistently-worded search results and is left null per the no-invention rule rather than filled in from Elsevier's generic house template or a sibling neuromodulation/Elsevier journal (e.g. Deep Brain Stimulation, Transcranial Magnetic Stimulation), which would violate the no-sibling-inference rule.",
+    "Treat this profile as a skeleton requiring direct (browser-based) re-verification of the live guide-for-authors page before the word/reference/figure limits can be trusted for compliance checking."
+  ]
+}

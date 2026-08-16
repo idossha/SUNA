@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { Comment } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
+import { openExportTab } from '../state/dock'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
@@ -308,6 +309,14 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
       style={settingsStyle}
     >
       <div className="msdoc__toolbar">
+        <button
+          className="msdoc__export-btn"
+          onClick={() => !stale && openExportTab(rootDir)}
+          disabled={stale}
+          title="Export as Word or PDF"
+        >
+          Export…
+        </button>
         <button
           className="editor-tab__gear"
           onClick={() => setSettingsOpen((open) => !open)}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DocxAnalysisSchema } from './docx-import';
 import { LitCliIdSchema, LitProviderIdSchema } from './lit';
 import {
   ProjectDirKeySchema,
@@ -59,6 +60,22 @@ export const RecentProjectEntrySchema = RecentProjectSchema.extend({
   exists: z.boolean(),
 });
 export type RecentProjectEntry = z.infer<typeof RecentProjectEntrySchema>;
+
+/**
+ * Submission-format knobs the export dialog exposes (feature-plan-6 §3/§4):
+ * whichever of these the ACTIVE PROFILE states a value for, the dialog fixes
+ * and disables (the journal has an opinion); whichever the profile leaves
+ * `null` ("does not state this"), the dialog offers as a user toggle. Either
+ * way the resolved boolean the user is left with travels here — export
+ * services never re-read the profile to decide these, they just apply them.
+ */
+export const ExportOptionsSchema = z.object({
+  doubleSpacing: z.boolean(),
+  lineNumbers: z.boolean(),
+  /** Continuous page numbers. Not profile-optional (no journal asks to omit them) — always on by default. */
+  pageNumbers: z.boolean(),
+});
+export type ExportOptions = z.infer<typeof ExportOptionsSchema>;
 
 export const CHANNELS = {
   'project:create': {
@@ -176,6 +193,30 @@ export const CHANNELS = {
       /** Non-fatal issues (e.g. git unavailable, an import name collision). */
       warnings: z.array(z.string()),
     }),
+  },
+  /**
+   * DOCX import step 1 (feature-plan-6 §2): converts `path` with mammoth and
+   * runs the front-matter/section/reference heuristics, WITHOUT writing
+   * anything — the review screen edits the returned `analysis` before
+   * 'docx:commit' ever runs. Images are extracted to a temp dir named in
+   * `analysis.tempDir`.
+   */
+  'docx:analyze': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({ analysis: DocxAnalysisSchema }),
+  },
+  /**
+   * DOCX import step 2: writes the project from a (possibly user-edited)
+   * `analysis` into a fresh `dir` — suna.json, manuscript/manuscript.json,
+   * manuscript/sections (markdown files), manuscript/references.bib, and
+   * figures/imported-N directories. Refuses a non-empty `dir` unless `force`
+   * is set, and refuses a `dir` that
+   * is already a SUNA project (has a suna.json) regardless of `force` — import
+   * never overwrites an existing project.
+   */
+  'docx:commit': {
+    request: z.object({ analysis: DocxAnalysisSchema, dir: z.string().min(1), force: z.boolean() }),
+    response: z.object({ dir: z.string().min(1) }),
   },
   'fs:read-text': {
     request: z.object({ path: z.string().min(1) }),
@@ -579,6 +620,64 @@ export const CHANNELS = {
       widthMm: z.number().positive(),
       heightMm: z.number().positive(),
     }),
+  },
+
+  /**
+   * Word export (feature-plan-6 §3): renders manuscript.json + sections +
+   * references.bib through the active profile with the bundled 'docx'
+   * library — title page, body, figures, reference list, submission format.
+   * `figurePngPaths` maps every manuscript.json figure id to an ALREADY
+   * rasterized PNG on disk (figureId -> absolute path): main has no canvas,
+   * so the caller rasterizes each figure via the existing
+   * 'figure:export'('png') + 'figure:write-binary' round trip (at the
+   * profile's width preset / minDpi) before calling this — every figure the
+   * manuscript references must have an entry or the export throws naming the
+   * missing one. Writes to `<dir>/output/<outputName>.docx`; never touches
+   * any source file. `useDocxTools` requests the OPTIONAL accelerator (spec
+   * §3's "build via docx-tools") when it is on PATH — detected via
+   * 'export:tools-available', never required; ignored (silently, since the
+   * caller already checked) when the tool is unavailable, falling back to
+   * the bundled-library path so export never fails for lacking it.
+   */
+  'export:docx': {
+    request: z.object({
+      dir: z.string().min(1),
+      profileId: z.string().min(1),
+      outputName: z.string().min(1),
+      figurePngPaths: z.record(z.string(), z.string()),
+      options: ExportOptionsSchema,
+      useDocxTools: z.boolean(),
+    }),
+    response: z.object({
+      path: z.string().min(1),
+      /** Whether the docx-tools accelerator actually built this file (false = the bundled 'docx' library did). */
+      usedDocxTools: z.boolean(),
+    }),
+  },
+  /**
+   * PDF export (feature-plan-6 §4): the SAME profile-styled content model as
+   * 'export:docx', rendered to HTML and printed via a hidden BrowserWindow's
+   * `printToPDF` — no LaTeX, no external binary. `figurePngPaths` has the
+   * same contract as 'export:docx'. Writes to `<dir>/output/<outputName>.pdf`.
+   */
+  'export:pdf': {
+    request: z.object({
+      dir: z.string().min(1),
+      profileId: z.string().min(1),
+      outputName: z.string().min(1),
+      figurePngPaths: z.record(z.string(), z.string()),
+      options: ExportOptionsSchema,
+    }),
+    response: z.object({ path: z.string().min(1) }),
+  },
+  /**
+   * Is the `docx-tools` CLI on PATH (detected with `--version`, 5s timeout,
+   * cached per session by main)? Purely informational — the export dialog
+   * uses it to decide whether "Build via docx-tools" is offered at all.
+   */
+  'export:tools-available': {
+    request: z.object({}),
+    response: z.object({ docxTools: z.boolean() }),
   },
 } as const satisfies Record<string, ChannelContract>;
 

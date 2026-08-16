@@ -9,6 +9,8 @@ import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
 import { CanvasTab } from './canvas/CanvasTab'
 import { DataGridTab } from './dataview/DataGridTab'
+import { DocxImportTab } from './import/DocxImportTab'
+import { ExportDialog } from './export/ExportDialog'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
 import { OnboardingTab } from './onboarding/OnboardingTab'
 import { SettingsTab } from './settings/SettingsTab'
@@ -31,6 +33,8 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   dataview: DataGridTab,
   manuscript: ManuscriptTab,
   onboarding: OnboardingTab,
+  'docx-import': DocxImportTab,
+  export: ExportDialog,
   settings: SettingsTab,
   pdf: PdfTab,
   image: ImageTab

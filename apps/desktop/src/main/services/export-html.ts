@@ -1,0 +1,269 @@
+import { readFile } from 'node:fs/promises'
+import katex from 'katex'
+import { parseSciMark, renderHtml, type CrossRefKind, type FigureResolution } from '@suna/markdown'
+import { renderCluster, type Run } from '@suna/bib'
+import type { HeadingLevel } from '@suna/core'
+import {
+  formatReferenceRow,
+  isNumericCitationMode,
+  splitTexSpans,
+  widthMmForPreset,
+  type ExportContent
+} from './export-content'
+
+/**
+ * Renders an `ExportContent` to one self-contained HTML document — the PDF
+ * path's input (export-pdf.ts loads this in a hidden BrowserWindow and calls
+ * `printToPDF`). Citations, cross-references and the reference list go
+ * through the exact same `@suna/markdown`/`@suna/bib` engine the combined
+ * Manuscript tab renders with (ReferencesBlock.tsx, citations.ts) — see
+ * export-content.ts's module doc for why those pieces are duplicated here
+ * rather than imported from renderer/src.
+ *
+ * Known, deliberate simplification (ADR-002): the publisher profile schema
+ * carries no page-geometry fields (size/margins/running heads) — ADR-002
+ * explicitly descopes "typeset page facsimile" from what a profile encodes.
+ * Page size/margins are therefore fixed, generic submission-manuscript
+ * defaults (A4, 1in margins), set by export-pdf.ts's `printToPDF` call, not
+ * read from the profile.
+ */
+
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** $-delimited math only (title/abstract/significance/highlights) — mirrors manuscript/titlepage-edit/TexText.tsx exactly, not the fuller SciMark pipeline body prose gets. */
+function texHtml(text: string): string {
+  return splitTexSpans(text)
+    .map((seg) =>
+      seg.kind === 'math'
+        ? katex.renderToString(seg.value, { throwOnError: false })
+        : escapeHtml(seg.value)
+    )
+    .join('')
+}
+
+function runsToHtml(runs: readonly Run[]): string {
+  return runs
+    .map((run) => {
+      let inner = escapeHtml(run.text)
+      if (run.link !== undefined && 'url' in run.link) {
+        inner = `<a href="${escapeHtml(run.link.url)}">${inner}</a>`
+      }
+      if (run.style === 'italic') inner = `<em>${inner}</em>`
+      else if (run.style === 'bold') inner = `<strong>${inner}</strong>`
+      return inner
+    })
+    .join('')
+}
+
+async function pngDataUri(path: string): Promise<string> {
+  const bytes = await readFile(path)
+  return `data:image/png;base64,${bytes.toString('base64')}`
+}
+
+function headingHtml(level: HeadingLevel | 'box', text: string): string {
+  const safe = escapeHtml(text)
+  switch (level) {
+    case 'A':
+      return `<h2 class="ms-h-a">${safe}</h2>`
+    case 'B':
+      return `<h3 class="ms-h-b">${safe}</h3>`
+    case 'C-runin':
+      // Journal "run-in" headings typeset as a bold lead-in on the same line
+      // as the paragraph that follows; reproducing that exactly is page
+      // layout (ADR-002 out of scope). This renders as its own bold line —
+      // structurally distinguishable from A/B, not a page facsimile.
+      return `<p class="ms-h-c">${safe}</p>`
+    case 'box':
+      return `<h3 class="ms-h-box">${safe}</h3>`
+  }
+}
+
+async function figuresHtml(content: ExportContent): Promise<Map<string, FigureResolution>> {
+  const map = new Map<string, FigureResolution>()
+  for (const fig of content.figures) {
+    const widthMm = widthMmForPreset(fig.figure.widthPreset, content.profile)
+    const dataUri = await pngDataUri(fig.pngPath)
+    const img = `<img src="${dataUri}" alt="" style="width:${widthMm}mm;max-width:100%;height:auto;display:block;margin:0 auto;" />`
+    const titleHtml = renderHtml(parseSciMark(fig.figure.caption.title))
+    const bodyHtml = fig.figure.caption.body.trim() === '' ? '' : renderHtml(parseSciMark(fig.figure.caption.body))
+    const captionHtml = `<strong>${escapeHtml(fig.label)}.</strong> ${titleHtml} ${bodyHtml}`.trim()
+    map.set(fig.figure.id, { svgHtml: img, captionHtml })
+  }
+  return map
+}
+
+function tablesHtml(content: ExportContent): string {
+  if (content.tables.length === 0) return ''
+  const rows = content.tables
+    .map((t) => {
+      const title = renderHtml(parseSciMark(t.table.caption.title))
+      const body = t.table.caption.body === undefined ? '' : renderHtml(parseSciMark(t.table.caption.body))
+      const footnotes =
+        t.table.footnotes.length === 0
+          ? ''
+          : `<ul class="ms-table-footnotes">${t.table.footnotes
+              .map((f) => `<li><sup>${escapeHtml(f.mark)}</sup> ${escapeHtml(f.text)}</li>`)
+              .join('')}</ul>`
+      return `<div class="ms-table-entry"><p><strong>${escapeHtml(t.label)}.</strong> ${title}</p>${body ? `<p>${body}</p>` : ''}${footnotes}</div>`
+    })
+    .join('\n')
+  return `<section class="ms-tables"><h2 class="ms-h-a">Tables</h2>${rows}</section>`
+}
+
+function referencesHtml(content: ExportContent): string {
+  const numeric = isNumericCitationMode(content.profile)
+  const rows = content.referenceRows
+    .map((row) => {
+      const runs = formatReferenceRow(row, content.profile)
+      const num = numeric ? `<span class="ms-ref-num">${row.number}.</span> ` : ''
+      const body =
+        runs === null
+          ? `<span class="ms-ref-flag">@${escapeHtml(row.key)}</span> — cited but not found in ${escapeHtml(
+              content.manuscript.bibliography
+            )}`
+          : runsToHtml(runs)
+      return `<div class="ms-ref">${num}<span>${body}</span></div>`
+    })
+    .join('\n')
+  return `<section class="ms-references"><h2 class="ms-h-a">References</h2>${rows}</section>`
+}
+
+function titlePageHtml(content: ExportContent): string {
+  const m = content.manuscript
+  const authorLine = m.authors
+    .map((author, i) => {
+      const markers: string[] = []
+      for (const id of author.affiliationRefs) {
+        const n = content.affiliations.numberOf.get(id)
+        if (n !== undefined) markers.push(String(n))
+      }
+      if (author.corresponding) markers.push('*')
+      const sup = markers.length > 0 ? `<sup>${markers.join(',')}</sup>` : ''
+      const comma = i > 0 ? ', ' : ''
+      return `${comma}${escapeHtml(author.given)} ${escapeHtml(author.family)}${sup}`
+    })
+    .join('')
+  const affiliationLines = content.affiliations.ordered
+    .map((a, i) => `<div class="ms-affiliation"><sup>${i + 1}</sup>${escapeHtml(a.text)}</div>`)
+    .join('')
+  const correspondence = m.authors
+    .filter((a) => a.corresponding && a.email !== null)
+    .map((a) => a.email)
+    .filter((e): e is string => e !== null)
+  const significance =
+    m.significance != null
+      ? `<section><div class="ms-label">Significance</div><p class="ms-front-text">${texHtml(m.significance)}</p></section>`
+      : ''
+  const highlights =
+    m.highlights != null && m.highlights.length > 0
+      ? `<section><div class="ms-label">Highlights</div><ul class="ms-highlights">${m.highlights
+          .map((h) => `<li>${texHtml(h)}</li>`)
+          .join('')}</ul></section>`
+      : ''
+  return `
+<div class="ms-titlepage">
+  <h1 class="ms-title">${texHtml(m.title)}</h1>
+  <div class="ms-authors">${authorLine}</div>
+  <div class="ms-affiliations">${affiliationLines}</div>
+  ${correspondence.length > 0 ? `<div class="ms-correspondence">*e-mail: ${correspondence.map(escapeHtml).join(', ')}</div>` : ''}
+  <section><div class="ms-label">Abstract</div><p class="ms-front-text">${texHtml(m.abstract.content)}</p></section>
+  ${significance}
+  ${highlights}
+</div>`
+}
+
+const PAGE_CSS = `
+  * { box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; color: #000; margin: 0; }
+  .ms-titlepage { text-align: center; margin-bottom: 24pt; }
+  .ms-title { font-size: 16pt; font-weight: 700; margin: 0 0 10pt; }
+  .ms-authors { font-size: 12pt; margin-bottom: 6pt; }
+  .ms-affiliation { font-size: 10pt; }
+  .ms-correspondence { font-size: 10pt; font-style: italic; margin: 6pt 0; }
+  .ms-label { font-weight: 700; text-align: left; margin-top: 10pt; }
+  .ms-front-text, .ms-highlights { text-align: left; }
+  .ms-body { text-align: left; }
+  .ms-body.ms-double p, .ms-body.ms-double li { line-height: 2; }
+  .ms-body p { text-align: justify; }
+  .ms-h-a { font-size: 14pt; font-weight: 700; margin-top: 18pt; }
+  .ms-h-b { font-size: 12.5pt; font-weight: 700; margin-top: 12pt; }
+  .ms-h-c { font-weight: 700; font-style: italic; margin: 8pt 0 0; }
+  .ms-h-box { font-size: 12.5pt; font-weight: 700; font-style: italic; margin-top: 12pt; }
+  figure.figure { margin: 12pt 0; text-align: center; }
+  figure.figure figcaption { font-size: 10pt; text-align: left; margin-top: 4pt; }
+  .ms-ref { font-size: 10pt; margin: 0 0 4pt 0; padding-left: 1.5em; text-indent: -1.5em; }
+  .ms-ref-num { font-weight: 600; }
+  .ms-ref-flag { color: #a00; }
+  table { border-collapse: collapse; margin: 8pt 0; width: 100%; }
+  th, td { border: 0.5pt solid #666; padding: 3pt 6pt; font-size: 10pt; }
+  .ms-table-entry { margin-bottom: 10pt; }
+  .ms-table-footnotes { font-size: 9pt; margin: 2pt 0 0; padding-left: 1.2em; }
+`
+
+export interface BuildHtmlOptions {
+  doubleSpacing: boolean
+  /** Reserves the left gutter export-pdf.ts's line-number injection writes into; ignored otherwise. */
+  lineNumbers: boolean
+}
+
+export async function buildManuscriptHtml(
+  content: ExportContent,
+  options: BuildHtmlOptions
+): Promise<string> {
+  const figureMap = await figuresHtml(content)
+
+  const resolveCitation = (keys: string[], narrative: boolean): string => {
+    const rendering = renderCluster({ keys, narrative }, content.numbers, content.citeStyle, content.entryMap)
+    const html = runsToHtml(rendering.inline)
+    return rendering.form === 'superscript' ? `<sup>${html}</sup>` : html
+  }
+
+  const resolveCrossRef = (kind: CrossRefKind, id: string, suffix?: string): string => {
+    const map =
+      kind === 'fig'
+        ? content.labels.figures
+        : kind === 'tbl'
+          ? content.labels.tables
+          : kind === 'eq'
+            ? content.labels.equations
+            : content.labels.sections
+    const label = map.get(id)
+    const text = label === undefined ? `${kind}:${id}` : suffix !== undefined ? `${label}${suffix}` : label
+    return escapeHtml(text)
+  }
+
+  const resolveFigure = (figureId: string): FigureResolution => figureMap.get(figureId) ?? {}
+
+  const sectionsHtml = content.sections
+    .map((section) => {
+      const heading = section.heading !== null ? headingHtml(section.level, section.heading) : ''
+      const body =
+        section.root === null ? '' : renderHtml(section.root, { resolveCitation, resolveCrossRef, resolveFigure })
+      return `${heading}\n${body}`
+    })
+    .join('\n')
+
+  const bodyClass = `ms-body${options.doubleSpacing ? ' ms-double' : ''}${options.lineNumbers ? ' ms-line-numbers' : ''}`
+
+  return `<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="katex.min.css">
+<style>${PAGE_CSS}</style>
+</head>
+<body>
+<div class="ms-page">
+${titlePageHtml(content)}
+<div class="${bodyClass}" id="ms-body">
+${sectionsHtml}
+${tablesHtml(content)}
+${referencesHtml(content)}
+</div>
+</div>
+</body></html>`
+}
