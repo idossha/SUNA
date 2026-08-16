@@ -4,11 +4,13 @@ import { copyFile, mkdir, readFile, readdir, writeFile, access } from 'node:fs/p
 import { extname, join, relative } from 'node:path'
 import { promisify } from 'node:util'
 import {
+  AuthorsFileSchema,
   DEFAULT_PROJECT_DIRS,
   ManuscriptSchema,
   SunaProjectManifestSchema,
   applySettingsPatch,
   mergeProjectSettings,
+  type AuthorsFile,
   type Manuscript,
   type ProjectSettings,
   type SunaProjectManifest
@@ -42,17 +44,28 @@ math ($z = 2.51$), citations like [@gunn1972], cross-references like
 @eq:stripping, and raw LaTeX escape blocks when you need them.
 `
 
-const STARTER_RESULTS = `Present your results here. Embed managed figures with:
+const STARTER_RESULTS = `# Results
+
+Present your results here. Embed managed figures with:
 
 ![[fig:overview]]
 
 Panel references render as cross-references: @fig:overview{a}.
 `
 
-const STARTER_METHODS = `Describe observations, data reduction, and analysis here. Methods
+const STARTER_METHODS = `# Methods
+
+Describe observations, data reduction, and analysis here. Methods
 sub-headings become run-in heads (bold, ending with a period) in
 Nature-family output profiles.
 `
+
+/**
+ * The whole starter manuscript in ONE file (feature-plan-7 §1): sections are
+ * Markdown headings, and the introduction is deliberately unheaded — the
+ * derived outline shows it as the untitled leading section.
+ */
+const STARTER_MANUSCRIPT_MD = `${STARTER_INTRO}\n${STARTER_RESULTS}\n${STARTER_METHODS}`
 
 const STARTER_BIB = `@article{gunn1972,
   author  = {Gunn, James E. and Gott, J. Richard},
@@ -71,13 +84,13 @@ __pycache__/
 .venv/
 `
 
-function starterManuscript(name: string): Manuscript {
-  return ManuscriptSchema.parse({
-    title: name,
-    shortTitle: name,
-    articleType: 'article',
-    doi: null,
-    openAccess: null,
+/**
+ * The placeholder byline every scaffold starts from. Lives in
+ * manuscript/authors.json, never in manuscript.json (feature-plan-7 §1).
+ */
+function starterAuthors(): AuthorsFile {
+  return AuthorsFileSchema.parse({
+    schemaVersion: 1,
     authors: [
       {
         id: 'a1',
@@ -92,14 +105,20 @@ function starterManuscript(name: string): Manuscript {
         deceased: false
       }
     ],
-    affiliations: [{ id: 'af1', text: 'Your Institution, City, Country' }],
+    affiliations: [{ id: 'af1', text: 'Your Institution, City, Country' }]
+  } satisfies AuthorsFile)
+}
+
+function starterManuscript(name: string): Manuscript {
+  return ManuscriptSchema.parse({
+    title: name,
+    shortTitle: name,
+    articleType: 'article',
+    doi: null,
+    openAccess: null,
     history: { received: null, accepted: null, publishedOnline: null },
     abstract: { content: 'Replace this with your abstract.' },
-    body: [
-      { kind: 'section', heading: null, level: 'A', content: 'sections/01-introduction.md', children: [] },
-      { kind: 'section', heading: 'Results', level: 'A', content: 'sections/02-results.md', children: [] },
-      { kind: 'section', heading: 'Methods', level: 'A', content: 'sections/03-methods.md', children: [] }
-    ],
+    manuscriptFile: 'manuscript.md',
     figures: [],
     tables: [],
     availability: { data: '', code: '' },
@@ -115,9 +134,8 @@ function starterManuscript(name: string): Manuscript {
   } satisfies Manuscript)
 }
 
-const IMPORT_PLACEHOLDER = `Imported files are in manuscript/imported/. Wire the ones you want
-into this manuscript by editing suna.json's manuscript.json body (or copying
-their prose into a sections/*.md file) — nothing was auto-linked.
+const IMPORT_PLACEHOLDER = `Imported files are in manuscript/imported/. Copy the prose you want to keep
+into this file — nothing was auto-linked.
 `
 
 /** Onboarding wizard "Blank"/"Import" scaffold: minimal, schema-valid, no demo prose. */
@@ -128,26 +146,9 @@ function blankManuscript(name: string, bibliography = 'references.bib'): Manuscr
     articleType: 'article',
     doi: null,
     openAccess: null,
-    authors: [
-      {
-        id: 'a1',
-        given: 'First',
-        family: 'Author',
-        nativeScript: null,
-        orcid: null,
-        affiliationRefs: ['af1'],
-        corresponding: true,
-        email: null,
-        equalContribution: false,
-        deceased: false
-      }
-    ],
-    affiliations: [{ id: 'af1', text: 'Your Institution, City, Country' }],
     history: { received: null, accepted: null, publishedOnline: null },
     abstract: { content: 'Write your abstract here.' },
-    body: [
-      { kind: 'section', heading: null, level: 'A', content: 'sections/01-introduction.md', children: [] }
-    ],
+    manuscriptFile: 'manuscript.md',
     figures: [],
     tables: [],
     availability: { data: '', code: '' },
@@ -161,6 +162,19 @@ function blankManuscript(name: string, bibliography = 'references.bib'): Manuscr
     },
     bibliography
   } satisfies Manuscript)
+}
+
+/** Every scaffold writes the same four flat files; only their contents differ. */
+async function writeManuscriptDir(
+  manuscriptDir: string,
+  manuscript: Manuscript,
+  prose: string,
+  bib: string | null
+): Promise<void> {
+  await writeFile(join(manuscriptDir, 'manuscript.json'), JSON.stringify(manuscript, null, 2) + '\n')
+  await writeFile(join(manuscriptDir, 'authors.json'), JSON.stringify(starterAuthors(), null, 2) + '\n')
+  await writeFile(join(manuscriptDir, manuscript.manuscriptFile), prose)
+  if (bib !== null) await writeFile(join(manuscriptDir, 'references.bib'), bib)
 }
 
 export async function createProject(
@@ -184,17 +198,9 @@ export async function createProject(
     await mkdir(join(dir, sub), { recursive: true })
   }
   const manuscriptDir = join(dir, DEFAULT_PROJECT_DIRS.manuscript)
-  await mkdir(join(manuscriptDir, 'sections'), { recursive: true })
 
   await writeFile(join(dir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
-  await writeFile(
-    join(manuscriptDir, 'manuscript.json'),
-    JSON.stringify(starterManuscript(name), null, 2) + '\n'
-  )
-  await writeFile(join(manuscriptDir, 'sections', '01-introduction.md'), STARTER_INTRO)
-  await writeFile(join(manuscriptDir, 'sections', '02-results.md'), STARTER_RESULTS)
-  await writeFile(join(manuscriptDir, 'sections', '03-methods.md'), STARTER_METHODS)
-  await writeFile(join(manuscriptDir, 'references.bib'), STARTER_BIB)
+  await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
 
   // Version control from birth; best-effort if git is unavailable.
@@ -418,26 +424,13 @@ export async function scaffoldProject(req: ScaffoldRequest): Promise<ScaffoldRes
     await mkdir(join(dir, sub), { recursive: true })
   }
   const manuscriptDir = join(dir, DEFAULT_PROJECT_DIRS.manuscript)
-  await mkdir(join(manuscriptDir, 'sections'), { recursive: true })
 
   await writeFile(join(dir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
 
   if (scaffold === 'starter') {
-    await writeFile(
-      join(manuscriptDir, 'manuscript.json'),
-      JSON.stringify(starterManuscript(name), null, 2) + '\n'
-    )
-    await writeFile(join(manuscriptDir, 'sections', '01-introduction.md'), STARTER_INTRO)
-    await writeFile(join(manuscriptDir, 'sections', '02-results.md'), STARTER_RESULTS)
-    await writeFile(join(manuscriptDir, 'sections', '03-methods.md'), STARTER_METHODS)
-    await writeFile(join(manuscriptDir, 'references.bib'), STARTER_BIB)
+    await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
   } else if (scaffold === 'blank') {
-    await writeFile(
-      join(manuscriptDir, 'manuscript.json'),
-      JSON.stringify(blankManuscript(name), null, 2) + '\n'
-    )
-    await writeFile(join(manuscriptDir, 'sections', '01-introduction.md'), '')
-    await writeFile(join(manuscriptDir, 'references.bib'), '')
+    await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
   } else {
     let bibliography: string | null = null
     if (importDir !== null) {
@@ -450,14 +443,12 @@ export async function scaffoldProject(req: ScaffoldRequest): Promise<ScaffoldRes
         warnings.push(`Skipped "${name2}" — a file with that name already exists`)
       }
     }
-    if (bibliography === null) {
-      await writeFile(join(manuscriptDir, 'references.bib'), '')
-    }
-    await writeFile(
-      join(manuscriptDir, 'manuscript.json'),
-      JSON.stringify(blankManuscript(name, bibliography ?? 'references.bib'), null, 2) + '\n'
+    await writeManuscriptDir(
+      manuscriptDir,
+      blankManuscript(name, bibliography ?? 'references.bib'),
+      IMPORT_PLACEHOLDER,
+      bibliography === null ? '' : null
     )
-    await writeFile(join(manuscriptDir, 'sections', '01-introduction.md'), IMPORT_PLACEHOLDER)
   }
 
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)

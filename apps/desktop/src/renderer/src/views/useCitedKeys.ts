@@ -11,9 +11,12 @@ export interface CitedKeys {
 }
 
 /**
- * Cite keys actually used across the manuscript's sections. Recomputed when a
- * file is saved (project saveBump) so the References view's Cited/Uncited
- * split tracks the prose without a manual refresh.
+ * Cite keys actually used in the manuscript prose. Since feature-plan-7 §1 the
+ * prose is ONE flat file (`manuscript.json`'s `manuscriptFile`, default
+ * `manuscript.md`) rather than a `body` array of section paths, so this is a
+ * single read instead of a walk. Recomputed when a file is saved (project
+ * saveBump) so the References view's Cited/Uncited split tracks the prose
+ * without a manual refresh.
  */
 export function useCitedKeys(): CitedKeys {
   const rootDir = useProjectStore((s) => s.rootDir)
@@ -36,25 +39,19 @@ export function useCitedKeys(): CitedKeys {
           path: `${rootDir}/manuscript/manuscript.json`
         })
         const manuscript = ManuscriptSchema.parse(JSON.parse(content))
-        const paths = manuscript.body
-          .map((node) => (node.kind === 'section' ? node.content : node.content))
-          .filter((path): path is string => typeof path === 'string')
-
-        for (const path of paths) {
-          try {
-            const section = await window.suna.invoke('fs:read-text', {
-              path: `${rootDir}/manuscript/${path}`
-            })
-            for (const cluster of collectClusters(section.content)) {
-              for (const key of cluster.keys) {
-                if (seen.has(key)) continue
-                seen.add(key)
-                ordered.push(key)
-              }
+        try {
+          const prose = await window.suna.invoke('fs:read-text', {
+            path: `${rootDir}/manuscript/${manuscript.manuscriptFile}`
+          })
+          for (const cluster of collectClusters(prose.content)) {
+            for (const key of cluster.keys) {
+              if (seen.has(key)) continue
+              seen.add(key)
+              ordered.push(key)
             }
-          } catch {
-            // a listed section may not exist yet; the rest still counts
           }
+        } catch {
+          // the prose file may not exist yet; nothing is cited until it does
         }
       } catch {
         // no manuscript.json: nothing is "cited" until there is prose

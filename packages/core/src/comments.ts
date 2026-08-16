@@ -18,10 +18,15 @@ export const CommentAnchorSchema = z.object({
 });
 export type CommentAnchor = z.infer<typeof CommentAnchorSchema>;
 
-/** A comment on a passage of section prose, e.g. `sections/02-results.md`. */
+/**
+ * A comment on a passage of prose. Since feature-plan-7 §1 there is exactly
+ * one prose file, so `path` is the manuscript's `manuscriptFile`
+ * ("manuscript.md"); the `kind` is kept as 'section' so existing comments.json
+ * files stay valid, and migration retargets old `sections/NN-name.md` paths.
+ */
 export const SectionCommentTargetSchema = z.object({
   kind: z.literal('section'),
-  /** Manuscript-relative path, e.g. "sections/02-results.md". */
+  /** Manuscript-relative path, i.e. "manuscript.md". */
   path: z.string().min(1),
   anchor: CommentAnchorSchema,
 });

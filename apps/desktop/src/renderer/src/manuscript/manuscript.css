@@ -2,10 +2,11 @@
    Combined manuscript document tab (manuscript/ManuscriptTab).
 
    The root carries the .editor-tab theme classes so the --ed-* palette and
-   live-preview widget styles from editor.css apply to the embedded section
-   editors. Layout properties from app.css's .editor-tab are overridden here
-   with higher specificity (this file loads before app.css — order must never
-   be relied on).
+   live-preview widget styles from editor.css apply to the embedded editor
+   (manuscript/ManuscriptEditor — one CodeMirror over the whole manuscript.md,
+   feature-plan-7 §1). Layout properties from app.css's .editor-tab are
+   overridden here with higher specificity (this file loads before app.css —
+   order must never be relied on).
    --------------------------------------------------------------------------- */
 
 .msdoc.editor-tab {
@@ -40,6 +41,19 @@
   padding: 0 16px;
   background: var(--ed-bg, var(--s-bg-editor));
   border-bottom: 1px solid var(--ed-border, var(--s-border-strong));
+}
+
+/* Dirty dot — the single editor is either clean or dirty as a whole now, so
+   one dot at the toolbar's leading edge replaces the old per-heading dots;
+   `margin-right: auto` holds it there against Export/the gear (the toolbar
+   itself is `justify-content: flex-end`). */
+.msdoc__dirty {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: auto;
+  border-radius: 50%;
+  background: var(--s-accent);
 }
 
 /* Export entry point (feature-plan-6 §3/§4) — opens the Word/PDF export dialog. */
@@ -200,65 +214,7 @@
   opacity: 0.6;
 }
 
-/* ---- body sections -------------------------------------------------------- */
-
-.msdoc__section {
-  position: relative;
-  scroll-margin-top: 24px;
-  margin-bottom: 0.6em;
-}
-
-.msdoc__h {
-  margin: 1.4em 0 0.2em;
-  padding: 0 16px;
-  font-family: var(--s-font-serif);
-  color: var(--ed-ink, var(--s-ink));
-  line-height: 1.35;
-}
-
-.msdoc__h--a {
-  font-size: 1.18em;
-  font-weight: 650;
-}
-
-.msdoc__h--b {
-  font-size: 1.05em;
-  font-weight: 600;
-}
-
-.msdoc__h--c {
-  font-size: 1em;
-  font-weight: 600;
-  font-style: italic;
-}
-
-.msdoc__h--box {
-  font-size: 1.02em;
-  font-weight: 600;
-  padding-top: 10px;
-  border-top: 1px solid var(--ed-border, var(--s-border-strong));
-}
-
-/* per-section dirty dot — beside the heading, or floating for unheaded blocks */
-.msdoc__dirty {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 8px;
-  vertical-align: middle;
-  border-radius: 50%;
-  background: var(--s-accent);
-}
-
-.msdoc__dirty--floating {
-  position: absolute;
-  top: 10px;
-  right: 16px;
-  margin: 0;
-  z-index: 3;
-}
-
-/* ---- embedded section editors: size to content, outer document scrolls ---- */
+/* ---- the embedded editor: sizes to content, the outer document scrolls ---- */
 
 .msdoc .msdoc__editor {
   --ed-content-font: var(--ed-body-font, var(--s-font-serif));
@@ -277,11 +233,11 @@
 }
 
 /* ONE MEASURE: `.msdoc__page` alone sets the document's width from
-   --ed-content-width; section editors must fill that column edge to edge,
-   never impose a measure of their own. editor.css's own content-width rule
-   is scoped to `.editor-tab__source` (EditorTab's single-file host), which
-   `.msdoc__editor` never matches, so nothing there reaches in here — this
-   rule makes the "no second max-width" invariant explicit rather than
+   --ed-content-width; the embedded editor must fill that column edge to
+   edge, never impose a measure of its own. editor.css's own content-width
+   rule is scoped to `.editor-tab__source` (EditorTab's single-file host),
+   which `.msdoc__editor` never matches, so nothing there reaches in here —
+   this rule makes the "no second max-width" invariant explicit rather than
    relying on that non-match, so a future rename can't silently break it. */
 .msdoc .msdoc__editor .cm-content {
   max-width: none;

@@ -10,19 +10,18 @@ export function projectTreeLines(state: WizardState): string[] {
   const lines: string[] = [`${state.name || 'project'}/`]
   lines.push('  suna.json')
   lines.push('  .gitignore')
+  // Flat manuscript directory (feature-plan-7 §1) — one prose file, sections
+  // are its Markdown headings, and the byline lives in authors.json. Mirrors
+  // writeManuscriptDir's write order in main/services/project.ts.
   lines.push('  manuscript/')
   lines.push('    manuscript.json')
+  lines.push('    authors.json')
+  lines.push('    manuscript.md')
 
   const importedBib =
     state.scaffold === 'import' && state.importFiles.some((f) => f.ext === 'bib')
   if (!importedBib) lines.push('    references.bib')
 
-  lines.push('    sections/')
-  lines.push('      01-introduction.md')
-  if (state.scaffold === 'starter') {
-    lines.push('      02-results.md')
-    lines.push('      03-methods.md')
-  }
   if (state.scaffold === 'import' && state.importFiles.length > 0) {
     lines.push('    imported/')
     for (const file of state.importFiles) lines.push(`      ${file.name}`)

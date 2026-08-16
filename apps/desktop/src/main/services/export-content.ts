@@ -1,10 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
+  AuthorsFileSchema,
   ManuscriptSchema,
+  emptyAuthorsFile,
   type Affiliation,
   type Author,
-  type BodyNode,
+  type AuthorsFile,
   type CitationRules,
   type HeadingLevel,
   type Manuscript,
@@ -13,7 +15,7 @@ import {
   type PublisherProfile
 } from '@suna/core'
 import { getBundledProfile } from '@suna/formatter'
-import { parseSciMark, type SciMarkRoot } from '@suna/markdown'
+import { outlineFromMarkdown, parseSciMark, type SciMarkRoot } from '@suna/markdown'
 import {
   assignNumbers,
   formatReference,
@@ -28,21 +30,24 @@ import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
- * The shared export content model (feature-plan-6 §3/§4 — "one content
- * model, two renderers"): manuscript.json + sections/*.md + references.bib,
- * resolved through the ACTIVE PROFILE exactly the way the combined
- * Manuscript tab renders them (same citation engine, same numbering, same
- * reference ordering), independent of whether the caller wants a .docx or a
- * .pdf out the other end. `export-docx.ts` walks `sections[i].root` (the
- * parsed SciMark AST) into `docx` Paragraphs; `export-html.ts`/`export-pdf.ts`
- * render the same AST to HTML with `@suna/markdown`'s `renderHtml`.
+ * The shared export content model (feature-plan-6 §3/§4, updated for the
+ * flat layout of feature-plan-7 §1 — "one content model, two renderers"):
+ * manuscript.md + manuscript.json + authors.json + references.bib, resolved
+ * through the ACTIVE PROFILE exactly the way the combined Manuscript tab
+ * renders them (same citation engine, same numbering, same reference
+ * ordering), independent of whether the caller wants a .docx or a .pdf out
+ * the other end. Sections are no longer a stored `body` tree of section-file
+ * pointers — they are DERIVED from manuscript.md with `outlineFromMarkdown`
+ * (@suna/markdown), the same function the sidebar outline uses. `export-docx.ts`
+ * walks `sections[i].root` (the parsed SciMark AST) into `docx` Paragraphs;
+ * `export-html.ts`/`export-pdf.ts` render the same AST to HTML with
+ * `@suna/markdown`'s `renderHtml`.
  *
- * A handful of small pure functions below (flattenBody, collectClusters,
- * buildLabelMap, orderedReferences, numberAffiliations, authorMarkers,
- * splitTexSpans, citeStyleOf, maxAuthorsFor) intentionally MIRROR their
- * renderer-side counterparts under
- * apps/desktop/src/renderer/src/manuscript/{citations,title-page}.ts and
- * apps/desktop/src/renderer/src/views/refs.ts byte-for-byte in behavior.
+ * A handful of small pure functions below (collectClusters, buildLabelMap,
+ * orderedReferences, numberAffiliations, authorMarkers, splitTexSpans,
+ * citeStyleOf, maxAuthorsFor) intentionally MIRROR their renderer-side
+ * counterparts under apps/desktop/src/renderer/src/manuscript/{citations,title-page}.ts
+ * and apps/desktop/src/renderer/src/views/refs.ts byte-for-byte in behavior.
  * They are duplicated rather than imported because tsconfig.node.json's
  * `include` is scoped to `src/main`/`src/preload` only (no DOM lib, no
  * renderer sources) — main can't import renderer/src without blurring that
@@ -328,28 +333,21 @@ export function pngDimensions(bytes: Uint8Array): { width: number; height: numbe
 }
 
 /* ------------------------------------------------------------------ */
-/* Body flattening — mirrors renderer/src/views/outline.ts's           */
-/* flattenBody, but keeps the raw HeadingLevel ('box' for BoxNode)      */
-/* rather than outline.ts's display "chip" collapse (A/B/C).            */
+/* Outline -> typographic heading level                                 */
 /* ------------------------------------------------------------------ */
 
-export interface FlatBodyRow {
-  heading: string | null
-  level: HeadingLevel | 'box'
-  contentPath: string | null
-}
-
-export function flattenManuscriptBody(nodes: readonly BodyNode[]): FlatBodyRow[] {
-  const out: FlatBodyRow[] = []
-  for (const node of nodes) {
-    if (node.kind === 'section') {
-      out.push({ heading: node.heading, level: node.level, contentPath: node.content })
-      out.push(...flattenManuscriptBody(node.children))
-    } else {
-      out.push({ heading: node.title, level: 'box', contentPath: node.content })
-    }
-  }
-  return out
+/**
+ * `outlineFromMarkdown` reports raw Markdown depth (1-6); publisher profiles
+ * and the docx/html renderers talk in the typographic vocabulary a journal
+ * uses (manuscript.ts's `HeadingLevelSchema`). Mapping is exactly what that
+ * schema's docstring specifies: depth 1 → 'A', 2 → 'B', 3+ → 'C-runin'.
+ * Never called for the untitled leading section (depth 0) — its `heading` is
+ * `null`, so the level is not rendered.
+ */
+export function headingLevelForDepth(depth: number): HeadingLevel {
+  if (depth <= 1) return 'A'
+  if (depth === 2) return 'B'
+  return 'C-runin'
 }
 
 /* ------------------------------------------------------------------ */
@@ -358,8 +356,8 @@ export function flattenManuscriptBody(nodes: readonly BodyNode[]): FlatBodyRow[]
 
 export interface ExportSection {
   heading: string | null
-  level: HeadingLevel | 'box'
-  /** Parsed SciMark AST, or null for a heading-only node with no prose. */
+  level: HeadingLevel
+  /** Parsed SciMark AST, or null for a heading-only section with no prose. */
   root: SciMarkRoot | null
   source: string
 }
@@ -380,6 +378,8 @@ export interface ExportTableContent {
 
 export interface ExportContent {
   manuscript: Manuscript
+  /** The byline, from manuscript/authors.json (feature-plan-7 §1) — empty when the file doesn't exist yet. */
+  authors: AuthorsFile
   profile: PublisherProfile
   affiliations: AffiliationNumbering
   sections: ExportSection[]
@@ -401,6 +401,17 @@ export interface BuildExportContentOptions {
   figurePngPaths: Readonly<Record<string, string>>
 }
 
+/** manuscript/authors.json, tolerant of a project that has none yet (a brand-new project mid-scaffold). */
+async function readAuthorsFile(manuscriptDir: string): Promise<AuthorsFile> {
+  let raw: string
+  try {
+    raw = await readFile(assertInsideAllowedRoot(join(manuscriptDir, 'authors.json')), 'utf8')
+  } catch {
+    return emptyAuthorsFile()
+  }
+  return AuthorsFileSchema.parse(JSON.parse(raw) as unknown)
+}
+
 export async function buildExportContent(opts: BuildExportContentOptions): Promise<ExportContent> {
   const root = assertInsideAllowedRoot(opts.dir)
   const profile = getBundledProfile(opts.profileId)
@@ -410,22 +421,20 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
 
   const manuscript = ManuscriptSchema.parse(await readManuscript(root))
   const manuscriptDir = await projectSubdir(root, 'manuscript')
+  const authors = await readAuthorsFile(manuscriptDir)
 
-  const flat = flattenManuscriptBody(manuscript.body)
-  const sections: ExportSection[] = []
-  for (const row of flat) {
-    let source = ''
-    if (row.contentPath !== null) {
-      const path = assertInsideAllowedRoot(join(manuscriptDir, row.contentPath))
-      source = await readFile(path, 'utf8')
-    }
-    sections.push({
-      heading: row.heading,
-      level: row.level,
-      root: source === '' ? null : parseSciMark(source),
+  const prosePath = assertInsideAllowedRoot(join(manuscriptDir, manuscript.manuscriptFile))
+  const md = await readFile(prosePath, 'utf8')
+  const outline = outlineFromMarkdown(md)
+  const sections: ExportSection[] = outline.map((entry) => {
+    const source = md.slice(entry.from, entry.to)
+    return {
+      heading: entry.level === 0 ? null : entry.title,
+      level: headingLevelForDepth(entry.level),
+      root: source.trim() === '' ? null : parseSciMark(source),
       source
-    })
-  }
+    }
+  })
 
   const clusters = sections.flatMap((s) => collectClusters(s.source))
   const numbers = assignNumbers(clusters.map((c) => [...c.keys]))
@@ -471,8 +480,9 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
 
   return {
     manuscript,
+    authors,
     profile,
-    affiliations: numberAffiliations(manuscript.authors, manuscript.affiliations),
+    affiliations: numberAffiliations(authors.authors, authors.affiliations),
     sections,
     numbers,
     entryMap,

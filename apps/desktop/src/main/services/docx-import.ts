@@ -17,16 +17,18 @@ import JSZip from 'jszip'
 import type { Author as BibAuthor, BibEntry } from '@suna/bib'
 import { serializeBibtex } from '@suna/bib'
 import {
+  AuthorsFileSchema,
   DEFAULT_PROJECT_DIRS,
   DocxAnalysisSchema,
   ManuscriptSchema,
   SunaProjectManifestSchema,
   type Affiliation as ManuscriptAffiliation,
   type Author as ManuscriptAuthor,
-  type BodyNode,
+  type AuthorsFile,
   type DocxAnalysis,
   type DocxAuthorDraft,
   type DocxFigureDraft,
+  type DocxSectionDraft,
   type DocxWarning,
   type Manuscript,
   type SunaProjectManifest
@@ -38,7 +40,6 @@ import {
   detectAffiliations,
   detectAuthors,
   detectTitle,
-  slugifyHeading,
   splitSections
 } from './docx-heuristics'
 import { extractReferences, rewriteBlocksCitations, type DocxReferenceDraftLike } from './docx-references'
@@ -117,11 +118,6 @@ export function referenceToBibEntry(ref: DocxReferenceDraftLike): BibEntry {
   if (ref.journal !== null) entry.journal = ref.journal
   if (ref.style === 'unknown' || ref.title === null) entry.note = ref.raw
   return entry
-}
-
-/** kebab-case-NN filename stem for figures/section files. */
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -326,9 +322,9 @@ function requireComplete(analysis: DocxAnalysis): void {
   }
 }
 
-/** figures/<id>/figure.<ext> relative to manuscript/sections/*.md. */
+/** figures/<id>/figure.<ext> relative to manuscript/manuscript.md (feature-plan-7 §1: one flat prose file). */
 function figureRelativePath(id: string, ext: string): string {
-  return `../../figures/${id}/figure.${ext}`
+  return `../figures/${id}/figure.${ext}`
 }
 
 function rewriteImagePlaceholders(markdown: string, figures: readonly DocxFigureDraft[]): string {
@@ -337,6 +333,41 @@ function rewriteImagePlaceholders(markdown: string, figures: readonly DocxFigure
     const ext = byId.get(id)
     return ext === undefined ? match : figureRelativePath(id, ext)
   })
+}
+
+/**
+ * Appends a block, guaranteeing exactly one blank line between blocks —
+ * mirrors migrate-manuscript.ts's own `appendBlock` (duplicated rather than
+ * imported: that module's helper is not exported, and the two call sites
+ * have no other reason to share a module).
+ */
+function appendBlock(accumulated: string, block: string): string {
+  if (block === '') return accumulated
+  if (accumulated === '') return block
+  return `${accumulated.replace(/\s*$/, '')}\n\n${block}`
+}
+
+/**
+ * Joins the analyzer's section drafts into ONE manuscript.md: each section's
+ * heading rendered at its Word heading depth (`level` 1 → `#`, 2 → `##`),
+ * followed by its already-parsed Markdown body with image placeholders
+ * resolved to their final `figures/<id>/figure.<ext>` path. A section with
+ * `heading: null` (there is at most one — the untitled lead before the first
+ * real heading) contributes prose only.
+ */
+export function buildManuscriptMarkdown(
+  sections: readonly DocxSectionDraft[],
+  figures: readonly DocxFigureDraft[]
+): string {
+  let markdown = ''
+  for (const section of sections) {
+    if (section.heading !== null) {
+      markdown = appendBlock(markdown, `${'#'.repeat(section.level)} ${section.heading}`)
+    }
+    const body = rewriteImagePlaceholders(section.markdown, figures)
+    if (body.trim() !== '') markdown = appendBlock(markdown, body)
+  }
+  return markdown === '' ? '' : `${markdown.replace(/\s*$/, '')}\n`
 }
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+[\w]/
@@ -389,7 +420,17 @@ export function deriveCorrespondence(
   return { affiliations: kept, markers, email }
 }
 
-function buildManuscript(analysis: DocxAnalysis): Manuscript {
+interface BuiltManuscript {
+  manuscript: Manuscript
+  authorsFile: AuthorsFile
+}
+
+/**
+ * Builds manuscript.json's metadata (no prose, no byline — feature-plan-7
+ * §1) and authors.json's byline together, since both derive from the same
+ * correspondence-line split.
+ */
+function buildManuscriptAndAuthors(analysis: DocxAnalysis): BuiltManuscript {
   const title = analysis.title.value as string // requireComplete() already guaranteed this
   const correspondence = deriveCorrespondence(analysis.affiliations)
   const affiliations: ManuscriptAffiliation[] = correspondence.affiliations.map((a, i) => ({
@@ -428,25 +469,15 @@ function buildManuscript(analysis: DocxAnalysis): Manuscript {
     }
   })
 
-  const body: BodyNode[] = analysis.sections.map((s, i) => ({
-    kind: 'section',
-    heading: s.heading,
-    level: 'A',
-    content: `sections/${pad2(i + 1)}-${slugifyHeading(s.heading)}.md`,
-    children: []
-  }))
-
-  return ManuscriptSchema.parse({
+  const manuscript = ManuscriptSchema.parse({
     title,
     shortTitle: title,
     articleType: 'article',
     doi: null,
     openAccess: null,
-    authors,
-    affiliations,
     history: { received: null, accepted: null, publishedOnline: null },
     abstract: { content: analysis.abstract.value as string },
-    body,
+    manuscriptFile: 'manuscript.md',
     figures: [],
     tables: [],
     availability: { data: '', code: '' },
@@ -460,6 +491,10 @@ function buildManuscript(analysis: DocxAnalysis): Manuscript {
     },
     bibliography: 'references.bib'
   } satisfies Manuscript)
+
+  const authorsFile = AuthorsFileSchema.parse({ schemaVersion: 1, authors, affiliations } satisfies AuthorsFile)
+
+  return { manuscript, authorsFile }
 }
 
 export async function commitDocxAnalysis(
@@ -479,15 +514,15 @@ export async function commitDocxAnalysis(
     throw new Error(`target directory is not empty (pass force to import anyway): ${targetDir}`)
   }
 
-  const manuscript = buildManuscript(analysis)
+  const { manuscript, authorsFile } = buildManuscriptAndAuthors(analysis)
+  const manuscriptMarkdown = buildManuscriptMarkdown(analysis.sections, analysis.figures)
 
   await mkdir(targetDir, { recursive: true })
   for (const sub of Object.values(DEFAULT_PROJECT_DIRS)) {
     await mkdir(join(targetDir, sub), { recursive: true })
   }
   const manuscriptDir = join(targetDir, DEFAULT_PROJECT_DIRS.manuscript)
-  const sectionsDir = join(manuscriptDir, 'sections')
-  await mkdir(sectionsDir, { recursive: true })
+  await mkdir(manuscriptDir, { recursive: true })
 
   const name = basename(targetDir)
   const manifest: SunaProjectManifest = SunaProjectManifestSchema.parse({
@@ -499,14 +534,8 @@ export async function commitDocxAnalysis(
   })
   await writeFile(join(targetDir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
   await writeFile(join(manuscriptDir, 'manuscript.json'), JSON.stringify(manuscript, null, 2) + '\n')
-
-  for (let i = 0; i < analysis.sections.length; i += 1) {
-    const section = analysis.sections[i]
-    if (section === undefined) continue
-    const filename = `${pad2(i + 1)}-${slugifyHeading(section.heading)}.md`
-    const content = rewriteImagePlaceholders(section.markdown, analysis.figures)
-    await writeFileAtomic(join(sectionsDir, filename), content)
-  }
+  await writeFile(join(manuscriptDir, 'authors.json'), JSON.stringify(authorsFile, null, 2) + '\n')
+  await writeFileAtomic(join(manuscriptDir, manuscript.manuscriptFile), manuscriptMarkdown)
 
   const bibEntries = analysis.references.map(referenceToBibEntry)
   await writeFileAtomic(join(manuscriptDir, 'references.bib'), bibEntries.length > 0 ? serializeBibtex(bibEntries) : '')

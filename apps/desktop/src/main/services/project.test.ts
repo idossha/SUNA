@@ -3,7 +3,8 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DEFAULT_PROJECT_DIRS, ManuscriptSchema, SunaProjectManifestSchema } from '@suna/core'
+import { AuthorsFileSchema, DEFAULT_PROJECT_DIRS, ManuscriptSchema, SunaProjectManifestSchema } from '@suna/core'
+import { outlineFromMarkdown } from '@suna/markdown'
 import {
   checkScaffoldTarget,
   listImportableFiles,
@@ -244,10 +245,20 @@ describe('scaffoldProject', () => {
     const manuscript = ManuscriptSchema.parse(
       JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
     )
-    expect(manuscript.body).toHaveLength(1)
-    expect(
-      await readFile(join(target, 'manuscript', 'sections', '01-introduction.md'), 'utf8')
-    ).toBe('')
+    expect(manuscript.manuscriptFile).toBe('manuscript.md')
+    expect(await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')).toBe('')
+    // Flat layout: four files, no sections/ directory (feature-plan-7 §1).
+    expect((await readdir(join(target, 'manuscript'))).sort()).toEqual([
+      'authors.json',
+      'manuscript.json',
+      'manuscript.md',
+      'references.bib'
+    ])
+    const authors = AuthorsFileSchema.parse(
+      JSON.parse(await readFile(join(target, 'manuscript', 'authors.json'), 'utf8'))
+    )
+    expect(authors.authors).toHaveLength(1)
+    expect(authors.affiliations).toHaveLength(1)
 
     const gitEntries = await readdir(join(target, '.git'))
     expect(gitEntries.length).toBeGreaterThan(0)
@@ -263,12 +274,18 @@ describe('scaffoldProject', () => {
       settings: {}
     })
     expect(result.warnings).toEqual([])
-    const intro = await readFile(join(target, 'manuscript', 'sections', '01-introduction.md'), 'utf8')
-    expect(intro).toContain('Galaxies falling into dense cluster environments')
+    const prose = await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')
+    expect(prose).toContain('Galaxies falling into dense cluster environments')
+    // One file, three sections: an unheaded intro plus two Markdown headings.
+    expect(outlineFromMarkdown(prose).map((s) => [s.level, s.title])).toEqual([
+      [0, ''],
+      [1, 'Results'],
+      [1, 'Methods']
+    ])
     const manuscript = ManuscriptSchema.parse(
       JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
     )
-    expect(manuscript.body).toHaveLength(3)
+    expect(manuscript.manuscriptFile).toBe('manuscript.md')
   })
 
   it('writes the requested project-level settings block onto the manifest', async () => {

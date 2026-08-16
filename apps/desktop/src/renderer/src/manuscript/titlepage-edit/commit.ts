@@ -1,4 +1,4 @@
-import { ManuscriptSchema, type Manuscript } from '@suna/core'
+import { AuthorsFileSchema, ManuscriptSchema, emptyAuthorsFile, type AuthorsFile, type Manuscript } from '@suna/core'
 import { useProjectStore } from '../../state/project'
 
 export type CommitResult = { ok: true; manuscript: Manuscript } | { ok: false; error: string }
@@ -24,6 +24,52 @@ export async function commitManuscriptPatch(
     }
     useProjectStore.getState().noteFileSaved(`${rootDir}/manuscript/manuscript.json`)
     return { ok: true, manuscript: parsed.data }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export type AuthorsCommitResult =
+  | { ok: true; authorsFile: AuthorsFile }
+  | { ok: false; error: string }
+
+/**
+ * The authors/affiliations counterpart of `commitManuscriptPatch`, targeting
+ * manuscript/authors.json (feature-plan-7 §1 moved the byline out of
+ * manuscript.json — see AuthorsFileSchema). There is no dedicated
+ * `authors:update` IPC channel (the foundation's `manuscript:update`
+ * read-merge-validate-write only ever touched manuscript.json), so this does
+ * the same read → merge → validate → write itself over the generic
+ * `fs:read-text` / `fs:write-text` channels the renderer already uses for
+ * this file (state/manuscript.ts reads it the same way). Never throws —
+ * failures (validation OR transport) come back as `error`, same contract as
+ * commitManuscriptPatch.
+ */
+export async function commitAuthorsPatch(
+  rootDir: string,
+  patch: Record<string, unknown>
+): Promise<AuthorsCommitResult> {
+  const path = `${rootDir}/manuscript/authors.json`
+  try {
+    let current: AuthorsFile
+    try {
+      const res = await window.suna.invoke('fs:read-text', { path })
+      const parsed = AuthorsFileSchema.safeParse(JSON.parse(res.content))
+      current = parsed.success ? parsed.data : emptyAuthorsFile()
+    } catch {
+      current = emptyAuthorsFile()
+    }
+    const merged = { ...current, ...patch }
+    const validated = AuthorsFileSchema.safeParse(merged)
+    if (!validated.success) {
+      return { ok: false, error: 'Could not save: the result would not be valid.' }
+    }
+    await window.suna.invoke('fs:write-text', {
+      path,
+      content: `${JSON.stringify(validated.data, null, 2)}\n`
+    })
+    useProjectStore.getState().noteFileSaved(path)
+    return { ok: true, authorsFile: validated.data }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }

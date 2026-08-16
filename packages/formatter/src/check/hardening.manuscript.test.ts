@@ -73,7 +73,7 @@ describe('hardening — word counting is not fooled by markdown syntax', () => {
     const markdown = `# Results\n\nWe find $\\chi^2 = 1.2$ [@smith2020].\n\n${words(883)}`;
     expect(countWords(markdown)).toBe(889);
     const input = makeInput({
-      sectionTexts: { 'sections/results.md': markdown },
+      sectionTexts: { 'manuscript.md': markdown },
       referenceCount: 0,
     });
     expect(byId(checkManuscript(input, profile, 'rnaas'), 'ms.word-limit')).toEqual([]);
@@ -113,7 +113,7 @@ describe('hardening — scope exclusions (real nature-astronomy.json)', () => {
     // references and figure captions". 2950 section words + 200-word
     // abstract must NOT warn (3150 would, if the abstract were counted).
     const input = makeInput({
-      sectionTexts: { 'sections/intro.md': words(2950) },
+      sectionTexts: { 'manuscript.md': words(2950) },
       referenceCount: 0,
     });
     input.manuscript.abstract.content = words(200);
@@ -122,7 +122,7 @@ describe('hardening — scope exclusions (real nature-astronomy.json)', () => {
 
   it('still warns when the in-scope text alone exceeds the limit', () => {
     const input = makeInput({
-      sectionTexts: { 'sections/intro.md': words(3050) },
+      sectionTexts: { 'manuscript.md': words(3050) },
       referenceCount: 0,
     });
     input.manuscript.abstract.content = words(200);
@@ -136,7 +136,7 @@ describe('hardening — scope exclusions (real nature-astronomy.json)', () => {
     // 2990 section words; 40 references (600 estimated words) and 10 caption
     // words would overflow if wrongly included.
     const input = makeInput({
-      sectionTexts: { 'sections/intro.md': words(2990) },
+      sectionTexts: { 'manuscript.md': words(2990) },
       referenceCount: 40,
     });
     input.manuscript.abstract.content = words(200);
@@ -148,7 +148,7 @@ describe('hardening — scope exclusions (real nature-astronomy.json)', () => {
     // (initial-formatting page) — encoded as stageSeverity
     // {initial-submission: warning, accepted: error}.
     const input = makeInput({
-      sectionTexts: { 'sections/intro.md': words(3050) },
+      sectionTexts: { 'manuscript.md': words(3050) },
       referenceCount: 0,
     });
     input.manuscript.abstract.content = words(200);

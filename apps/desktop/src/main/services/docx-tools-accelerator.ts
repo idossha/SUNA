@@ -216,7 +216,7 @@ function blockOf(node: RootChild, content: ExportContent): SpecBlock[] {
 }
 
 function levelFor(level: ExportContent['sections'][number]['level']): number {
-  return level === 'A' ? 1 : level === 'B' ? 2 : level === 'box' ? 2 : 3
+  return level === 'A' ? 1 : level === 'B' ? 2 : 3
 }
 
 interface BuiltSpec {
@@ -228,10 +228,10 @@ function buildSpecObjects(content: ExportContent, options: ExportOptions, bibPat
   const m = content.manuscript
 
   const authorsJson = {
-    authors: m.authors.map((a) => ({
+    authors: content.authors.authors.map((a) => ({
       full_name: `${a.given} ${a.family}`,
       affiliations: a.affiliationRefs
-        .map((ref) => m.affiliations.find((x) => x.id === ref))
+        .map((ref) => content.authors.affiliations.find((x) => x.id === ref))
         .filter((aff): aff is { id: string; text: string } => aff !== undefined)
         .map((aff) => ({ institution: aff.text })),
       corresponding: a.corresponding,

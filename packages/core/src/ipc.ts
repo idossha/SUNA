@@ -77,6 +77,24 @@ export const ExportOptionsSchema = z.object({
 });
 export type ExportOptions = z.infer<typeof ExportOptionsSchema>;
 
+/**
+ * The outcome of the flat-layout migration (feature-plan-7 §1). Rides along on
+ * every project open so the renderer can tell the user what happened to their
+ * files, and is the response of the manual 'project:migrate' trigger.
+ *
+ * `migrated` is true ONLY when files were actually rewritten; opening an
+ * already-flat project reports `false` with a note, never an error. `error` is
+ * non-null exactly when migration was abandoned — in that case NOTHING was
+ * changed and the project is still in its old layout, which is the one state
+ * the UI must surface loudly.
+ */
+export const MigrationOutcomeSchema = z.object({
+  migrated: z.boolean(),
+  notes: z.array(z.string()),
+  error: z.string().nullable(),
+});
+export type MigrationOutcome = z.infer<typeof MigrationOutcomeSchema>;
+
 export const CHANNELS = {
   'project:create': {
     request: z.object({
@@ -85,12 +103,28 @@ export const CHANNELS = {
     }),
     response: SunaProjectManifestSchema,
   },
+  /**
+   * Opens `dir` and — because the old `sections/` layout must not reach any
+   * reader — runs the flat-layout migration before returning. `migration`
+   * reports what that did; the project opens either way.
+   */
   'project:open': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({
       manifest: SunaProjectManifestSchema,
       manuscriptPresent: z.boolean(),
+      migration: MigrationOutcomeSchema,
     }),
+  },
+  /**
+   * Manual re-run of the flat-layout migration on an already-open project
+   * (feature-plan-7 §1). Idempotent, and never needed in the happy path —
+   * 'project:open' / 'project:open-example' already migrate. Useful after the
+   * user fixes whatever made an automatic attempt abandon.
+   */
+  'project:migrate': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: MigrationOutcomeSchema,
   },
   'project:scaffold-status': {
     request: z.object({ dir: z.string().min(1) }),
@@ -208,7 +242,9 @@ export const CHANNELS = {
   /**
    * DOCX import step 2: writes the project from a (possibly user-edited)
    * `analysis` into a fresh `dir` — suna.json, manuscript/manuscript.json,
-   * manuscript/sections (markdown files), manuscript/references.bib, and
+   * manuscript/manuscript.md (one flat prose file, each analyzed section's
+   * heading rendered at its level — feature-plan-7 §1, no `sections/`
+   * directory), manuscript/authors.json, manuscript/references.bib, and
    * figures/imported-N directories. Refuses a non-empty `dir` unless `force`
    * is set, and refuses a `dir` that
    * is already a SUNA project (has a suna.json) regardless of `force` — import
@@ -262,6 +298,7 @@ export const CHANNELS = {
     response: z.object({
       dir: z.string().min(1),
       manifest: SunaProjectManifestSchema,
+      migration: MigrationOutcomeSchema,
     }),
   },
   'dialog:pick-directory': {
@@ -623,9 +660,12 @@ export const CHANNELS = {
   },
 
   /**
-   * Word export (feature-plan-6 §3): renders manuscript.json + sections +
-   * references.bib through the active profile with the bundled 'docx'
-   * library — title page, body, figures, reference list, submission format.
+   * Word export (feature-plan-6 §3): renders manuscript.json +
+   * manuscript.md + authors.json + references.bib (feature-plan-7 §1 flat
+   * layout — sections are derived from manuscript.md's Markdown headings,
+   * not stored separately) through the active profile with the bundled
+   * 'docx' library — title page, body, figures, reference list, submission
+   * format.
    * `figurePngPaths` maps every manuscript.json figure id to an ALREADY
    * rasterized PNG on disk (figureId -> absolute path): main has no canvas,
    * so the caller rasterizes each figure via the existing

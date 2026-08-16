@@ -17,6 +17,7 @@
     "@suna/bib": "workspace:*",
     "@suna/core": "workspace:*",
     "@suna/formatter": "workspace:*",
+    "@suna/markdown": "workspace:*",
     "jsdom": "^30.0.1",
     "zod": "^4.4.3"
   },

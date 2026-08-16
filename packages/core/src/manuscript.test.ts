@@ -12,36 +12,6 @@ const fixture = {
     copyrightHolder: 'The Author(s)',
     year: 2026,
   },
-  authors: [
-    {
-      id: 'a1',
-      given: 'Tao',
-      family: 'Wang',
-      nativeScript: '王涛',
-      orcid: '0000-0002-2504-2421',
-      affiliationRefs: ['af1', 'af2'],
-      corresponding: true,
-      email: 'taowang@nju.edu.cn',
-      equalContribution: false,
-      deceased: false,
-    },
-    {
-      id: 'a2',
-      given: 'Ada',
-      family: 'Smith',
-      nativeScript: null,
-      orcid: '0000-0001-5109-370X',
-      affiliationRefs: ['af2'],
-      corresponding: false,
-      email: null,
-      equalContribution: false,
-      deceased: false,
-    },
-  ],
-  affiliations: [
-    { id: 'af1', text: 'School of Astronomy and Space Science, Nanjing University, Nanjing, China' },
-    { id: 'af2', text: 'Department of Astronomy, Example University, Madison, WI, USA' },
-  ],
   history: {
     received: '2025-06-04',
     accepted: '2026-05-12',
@@ -50,39 +20,7 @@ const fixture = {
   abstract: {
     content: 'We report the discovery of a massive galaxy cluster at $z = 2.51$.',
   },
-  body: [
-    { kind: 'section', heading: null, level: 'A', content: 'sections/intro.md', children: [] },
-    {
-      kind: 'section',
-      heading: 'Results',
-      level: 'A',
-      content: null,
-      children: [
-        {
-          kind: 'section',
-          heading: 'Cluster identification',
-          level: 'B',
-          content: 'sections/results-identification.md',
-          children: [],
-        },
-      ],
-    },
-    {
-      kind: 'section',
-      heading: 'Methods',
-      level: 'A',
-      content: null,
-      children: [
-        {
-          kind: 'section',
-          heading: 'Particle initialization.',
-          level: 'C-runin',
-          content: 'sections/methods-particles.md',
-          children: [],
-        },
-      ],
-    },
-  ],
+  manuscriptFile: 'manuscript.md',
   figures: [
     {
       id: 'fig-cluster',
@@ -130,29 +68,30 @@ describe('ManuscriptSchema', () => {
     expect(parsed).toEqual(fixture);
   });
 
-  it('represents an unheaded intro as heading: null', () => {
-    const parsed = ManuscriptSchema.parse(fixture);
-    const intro = parsed.body[0];
-    if (intro?.kind !== 'section') throw new Error('expected section node');
-    expect(intro.heading).toBeNull();
-    expect(intro.content).toBe('sections/intro.md');
+  it('defaults manuscriptFile to manuscript.md when the field is absent', () => {
+    const { manuscriptFile: _omitted, ...withoutFile } = fixture;
+    const parsed = ManuscriptSchema.parse(withoutFile);
+    expect(parsed.manuscriptFile).toBe('manuscript.md');
   });
 
-  it('preserves the nested section tree including run-in C-heads', () => {
-    const parsed = ManuscriptSchema.parse(fixture);
-    const methods = parsed.body[2];
-    if (methods?.kind !== 'section') throw new Error('expected section node');
-    expect(methods.heading).toBe('Methods');
-    expect(methods.children[0]?.level).toBe('C-runin');
+  it('lets a project name its prose file something else', () => {
+    const parsed = ManuscriptSchema.parse({ ...fixture, manuscriptFile: 'paper.md' });
+    expect(parsed.manuscriptFile).toBe('paper.md');
+    expect(ManuscriptSchema.safeParse({ ...fixture, manuscriptFile: '' }).success).toBe(false);
   });
 
-  it('keeps authors with ORCID, native script, and affiliation refs', () => {
-    const parsed = ManuscriptSchema.parse(fixture);
-    expect(parsed.authors).toHaveLength(2);
-    expect(parsed.authors[0]?.orcid).toBe('0000-0002-2504-2421');
-    expect(parsed.authors[0]?.nativeScript).toBe('王涛');
-    expect(parsed.authors[0]?.corresponding).toBe(true);
-    expect(parsed.authors[1]?.affiliationRefs).toEqual(['af2']);
+  it('no longer carries prose or people: body/authors/affiliations are dropped', () => {
+    const legacy: unknown = {
+      ...fixture,
+      body: [{ kind: 'section', heading: null, level: 'A', content: 'sections/intro.md', children: [] }],
+      authors: [{ id: 'a1', given: 'Tao', family: 'Wang' }],
+      affiliations: [{ id: 'af1', text: 'Nanjing University' }],
+    };
+    const parsed = ManuscriptSchema.parse(legacy);
+    expect(parsed).not.toHaveProperty('body');
+    expect(parsed).not.toHaveProperty('authors');
+    expect(parsed).not.toHaveProperty('affiliations');
+    expect(parsed).toEqual(fixture);
   });
 
   it('separates main and extended-data figure namespaces', () => {
@@ -169,60 +108,10 @@ describe('ManuscriptSchema', () => {
     expect(parsed.figures[0]).not.toHaveProperty('number');
   });
 
-  it('rejects a section with an invalid heading level', () => {
-    const bad: unknown = {
-      ...fixture,
-      body: [{ kind: 'section', heading: 'Bad', level: 'D', content: null, children: [] }],
-    };
-    expect(ManuscriptSchema.safeParse(bad).success).toBe(false);
-  });
-
-  it('rejects an invalid level nested deep in the section tree', () => {
-    const bad: unknown = {
-      ...fixture,
-      body: [
-        {
-          kind: 'section',
-          heading: 'Results',
-          level: 'A',
-          content: null,
-          children: [
-            { kind: 'section', heading: 'Sub', level: 'Z', content: null, children: [] },
-          ],
-        },
-      ],
-    };
-    expect(ManuscriptSchema.safeParse(bad).success).toBe(false);
-  });
-
-  it('rejects inline section content that is not a sections/*.md path', () => {
-    const bad: unknown = {
-      ...fixture,
-      body: [
-        {
-          kind: 'section',
-          heading: null,
-          level: 'A',
-          content: 'This is inline prose, not a path.',
-          children: [],
-        },
-      ],
-    };
-    expect(ManuscriptSchema.safeParse(bad).success).toBe(false);
-  });
-
   it('rejects a figure with an unknown namespace', () => {
     const bad: unknown = {
       ...fixture,
       figures: [{ ...fixture.figures[0], namespace: 'supplementary' }],
-    };
-    expect(ManuscriptSchema.safeParse(bad).success).toBe(false);
-  });
-
-  it('rejects a malformed ORCID', () => {
-    const bad: unknown = {
-      ...fixture,
-      authors: [{ ...fixture.authors[0], orcid: '12-34' }],
     };
     expect(ManuscriptSchema.safeParse(bad).success).toBe(false);
   });
@@ -258,28 +147,11 @@ describe('ManuscriptSchema', () => {
     expect(ManuscriptSchema.safeParse({ ...fixture, highlights: [42] }).success).toBe(false);
   });
 
-  it('accepts a box node in the body flow', () => {
-    const withBox: unknown = {
-      ...fixture,
-      body: [
-        ...fixture.body,
-        {
-          kind: 'box',
-          id: 'box-icecube',
-          title: 'The IceCube experiment.',
-          content: 'sections/box-icecube.md',
-          figureRefs: ['figB1'],
-        },
-      ],
-    };
-    const parsed = ManuscriptSchema.parse(withBox);
-    const box = parsed.body[3];
-    if (box?.kind !== 'box') throw new Error('expected box node');
-    expect(box.figureRefs).toEqual(['figB1']);
-  });
-
   it('keeps the shipped demo-paper example schema-valid', () => {
     const parsed = ManuscriptSchema.parse(demoManuscript);
     expect(parsed.significance).toBeTypeOf('string');
+    expect(parsed.manuscriptFile).toBe('manuscript.md');
+    expect(demoManuscript).not.toHaveProperty('body');
+    expect(demoManuscript).not.toHaveProperty('authors');
   });
 });

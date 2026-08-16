@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { commitManuscriptPatch, type CommitResult } from './commit'
+import { commitAuthorsPatch, type AuthorsCommitResult } from './commit'
 
 const COMMIT_DEBOUNCE_MS = 400
 
@@ -16,12 +16,13 @@ export interface ArrayFieldController<T> {
 }
 
 /**
- * One manuscript.json array field (authors, affiliations) edited as a whole
- * — `manuscript:update` replaces arrays wholesale, so every change here is a
- * full-array patch. Local `list` is authoritative once mounted; it only
- * re-syncs from the incoming prop while nothing is pending (see the effect
- * below), so an in-progress edit is never clobbered by an unrelated save
- * elsewhere on the page bumping saveBump → refresh.
+ * One authors.json array field (authors, affiliations — feature-plan-7 §1
+ * moved the byline out of manuscript.json) edited as a whole: every change
+ * here is a full-array patch, committed through `commitAuthorsPatch`'s own
+ * read-merge-validate-write. Local `list` is authoritative once mounted; it
+ * only re-syncs from the incoming prop while nothing is pending (see the
+ * effect below), so an in-progress edit is never clobbered by an unrelated
+ * save elsewhere on the page bumping saveBump → refresh.
  */
 export function useArrayField<T>(args: {
   rootDir: string
@@ -60,7 +61,7 @@ export function useArrayField<T>(args: {
       return // pendingRef stays true — the unsaved draft must not be clobbered
     }
     const mySeq = ++seqRef.current
-    const result: CommitResult = await commitManuscriptPatch(rootDir, buildPatchRef.current(next))
+    const result: AuthorsCommitResult = await commitAuthorsPatch(rootDir, buildPatchRef.current(next))
     if (mySeq !== seqRef.current) return
     if (result.ok) {
       pendingRef.current = false

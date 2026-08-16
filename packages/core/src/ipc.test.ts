@@ -63,6 +63,7 @@ describe('CHANNELS', () => {
       'project:create',
       'project:forget-recent',
       'project:list-importable',
+      'project:migrate',
       'project:open',
       'project:open-example',
       'project:recents',
@@ -77,6 +78,38 @@ describe('CHANNELS', () => {
       'term:resize',
       'term:write',
     ]);
+  });
+
+  it('carries a migration outcome on every project open', () => {
+    const res: ResponseOf<'project:open'> = {
+      manifest: {
+        schemaVersion: 1,
+        name: 'My Paper',
+        activeProfileId: 'nature-astronomy',
+        directories: DEFAULT_PROJECT_DIRS,
+        createdAt: '2026-08-13T09:30:00Z',
+      },
+      manuscriptPresent: true,
+      migration: { migrated: false, notes: ['project is already flat'], error: null },
+    };
+    expect(CHANNELS['project:open'].response.parse(res)).toEqual(res);
+    // The outcome is not optional: a renderer must always know what happened.
+    const { migration: _dropped, ...withoutMigration } = res;
+    expect(CHANNELS['project:open'].response.safeParse(withoutMigration).success).toBe(false);
+  });
+
+  it('reports an abandoned migration as a non-null error with migrated false', () => {
+    const req: RequestOf<'project:migrate'> = { dir: '/work/my-paper' };
+    expect(CHANNELS['project:migrate'].request.parse(req)).toEqual(req);
+    const res: ResponseOf<'project:migrate'> = {
+      migrated: false,
+      notes: ['nothing was changed — the project is exactly as it was'],
+      error: 'manuscript.md already exists — refusing to overwrite it with the migrated prose',
+    };
+    expect(CHANNELS['project:migrate'].response.parse(res)).toEqual(res);
+    expect(
+      CHANNELS['project:migrate'].response.safeParse({ migrated: true, notes: [] }).success,
+    ).toBe(false);
   });
 
   it('types and validates project:create request/response', () => {

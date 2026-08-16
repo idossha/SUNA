@@ -1,10 +1,10 @@
 import type {
-  BodyNode,
   Manuscript,
   PublisherProfile,
   RequiredSection,
   SubmissionStage,
 } from '@suna/core';
+import { outlineFromMarkdown } from '@suna/markdown';
 import type { Diagnostic, DiagnosticSeverity } from './types';
 import { sourceSuffix } from './util';
 
@@ -24,7 +24,13 @@ import { sourceSuffix } from './util';
 
 export interface ManuscriptCheckInput {
   manuscript: Manuscript;
-  /** Rendered markdown of each body section, keyed by its content path. */
+  /**
+   * The manuscript prose as Markdown, keyed by file path. Since
+   * feature-plan-7 §1 the prose lives in one flat `manuscript.md`, so this is
+   * normally a single entry; the keys are never inspected, only the values
+   * (word counts, figure references, and the derived section headings), so a
+   * caller with several files may still pass them all.
+   */
   sectionTexts: Record<string, string>;
   referenceCount: number;
 }
@@ -79,16 +85,21 @@ function normalizeHeading(s: string): string {
   return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-function collectHeadings(body: readonly BodyNode[]): Set<string> {
+/**
+ * Section headings are DERIVED from the prose now (feature-plan-7 §1):
+ * `manuscript.json` no longer carries a `body` array, so the required-section
+ * check reads the Markdown headings out of the same `sectionTexts` the word
+ * and figure-reference checks already scan. `outlineFromMarkdown` is the one
+ * outline implementation in the repo, so a `#` inside a fenced code block is
+ * code here exactly as it is in the editor's outline.
+ */
+function collectHeadings(sectionTexts: Record<string, string>): Set<string> {
   const headings = new Set<string>();
-  const visit = (nodes: readonly BodyNode[]): void => {
-    for (const node of nodes) {
-      if (node.kind !== 'section') continue;
-      if (node.heading !== null) headings.add(normalizeHeading(node.heading));
-      visit(node.children);
+  for (const text of Object.values(sectionTexts)) {
+    for (const section of outlineFromMarkdown(text)) {
+      if (section.title !== '') headings.add(normalizeHeading(section.title));
     }
-  };
-  visit(body);
+  }
   return headings;
 }
 
@@ -399,7 +410,7 @@ export function checkManuscript(
   }
 
   // Required sections.
-  const headings = collectHeadings(manuscript.body);
+  const headings = collectHeadings(sectionTexts);
   for (const rs of rules.requiredSections) {
     if (!rs.required) continue;
     if (sectionPresent(rs, manuscript, headings)) continue;

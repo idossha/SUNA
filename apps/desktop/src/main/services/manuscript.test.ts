@@ -13,32 +13,9 @@ function fixtureManuscript(): Manuscript {
     articleType: 'article',
     doi: null,
     openAccess: null,
-    authors: [
-      {
-        id: 'a1',
-        given: 'Ada',
-        family: 'Lovelace',
-        nativeScript: null,
-        orcid: null,
-        affiliationRefs: ['af1'],
-        corresponding: true,
-        email: null,
-        equalContribution: false,
-        deceased: false
-      }
-    ],
-    affiliations: [{ id: 'af1', text: 'Institute of Astronomy, Cambridge, UK' }],
     history: { received: null, accepted: null, publishedOnline: null },
     abstract: { content: 'We report stripping in dense environments.' },
-    body: [
-      {
-        kind: 'section',
-        heading: null,
-        level: 'A',
-        content: 'sections/01-introduction.md',
-        children: []
-      }
-    ],
+    manuscriptFile: 'manuscript.md',
     figures: [],
     tables: [],
     availability: { data: '', code: '' },
@@ -146,17 +123,17 @@ describe('updateManuscript', () => {
   it('rejects an invalid patch and leaves the file untouched', async () => {
     const before = await readFile(manuscriptFile, 'utf8')
     await expect(updateManuscript(dir, { articleType: 'blog-post' })).rejects.toThrow()
-    await expect(updateManuscript(dir, { authors: [] })).rejects.toThrow()
+    await expect(updateManuscript(dir, { manuscriptFile: '' })).rejects.toThrow()
     await expect(updateManuscript(dir, ['not', 'an', 'object'])).rejects.toThrow(
       /patch must be an object/
     )
     expect(await readFile(manuscriptFile, 'utf8')).toBe(before)
   })
 
-  it('rejects an invalid ORCID without writing', async () => {
+  it('rejects a nested invalid value without writing', async () => {
     const before = await readFile(manuscriptFile, 'utf8')
     await expect(
-      updateManuscript(dir, { authors: [{ ...fixtureManuscript().authors[0], orcid: 'nope' }] })
+      updateManuscript(dir, { openAccess: { license: '', copyrightHolder: 'x', year: 2026 } })
     ).rejects.toThrow()
     expect(await readFile(manuscriptFile, 'utf8')).toBe(before)
   })

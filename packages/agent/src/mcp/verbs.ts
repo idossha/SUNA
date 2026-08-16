@@ -1,6 +1,8 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
+import { emptyAuthorsFile } from '@suna/core'
+import { outlineFromMarkdown } from '@suna/markdown'
 import { loadProjectContext, resolveInside, type ProjectContext } from './project'
 import {
   addComment,
@@ -28,11 +30,15 @@ import {
  */
 
 export const listProjectInput = z.object({})
+export const readManuscriptInput = z.object({})
+export const writeManuscriptInput = z.object({ content: z.string() })
+/** Kept only so an agent mid-session that still calls the old name doesn't break — see TOOLS below. */
 export const readSectionInput = z.object({ path: z.string().min(1) })
 export const writeSectionInput = z.object({
   path: z.string().min(1),
   content: z.string()
 })
+export const listOutlineInput = z.object({})
 export const readManuscriptMetaInput = z.object({})
 export const listFiguresInput = z.object({})
 export const readFigureSvgInput = z.object({ figureId: z.string().min(1) })
@@ -79,24 +85,94 @@ export async function listProject(ctx: ProjectContext): Promise<string> {
   ].join('\n')
 }
 
-/** Section paths are given relative to the manuscript directory. */
-export async function readSection(ctx: ProjectContext, path: string): Promise<string> {
-  return readFile(resolveInside(ctx.root, ctx.dirs.manuscript, path), 'utf8')
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export async function writeSection(
-  ctx: ProjectContext,
-  path: string,
-  content: string
-): Promise<string> {
-  const abs = resolveInside(ctx.root, ctx.dirs.manuscript, path)
-  if (!abs.endsWith('.md')) throw new Error('sections must be Markdown (.md) files')
-  await writeFile(abs, content, 'utf8')
-  return `wrote ${content.length} characters to ${path}`
+const DEFAULT_MANUSCRIPT_FILE = 'manuscript.md'
+
+/**
+ * manuscript.json's `manuscriptFile` field names the one prose file
+ * (feature-plan-7 §1 — the flat layout has no `sections/` directory
+ * anymore). Read fresh on every call, same as the rest of this module's
+ * "no restart needed" philosophy; a missing or unparsable manuscript.json
+ * falls back to the default name rather than failing the whole verb.
+ */
+async function manuscriptFileName(ctx: ProjectContext): Promise<string> {
+  try {
+    const raw: unknown = JSON.parse(
+      await readFile(resolveInside(ctx.root, ctx.dirs.manuscript, 'manuscript.json'), 'utf8')
+    )
+    const name = isRecord(raw) ? raw['manuscriptFile'] : undefined
+    if (typeof name === 'string' && name !== '') return name
+  } catch {
+    // no manuscript.json yet, or it doesn't parse — the default name still works
+  }
+  return DEFAULT_MANUSCRIPT_FILE
 }
 
+/** The whole manuscript prose file (feature-plan-7 §1: one flat manuscript.md, sections are Markdown headings). */
+export async function readManuscript(ctx: ProjectContext): Promise<string> {
+  const name = await manuscriptFileName(ctx)
+  return readFile(resolveInside(ctx.root, ctx.dirs.manuscript, name), 'utf8')
+}
+
+/** Overwrites the whole manuscript prose file. */
+export async function writeManuscript(ctx: ProjectContext, content: string): Promise<string> {
+  const name = await manuscriptFileName(ctx)
+  await writeFile(resolveInside(ctx.root, ctx.dirs.manuscript, name), content, 'utf8')
+  return `wrote ${content.length} characters to ${name}`
+}
+
+/**
+ * `read_section`/`write_section` predate the flat layout, when the prose was
+ * split across `manuscript/sections/*.md` and `path` picked which file. That
+ * split is gone — there is exactly one prose file now — so these are thin
+ * aliases over `read_manuscript`/`write_manuscript` that ignore whatever
+ * `path` an old caller still sends, rather than erroring, so an agent
+ * mid-session against a pre-migration prompt does not break outright.
+ */
+export async function readSection(ctx: ProjectContext, _path: string): Promise<string> {
+  return readManuscript(ctx)
+}
+
+export async function writeSection(ctx: ProjectContext, _path: string, content: string): Promise<string> {
+  return writeManuscript(ctx, content)
+}
+
+/**
+ * The derived section outline (`@suna/markdown`'s `outlineFromMarkdown`) —
+ * an agent's only way to see manuscript structure without reading the whole
+ * file, matching what the sidebar shows.
+ */
+export async function listOutline(ctx: ProjectContext): Promise<string> {
+  const md = await readManuscript(ctx)
+  const sections = outlineFromMarkdown(md)
+  if (sections.length === 0) return 'no sections (empty manuscript)'
+  return sections
+    .map((s) => {
+      const indent = '  '.repeat(Math.max(0, s.level - 1))
+      const label = s.level === 0 ? '(untitled leading section)' : s.title
+      return `${indent}${label} — ${s.words} word${s.words === 1 ? '' : 's'}`
+    })
+    .join('\n')
+}
+
+/**
+ * manuscript.json (title, figures, tables, back matter, …) plus
+ * authors.json (feature-plan-7 §1 moved the byline out of manuscript.json
+ * into its own file, so the two are surfaced together here rather than
+ * leaving an agent to guess it needs a second read).
+ */
 export async function readManuscriptMeta(ctx: ProjectContext): Promise<string> {
-  return readFile(resolveInside(ctx.root, ctx.dirs.manuscript, 'manuscript.json'), 'utf8')
+  const manuscriptJson = await readFile(resolveInside(ctx.root, ctx.dirs.manuscript, 'manuscript.json'), 'utf8')
+  let authorsJson: string
+  try {
+    authorsJson = await readFile(resolveInside(ctx.root, ctx.dirs.manuscript, 'authors.json'), 'utf8')
+  } catch {
+    authorsJson = JSON.stringify(emptyAuthorsFile(), null, 2)
+  }
+  return `manuscript.json:\n${manuscriptJson}\n\nauthors.json:\n${authorsJson}`
 }
 
 export async function listFigures(ctx: ProjectContext): Promise<string> {
@@ -175,9 +251,24 @@ export async function checkFigureCompliance(
 /** Tool metadata shared by the server and its tests. */
 export const TOOLS = [
   { name: 'list_project', description: 'List every file in the SUNA project', schema: listProjectInput },
-  { name: 'read_section', description: 'Read a manuscript section (path relative to manuscript/)', schema: readSectionInput },
-  { name: 'write_section', description: 'Overwrite a manuscript section (.md only)', schema: writeSectionInput },
-  { name: 'read_manuscript_meta', description: 'Read manuscript.json (title, authors, sections, figures)', schema: readManuscriptMetaInput },
+  { name: 'read_manuscript', description: 'Read the whole manuscript prose file (manuscript/manuscript.md)', schema: readManuscriptInput },
+  { name: 'write_manuscript', description: 'Overwrite the whole manuscript prose file (manuscript/manuscript.md)', schema: writeManuscriptInput },
+  {
+    name: 'read_section',
+    description: 'DEPRECATED alias for read_manuscript — the manuscript is one flat file now, so `path` is ignored and the whole file is returned',
+    schema: readSectionInput
+  },
+  {
+    name: 'write_section',
+    description: 'DEPRECATED alias for write_manuscript — the manuscript is one flat file now, so `path` is ignored and the whole file is overwritten',
+    schema: writeSectionInput
+  },
+  { name: 'list_outline', description: 'List the manuscript\'s derived section outline (heading, depth, word count)', schema: listOutlineInput },
+  {
+    name: 'read_manuscript_meta',
+    description: 'Read manuscript.json (title, figures, tables, back matter) and authors.json (byline)',
+    schema: readManuscriptMetaInput
+  },
   { name: 'list_figures', description: 'List figures with their caption titles', schema: listFiguresInput },
   { name: 'read_figure_svg', description: 'Read a figure SVG source', schema: readFigureSvgInput },
   { name: 'read_bib', description: 'Read the BibTeX bibliography', schema: readBibInput },
@@ -203,12 +294,20 @@ export async function callTool(
   switch (name) {
     case 'list_project':
       return listProject(ctx)
+    case 'read_manuscript':
+      readManuscriptInput.parse(args)
+      return readManuscript(ctx)
+    case 'write_manuscript':
+      return writeManuscript(ctx, writeManuscriptInput.parse(args).content)
     case 'read_section':
       return readSection(ctx, readSectionInput.parse(args).path)
     case 'write_section': {
       const input = writeSectionInput.parse(args)
       return writeSection(ctx, input.path, input.content)
     }
+    case 'list_outline':
+      listOutlineInput.parse(args)
+      return listOutline(ctx)
     case 'read_manuscript_meta':
       return readManuscriptMeta(ctx)
     case 'list_figures':

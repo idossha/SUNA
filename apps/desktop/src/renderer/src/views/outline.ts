@@ -1,37 +1,40 @@
-import type { BodyNode } from '@suna/core'
+import type { OutlineSection } from '@suna/markdown'
 
 export interface OutlineRow {
   key: string
-  /** Display label; boxes use their title. */
+  /** Heading text; null for the untitled leading section (prose before the first heading). */
   label: string | null
-  /** 'A' | 'B' | 'C' for sections, 'box' for boxes. */
+  /** 'A' | 'B' | 'C' for a heading; '' for the untitled leading section. */
   chip: string
+  /** Indentation level for the sidebar list, derived from Markdown heading depth. */
   depth: number
-  /** Path relative to the manuscript/ directory, e.g. "sections/01-intro.md". */
-  contentPath: string | null
+  /** Document offset of the heading line — the scroll-spy / click-to-scroll target. */
+  headingFrom: number
+  /** Word count of the section's body (heading text excluded), from outlineFromMarkdown. */
+  words: number
 }
 
-function chipOf(level: 'A' | 'B' | 'C-runin'): string {
-  return level === 'C-runin' ? 'C' : level
+/** Typographic chip for a Markdown heading depth: 1 → 'A', 2 → 'B', 3+ → 'C'. */
+function chipFor(level: number): string {
+  if (level <= 0) return ''
+  if (level === 1) return 'A'
+  if (level === 2) return 'B'
+  return 'C'
 }
 
-/** Flatten the ordered manuscript body into outline rows, depth-first. */
-export function flattenBody(body: readonly BodyNode[], depth = 0, prefix = ''): OutlineRow[] {
-  const rows: OutlineRow[] = []
-  body.forEach((node, index) => {
-    const key = `${prefix}${index}`
-    if (node.kind === 'section') {
-      rows.push({
-        key,
-        label: node.heading,
-        chip: chipOf(node.level),
-        depth,
-        contentPath: node.content
-      })
-      rows.push(...flattenBody(node.children, depth + 1, `${key}.`))
-    } else {
-      rows.push({ key, label: node.title, chip: 'box', depth, contentPath: node.content })
-    }
-  })
-  return rows
+/**
+ * Project the manuscript's derived Markdown outline (@suna/markdown's
+ * outlineFromMarkdown) into display rows for the sidebar list and the
+ * combined tab's scroll-spy. Pure and flat — nesting is read off `depth`
+ * (heading level - 1), there is no tree.
+ */
+export function outlineRows(sections: readonly OutlineSection[]): OutlineRow[] {
+  return sections.map((section, i) => ({
+    key: `s${i}`,
+    label: section.level === 0 ? null : section.title,
+    chip: chipFor(section.level),
+    depth: Math.max(0, section.level - 1),
+    headingFrom: section.headingFrom,
+    words: section.words
+  }))
 }

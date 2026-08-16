@@ -1,26 +1,29 @@
 import { create } from 'zustand'
 import type { BibEntry, CitationStyleConfig } from '@suna/bib'
+import type { OutlineSection } from '@suna/markdown'
 import type { LabelMap } from '../manuscript/citations'
 
 /**
  * Shared state between the combined manuscript tab (manuscript/ManuscriptTab)
- * and the Manuscript sidebar view: which section is in view, per-section word
- * counts, outline-click → smooth-scroll requests, and the citation render
- * data the tab's References block publishes for the section editors' chips.
+ * and the Manuscript sidebar view: the live outline (derived from the single
+ * editor's current buffer), which heading is in view, outline-click →
+ * smooth-scroll requests, and the citation render data the tab's References
+ * block publishes for the editor's reading-mode chips.
  *
- * Section indices refer to the flattened body order (views/outline flattenBody).
- * Word counts are keyed by the section's contentPath ("sections/x.md") because
- * that key is stable across outline re-flattening.
+ * `outline` and `activeSectionIndex` index into the SAME flat, document-order
+ * list `@suna/markdown`'s outlineFromMarkdown returns (views/outline's
+ * outlineRows projects it for display) — a heading's position in that array
+ * is its "section index" everywhere in this store.
  */
 
 /**
  * Citation render data of the combined document under the preview profile,
- * published by manuscript/ReferencesBlock after each recompute. Section
- * editors resolve their reading-mode citation chips against it
+ * published by manuscript/ReferencesBlock after each recompute. The
+ * manuscript editor resolves its reading-mode citation chips against it
  * (manuscript/citeChips).
  */
 export interface CitationRender {
-  /** First-appearance citation numbers across all sections, keyed by cite key. */
+  /** First-appearance citation numbers across the document, keyed by cite key. */
   numbers: ReadonlyMap<string, number>
   /** Bib entries keyed by cite key — needed for author-year chip text. */
   entries: ReadonlyMap<string, BibEntry>
@@ -44,11 +47,16 @@ export function countWords(text: string): number {
 }
 
 interface ManuscriptDocState {
-  /** Flattened-body index of the section currently in view in the combined tab. */
+  /**
+   * Outline of the combined tab's editor, recomputed (debounced) from its
+   * CURRENT buffer on every edit — so the sidebar's headings/word counts
+   * track unsaved typing, not just the last save. Empty while the tab is
+   * unmounted; the sidebar falls back to a disk read then (ManuscriptView).
+   */
+  outline: OutlineSection[]
+  /** Index into `outline` of the heading currently in view in the combined tab. */
   activeSectionIndex: number
-  /** Word counts keyed by contentPath. */
-  wordCounts: Record<string, number>
-  /** True while a combined manuscript tab component is mounted (owns word counts). */
+  /** True while a combined manuscript tab component is mounted (owns the live outline). */
   tabMounted: boolean
   /** True while the combined manuscript tab is the frontmost dock panel. */
   tabActive: boolean
@@ -56,9 +64,8 @@ interface ManuscriptDocState {
   scrollRequest: ScrollRequest | null
   /** Latest citation render data; null until the References block computes it. */
   citationRender: CitationRender | null
+  setOutline: (outline: OutlineSection[]) => void
   setActiveSectionIndex: (index: number) => void
-  setWordCount: (contentPath: string, count: number) => void
-  replaceWordCounts: (counts: Record<string, number>) => void
   setTabMounted: (mounted: boolean) => void
   setTabActive: (active: boolean) => void
   requestScroll: (index: number) => void
@@ -68,24 +75,18 @@ interface ManuscriptDocState {
 }
 
 export const useManuscriptDocStore = create<ManuscriptDocState>((set, get) => ({
+  outline: [],
   activeSectionIndex: 0,
-  wordCounts: {},
   tabMounted: false,
   tabActive: false,
   scrollRequest: null,
   citationRender: null,
 
+  setOutline: (outline) => set({ outline }),
+
   setActiveSectionIndex: (index) => {
     if (get().activeSectionIndex !== index) set({ activeSectionIndex: index })
   },
-
-  setWordCount: (contentPath, count) => {
-    const current = get().wordCounts
-    if (current[contentPath] === count) return
-    set({ wordCounts: { ...current, [contentPath]: count } })
-  },
-
-  replaceWordCounts: (counts) => set({ wordCounts: counts }),
 
   setTabMounted: (mounted) => set({ tabMounted: mounted }),
   setTabActive: (active) => set({ tabActive: active }),

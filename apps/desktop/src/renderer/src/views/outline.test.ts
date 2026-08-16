@@ -1,74 +1,50 @@
 import { describe, expect, it } from 'vitest'
-import type { BodyNode } from '@suna/core'
-import { flattenBody } from './outline'
+import type { OutlineSection } from '@suna/markdown'
+import { outlineRows } from './outline'
 
-const body: BodyNode[] = [
-  {
-    kind: 'section',
-    heading: null,
-    level: 'A',
-    content: 'sections/00-lede.md',
-    children: []
-  },
-  {
-    kind: 'section',
-    heading: 'Results',
-    level: 'A',
-    content: null,
-    children: [
-      {
-        kind: 'section',
-        heading: 'Spectroscopy',
-        level: 'B',
-        content: 'sections/02-spectroscopy.md',
-        children: []
-      },
-      {
-        kind: 'section',
-        heading: 'Kinematics',
-        level: 'C-runin',
-        content: 'sections/03-kinematics.md',
-        children: []
-      }
-    ]
-  },
-  {
-    kind: 'box',
-    id: 'box1',
-    title: 'Jellyfish galaxies',
-    content: 'sections/box-jellyfish.md',
-    figureRefs: []
-  }
+const sections: OutlineSection[] = [
+  { level: 0, title: '', headingFrom: 0, from: 0, to: 10, words: 8 },
+  { level: 1, title: 'Results', headingFrom: 10, from: 20, to: 60, words: 3 },
+  { level: 2, title: 'Spectroscopy', headingFrom: 60, from: 76, to: 120, words: 12 },
+  { level: 3, title: 'Kinematics', headingFrom: 120, from: 134, to: 160, words: 5 }
 ]
 
-describe('flattenBody', () => {
-  it('flattens depth-first in document order', () => {
-    const rows = flattenBody(body)
-    expect(rows.map((r) => r.label)).toEqual([
-      null,
-      'Results',
-      'Spectroscopy',
-      'Kinematics',
-      'Jellyfish galaxies'
-    ])
-    expect(rows.map((r) => r.depth)).toEqual([0, 0, 1, 1, 0])
+describe('outlineRows', () => {
+  it('maps sections in document order', () => {
+    const rows = outlineRows(sections)
+    expect(rows.map((r) => r.label)).toEqual([null, 'Results', 'Spectroscopy', 'Kinematics'])
   })
 
-  it('maps heading levels and boxes to chips', () => {
-    const rows = flattenBody(body)
-    expect(rows.map((r) => r.chip)).toEqual(['A', 'A', 'B', 'C', 'box'])
+  it('maps heading levels to chips, with an empty chip for the untitled leading section', () => {
+    const rows = outlineRows(sections)
+    expect(rows.map((r) => r.chip)).toEqual(['', 'A', 'B', 'C'])
   })
 
-  it('keeps content paths, including null for container sections', () => {
-    const rows = flattenBody(body)
-    expect(rows[0]?.contentPath).toBe('sections/00-lede.md')
-    expect(rows[1]?.contentPath).toBeNull()
-    expect(rows[4]?.contentPath).toBe('sections/box-jellyfish.md')
+  it('derives depth from heading level for sidebar indentation', () => {
+    const rows = outlineRows(sections)
+    expect(rows.map((r) => r.depth)).toEqual([0, 0, 1, 2])
+  })
+
+  it('carries headingFrom and words straight through from the outline section', () => {
+    const rows = outlineRows(sections)
+    expect(rows.map((r) => r.headingFrom)).toEqual([0, 10, 60, 120])
+    expect(rows.map((r) => r.words)).toEqual([8, 3, 12, 5])
   })
 
   it('assigns unique stable keys', () => {
-    const rows = flattenBody(body)
+    const rows = outlineRows(sections)
     expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length)
-    expect(rows[2]?.key).toBe('1.0')
+  })
+
+  it('maps a level-4+ heading to the "C" chip too', () => {
+    const rows = outlineRows([
+      { level: 4, title: 'Deep', headingFrom: 0, from: 6, to: 6, words: 0 }
+    ])
+    expect(rows[0]?.chip).toBe('C')
+    expect(rows[0]?.depth).toBe(3)
+  })
+
+  it('returns an empty list for an empty outline', () => {
+    expect(outlineRows([])).toEqual([])
   })
 })

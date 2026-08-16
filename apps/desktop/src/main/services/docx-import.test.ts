@@ -4,10 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from 'docx'
-import { ManuscriptSchema, SunaProjectManifestSchema, type DocxAnalysis } from '@suna/core'
+import { AuthorsFileSchema, ManuscriptSchema, SunaProjectManifestSchema, type DocxAnalysis } from '@suna/core'
 import { parseBibtex, serializeBibtex } from '@suna/bib'
 import {
   analyzeDocx,
+  buildManuscriptMarkdown,
   commitDocxAnalysis,
   countOmmlEquations,
   deriveCorrespondence,
@@ -189,17 +190,22 @@ describe('commitDocxAnalysis (real fixture end to end)', () => {
     const manuscriptRaw = await readFile(join(targetDir, 'manuscript', 'manuscript.json'), 'utf8')
     const manuscript = ManuscriptSchema.parse(JSON.parse(manuscriptRaw))
     expect(manuscript.title).toBe('SUNA Test Manuscript Title')
-    expect(manuscript.authors).toHaveLength(2)
-    expect(manuscript.authors[0]?.affiliationRefs).toEqual(['af1'])
-    expect(manuscript.body).toHaveLength(2)
+    expect(manuscript.manuscriptFile).toBe('manuscript.md')
 
-    const sectionFiles = await readdir(join(targetDir, 'manuscript', 'sections'))
-    expect(sectionFiles.sort()).toEqual(['01-introduction.md', '02-results.md'])
-    const introMd = await readFile(join(targetDir, 'manuscript', 'sections', '01-introduction.md'), 'utf8')
-    expect(introMd).toContain(`[@${analysis.references[0]?.citeKey}]`)
-    const resultsMd = await readFile(join(targetDir, 'manuscript', 'sections', '02-results.md'), 'utf8')
-    expect(resultsMd).not.toContain('docx-image:')
-    expect(resultsMd).toMatch(/\.\.\/\.\.\/figures\/imported-1\/figure\.png/)
+    const authorsRaw = await readFile(join(targetDir, 'manuscript', 'authors.json'), 'utf8')
+    const authorsFile = AuthorsFileSchema.parse(JSON.parse(authorsRaw))
+    expect(authorsFile.authors).toHaveLength(2)
+    expect(authorsFile.authors[0]?.affiliationRefs).toEqual(['af1'])
+
+    // The flat layout has no sections/ directory at all (feature-plan-7 §1).
+    await expect(readdir(join(targetDir, 'manuscript', 'sections'))).rejects.toThrow()
+
+    const manuscriptMd = await readFile(join(targetDir, 'manuscript', 'manuscript.md'), 'utf8')
+    expect(manuscriptMd).toContain('# Introduction')
+    expect(manuscriptMd).toContain('# Results')
+    expect(manuscriptMd).toContain(`[@${analysis.references[0]?.citeKey}]`)
+    expect(manuscriptMd).not.toContain('docx-image:')
+    expect(manuscriptMd).toMatch(/\.\.\/figures\/imported-1\/figure\.png/)
 
     const figureFile = join(targetDir, 'figures', 'imported-1', 'figure.png')
     const figureInfo = await stat(figureFile)
@@ -247,6 +253,43 @@ describe('commitDocxAnalysis (real fixture end to end)', () => {
     const targetDir = await tempProjectDir()
     const incomplete: DocxAnalysis = { ...analysis, title: { value: null, reason: 'cleared by user' } }
     await expect(commitDocxAnalysis(incomplete, targetDir, false)).rejects.toThrow(/title/)
+  })
+})
+
+describe('buildManuscriptMarkdown', () => {
+  it('renders each section heading at its Word heading depth (1 → #, 2 → ##)', () => {
+    const md = buildManuscriptMarkdown(
+      [
+        { heading: 'Introduction', level: 1, markdown: 'Intro text.' },
+        { heading: 'Background', level: 2, markdown: 'Sub text.' }
+      ],
+      []
+    )
+    expect(md).toBe('# Introduction\n\nIntro text.\n\n## Background\n\nSub text.\n')
+  })
+
+  it('contributes prose with no heading line for an untitled leading section', () => {
+    const md = buildManuscriptMarkdown(
+      [
+        { heading: null, level: 1, markdown: 'Lead-in prose before any heading.' },
+        { heading: 'Results', level: 1, markdown: 'Results text.' }
+      ],
+      []
+    )
+    expect(md).toBe('Lead-in prose before any heading.\n\n# Results\n\nResults text.\n')
+  })
+
+  it('rewrites docx-image placeholders to figures/<id>/figure.<ext>, one level up from manuscript.md', () => {
+    const md = buildManuscriptMarkdown(
+      [{ heading: 'Results', level: 1, markdown: 'See below.\n\n![](docx-image:imported-1)' }],
+      [{ id: 'imported-1', tempPath: '/tmp/whatever.png', ext: 'png', alt: '' }]
+    )
+    expect(md).toContain('../figures/imported-1/figure.png')
+    expect(md).not.toContain('docx-image:')
+  })
+
+  it('returns an empty string for no sections', () => {
+    expect(buildManuscriptMarkdown([], [])).toBe('')
   })
 })
 
