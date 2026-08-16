@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 3,
+  "id": "jneurosci",
+  "journalName": "Journal of Neuroscience (JNeurosci)",
+  "publisher": "Society for Neuroscience",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "author-year",
+    "collapseRanges": false,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": {
+      "includeInitials": null,
+      "twoAuthorJoiner": null,
+      "etAlFromNAuthors": null,
+      "sameYearSuffixes": null
+    },
+    "referenceList": {
+      "entryTemplates": {
+        "article": null,
+        "book": null,
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 6,
+        "keepFirstN": 6
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": null,
+      "sortOrder": "alphabetical"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.jneurosci.org/content/information-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "mode: author-date (parenthetical), explicitly NOT a numbered system — two independent, unrelated search queries both surfaced an unprompted contrast with numbered styles (“actually uses an author-date (parenthetical) citation system rather than a numbered format”), which reads as a direct correction of a wrong assumption rather than paraphrase drift, hence the higher confidence despite the direct-fetch block.",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "authorTruncation (reference list): “List all authors unless there are more than six, in which case list the first six followed by et al.”",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "journalAbbreviation: “standard abbreviated journal titles as per PubMed conventions” — left null rather than mapped to the schema's 'iso4' option, since PubMed/NLM abbreviations are a distinct convention.",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "collapseRanges: false, and authorYear's individual fields (includeInitials, twoAuthorJoiner, etAlFromNAuthors, sameYearSuffixes) left null — author-year citation formatting details were not confirmed for JNeurosci specifically; false/null chosen by convention matching the other author-year profile in this repo (mnras.json) rather than any JNeurosci-specific statement.",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "citations.maxReferences: explicitly “no limit on the number of figures, diagrams, or references for Research Articles” — a genuine documented ABSENCE of a limit, distinct from simply not having found one; still encoded as null (the schema has no 'explicitly unlimited' sentinel) but flagged here as a positive fact, not a research gap.",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": null,
+      "onehalf": null,
+      "double": null
+    },
+    "maxHeightMm": null,
+    "minFontPt": null,
+    "maxFontPt": null,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [],
+      "rasterAccepted": [],
+      "minDpi": null
+    },
+    "panelLabel": {
+      "letterCase": null,
+      "weight": null,
+      "wrapper": null
+    },
+    "sources": [
+      "https://www.jneurosci.org/content/information-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "No figure specifications (widths, fonts, line weights, resolution, formats, panel labels) could be confirmed for JNeurosci in this research pass: jneurosci.org returned HTTP 403 to every direct-fetch attempt (including two normally-static PDF checklists), and no search-engine excerpt surfaced verbatim figure-preparation content. This is a research gap, not a confirmed 'the journal states nothing' fact — contrast with sleep-advances.json's figures section, which WAS directly read and genuinely is silent.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "research-article",
+        "name": "Research Article",
+        "wordLimit": null,
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "review",
+        "name": "Review",
+        "wordLimit": {
+          "max": 10000,
+          "scope": "generally 5,000-10,000 words",
+          "hard": false
+        },
+        "abstractWordLimit": 250,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      {
+        "id": "abstract",
+        "label": "Abstract (unstructured, complete sentences, no subheadings)",
+        "required": true
+      },
+      {
+        "id": "introduction",
+        "label": "Introduction (650-word budget for Research Articles)",
+        "required": true
+      },
+      {
+        "id": "materials-methods",
+        "label": "Materials and Methods",
+        "required": true
+      },
+      {
+        "id": "discussion",
+        "label": "Discussion (1,500-word budget for Research Articles)",
+        "required": true
+      }
+    ],
+    "availabilityStatements": {
+      "data": true,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": true,
+      "lineNumbers": null,
+      "acceptedFileTypes": []
+    },
+    "sources": [
+      "https://www.jneurosci.org/content/information-authors"
+    ],
+    "provenance": [
+      {
+        "claim": "Research Article: “restricted to 650-word introductions and 1,500-word discussions” — a structural budget on two specific sections rather than a single whole-manuscript word cap; “no limit on the number of figures, diagrams, or references.”",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "Review: “generally 5,000-10,000 words,” “concise abstract (250 words maximum) followed by an introduction and subsections”; covers work from many laboratories.",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "Abstract (Research Article): “providing a concise summary of the objectives, methodology (including the species studied and whether one or both sexes were included), key results, and major conclusions... written in complete sentences, without subheadings” — unstructured/un-headed, unlike SLEEP's headed option; no explicit numeric word cap found for Research Article abstracts specifically (contrast with the Review's stated 250-word cap), so abstractWordLimit is left null for research-article.",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "availabilityStatements.data: type-scoped, not a single blanket statement — functional-genomics/high-throughput data MUST be deposited in a MIAME-compliant database (GEO, ArrayExpress, CYBEX) with public accession numbers upon acceptance; computational models are recommended (not mandated) for deposit in GitHub/ModelDB/BioModels/CellML/Visiome. Encoded as data:true since a real mandatory-deposit requirement exists for at least some data types; the schema has no per-data-type scoping, so this nuance is recorded here rather than modeled.",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      },
+      {
+        "claim": "submissionFormat.doubleSpacing: “The entire text should be double-spaced, including references.”",
+        "basis": "documented",
+        "source": "https://www.jneurosci.org/content/information-authors"
+      }
+    ]
+  },
+  "notes": [
+    "RETRIEVAL CAVEAT: jneurosci.org (HighWire-hosted, Society for Neuroscience) returned HTTP 403 to every WebFetch attempt on every path tried in this session, including the two PDF checklists (Initial Submission Checklist, Revised Submissions Checklist) which are normally static, less-protected assets. All facts above come from Google-indexed search-engine excerpts of the official page, cross-checked for internally consistent, specific numeric phrasing.",
+    "The 650-word introduction / 1,500-word discussion split is JNeurosci's most distinctive and highest-confidence fact — it is a section-level budget, not a whole-manuscript cap, and a naive whole-document word counter would misapply it; a compliance checker needs per-section word counting to use this limit correctly, which the current schema's single wordLimit-per-articleType field does not represent (recorded in scope text instead).",
+    "Figure/submission-format fields are the weakest area of this profile (see figures.provenance) and are left null pending direct (browser-based) re-verification, distinct from a confirmed absence.",
+    "citations.mode (author-year) is the one fact this profile is most confident about: it was surfaced as an explicit, unprompted correction ('NOT a numbered format') in two independent search retrievals, which is a stronger signal than the single-mention pattern seen elsewhere in this profile."
+  ]
+}

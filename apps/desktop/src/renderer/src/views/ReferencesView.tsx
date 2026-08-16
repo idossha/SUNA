@@ -5,7 +5,7 @@ import { orderedReferences } from '../manuscript/citations'
 import { openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
 import { useReferencePdfs } from '../state/referencePdfs'
-import { usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
+import { profileLabel, usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
 import { useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
 import { autoOpenPdfPath, citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor, pdfBadgeTitle } from './refs'
@@ -16,13 +16,6 @@ import './views.css'
 type RefsTab = 'library' | 'search'
 
 type UsageFilter = 'all' | 'cited' | 'uncited'
-
-const PROFILE_LABELS: Record<BundledProfileId, string> = {
-  'nature-astronomy': 'Nat. Astron.',
-  science: 'Science',
-  'apj-aas': 'ApJ (AAS)',
-  mnras: 'MNRAS'
-}
 
 function RunSpans({ runs }: { runs: readonly Run[] }): JSX.Element {
   return (
@@ -340,7 +333,7 @@ export function ReferencesView(): JSX.Element {
                         if (rootDir !== null) useRenderProfileStore.getState().setPreviewProfile(rootDir, id)
                       }}
                     >
-                      {PROFILE_LABELS[id]}
+                      {profileLabel(id)}
                     </button>
                   ))}
                 </div>

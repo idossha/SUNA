@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 3,
+  "id": "nature",
+  "journalName": "Nature",
+  "publisher": "Springer Nature (Nature Portfolio)",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "numeric-superscript",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors} {title}. {journalAbbrev} {volume}, {firstPage}–{lastPage} ({year}).",
+        "book": "{authors} {title} ({publisher}, {year}).",
+        "preprint": "{authors} {title}. Preprint at {url} ({year}).",
+        "software": "{authors} {title}. {repository} {doiUrl} ({year})."
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 5,
+        "keepFirstN": 1
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": "Datasets may be cited in the reference list if assigned a DOI, expressed as a full URL, with authors, title and publisher (repository name); no DOI requirement is stated for ordinary journal articles.",
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.nature.com/nature/for-authors/formatting-guide",
+      "https://www.nature.com/nature/for-authors/final-submission",
+      "https://www.nature.com/nature/for-authors/initial-submission"
+    ],
+    "provenance": [
+      {
+        "claim": "mode: numeric-superscript — “When cited in the text, reference numbers are superscript, not in brackets.” Worked example: “Water flows downhill 13” with the instruction to use superscripts, not 'raised' format.",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      },
+      {
+        "claim": "authorTruncation: “All authors should be included in reference lists unless there are more than five, in which case only the first author should be given, followed by 'et al.'.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "collapseRanges/textualTokens: NOT independently stated on either flagship page (no worked example shows a collated or ranged in-text citation); set true / default following the same family convention already used for Nature Astronomy, not a flagship-specific statement.",
+        "basis": "inferred",
+        "source": null
+      },
+      {
+        "claim": "article maxReferences (per-type, see manuscript.articleTypes): “As a guideline, articles typically have no more than 50 references... Additional references for Methods or Supplementary Information are not included in this count.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "reference numbering order: “References are each numbered, ordered sequentially as they appear in the text, tables, boxes, figure legends, Methods, Extended Data tables and Extended Data figure legends.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": 89,
+      "onehalf": null,
+      "double": 183
+    },
+    "maxHeightMm": 247,
+    "minFontPt": 5,
+    "maxFontPt": 7,
+    "lineWeightPt": {
+      "min": 0.25,
+      "max": 1
+    },
+    "preferredFontFamilies": [
+      "Helvetica",
+      "Arial"
+    ],
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [
+        "ai",
+        "eps",
+        "pdf"
+      ],
+      "rasterAccepted": [
+        "psd",
+        "tiff",
+        "jpg"
+      ],
+      "minDpi": 300
+    },
+    "panelLabel": {
+      "letterCase": "lower",
+      "weight": "bold",
+      "wrapper": "none"
+    },
+    "sources": [
+      "https://www.nature.com/nature/for-authors/final-submission",
+      "https://www.nature.com/nature/for-authors/formatting-guide"
+    ],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm/maxHeightMm: Final submission page (production spec, treated as authoritative here): “89 mm wide (single column) and 183 mm wide (double column). The full depth of a Nature page is 247 mm. Figures can also be a column-and-a-half where necessary (120–136 mm).” onehalf left null because 120–136mm is a range, not a single preset value.",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      },
+      {
+        "claim": "CONFLICTING official figure dimensions (recorded, not encoded): the Formatting guide instead states “90 mm (single column) and 180 mm (double column) and the full depth of the page is 170 mm” — both pages are live and current; the 170mm-vs-247mm depth conflict is not resolved by the journal.",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "minFontPt/maxFontPt: “Maximum text size for all other text should be 7 pt; minimum text size should be 5 pt.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      },
+      {
+        "claim": "lineWeightPt: “Line weights and strokes should be set between 0.25 and 1 pt at the final size.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      },
+      {
+        "claim": "panelLabel: “Separate panels in multi-part figures should each be labelled with 8 pt bold, upright (not italic) a, b, c.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      },
+      {
+        "claim": "palette.requirement: 'none-stated' — unlike Nature Astronomy's own branded-journals figure guide (which requires the Wong colorblind-safe palette), the flagship Nature formatting/final-submission pages state no colour-blind-safe palette or red/green rule; this profile deliberately does NOT borrow Nature Astronomy's palette requirement.",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      },
+      {
+        "claim": "formats: preferred “Layered Photoshop (PSD) or TIFF format (high resolution, 300–600 dpi)” for photos; “Adobe Illustrator (AI), Postscript, Vector EPS or PDF format” for line art; fallback JPEG accepted; explicitly rejected: Canvas, DeltaGraph, Tex, ChemDraw, SigmaPlot. minDpi 300: “All photographic images must be supplied at a minimum of 300 dpi.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/final-submission"
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "article",
+        "name": "Article",
+        "wordLimit": {
+          "max": 4300,
+          "scope": "page-budget guideline, not a hard cap: physical-sciences papers target ~2500 words over a 6-print-page budget (~4 modest display items); biological/clinical/social-sciences papers target ~4300 words over an 8-page budget (~5-6 display items); 'the final print length is at the editor's discretion'. Excludes title, author list, acknowledgements and references.",
+          "hard": false
+        },
+        "abstractWordLimit": 200,
+        "titleLimitChars": 75,
+        "maxDisplayItems": 6,
+        "maxReferences": 50
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      {
+        "id": "title",
+        "label": "Title",
+        "required": true
+      },
+      {
+        "id": "authors",
+        "label": "Authors",
+        "required": true
+      },
+      {
+        "id": "affiliations",
+        "label": "Affiliations (plus present addresses)",
+        "required": true
+      },
+      {
+        "id": "bold-first-paragraph",
+        "label": "Bold first paragraph",
+        "required": true
+      },
+      {
+        "id": "main-text",
+        "label": "Main text",
+        "required": true
+      },
+      {
+        "id": "main-references",
+        "label": "Main references",
+        "required": true
+      },
+      {
+        "id": "tables",
+        "label": "Tables",
+        "required": false
+      },
+      {
+        "id": "figure-legends",
+        "label": "Figure legends",
+        "required": true
+      },
+      {
+        "id": "methods",
+        "label": "Methods (with Data and Code Availability statements)",
+        "required": true
+      },
+      {
+        "id": "methods-references",
+        "label": "Methods references",
+        "required": false
+      },
+      {
+        "id": "acknowledgements",
+        "label": "Acknowledgements",
+        "required": false
+      },
+      {
+        "id": "funding-statement",
+        "label": "Funding statement",
+        "required": true
+      },
+      {
+        "id": "author-contributions",
+        "label": "Author contributions",
+        "required": true
+      },
+      {
+        "id": "competing-interests",
+        "label": "Competing interest declaration",
+        "required": true
+      },
+      {
+        "id": "additional-information",
+        "label": "Additional information (SI line, corresponding author line)",
+        "required": true
+      },
+      {
+        "id": "extended-data-legends",
+        "label": "Extended Data figure/table legends",
+        "required": false
+      }
+    ],
+    "availabilityStatements": {
+      "data": true,
+      "code": true
+    },
+    "submissionFormat": {
+      "doubleSpacing": true,
+      "lineNumbers": true,
+      "acceptedFileTypes": [
+        "docx",
+        "pdf",
+        "tex"
+      ]
+    },
+    "sources": [
+      "https://www.nature.com/nature/for-authors/formatting-guide",
+      "https://www.nature.com/nature/for-authors/final-submission",
+      "https://www.nature.com/nature/for-authors/initial-submission"
+    ],
+    "provenance": [
+      {
+        "claim": "requiredSections order: “title, authors, affiliations (plus present addresses), bold first paragraph, main text, main references, tables, figure legends, methods (including separate data and code availability statements), methods references, acknowledgements, funding statement, author contributions, competing interest declaration, additional information..., extended data figure/table legends.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "availabilityStatements: “Nature authors must make data and materials publicly available upon publication”; “Please provide separate Data Availability and Code Availability statements after the main text statements and before the Extended Data legends.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "submissionFormat.doubleSpacing/lineNumbers: “Contributions should be double-spaced”; “please include line numbers within the text.”",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "article.wordLimit: encoded as a single non-hard max (4300, the more permissive of the two discipline-dependent branches) with both branches spelled out in scope text, since the schema's WordLimit is a single number but Nature states two page-budget targets rather than one cap.",
+        "basis": "documented",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide"
+      },
+      {
+        "claim": "no stageSeverity is set for flagship Nature: unlike Nature Astronomy (which states initial submissions need no special formatting), the flagship formatting guide makes no equivalent statement, so no initial-submission relaxation is inferred here.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "notes": [
+    "SELF-CONTRADICTION ON FIGURE DIMENSIONS between Nature's own Formatting guide (90/180mm, 170mm depth) and Final submission page (89/183mm, 247mm depth, 120-136mm column-and-a-half) — both pages are live and current. The Final submission numbers are encoded here as the production spec; the conflict is recorded in figures.provenance rather than silently resolved.",
+    "NATURE HAS NO 'LETTER' OR 'BRIEF COMMUNICATION' RESEARCH FORMAT — the current formatting guide states 'Articles are the main format for original research contributions to Nature' and lists no short-research format. Only 'article' is encoded as an articleType.",
+    "LENGTH IS A PAGE BUDGET, NOT A HARD WORD CAP: Nature never states a hard maximum word count, only typical lengths tied to print pages with an explicit editorial-discretion clause. Encoded as hard: false.",
+    "The 50-reference figure is explicitly a guideline that excludes Methods/Supplementary Information references from the count — a naive whole-bibliography reference counter would produce false failures against this limit.",
+    "The abstract is a 'summary paragraph': fully referenced, a single paragraph with a prescribed internal structure (2-3 sentence intro; background/rationale; 'Here we show' conclusion; 2-3 sentences of context) but with NO section headings — structured in substance, not in formatting.",
+    "Matters Arising and Registered Reports are both described on the formatting guide but their own numeric limits live on separate pages not retrieved in this pass; neither is encoded as a distinct articleType to avoid implying limits that were never actually read.",
+    "palette.requirement is deliberately 'none-stated' for flagship Nature even though the sibling nature-astronomy.json profile requires the Wong colorblind-safe palette — that requirement comes from Nature Astronomy's OWN branded-journals figure guide and does not apply to the flagship journal; it is not borrowed here.",
+    "Retrieval note: nature.com pages were reachable directly via WebFetch in this session (unlike cell.com/pnas.org/sciencedirect.com/jneurosci.org, all of which returned HTTP 403) — this profile has direct-fetch confidence, matching the Nature research already supplied for this task."
+  ]
+}

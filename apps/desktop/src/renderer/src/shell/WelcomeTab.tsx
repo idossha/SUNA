@@ -1,7 +1,7 @@
 import { useState, type JSX } from 'react'
 import { useProjectStore } from '../state/project'
 import { useUiStore } from '../state/ui'
-import { openOnboardingTab } from '../state/dock'
+import { openDocxImportTab, openOnboardingTab } from '../state/dock'
 import { RecentProjects } from './RecentProjects'
 
 function errorMessage(error: unknown): string {
@@ -12,6 +12,26 @@ export function WelcomeTab(): JSX.Element {
   const openProject = useProjectStore((s) => s.openProject)
   const openExampleProject = useProjectStore((s) => s.openExampleProject)
   const [settingUp, setSettingUp] = useState(false)
+  const [pickingDocx, setPickingDocx] = useState(false)
+
+  // "Import .docx…" (feature-plan-6 §2): pick a Word file, then open the
+  // Import Review tab against it. Nothing is written until that tab's own
+  // "Import" button runs — picking the file here never creates a project.
+  const importDocx = async (): Promise<void> => {
+    setPickingDocx(true)
+    try {
+      const { path } = await window.suna.invoke('dialog:pick-file', {
+        title: 'Import a .docx manuscript',
+        extensions: ['docx']
+      })
+      if (path === null) return
+      openDocxImportTab(path)
+    } catch (error) {
+      useUiStore.getState().setStatusNote(`Could not open that file: ${errorMessage(error)}`)
+    } finally {
+      setPickingDocx(false)
+    }
+  }
 
   // "Set up project" (feature-plan-5 §5): pick an existing folder and, when it
   // is missing suna.json, launch the wizard against it (steps 2-7). A folder
@@ -64,6 +84,9 @@ export function WelcomeTab(): JSX.Element {
           </button>
           <button className="btn" disabled={settingUp} onClick={() => void setUpProject()}>
             Set up project…
+          </button>
+          <button className="btn" disabled={pickingDocx} onClick={() => void importDocx()}>
+            Import .docx…
           </button>
         </div>
         <RecentProjects />

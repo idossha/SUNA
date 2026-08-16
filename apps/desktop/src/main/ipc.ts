@@ -22,6 +22,10 @@ import {
   setLitKey
 } from './services/agent-keys'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
+import { analyzeDocx, commitDocxAnalysis } from './services/docx-import'
+import { docxToolsAvailable } from './services/docx-tools-accelerator'
+import { exportDocx } from './services/export-docx'
+import { exportPdf } from './services/export-pdf'
 import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
 import { exportFigure } from './services/figure-export'
@@ -241,6 +245,14 @@ export function registerIpcHandlers(): void {
     recents: await forgetRecentProject(path)
   }))
 
+  handle('docx:analyze', async ({ path }) => ({ analysis: await analyzeDocx(path) }))
+  handle('docx:commit', async ({ analysis, dir, force }) => {
+    const result = await commitDocxAnalysis(analysis, dir, force)
+    await noteRecentProject(result.dir, basename(result.dir))
+    followProjectManifest(result.dir)
+    return result
+  })
+
   handle('fs:read-text', async ({ path }) => ({ content: await readText(path) }))
   handle('fs:write-text', async ({ path, content }) => ({
     bytesWritten: await writeText(path, content)
@@ -361,6 +373,10 @@ export function registerIpcHandlers(): void {
   }))
   handle('figure:duplicate', ({ dir, figureId, newId }) => duplicateFigure(dir, figureId, newId))
   handle('figure:create', ({ dir, name, widthMm }) => createFigure(dir, name, widthMm))
+
+  handle('export:docx', (req) => exportDocx(req))
+  handle('export:pdf', (req) => exportPdf(req))
+  handle('export:tools-available', async () => ({ docxTools: await docxToolsAvailable() }))
 
   handle('git:status', ({ dir }) => gitStatus(dir))
   handle('git:log', ({ dir, limit }) => gitLog(dir, limit))

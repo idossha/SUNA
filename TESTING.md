@@ -647,7 +647,10 @@ plus the three readouts the split/viewer criteria are measured with —
 creation order, so `[1]` is the side group) and `panelComponents()` (id →
 dock component, which is how "exactly one PDF tab" is counted without
 re-deriving it from file extensions). `clearDock()` empties the dock so a
-split assertion starts from one known group.
+split assertion starts from one known group. `openDocxImportTab(path)` and
+`openExportTab(rootDir)` (feature-plan-6) open the import review and the
+export dialog directly, bypassing the native file picker the Welcome tab's
+*Import .docx…* button goes through.
 `commands` is the palette's registry — `listCommands`, `getCommand`,
 `isCommandEnabled`, `runCommand(id)` — so a command's *effect* can be
 asserted without synthesizing the keystrokes that reach it.
@@ -666,12 +669,83 @@ script dies on module resolution; the renderer already has the schemas
 bundled, so the driver asks the app instead of keeping a drifting copy
 of the schema.
 
+## DOCX import / export — verifying without the smoke suite
+
+`feature-plan-6` (journal profiles, DOCX import, DOCX/PDF export) was built
+and verified with **`pnpm smoke` deliberately not run**. Everything below is
+driven from Node or from unit tests instead, so the whole feature can be
+re-checked without launching the app.
+
+### What the unit gates already cover
+
+`pnpm test` includes, in `apps/desktop/src/main/services/`:
+
+| File | Covers |
+| --- | --- |
+| `docx-html.test.ts` | mammoth-shaped HTML → `Block[]`/`Run[]` |
+| `docx-heuristics.test.ts` | title / author / affiliation / abstract detection, section splitting, SciMark rendering |
+| `docx-references.test.ts` | reference parsing, cite-key generation, citation-marker rewriting |
+| `docx-import.test.ts` | the **whole pipeline** against a real `.docx` built in-process with the `docx` library — no binary is committed |
+| `export-content.test.ts` | citation numbering / reference ordering / label maps mirroring the live Manuscript tab |
+| `export-docx.test.ts` | `document.xml` structure, figures, line numbers, page numbers |
+| `export-html.test.ts` | the HTML the PDF path prints |
+| `export-profile-contrast.test.ts` | the **point** of the feature: `examples/demo-paper` exported under `nature` (numeric) vs `jneurosci` (author-year) must differ |
+
+`packages/formatter/src/profiles.test.ts` asserts each bundled profile's
+values against `docs/design/author-guidelines-findings-2.json`, and fails if
+a profile is bundled for a journal the findings marked `found: false`.
+
+### Re-running the real-manuscript import check
+
+The `≥10 authors / ≥20 sections / no data: URIs` acceptance criteria were
+measured against a **real 55 MB manuscript that is not in the repo**
+(`~/Desktop/sleepTI_draft_v0.9.docx`), so there is no committed test for it.
+To repeat it, drop a temporary vitest file into
+`apps/desktop/src/main/services/` that calls `analyzeDocx(path)` and then
+`commitDocxAnalysis(analysis, tempDir, false)`, and assert on the result —
+the source file is only ever read, never written.
+
+Last run (2026-08-15) produced: title detected from the bold first
+paragraph; **10 authors, all 10 with affiliation links**; 3 affiliations;
+**24 sections**; 69 references that `parseBibtex` round-trips with 0 errors;
+**7 figures written as files**; 0 files containing a `data:` URI; 90
+citations mapped, 0 left literal; `manuscript.json` and `suna.json` both
+schema-valid; source byte-identical afterwards.
+
+### Exporting by hand
+
+```bash
+# in the app: Command palette → "Export Manuscript (Word/PDF)…"
+# or from a driver: window.__sunaDev.dock.openExportTab(rootDir)
+```
+
+Exports land in `<project>/output/` and never touch the sources.
+
+### What is NOT verified here, and why
+
+- **`export:pdf`'s actual PDF bytes.** `exportPdf` renders through
+  `BrowserWindow.printToPDF`, which needs a running Electron process.
+  Electron cannot launch in the sandboxed agent environment used for this
+  work (it dies with `mach_port_rendezvous` / `SIGTRAP` before `app.ready`),
+  so **no `.pdf` was produced or inspected**. What *is* asserted is the
+  exact HTML `printToPDF` consumes, under both profiles, including the
+  `ms-body` anchor its line-number injector queries. Producing a PDF and
+  checking it starts with `%PDF` remains a **manual** step: run
+  `pnpm dev`, export, and open the file.
+- **The import review screen's own commit button**, which opens a *native*
+  directory picker CDP cannot drive. `openDocxImportTab(path)` is seamed, but
+  choosing the target directory is not — see *Not yet covered*.
+
 ## Unit gates
 
 ```bash
 pnpm typecheck && pnpm test          # all workspace packages
+pnpm --filter @suna/desktop build    # electron-vite main/preload/renderer bundles
 cd python/suna_mpl && uv run pytest  # matplotlib companion
 ```
+
+Note that `pnpm typecheck | tail` **hides a failure** — the pipe reports
+`tail`'s exit status, not `tsc`'s. Check `$?` on the unpiped command.
 
 ## Not yet covered
 
@@ -679,8 +753,24 @@ cd python/suna_mpl && uv run pytest  # matplotlib companion
   has engine tests but no UI yet.
 - Agent chat against a live provider (the smoke test stops at provider
   configuration; no network calls).
-- Export (submission PDF/DOCX) is not built yet — it is the next
-  milestone; the smoke test will grow an export step when it lands.
+- Export (submission PDF/DOCX) **is** built (feature-plan-6 §3/§4) but has
+  **no smoke step** — `pnpm smoke` was excluded from that milestone. It is
+  covered by the unit gates and the Node-driven checks described under
+  *DOCX import / export* above.
+- **The generated `.pdf` itself.** `export:pdf` needs Electron's
+  `printToPDF`; no PDF has been produced under automation. The DOCX half is
+  asserted down to `word/document.xml`; the PDF half is asserted down to the
+  HTML that gets printed. Opening an exported PDF is a manual check.
+- **DOCX import of an arbitrary Word document.** The pipeline is verified
+  against one real 55 MB manuscript and one in-process fixture. Documents
+  using OMML equations are counted and flagged, never converted — a
+  manuscript with heavy equation content will import its text and warn.
+- **The import review → commit leg.** `openDocxImportTab(path)` is exposed
+  on `window.__sunaDev.dock`, so a driver can reach the review screen without
+  the native file picker, but *"Import into new project…"* then opens a
+  native **directory** picker with no seam behind it. A full
+  analyze → review → commit e2e needs a target-directory seam inside
+  `import/DocxImportTab.tsx`.
 - The billed `ai-cli` search leg (see step 47) — verified by hand, not by
   `pnpm smoke`.
 - **Insert cross-reference…** is specified for the editor context menu

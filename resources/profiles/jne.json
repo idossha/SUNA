@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 3,
+  "id": "jne",
+  "journalName": "Journal of Neural Engineering",
+  "publisher": "IOP Publishing",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "parenthetical-numeric",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors} {year} {title} {journalAbbrev} {volume} {firstPage}",
+        "book": "{authors} {year} {title} ({publisher})",
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 10,
+        "keepFirstN": 1
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": "DOI included in reference-list entries when available; the journal discourages citing non-permanent web addresses, preferring a persistent identifier — DOI, PMID, PMCID, ADS Bibliographic Code, or arXiv e-print number.",
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/",
+      "https://publishingsupport.iopscience.iop.org/questions/style-guide-journal-articles/",
+      "https://ctan.org/pkg/iopart-num"
+    ],
+    "provenance": [
+      {
+        "claim": "mode/sortOrder: JNE uses the 'iopart-num' citation style — “references are numbered sequentially throughout the text, with numbers occurring within square brackets” and “the reference list gives the references in numerical, not alphabetical, order” (per iopart-num's own CTAN/GitHub documentation, which resolves an earlier ambiguous search snippet suggesting alphabetical order — that snippet is generic IOP guidance for author-year-style journals, not JNE, and was discarded). Mapped to 'parenthetical-numeric' as the schema's closest fit; the actual delimiter is square brackets, not round parentheses — see notes.",
+        "basis": "documented",
+        "source": "https://ctan.org/pkg/iopart-num"
+      },
+      {
+        "claim": "entryTemplates.article: verbatim worked example from IOP's house style guide — “Chapman S, Trancoso R, Syktus J, Eccles R and Toombs N 2025 Impacts on compound drought heatwave events in Australia per global warming level Environ. Res. Lett. 20 054070.”",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/questions/style-guide-journal-articles/"
+      },
+      {
+        "claim": "authorTruncation: “For more than ten authors, the name of the first author should be given followed by et al.” Article title IS mandatory for JNE (unlike some IOP journals where it is optional).",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/"
+      },
+      {
+        "claim": "journalAbbreviation left null: IOP's 'standard abbreviated journal title' convention is commonly ISO-4-equivalent in practice, but the pages fetched do not explicitly name ISO 4 — mapping to the schema's 'iso4' option would overstate what was actually confirmed.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": 85,
+      "onehalf": null,
+      "double": 150
+    },
+    "maxHeightMm": null,
+    "minFontPt": 8,
+    "maxFontPt": 12,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "colorblind-safe-recommended",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": "discouraged",
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [],
+      "rasterAccepted": [],
+      "minDpi": null
+    },
+    "panelLabel": {
+      "letterCase": "lower",
+      "weight": null,
+      "wrapper": "parens"
+    },
+    "sources": [
+      "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/",
+      "https://publishingsupport.iopscience.iop.org/questions/style-guide-journal-articles/"
+    ],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm/minFontPt/maxFontPt: “aim for text sizes of 8 to 12 pt at the final figure size: typically 8.5cm for a small/single-column figure and 15cm for a large/double-column figure.”",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/"
+      },
+      {
+        "claim": "colorAsSoleDelimiter: “to make figures accessible to as many readers as possible, try to avoid using colour as the only means of conveying information” — phrased as best-practice guidance ('try to avoid'), not a mandatory rule, so encoded as 'discouraged' and requirement 'colorblind-safe-recommended' rather than '-required'.",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/"
+      },
+      {
+        "claim": "panelLabel: “Use labels, e.g., '(a)', '(b)', etc where a figure has several parts. Explain all parts in the caption” — lowercase letters wrapped in parentheses.",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/questions/style-guide-journal-articles/"
+      },
+      {
+        "claim": "lineWeightPt / preferredFontFamilies / formats(vector,raster,dpi): not stated on the pages fetched — the style guide's figure guidance is limited to placement, sizing, and labeling, with no line-weight, dpi, or accepted-format specification found.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "paper",
+        "name": "Paper",
+        "wordLimit": {
+          "max": 12000,
+          "scope": "not normally more than 12,000 words (14 journal pages)",
+          "hard": false
+        },
+        "abstractWordLimit": 300,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "note",
+        "name": "Note",
+        "wordLimit": {
+          "max": 4000,
+          "scope": "not normally more than 4,000 words",
+          "hard": false
+        },
+        "abstractWordLimit": 300,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "comment-reply",
+        "name": "Comment/Reply",
+        "wordLimit": {
+          "max": 1800,
+          "scope": "not normally more than 1,800 words (two journal pages)",
+          "hard": false
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      {
+        "id": "title",
+        "label": "Title",
+        "required": true
+      },
+      {
+        "id": "abstract",
+        "label": "Abstract (Objective / Approach / Main results / Significance)",
+        "required": true
+      },
+      {
+        "id": "introduction",
+        "label": "Introduction",
+        "required": true
+      },
+      {
+        "id": "methods",
+        "label": "Methods",
+        "required": true
+      },
+      {
+        "id": "results",
+        "label": "Results",
+        "required": true
+      },
+      {
+        "id": "discussion",
+        "label": "Discussion",
+        "required": true
+      },
+      {
+        "id": "data-availability",
+        "label": "Data Availability Statement",
+        "required": true
+      },
+      {
+        "id": "references",
+        "label": "References",
+        "required": true
+      }
+    ],
+    "availabilityStatements": {
+      "data": true,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": false,
+      "acceptedFileTypes": [
+        "pdf"
+      ]
+    },
+    "sources": [
+      "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/",
+      "https://publishingsupport.iopscience.iop.org/questions/style-guide-journal-articles/"
+    ],
+    "provenance": [
+      {
+        "claim": "Paper: “descriptions of original scientific research, techniques and applications, not normally more than 12,000 words (14 journal pages).” Note: “not normally more than 4,000 words.” Comment/Reply: “not normally more than 1,800 words (two journal pages).”",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/"
+      },
+      {
+        "claim": "abstractWordLimit: structured, four required headings (“Objective, Approach, Main results, Significance”); “should not normally be more than 300 words” — “If you submit an article with an abstract longer than 300 words, the journal may rescind the manuscript and ask you to re-write it.”",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/"
+      },
+      {
+        "claim": "availabilityStatements.data: IOP Publishing's cross-journal research-data policy: “the provision of a data availability statement will be verified as a condition of publication”; if data will not be shared publicly, authors must state why. Applies to JNE as an IOP-published journal.",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/iop-publishing-data-availability-policy/"
+      },
+      {
+        "claim": "submissionFormat.lineNumbers: false — “there is no need to include line numbers in the manuscript as these will automatically be added on submission.” Encoded as false because the AUTHOR/tool does not need to add them (IOP's submission system adds them regardless), which is the actionable meaning for an export/authoring tool, even though the reviewed manuscript does end up numbered.",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/questions/style-guide-journal-articles/"
+      },
+      {
+        "claim": "acceptedFileTypes: “IOP Publishing only requires a PDF file for a new submission.”",
+        "basis": "documented",
+        "source": "https://publishingsupport.iopscience.iop.org/journals/journal-of-neural-engineering/about-journal-neural-engineering/"
+      }
+    ]
+  },
+  "notes": [
+    "publishingsupport.iopscience.iop.org (IOP's dedicated author-support subdomain) was NOT blocked and both key pages were fetched directly and in full — high confidence for what they state. The main iopscience.iop.org journal-facing pages were reachable via search but not needed once the publishingsupport pages yielded the substantive content.",
+    "citations.mode is encoded as 'parenthetical-numeric' as the closest fit in the schema's three-way enum, but the ACTUAL delimiter iopart-num uses is square brackets [1], not round parentheses (1) — the schema has no distinct 'bracket-numeric' option, so this is a deliberate best-fit mapping, flagged here rather than silently miscategorized. panelLabel.wrapper, by contrast, IS an exact match: the source literally uses '(a)' with parentheses.",
+    "submissionFormat.lineNumbers is deliberately false (not true) despite line numbers appearing on the final reviewed manuscript — the field is interpreted as 'does the author/export tool need to add them', and IOP's own submission system does that automatically regardless of what is submitted.",
+    "IOP house style for body text (Times, Helvetica, Courier, or Symbol, minimum 12pt) governs the manuscript's prose font, not figure lettering — it is NOT encoded in figures.preferredFontFamilies to avoid conflating body-text typography with figure-label typography, which the pages fetched never directly link."
+  ]
+}

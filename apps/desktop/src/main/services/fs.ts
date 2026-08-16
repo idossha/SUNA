@@ -1,4 +1,5 @@
 import { shell } from 'electron'
+import type { Dirent } from 'node:fs'
 import { constants } from 'node:fs'
 import {
   copyFile,
@@ -124,7 +125,16 @@ async function walk(abs: string, depth: number): Promise<FsNode> {
   const name = basename(abs)
   if (depth >= MAX_DEPTH) return { kind: 'dir', name, path: abs, children: [] }
 
-  const entries = await readdir(abs, { withFileTypes: true })
+  // A missing or unreadable directory lists as empty rather than throwing:
+  // callers scan OPTIONAL locations (a project's references/ folder, a
+  // subtree removed outside the app), and a rejected fs:list there used to
+  // surface as a startup crash.
+  let entries: Dirent<string>[]
+  try {
+    entries = await readdir(abs, { withFileTypes: true })
+  } catch {
+    return { kind: 'dir', name, path: abs, children: [] }
+  }
   const children: FsNode[] = []
   for (const entry of entries) {
     if (IGNORED_NAMES.has(entry.name)) continue

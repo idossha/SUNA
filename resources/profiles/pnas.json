@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 3,
+  "id": "pnas",
+  "journalName": "PNAS (Proceedings of the National Academy of Sciences of the United States of America)",
+  "publisher": "National Academy of Sciences",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "parenthetical-numeric",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": null,
+        "book": null,
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": null,
+        "truncateWhenMoreThan": null,
+        "keepFirstN": null
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": null,
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://www.pnas.org/author-center/submitting-your-manuscript",
+      "https://www.pnas.org/author-center/editorial-and-journal-policies"
+    ],
+    "provenance": [
+      {
+        "claim": "mode/collapseRanges: numbered, parenthetical, NOT superscript and NOT italicized (distinguishing PNAS from Science's italic-parenthetical style): “This sentence cites one reference (1). This sentence cites two references (1, 2).” Ranges use an en dash, e.g. '(3-7)'.",
+        "basis": "documented",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript"
+      },
+      {
+        "claim": "sortOrder: “References must be in PNAS style and numbered in the order they appear in the text”; numbers “assigned chronologically based on their first appearance.”",
+        "basis": "documented",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript"
+      },
+      {
+        "claim": "entryTemplates / authorTruncation / journalAbbreviation / doiPolicy: not confirmed with primary-source confidence — pnas.org returned HTTP 403 on every direct-fetch attempt in this session, and no search excerpt surfaced a verbatim reference-list entry pattern.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": 87,
+      "onehalf": null,
+      "double": null
+    },
+    "maxHeightMm": null,
+    "minFontPt": 6,
+    "maxFontPt": null,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [
+        "eps",
+        "pdf"
+      ],
+      "rasterAccepted": [
+        "tiff"
+      ],
+      "minDpi": 300
+    },
+    "panelLabel": {
+      "letterCase": null,
+      "weight": null,
+      "wrapper": null
+    },
+    "sources": [
+      "https://www.pnas.org/pb-assets/authors/digitalart-1675347574760.pdf"
+    ],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm.single (87mm/8.7cm), minFontPt (6pt floor of a stated '≥6-8 pt at publication size' range), formats (TIFF/EPS/high-res PDF only, TIFF via LZW not JPEG compression, RGB with embedded ICC profile), minDpi tiers (300dpi halftones / 600-900dpi combinations / 1000-1200dpi line art, encoded here as the 300dpi floor): the source PDF itself returned HTTP 403 to direct fetch; these specific, technically precise numbers (LZW vs JPEG compression, ICC profile embedding) were corroborated via a search-engine excerpt that reads as genuine institutional detail, but could NOT be independently verified by a direct primary-source read in this session — recorded as documented with this caveat rather than omitted, since the alternative (guessing nothing) would lose real information the search excerpt does contain.",
+        "basis": "documented",
+        "source": "https://www.pnas.org/pb-assets/authors/digitalart-1675347574760.pdf"
+      },
+      {
+        "claim": "widthPresetsMm.double / lineWeightPt / preferredFontFamilies / panelLabel: left null — the digital-art PDF states a range for two-column width (10.5-18.0cm) with no single fixed preset value, and no line-weight, font-family, or panel-label convention surfaced in any search excerpt.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "research-report",
+        "name": "Research Report",
+        "wordLimit": {
+          "max": 4000,
+          "scope": "6 PNAS-format pages (preferred length; maximum 12 pages), a budget that includes the title, author list, abstract, Significance Statement, main text, references, and figure legends",
+          "hard": false
+        },
+        "abstractWordLimit": 250,
+        "titleLimitChars": null,
+        "maxDisplayItems": 4,
+        "maxReferences": 50
+      },
+      {
+        "id": "brief-report",
+        "name": "Brief Report",
+        "wordLimit": {
+          "max": 1600,
+          "scope": "3 pages, including manuscript text, title page, abstract, and figure legends",
+          "hard": false
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": 15
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      {
+        "id": "title-page",
+        "label": "Title page",
+        "required": true
+      },
+      {
+        "id": "abstract",
+        "label": "Abstract",
+        "required": true
+      },
+      {
+        "id": "introduction",
+        "label": "Introduction",
+        "required": true
+      },
+      {
+        "id": "results",
+        "label": "Results",
+        "required": true
+      },
+      {
+        "id": "discussion",
+        "label": "Discussion",
+        "required": true
+      },
+      {
+        "id": "materials-methods",
+        "label": "Materials and Methods",
+        "required": true
+      },
+      {
+        "id": "acknowledgements",
+        "label": "Acknowledgements",
+        "required": false
+      },
+      {
+        "id": "references",
+        "label": "References",
+        "required": true
+      },
+      {
+        "id": "figure-legends",
+        "label": "Figure legends",
+        "required": true
+      },
+      {
+        "id": "tables",
+        "label": "Tables",
+        "required": false
+      }
+    ],
+    "availabilityStatements": {
+      "data": true,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": null,
+      "acceptedFileTypes": []
+    },
+    "sources": [
+      "https://www.pnas.org/author-center/submitting-your-manuscript",
+      "https://www.pnas.org/author-center/editorial-and-journal-policies"
+    ],
+    "provenance": [
+      {
+        "claim": "Research Report: preferred length 6 pages (max 12), ≈4,000 words, 50 references, 4 display items; abstract ≤250 words unstructured narrative; Significance Statement 50-120 words (required, not modeled as a separate schema field — see notes).",
+        "basis": "documented",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript"
+      },
+      {
+        "claim": "Brief Report: “limited to 3 pages, which is approximately 1,600 words..., and 15 references.”",
+        "basis": "documented",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript"
+      },
+      {
+        "claim": "requiredSections order (title page, abstract, introduction, RESULTS, discussion, materials and methods, ...): PNAS places Results before Materials and Methods, distinct from most journals in this set.",
+        "basis": "documented",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript"
+      },
+      {
+        "claim": "availabilityStatements.data: “authors must make materials, data, and associated protocols available to readers.” code: not independently confirmed as a separate statement, left null.",
+        "basis": "documented",
+        "source": "https://www.pnas.org/author-center/editorial-and-journal-policies"
+      }
+    ]
+  },
+  "notes": [
+    "RETRIEVAL CAVEAT: pnas.org returned HTTP 403 to every WebFetch attempt in this session (submitting-your-manuscript, author-center, editorial-and-journal-policies, and the digitalart PDF asset), including a web.archive.org mirror attempt the fetch tool itself refused to serve. All facts above are corroborated via Google-indexed search-engine excerpts of the official pages, cross-checked across multiple independently-phrased queries for consistency (the 6-page/4000-word/50-reference/4-item figure and the 120-word Significance Statement ceiling each appeared identically across separate, unrelated queries).",
+    "PNAS requires a 'Significance Statement' (50-120 words, written for non-specialists, required for all Research Reports and Stage 2 Registered Reports) IN ADDITION TO the 250-word Abstract — the current PublisherProfile schema has no dedicated slot for a second abstract-like field, so this is recorded here rather than encoded; do not conflate it with abstractWordLimit, which refers only to the Abstract itself.",
+    "PNAS's distinctive Results-before-Methods section order is a structural feature the checker/exporter should respect rather than normalize to the more common Methods-before-Results ordering used by most other journals in this profile set.",
+    "This is materially lower-confidence than a direct primary-source read; the user should re-verify before relying on any single number here for a hard compliance check."
+  ]
+}

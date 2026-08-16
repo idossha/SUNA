@@ -23,11 +23,16 @@ describe('CHANNELS', () => {
       'comments:write',
       'dialog:pick-directory',
       'dialog:pick-file',
+      'docx:analyze',
+      'docx:commit',
       'env:create',
       'env:detect',
       'env:select',
       'env:selected',
       'env:uv-available',
+      'export:docx',
+      'export:pdf',
+      'export:tools-available',
       'figure:create',
       'figure:duplicate',
       'figure:export',
@@ -410,10 +415,128 @@ describe('CHANNELS', () => {
     expect(CHANNELS['ai:ask'].response.parse(res)).toEqual(res);
   });
 
+  it('validates docx:analyze and docx:commit shapes end to end', () => {
+    const analysis: RequestOf<'docx:commit'>['analysis'] = {
+      sourcePath: '/Users/ada/Downloads/sleepTI_draft_v0.9.docx',
+      tempDir: '/tmp/suna-docx-import-1',
+      title: { value: 'Sleep and thermal inertia', reason: 'first fully-bold paragraph before body text' },
+      authors: [
+        {
+          name: 'Ada Researcher',
+          given: 'Ada',
+          family: 'Researcher',
+          markers: ['1'],
+          affiliationRefs: ['1'],
+        },
+      ],
+      authorsReason: 'paragraph after the title containing <sup> markers',
+      affiliations: [{ marker: '1', text: 'Department of Sleep Medicine' }],
+      affiliationsReason: 'short paragraphs after the author line starting with a digit marker',
+      abstract: { value: 'We report on…', reason: 'paragraph following a heading matching /abstract/i' },
+      sections: [{ heading: 'Introduction', level: 1, markdown: 'Body text.' }],
+      references: [
+        {
+          raw: '1. Smith, J. (2020). A title. J. Sleep, 1, 1-2.',
+          style: 'numbered',
+          number: 1,
+          authors: ['Smith, J.'],
+          year: '2020',
+          title: 'A title',
+          journal: 'J. Sleep',
+          citeKey: 'smith2020atitle',
+        },
+      ],
+      citationReport: { mappedCount: 1, literalCount: 0 },
+      figures: [{ id: 'imported-1', tempPath: '/tmp/suna-docx-import-1/image-1.png', ext: 'png', alt: '' }],
+      warnings: [{ code: 'omml-equations', message: '2 equations detected (OMML) — not converted', context: null }],
+    };
+    const analyzeReq: RequestOf<'docx:analyze'> = { path: analysis.sourcePath };
+    expect(CHANNELS['docx:analyze'].request.parse(analyzeReq)).toEqual(analyzeReq);
+    const analyzeRes: ResponseOf<'docx:analyze'> = { analysis };
+    expect(CHANNELS['docx:analyze'].response.parse(analyzeRes)).toEqual(analyzeRes);
+
+    const commitReq: RequestOf<'docx:commit'> = { analysis, dir: '/work/imported-paper', force: false };
+    expect(CHANNELS['docx:commit'].request.parse(commitReq)).toEqual(commitReq);
+    const commitRes: ResponseOf<'docx:commit'> = { dir: '/work/imported-paper' };
+    expect(CHANNELS['docx:commit'].response.parse(commitRes)).toEqual(commitRes);
+  });
+
+  it('rejects a docx:commit analysis with an unknown reference style', () => {
+    const bad: unknown = {
+      analysis: {
+        sourcePath: '/x.docx',
+        tempDir: null,
+        title: { value: null, reason: 'no heading or bold paragraph found' },
+        authors: [],
+        authorsReason: 'no candidate paragraph found',
+        affiliations: [],
+        affiliationsReason: 'no marker paragraphs found',
+        abstract: { value: null, reason: 'no heading matching /abstract|summary/i found' },
+        sections: [],
+        references: [
+          {
+            raw: 'x',
+            style: 'apa', // not a valid DocxReferenceStyle
+            number: null,
+            authors: [],
+            year: null,
+            title: null,
+            journal: null,
+            citeKey: 'x',
+          },
+        ],
+        citationReport: { mappedCount: 0, literalCount: 0 },
+        figures: [],
+        warnings: [],
+      },
+      dir: '/work/x',
+      force: false,
+    };
+    expect(CHANNELS['docx:commit'].request.safeParse(bad).success).toBe(false);
+  });
+
   it('requires a non-empty askId on ai:cancel', () => {
     const req: RequestOf<'ai:cancel'> = { askId: 'ai-ask-1' };
     expect(CHANNELS['ai:cancel'].request.parse(req)).toEqual(req);
     expect(CHANNELS['ai:cancel'].request.safeParse({ askId: '' }).success).toBe(false);
+  });
+
+  it('validates export:docx request/response shapes', () => {
+    const req: RequestOf<'export:docx'> = {
+      dir: '/work/my-paper',
+      profileId: 'nature-astronomy',
+      outputName: 'my-paper',
+      figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/fig-spectrum.png' },
+      options: { doubleSpacing: true, lineNumbers: true, pageNumbers: true },
+      useDocxTools: false,
+    };
+    expect(CHANNELS['export:docx'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['export:docx'].request.safeParse({ ...req, dir: '' }).success).toBe(false);
+    const res: ResponseOf<'export:docx'> = {
+      path: '/work/my-paper/output/my-paper.docx',
+      usedDocxTools: false,
+    };
+    expect(CHANNELS['export:docx'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates export:pdf request/response shapes', () => {
+    const req: RequestOf<'export:pdf'> = {
+      dir: '/work/my-paper',
+      profileId: 'science',
+      outputName: 'my-paper',
+      figurePngPaths: {},
+      options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
+    };
+    expect(CHANNELS['export:pdf'].request.parse(req)).toEqual(req);
+    const res: ResponseOf<'export:pdf'> = { path: '/work/my-paper/output/my-paper.pdf' };
+    expect(CHANNELS['export:pdf'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates export:tools-available shapes', () => {
+    const req: RequestOf<'export:tools-available'> = {};
+    expect(CHANNELS['export:tools-available'].request.parse(req)).toEqual(req);
+    const res: ResponseOf<'export:tools-available'> = { docxTools: true };
+    expect(CHANNELS['export:tools-available'].response.parse(res)).toEqual(res);
   });
 });
 

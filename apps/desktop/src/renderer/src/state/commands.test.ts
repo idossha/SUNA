@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FsNode } from '@suna/core'
+import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import {
   getCommand,
   isCommandEnabled,
@@ -175,10 +176,34 @@ describe('nextFigureName', () => {
 })
 
 describe('nextProfileId', () => {
-  it('cycles forward through the bundled profiles and wraps around', () => {
-    expect(nextProfileId('nature-astronomy')).toBe('science')
-    expect(nextProfileId('science')).toBe('apj-aas')
-    expect(nextProfileId('apj-aas')).toBe('mnras')
-    expect(nextProfileId('mnras')).toBe('nature-astronomy')
+  /**
+   * Derived from BUNDLED_PROFILE_IDS rather than hardcoded: the bundled set
+   * grows whenever a journal profile is added (feature-plan-6 §1 added eight),
+   * and the behaviour under test is "advance one, wrap at the end" — not the
+   * membership of the list, which profiles.test.ts owns.
+   */
+  it('advances one position for every bundled profile', () => {
+    BUNDLED_PROFILE_IDS.forEach((id, index) => {
+      const expected = BUNDLED_PROFILE_IDS[(index + 1) % BUNDLED_PROFILE_IDS.length]
+      expect(nextProfileId(id)).toBe(expected)
+    })
+  })
+
+  it('wraps from the last bundled profile back to the first', () => {
+    const last = BUNDLED_PROFILE_IDS[BUNDLED_PROFILE_IDS.length - 1]
+    expect(last).toBeDefined()
+    expect(nextProfileId(last as BundledProfileId)).toBe(BUNDLED_PROFILE_IDS[0])
+  })
+
+  it('visits every bundled profile exactly once before repeating', () => {
+    const first = BUNDLED_PROFILE_IDS[0] as BundledProfileId
+    const seen: BundledProfileId[] = [first]
+    let cursor = first
+    for (let i = 0; i < BUNDLED_PROFILE_IDS.length - 1; i += 1) {
+      cursor = nextProfileId(cursor)
+      seen.push(cursor)
+    }
+    expect(new Set(seen).size).toBe(BUNDLED_PROFILE_IDS.length)
+    expect(nextProfileId(cursor)).toBe(first)
   })
 })

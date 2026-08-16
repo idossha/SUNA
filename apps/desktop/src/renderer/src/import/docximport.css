@@ -1,0 +1,323 @@
+/* ---------------------------------------------------------------------------
+   DOCX Import Review dock tab (feature-plan-6 §2). Mirrors the onboarding
+   wizard's visual language (onboarding/onboarding.css) — same tokens, same
+   header/body/footer shape — since both are "review before anything is
+   written" screens.
+   --------------------------------------------------------------------------- */
+
+.docximport {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-editor);
+  color: var(--s-ink);
+}
+
+.docximport__header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 32px 14px;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.docximport__eyebrow {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--s-accent);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.docximport__title {
+  font-size: 19px;
+  font-weight: 600;
+  font-family: var(--s-font-mono);
+  word-break: break-all;
+}
+
+.docximport__cancel {
+  padding: 5px 12px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  flex-shrink: 0;
+}
+
+.docximport__cancel:hover {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+.docximport__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 32px 40px;
+  max-width: 880px;
+}
+
+.docximport__body--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.docximport__loading {
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-md);
+}
+
+.docximport__hint {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-faint);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.docximport__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  margin-bottom: 24px;
+  padding: 12px 14px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.docximport__summary span {
+  color: var(--s-ink-faint);
+  margin-right: 6px;
+}
+
+.docximport__field {
+  margin-bottom: 20px;
+}
+
+.docximport__field label {
+  display: block;
+  font-size: var(--s-text-sm);
+  font-weight: 500;
+  color: var(--s-ink);
+  margin-bottom: 6px;
+}
+
+.docximport__field input[type='text'],
+.docximport__field textarea {
+  width: 100%;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  outline: none;
+  resize: vertical;
+}
+
+.docximport__field input[type='text']:focus,
+.docximport__field textarea:focus {
+  border-color: var(--s-accent);
+}
+
+.docximport__field-hint {
+  margin-top: 5px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.docximport__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.docximport__author-row,
+.docximport__affiliation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.docximport__affiliation-row {
+  grid-template-columns: 48px 1fr auto;
+}
+
+.docximport__marker-input {
+  text-align: center;
+}
+
+.docximport__row-remove {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: var(--s-ink-faint);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.docximport__row-remove:hover {
+  color: var(--s-err);
+  border-color: var(--s-err);
+}
+
+.docximport__row-add {
+  margin-top: 8px;
+  padding: 5px 10px;
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.docximport__row-add:hover {
+  border-color: var(--s-accent);
+}
+
+.docximport__review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.docximport__review-section {
+  margin-bottom: 20px;
+  min-width: 0;
+}
+
+.docximport__review-label {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+  margin-bottom: 8px;
+}
+
+.docximport__list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-raised);
+}
+
+.docximport__list-row,
+.docximport__warning-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  border-bottom: 1px solid var(--s-border);
+  line-height: 1.5;
+}
+
+.docximport__list-row:last-child,
+.docximport__warning-row:last-child {
+  border-bottom: none;
+}
+
+.docximport__list-empty {
+  padding: 10px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.docximport__list-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--s-ink-faint);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+}
+
+.docximport__list-badge--warn {
+  color: var(--s-warn);
+  border-color: var(--s-warn);
+}
+
+.docximport__list-key {
+  flex-shrink: 0;
+  font-family: var(--s-font-mono);
+  color: var(--s-ink-faint);
+}
+
+.docximport__warning-row {
+  color: var(--s-warn);
+}
+
+.docximport__warning-context {
+  color: var(--s-ink-faint);
+  font-style: italic;
+}
+
+.docximport__error {
+  margin-top: 16px;
+  padding: 9px 11px;
+  border: 1px solid var(--s-border-strong);
+  border-left: 2px solid var(--s-err);
+  border-radius: var(--s-radius);
+  color: var(--s-err);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+  user-select: text;
+}
+
+.docximport__footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  border-top: 1px solid var(--s-border);
+}
+
+.docximport__force {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  cursor: pointer;
+}
+
+.docximport__force input {
+  accent-color: var(--s-accent);
+}
+
+.docximport__import {
+  padding: 7px 18px;
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-md);
+  font-weight: 600;
+  border: 1px solid var(--s-accent);
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+}
+
+.docximport__import:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.docximport__import:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

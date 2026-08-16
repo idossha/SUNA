@@ -4,6 +4,17 @@ Living status of what is built, verified, and outstanding. Verified means
 tested by unit suites AND driven in the real app by `pnpm smoke` (CDP) or a
 recorded manual check.
 
+**Exception — feature-plan-6 (journal profiles, DOCX import, DOCX/PDF
+export).** `pnpm smoke` was explicitly excluded from that milestone by the
+user, so those three rows are verified by unit suites plus **Node-driven
+fixture round-trips** (a real 55 MB manuscript for import; `examples/demo-paper`
+exported under two contrasting profiles) rather than by CDP. One gap is
+honest and known: the exported **`.pdf` has never been produced under
+automation**, because `printToPDF` needs a running Electron process that the
+verification environment could not launch. The DOCX half is asserted down to
+`word/document.xml`; the PDF half only as far as the HTML it prints. See
+TESTING.md → *DOCX import / export*.
+
 ## Built & verified
 
 | Area | State |
@@ -17,13 +28,15 @@ recorded manual check.
 | Comments | Sidecar `manuscript/comments.json` — the prose is never marked up. W3C-style prefix/quote/suffix anchors re-locate exactly → by context → fuzzy, and mark `detached` instead of ever deleting. **Margin gutter** beside the text (manuscript tab + prose editor tabs; the sidebar view is gone): each card sits level with its anchor's line (measured within ±8 px), collision push-down keeps neighbours from overlapping, off-screen anchors collapse to an "N above/below" edge badge, detached ones collect in *Unanchored (N)*, resolved hide behind a toggle, and below a 1100 px **window** it degrades to dots + popover. Click card ⇄ anchor both ways; in-editor highlight + line dot; ⌘⇧M on a selection. One anchoring implementation in `@suna/core` shared by the app and the MCP tools (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`), so human- and agent-authored anchors resolve identically |
 | Text editing | Word/Flux-grade markdown formatting on prose files: ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K plus a right-click context menu (Comment, the four inline toggles, Link…, Insert citation…, **Open reference PDF**, Cut/Copy/Paste) that disables what cannot apply. ⌘K makes a link out of a **selection**; with an empty selection it falls through to the command palette, and the no-selection *Link…* stays on the context menu. `toggleWrap` is a pure `EditorState → TransactionSpec` function — it toggles the word under a bare cursor, unwraps the **whole** enclosing delimiter pair for a partial selection (so it can never orphan a `**`), and splits multi-line selections per line. Every command is one transaction, so one ⌘Z reverts it whole |
 | Figure canvas | SVG-DOM engine (byte-identical round-trip, inverse-op undo), full editing suite (tools, handles, snapping, layers, properties), compliance chip; **create from scratch**: New Figure (Figures header + canvas tab) writes `figures/<slug>/{figure.svg,figure.json}` at the active profile's double-column width × 0.618, registers it in `manuscript.json` and opens it; a blank artboard shows a drop hint; drag-drop or ⌘⇧I imports an SVG as one `<g id="imported-N">` with every internal id namespaced to `impN-` (193 demo ids, zero collisions) or a PNG as a 300 dpi data-URI `<image>` — each a single undoable command; **parity rail**: align/distribute, mm rulers (1 mm ticks, 10 mm labels, artboard origin, live cursor, tracks pan/zoom), figure panel (artboard mm, background, duplicate figure, auto-letter panels as one undoable batch), palette ramps from the active profile, and export — SVG (byte-identical copy), PDF, PNG/TIFF rasterized at the exact journal-spec pixel size |
-| Journal profiles | 4 profiles from official author guidelines with source URLs + provenance tags; figure & manuscript compliance checkers; the canvas export presets are driven by the *active* profile (`Double column (180 mm)` for Nature, not a hardcoded width) |
+| Journal profiles | **12 profiles** from official author guidelines with per-value source URLs + provenance tags (`documented` / `counted-empirically` / `inferred`); figure & manuscript compliance checkers; the canvas export presets are driven by the *active* profile (`Double column (180 mm)` for Nature, not a hardcoded width). feature-plan-6 §1 added the neuroscience set — Nature, Neuron, PNAS, Brain Stimulation, SLEEP, Sleep Advances, J. Neural Engineering, J. Neuroscience — beside the original Nature Astronomy / Science / ApJ / MNRAS. **Anything a journal does not state is `null`, never guessed**; where a publisher's site refused every fetch (Elsevier/Cell/PNAS/SfN all returned HTTP 403), the affected fields stay null and the profile's `notes[]` says so rather than borrowing a sibling journal's rules |
 | References | Bib list, Cited/Uncited filter, missing-entry warnings; **"Rendered as" is one shared control** — it drives the sidebar preview *and* the manuscript body's in-text chips (author–year ⇄ numeric superscript) and both reference lists' sort/numbering |
 | Literature search | Provider abstraction in `@suna/bib` (Crossref keyless by default, OpenAlex, NASA ADS, arXiv) shared by the main process and the standalone MCP server. Search tab with result cards, *Add to references.bib* (generated `firstauthorYEARword` key, deduped), *Copy DOI*, *Open*, *Find similar*. Failures are surfaced verbatim with the provider switch inline — OpenAlex's HTTP 429 is reported, never disguised as "no results". **AI search** (`ai-cli`) spawns Claude Code or Codex from the main process, billed to the user's existing subscription rather than a metered API: strict JSON-array prompt, per-item schema validation that drops malformed entries instead of failing the search, narrated progress, a hard 180 s budget, and a Cancel that really kills the child. It becomes the default once a CLI is detected, and asks for 8 papers (not 20 — the agent verifies each one, and 20 ran past the timeout). Measured: 8/8 results with DOIs in 129 s. Deliberately **not** exposed over MCP, so an agent never recurses into another agent CLI |
 | Split view | ⌘\ / ⌘⇧\ duplicate the active tab into a group beside/below it, over dockview's own position API — never a second layout engine. The split reuses the existing second group instead of nesting endlessly, so ⌘\ any number of times leaves exactly two groups. `openViewerInSide` makes that group *the* viewer: a new PDF replaces the previous one rather than stacking tabs |
 | PDF & image viewers | `.pdf` opens in a pdf.js viewer in the **renderer** (continuous scroll, page N-of-M + jump, fit-width/zoom/⌘±/⌘0, a real text layer so selection and ⌘F work). Pages render lazily through one IntersectionObserver and unmount outside a ±800 px window, so a long document keeps a small constant number of live canvases however far you scroll. `.png/.jpg/.jpeg/.gif/.webp` open in an image viewer with fit/100 %/zoom, drag-to-pan and a pixel readout. Bytes arrive over `fs:read-binary` (root-confined, 200 MB ceiling, base64) — no `file://`, no CSP relaxation, and PDFs are never rewritten |
 | Reference PDFs | Pure `resolvePdfPath` in `@suna/bib`: the BibTeX `file` field (Zotero/JabRef forms included), then `references/<citekey>.pdf`, then an `Author_Year*` fuzzy match. A store scans once per project and on every save, so the citekey → PDF map is ready even if the References view was never opened. Right-clicking a citation in the manuscript offers **Open reference PDF** (disabled and naming the key when none resolves), which opens the paper in the side group without disturbing the manuscript. Selecting a References row auto-opens its PDF there (`references.autoOpenPdf`, default on); rows without one offer **Attach PDF…**, which *copies* the picked file to the conventional path and rescans |
 | Command palette | One ⌘K popup (⌘⇧P straight into command mode) with four prefix modes: fuzzy file search over **project-relative** paths, `>` app commands from a registry any feature can add to, `$` a line run in the integrated terminal, `?` a prompt sent to the agent CLI with streamed progress and a Cancel that really kills the child. Recents persist per project |
+| DOCX import | `.docx` → a real project (`manuscript.json`, `sections/*.md`, `references.bib`, extracted figures) with `mammoth` + `jszip`, no external binary. Documented heuristics — title as the first heading *or fully-bold paragraph* (real manuscripts bold it), authors from `<sup>` markers, affiliations, abstract — each reported with its reason in an **import review screen that writes nothing until confirmed**. Citation markers are rewritten to `[@key]` **only where the mapping is unambiguous**; everything else stays literal and is listed. Import refuses to overwrite an existing SUNA project unconditionally. Verified on a real 55 MB manuscript: 10/10 authors with affiliation links, 24 sections, 69 references round-tripping through `parseBibtex`, 7 figures as files, **zero `data:` URIs**, source byte-identical |
+| DOCX / PDF export | Both driven by the **active profile** off one shared content model that reproduces the live Manuscript tab's citation numbering, reference ordering and cross-reference labels. `.docx` via the bundled `docx` library; `.pdf` via Electron's `printToPDF` on our own HTML — **no LaTeX, no Tectonic, no external binary**. `docx-tools` is detected and offered as an *optional accelerator*, never required. Output lands in `output/`; sources are never mutated. The compliance checker runs first and **warns, never blocks** |
 | Source control | Status, diffs, commit, history, init |
 | Terminal | node-pty + xterm panel, multiple tabs, env activation |
 | Environments | uv/.venv/conda detection, per-project selection |
@@ -109,9 +122,15 @@ the full billed answer is not exercised on every run.
 
 ## Outstanding (next milestones)
 
-1. **Submission export** — manuscript → LaTeX → PDF via bundled Tectonic,
-   plus DOCX. Figure numbers/captions/refs baked to literal text before the
-   renderer (flux's lesson); export dialog runs the compliance checker first.
+1. **LaTeX-native export** — *not* a repeat of feature-plan-6. DOCX and PDF
+   export are **built** (see *Built & verified*); PDF goes through Electron's
+   `printToPDF`, which is a clean submission manuscript, **not
+   LaTeX-quality typesetting**. A LaTeX → PDF path via bundled Tectonic
+   remains a possible future milestone for LaTeX-native journals, and was
+   explicitly out of scope for feature-plan-6 (§4). Nothing in the current
+   export path requires it, so this is a quality upgrade, not a gap.
+   Remaining smaller pieces: a smoke step for export, and producing/checking
+   a real `.pdf` under automation.
 2. **Provenance loop** — record canvas edits as replayable overlay ops in
    figure.json, replay on regeneration, "absorb" into the generating script
    as a reviewable diff (spec: provenance-loop.md).
@@ -120,8 +139,9 @@ the full billed answer is not exercised on every run.
 4. **Agent depth** — live bridge so an agent can drive the canvas command
    bus and editor with undoable, human-equivalent edits; figure screenshots
    for vision models.
-5. **Packaging** — signed macOS build, bundled Tectonic + MCP server in
-   resources.
+5. **Packaging** — signed macOS build, MCP server in resources. Tectonic
+   only becomes a packaging concern if milestone 1's LaTeX path lands;
+   DOCX/PDF export as built needs no external binary.
 
 ## Known rough edges
 
@@ -177,5 +197,30 @@ the full billed answer is not exercised on every run.
   previous transform and leaves the ruler a frame behind the canvas.
 - The MCP server externalizes zod/jsdom, so packaging must ship those
   node_modules alongside dist-mcp/server.mjs.
+- **`brain-stimulation` is a skeleton profile.** ScienceDirect, elsevier.com
+  and brainstimjrnl.com all returned HTTP 403 to every fetch, so only the
+  citation family, the 250-word structured abstract and the 300 dpi figure
+  spec are recorded; word limits, entry templates, figure widths and
+  required sections are `null`. `sleep-advances` is similarly thin — its
+  guidelines page states no citation style at all, and the four
+  non-nullable citation fields carry a **placeholder flagged `inferred`**
+  rather than SLEEP's rules, which would have violated the no-sibling
+  -inference rule. Both need direct re-verification before their limits are
+  trusted for compliance checking.
+- **`authorTruncation.truncateWhenMoreThan` is "the largest author count
+  still printed in full"**, so a journal that truncates *at* N authors is
+  encoded as `N - 1`. SLEEP ("all names when fewer than seven; when seven or
+  more, list the first three") shipped as `7` and printed all seven names on
+  a 7-author reference; it is now `6`, with a boundary test. Any new profile
+  should be read against this off-by-one.
+- **Import guesses the corresponding author when the document marks
+  nobody.** A `*`/`†`-marked correspondence line is detected, split out of
+  the affiliation list, and its e-mail attached to the marked author. With
+  no marker at all the first author is flagged corresponding — a convention,
+  not a fact the document stated, and the review screen is where the user
+  fixes it.
+- **OMML equations are counted and flagged, never converted.** A
+  Word-equation-heavy manuscript imports its text and warns rather than
+  emitting broken LaTeX (feature-plan-6 §2's explicit instruction).
 - Conda detection shells out to `conda env list`; a slow conda install
   makes the env popover wait up to 8s on first open.

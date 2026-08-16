@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 3,
+  "id": "sleep",
+  "journalName": "SLEEP",
+  "publisher": "Oxford University Press (for the Sleep Research Society and American Academy of Sleep Medicine)",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "parenthetical-numeric",
+    "collapseRanges": true,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs"
+    },
+    "authorYear": null,
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors}. {title}. {journalAbbrev}. {year}; {volume}({issue}). {doiUrl}.",
+        "book": null,
+        "preprint": null,
+        "software": null
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 6,
+        "keepFirstN": 3
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": "Provide DOIs and URLs when appropriate; preprint citations are not permitted in the final published version and must be replaced with the peer-reviewed version of record before publication.",
+      "sortOrder": "appearance"
+    },
+    "maxReferences": null,
+    "sources": [
+      "https://academic.oup.com/sleep/pages/author-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "mode: “consecutive numerical order by means of Arabic numerals placed in brackets,” placed “outside periods and commas and inside colons and semicolons.” Mapped to 'parenthetical-numeric' as the schema's closest fit for a numbered/bracketed system — the actual delimiter is square brackets, not round parentheses; see notes.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "collapseRanges: “When three or more references are cited at one place in the manuscript, a hyphen should be used to join the first and last numbers of a series.”",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "authorTruncation: “Provide all authors' names when fewer than seven; when seven or more, list the first three and add et al.” Encoded as truncateWhenMoreThan: 6 (NOT 7) because the schema field means “the largest author count still printed in full”: the rule truncates AT seven authors, so six is the last untruncated count. keepFirstN: 3 per “list the first three”.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "referenceList.entryTemplates.article: derived from the page's one worked example — “Lehert P, Falissard B. Multiple treatment comparison in narcolepsy: a network meta-analysis. Sleep. 2018; 41 (12). doi.org/10.1093/sleep/zsy185.” — rather than an explicit generic pattern statement; SLEEP states it follows “the American Medical Association 10th Edition style guide” generally, so page ranges may also appear in some entries even though the one example shown omits them.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "journalAbbreviation: the page says to “refer to 'List of Journals Indexed in Index Medicus'” (NLM/Index Medicus convention) — left null rather than mapped to the schema's 'iso4' option, since Index Medicus/NLM abbreviations are a distinct governing convention from ISO 4 even though outputs often coincide; forcing this into 'iso4' would misrepresent the actual stated policy.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": null,
+      "onehalf": null,
+      "double": null
+    },
+    "maxHeightMm": null,
+    "minFontPt": null,
+    "maxFontPt": null,
+    "lineWeightPt": {
+      "min": null,
+      "max": null
+    },
+    "preferredFontFamilies": null,
+    "palette": {
+      "requirement": "none-stated",
+      "suggestedRamps": [],
+      "suggestedHex": null,
+      "colorAsSoleDelimiter": null,
+      "redGreenDiscouraged": null
+    },
+    "formats": {
+      "vectorPreferred": [
+        "eps",
+        "pdf"
+      ],
+      "rasterAccepted": [
+        "tif"
+      ],
+      "minDpi": 300
+    },
+    "panelLabel": {
+      "letterCase": null,
+      "weight": null,
+      "wrapper": null
+    },
+    "sources": [
+      "https://academic.oup.com/sleep/pages/author-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "formats/minDpi: “minimum of 300 dpi”; acceptable file types “.tif, .eps, or .pdf”; explicitly UNACCEPTABLE: “Figures embedded as images in a Word document or in PowerPoint slides.” “The Journal does not charge for color.”",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "Accessibility (not modeled as a schema field): “we require you to provide alt text (alternative text) descriptions for all images,” placed directly under the figure legend; must follow OUP's general contrast/text-accessibility guidance. No column-width, font-size, line-weight, or colorblind-palette rule is stated on this page — left null rather than assumed.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "original-article",
+        "name": "Original Articles",
+        "wordLimit": null,
+        "abstractWordLimit": 250,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "review",
+        "name": "Review Articles",
+        "wordLimit": null,
+        "abstractWordLimit": 250,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "perspective",
+        "name": "Perspectives",
+        "wordLimit": {
+          "max": 4000,
+          "scope": "total",
+          "hard": false
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": 50
+      },
+      {
+        "id": "research-letter",
+        "name": "Research Letters",
+        "wordLimit": {
+          "max": 1200,
+          "scope": "total; no abstract",
+          "hard": true
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": 1,
+        "maxReferences": 10
+      },
+      {
+        "id": "editorial",
+        "name": "Editorials",
+        "wordLimit": {
+          "max": 1200,
+          "scope": "total, plus as many references as needed; may include one figure or table; no section headings; max 3 authors",
+          "hard": true
+        },
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": 1,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      {
+        "id": "title-page",
+        "label": "Title page (title, authors, affiliations, corresponding author)",
+        "required": true
+      },
+      {
+        "id": "abstract",
+        "label": "Abstract",
+        "required": true
+      },
+      {
+        "id": "keywords",
+        "label": "Keywords (3-10)",
+        "required": true
+      },
+      {
+        "id": "statement-of-significance",
+        "label": "Statement of Significance (120 words)",
+        "required": true
+      },
+      {
+        "id": "introduction",
+        "label": "Introduction",
+        "required": true
+      },
+      {
+        "id": "methods",
+        "label": "Methods",
+        "required": true
+      },
+      {
+        "id": "results",
+        "label": "Results",
+        "required": true
+      },
+      {
+        "id": "discussion",
+        "label": "Discussion (must include a limitations paragraph near the end)",
+        "required": true
+      },
+      {
+        "id": "acknowledgments",
+        "label": "Acknowledgments",
+        "required": false
+      },
+      {
+        "id": "disclosure-statement",
+        "label": "Disclosure statement",
+        "required": true
+      },
+      {
+        "id": "study-funding",
+        "label": "Study funding",
+        "required": false
+      },
+      {
+        "id": "references",
+        "label": "References",
+        "required": true
+      },
+      {
+        "id": "figure-captions",
+        "label": "Figure captions",
+        "required": true
+      },
+      {
+        "id": "tables",
+        "label": "Tables",
+        "required": false
+      }
+    ],
+    "availabilityStatements": {
+      "data": null,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": true,
+      "lineNumbers": false,
+      "acceptedFileTypes": [
+        "docx",
+        "rtf",
+        "pdf"
+      ]
+    },
+    "sources": [
+      "https://academic.oup.com/sleep/pages/author-guidelines"
+    ],
+    "provenance": [
+      {
+        "claim": "abstract/significance/keywords: structured abstract (“Study Objectives, Methods, Results, Conclusions and Keywords”) OR narrative single-paragraph option, “limited to 250 words”; Statement of Significance “limited to 120 words,” required for original articles and reviews only; “no fewer than three but no more than ten keywords.”",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "article-type limits: Perspectives “should not exceed 4,000 words in length and 50 references”; Research Letters “should have 1,200 words, 10 references, one figure or table, and no abstract”; Editorials “maximum length of 1,200 words plus as many references as needed... may include one figure or table,” no section headings, max 3 authors.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "submissionFormat: “Manuscript should be provided in Microsoft Word”; “Lines should be double-spaced”; “Pages should be numbered”; explicitly “Do not number the lines” (opposite of Nature's line-number requirement — a checker must not assume all journals want line numbers). Initial submissions may be format-neutral (Word, RTF, or PDF).",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      },
+      {
+        "claim": "runningHeadLimitChars left null despite a stated rule: the page says “Please do not include a running title” — a prohibition, not a character limit, so it does not map onto this numeric-limit field; recorded in notes instead.",
+        "basis": "documented",
+        "source": "https://academic.oup.com/sleep/pages/author-guidelines"
+      }
+    ]
+  },
+  "notes": [
+    "Directly fetched in full from academic.oup.com (not blocked, unlike the Elsevier/Cell/PNAS/HighWire domains researched for Neuron/PNAS/Brain Stimulation/JNeurosci in this batch) — high confidence, verbatim quotes throughout.",
+    "citations.mode is encoded as 'parenthetical-numeric' as the closest fit in the schema's three-way enum, but the ACTUAL delimiter SLEEP states is square brackets, not round parentheses — the schema has no distinct 'bracket-numeric' option, so this is a deliberate best-fit mapping (matching how the same tradeoff is handled for jne.json, whose reference style is also bracket-numeric).",
+    "SLEEP explicitly says 'Do not number the lines' — the opposite of Nature's/JNeurosci's line-number requirement. A compliance checker must treat lineNumbers as genuinely per-journal, not a universal default.",
+    "'No fewer than three but no more than ten keywords' and the 120-word Statement of Significance (distinct from, and following, the 250-word Abstract) are both required fields not modeled by the current PublisherProfile schema (no keywords or significance-statement slots exist) — recorded here in notes only, encoded structurally only as a requiredSections entry for the Statement of Significance.",
+    "Journal-specific style quirk recorded for completeness, not schema-relevant: do not use 'SD' as an abbreviation for sleep deprivation."
+  ]
+}

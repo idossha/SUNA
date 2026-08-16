@@ -76,6 +76,28 @@ export function openOnboardingTab(params: OnboardingParams): void {
   })
 }
 
+/**
+ * Open (or focus) the DOCX Import Review tab (feature-plan-6 §2), keyed by
+ * the source file's path so importing two different .docx files can be in
+ * flight as separate tabs — same pattern as the onboarding wizard's 'setup'
+ * mode being keyed by directory.
+ */
+export function openDocxImportTab(path: string): void {
+  if (!dockApi) return
+  const id = `docx-import:${path}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'docx-import',
+    title: `Import ${path.split('/').pop() ?? path}`,
+    params: { path }
+  })
+}
+
 /** Open (or focus) the global Settings tab. */
 export function openSettingsTab(): void {
   if (!dockApi) return
@@ -100,6 +122,23 @@ export function openManuscriptTab(rootDir: string): void {
     id,
     component: 'manuscript',
     title: 'Manuscript',
+    params: { rootDir }
+  })
+}
+
+/** Open (or focus) the DOCX/PDF export dialog for a project (feature-plan-6 §3/§4). */
+export function openExportTab(rootDir: string): void {
+  if (!dockApi) return
+  const id = `export:${rootDir}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'export',
+    title: 'Export',
     params: { rootDir }
   })
 }
@@ -233,6 +272,15 @@ export const dockDevSeam = {
   /** feature-plan-5 §5: open the wizard the way the welcome screen's buttons do. */
   openOnboardingTab,
   openSettingsTab,
+  /**
+   * feature-plan-6 §2: open the DOCX import review for a path directly. The
+   * Welcome tab's "Import .docx…" button goes through the NATIVE file picker
+   * ('dialog:pick-file'), which CDP cannot drive — this is the bypass, same
+   * role the onboarding seam plays for the native folder picker.
+   */
+  openDocxImportTab,
+  /** feature-plan-6 §3/§4: open the export dialog for a project. */
+  openExportTab,
   sideGroupId,
   activePanelPath,
   groupCount: (): number => dockApi?.groups.length ?? 0,

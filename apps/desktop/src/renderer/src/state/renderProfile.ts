@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { useProjectStore } from './project'
 
 /**
@@ -32,6 +32,32 @@ export function resolvePreviewProfileId(
   if (isBundledProfileId(override)) return override
   if (isBundledProfileId(activeProfileId)) return activeProfileId
   return FALLBACK_PROFILE_ID
+}
+
+/**
+ * Short labels for the profile pickers ('Rendered as', Settings). Only ids
+ * whose full `journalName` is too long for a picker need an entry — this map
+ * is deliberately PARTIAL so that bundling a new profile can never again
+ * break the build (it did: two hardcoded `Record<BundledProfileId, string>`
+ * maps went stale the moment feature-plan-6 §1 added eight journals).
+ */
+const PROFILE_SHORT_LABELS: Partial<Record<BundledProfileId, string>> = {
+  'nature-astronomy': 'Nat. Astron.',
+  'apj-aas': 'ApJ (AAS)',
+  mnras: 'MNRAS',
+  'brain-stimulation': 'Brain Stimul.',
+  jne: 'J. Neural Eng.',
+  jneurosci: 'J. Neurosci.',
+  'sleep-advances': 'SLEEP Adv.'
+}
+
+/**
+ * Display label for a bundled profile: the short label when one is defined,
+ * otherwise the profile's own `journalName`, otherwise the raw id. Total by
+ * construction — a newly bundled profile shows up automatically.
+ */
+export function profileLabel(id: BundledProfileId): string {
+  return PROFILE_SHORT_LABELS[id] ?? getBundledProfile(id)?.journalName ?? id
 }
 
 interface RenderProfileState {
