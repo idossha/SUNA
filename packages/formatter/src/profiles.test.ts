@@ -42,9 +42,20 @@ const SECOND_PASS_IDS = [
   'jneurosci',
 ] as const;
 
+/**
+ * The house style is bundled but is NOT a journal profile: it states no
+ * journal's rules, so every assertion below about official source URLs and
+ * research-pass dates applies to the journal profiles only. Its own
+ * invariants — which are different, and stricter in one respect — live in
+ * "the SUNA house style" at the bottom of this file.
+ */
+const HOUSE_STYLE_IDS: readonly string[] = ['suna'];
+const JOURNAL_PROFILE_IDS = BUNDLED_PROFILE_IDS.filter((id) => !HOUSE_STYLE_IDS.includes(id));
+
 describe('bundled publisher profiles', () => {
-  it('lists exactly the twelve bundled ids', () => {
-    expect([...BUNDLED_PROFILE_IDS].sort()).toEqual(
+  it('lists exactly the twelve journal ids, plus the house style', () => {
+    expect([...BUNDLED_PROFILE_IDS].sort()).toEqual([...JOURNAL_PROFILE_IDS, 'suna'].sort());
+    expect([...JOURNAL_PROFILE_IDS].sort()).toEqual(
       [
         'apj-aas',
         'mnras',
@@ -70,6 +81,8 @@ describe('bundled publisher profiles', () => {
         const parsed = PublisherProfileSchema.parse(readProfileJson(id));
         expect(parsed.schemaVersion).toBe(3);
       });
+
+      if (HOUSE_STYLE_IDS.includes(id)) return;
 
       it('id matches its filename and lastVerified is the extraction date', () => {
         expect(profile.id).toBe(id);
@@ -555,7 +568,7 @@ describe('provenance annotations on the bundled profiles', () => {
   });
 
   it("documented entries carry a source URL; inferred entries may carry null", () => {
-    for (const id of BUNDLED_PROFILE_IDS) {
+    for (const id of JOURNAL_PROFILE_IDS) {
       const p = profiles[id];
       for (const section of [p.citations, p.figures, p.manuscript]) {
         for (const entry of section.provenance ?? []) {
@@ -632,5 +645,91 @@ describe('loadProfile', () => {
   it('rejects non-object input', () => {
     expect(() => loadProfile('not a profile')).toThrowError(/Invalid publisher profile/);
     expect(() => loadProfile(null)).toThrowError(/Invalid publisher profile/);
+  });
+});
+
+/**
+ * The SUNA house style. Its job is the opposite of a journal profile's: it
+ * must never invent a rule to enforce, and it must state its typography in
+ * full, because that typography IS the feature ("SUNA style").
+ */
+describe('the SUNA house style', () => {
+  const suna = profiles['suna'];
+
+  it('is the only bundled profile that carries a documentStyle', () => {
+    expect(suna.documentStyle).toBeDefined();
+    for (const id of JOURNAL_PROFILE_IDS) {
+      expect(profiles[id].documentStyle, `${id} must not state typography`).toBeUndefined();
+    }
+  });
+
+  it('reproduces docx-tools geometry: US Letter, 0.5 in margins, TNR 11 pt at 1.15', () => {
+    const style = suna.documentStyle;
+    // US Letter in mm, and 0.5 in = 12.7 mm on all four sides.
+    expect(style?.page.widthMm).toBeCloseTo(215.9, 1);
+    expect(style?.page.heightMm).toBeCloseTo(279.4, 1);
+    expect(style?.page.marginMm).toBeCloseTo(12.7, 1);
+    expect(style?.fonts.body).toBe('Times New Roman');
+    expect(style?.sizesPt.body).toBe(11);
+    expect(style?.lineSpacing).toBeCloseTo(1.15, 2);
+  });
+
+  it('states every role size docx-tools sets, including the small author line', () => {
+    const s = suna.documentStyle?.sizesPt;
+    expect(s?.title).toBe(14);
+    // 8 pt authors above 9 pt affiliations is docx-tools' own choice
+    // (authors.py) and is deliberate here, not a transposition.
+    expect(s?.author).toBe(8);
+    expect(s?.affiliation).toBe(9);
+    expect(s?.heading1).toBe(13);
+    expect(s?.heading2).toBe(11);
+    expect(s?.caption).toBe(10);
+    expect(s?.reference).toBe(10);
+    expect(s?.footer).toBe(9);
+  });
+
+  it('places captions the way docx-tools does: figures below, tables above', () => {
+    expect(suna.documentStyle?.figureCaptionPosition).toBe('below');
+    expect(suna.documentStyle?.tableCaptionPosition).toBe('above');
+  });
+
+  it('breaks to a new page after the front matter, and hangs references 0.5 in', () => {
+    expect(suna.documentStyle?.pageBreakAfterFrontMatter).toBe(true);
+    expect(suna.documentStyle?.referenceHangingMm).toBeCloseTo(12.7, 1);
+  });
+
+  it('defaults figures to docx-tools 5 in width', () => {
+    expect(suna.documentStyle?.figureWidthMm).toBeCloseTo(127, 0);
+  });
+
+  it('enforces NOTHING: no word limits, no required availability statements', () => {
+    for (const type of suna.manuscript.articleTypes) {
+      expect(type.wordLimit, `${type.id} must not impose a word limit`).toBeNull();
+      expect(type.abstractWordLimit).toBeNull();
+      expect(type.maxReferences).toBeNull();
+      expect(type.maxDisplayItems).toBeNull();
+    }
+    expect(suna.manuscript.availabilityStatements.data).toBeNull();
+    expect(suna.manuscript.availabilityStatements.code).toBeNull();
+    expect(suna.manuscript.runningHeadLimitChars).toBeNull();
+  });
+
+  it('leaves both submission-format toggles free for the user to choose', () => {
+    // null means "this style does not state it", which is what makes the
+    // export dialog offer them as toggles rather than fixing them.
+    expect(suna.manuscript.submissionFormat.doubleSpacing).toBeNull();
+    expect(suna.manuscript.submissionFormat.lineNumbers).toBeNull();
+  });
+
+  it('cites author-year, matching docx-tools APA default', () => {
+    expect(suna.citations.mode).toBe('author-year');
+    expect(suna.citations.referenceList.sortOrder).toBe('alphabetical');
+  });
+
+  it('claims no journal as its source', () => {
+    expect(suna.citations.sources).toEqual([]);
+    expect(suna.figures.sources).toEqual([]);
+    expect(suna.manuscript.sources).toEqual([]);
+    expect(suna.journalName).toBe('SUNA style');
   });
 });

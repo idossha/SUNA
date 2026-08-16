@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 3,
+  "id": "suna",
+  "journalName": "SUNA style",
+  "publisher": "SUNA",
+  "lastVerified": "2026-08-15",
+  "citations": {
+    "mode": "author-year",
+    "collapseRanges": false,
+    "textualTokens": {
+      "ref": "ref.",
+      "refs": "refs."
+    },
+    "authorYear": {
+      "includeInitials": false,
+      "twoAuthorJoiner": "&",
+      "etAlFromNAuthors": 3,
+      "sameYearSuffixes": true
+    },
+    "referenceList": {
+      "entryTemplates": {
+        "article": "{authors} ({year}). {title}. {journal}, {volume}({issue}), {firstPage}–{lastPage}. {doiUrl}",
+        "book": "{authors} ({year}). {title}. {publisher}.",
+        "preprint": "{authors} ({year}). {title}. {url}",
+        "software": "{authors} ({year}). {title}. {repository} {doiUrl}"
+      },
+      "authorTruncation": {
+        "etAlAllowed": true,
+        "truncateWhenMoreThan": 20,
+        "keepFirstN": 19
+      },
+      "journalAbbreviation": null,
+      "doiPolicy": "DOIs are rendered as full https://doi.org/ URLs when the entry has one, matching docx-tools' APA 7 renderer.",
+      "sortOrder": "alphabetical"
+    },
+    "maxReferences": null,
+    "sources": [],
+    "provenance": [
+      {
+        "claim": "mode: author-year with an APA-7-shaped reference template — docx-tools' default citation_style is \"apa\" (src/docx_tools/build.py, DEFAULT_CITATION_STYLE) and its APA renderer emits \"Author, A. A., & Author, B. B. (Year). Title. Journal, volume(issue), pages. https://doi.org/…\" (src/docx_tools/bib.py).",
+        "basis": "documented",
+        "source": "file:///Users/example/00_development/docx-tools/src/docx_tools/bib.py"
+      }
+    ]
+  },
+  "figures": {
+    "widthPresetsMm": {
+      "single": 127,
+      "onehalf": 152,
+      "double": 178
+    },
+    "maxHeightMm": null,
+    "minFontPt": 7,
+    "maxFontPt": 12,
+    "lineWeightPt": {
+      "min": 0.5,
+      "max": 2
+    },
+    "preferredFontFamilies": ["Arial", "Helvetica"],
+    "palette": {
+      "requirement": "colorblind-safe-recommended",
+      "suggestedRamps": ["Wong"],
+      "suggestedHex": [
+        "#000000",
+        "#E69F00",
+        "#56B4E9",
+        "#009E73",
+        "#F0E442",
+        "#0072B2",
+        "#D55E00",
+        "#CC79A7"
+      ],
+      "colorAsSoleDelimiter": "discouraged",
+      "redGreenDiscouraged": true
+    },
+    "formats": {
+      "vectorPreferred": ["svg", "pdf", "eps"],
+      "rasterAccepted": ["png", "tiff"],
+      "minDpi": 300
+    },
+    "panelLabel": {
+      "letterCase": "upper",
+      "weight": "bold",
+      "wrapper": "none"
+    },
+    "sources": [],
+    "provenance": [
+      {
+        "claim": "widthPresetsMm.single = 127 mm — docx-tools inserts figures at a default width of 5.0 inches (src/docx_tools/build.py: default_w = 3.0 if float_side else 5), which is 127 mm.",
+        "basis": "documented",
+        "source": "file:///Users/example/00_development/docx-tools/src/docx_tools/build.py"
+      },
+      {
+        "claim": "palette/panelLabel/format values are SUNA house defaults, not a journal requirement: this is a drafting style, so it recommends the colourblind-safe Wong ramp rather than mandating anything.",
+        "basis": "inferred",
+        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+      }
+    ]
+  },
+  "manuscript": {
+    "articleTypes": [
+      {
+        "id": "draft",
+        "name": "Draft manuscript",
+        "wordLimit": null,
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      }
+    ],
+    "runningHeadLimitChars": null,
+    "requiredSections": [
+      { "id": "title-page", "label": "Title page (title, authors, affiliations)", "required": true },
+      { "id": "abstract", "label": "Abstract", "required": true },
+      { "id": "introduction", "label": "Introduction", "required": false },
+      { "id": "methods", "label": "Methods", "required": false },
+      { "id": "results", "label": "Results", "required": false },
+      { "id": "discussion", "label": "Discussion", "required": false },
+      { "id": "references", "label": "References", "required": true }
+    ],
+    "availabilityStatements": {
+      "data": null,
+      "code": null
+    },
+    "submissionFormat": {
+      "doubleSpacing": null,
+      "lineNumbers": null,
+      "acceptedFileTypes": ["docx", "pdf"]
+    },
+    "sources": [],
+    "provenance": [
+      {
+        "claim": "No word limits and almost no required sections: this is a house drafting style, not a journal, so it must never flag a manuscript for a rule nobody stated. Limits arrive when the author switches to a journal profile.",
+        "basis": "inferred",
+        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+      }
+    ]
+  },
+  "documentStyle": {
+    "name": "SUNA style",
+    "page": {
+      "widthMm": 215.9,
+      "heightMm": 279.4,
+      "marginMm": 12.7
+    },
+    "fonts": {
+      "body": "Times New Roman",
+      "mono": "Courier New"
+    },
+    "sizesPt": {
+      "body": 11,
+      "title": 14,
+      "author": 8,
+      "affiliation": 9,
+      "heading1": 13,
+      "heading2": 11,
+      "caption": 10,
+      "reference": 10,
+      "tableCell": 10,
+      "footer": 9
+    },
+    "lineSpacing": 1.15,
+    "bodySpaceAfterPt": 6,
+    "referenceHangingMm": 12.7,
+    "figureWidthMm": 127,
+    "figureCaptionPosition": "below",
+    "tableCaptionPosition": "above",
+    "pageBreakAfterFrontMatter": true
+  },
+  "notes": [
+    "SUNA style is a HOUSE style, not a journal profile: it states no word limits and flags nothing, so it is the right choice while drafting. Switch to a journal profile before submission to get that journal's rules.",
+    "Its typography reproduces the structure `docx-tools build` produces, so an export from SUNA and one from the docx-tools CLI lay out the same: US Letter, 0.5 in margins, Times New Roman 11 pt at 1.15 line spacing, 14 pt bold centred title, 8 pt author line with superscript affiliation markers, 9 pt centred affiliations, 13 pt black H1 (Word's Heading 1 is blue by default — docx-tools forces black and so does SUNA style), figure captions BELOW the image with a bold 'Figure N.' and italic body, table captions ABOVE with APA rules only, and a 0.5 in hanging indent on the reference list.",
+    "The page break after the front matter is docx-tools' behaviour too (build.py inserts one before the first heading that follows the front matter unless that heading is the Abstract)."
+  ]
+}

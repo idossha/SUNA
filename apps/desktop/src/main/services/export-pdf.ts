@@ -7,6 +7,7 @@ import type { ExportOptions } from '@suna/core'
 import { writeFileAtomic } from './atomic'
 import { buildExportContent } from './export-content'
 import { buildManuscriptHtml } from './export-html'
+import { documentStyleFor } from './export-style'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -18,8 +19,9 @@ import { assertInsideAllowedRoot } from './roots'
  *
  * Known, deliberate simplification (ADR-002, same as export-html.ts's
  * module doc): the profile schema has no page-geometry fields, so page
- * size/margins are fixed generic submission-manuscript defaults (A4, 1in
- * margins) rather than profile-driven.
+ * size/margins come from the profile's DocumentStyle (export-style.ts): a
+ * journal profile states none and keeps the generic A4/1in defaults, while a
+ * house style like SUNA style sets its own page.
  *
  * Line numbers are the one thing `printToPDF` has no native primitive for
  * (unlike page numbers, which are a real Chromium header/footer feature —
@@ -127,9 +129,14 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
     const footerTemplate = req.options.pageNumbers
       ? '<div style="font-size:9px;width:100%;text-align:center;color:#555;"><span class="pageNumber"></span></div>'
       : undefined
+    // Page geometry comes from the same DocumentStyle the DOCX writer uses
+    // (export-style.ts), so a manuscript exported as PDF and as DOCX has the
+    // same page and margins rather than only the same text.
+    const style = documentStyleFor(content.profile)
+    const marginIn = style.page.marginMm / 25.4
     const pdf = await win.webContents.printToPDF({
-      pageSize: 'A4',
-      margins: { top: 1, bottom: 1, left: 1, right: 1 },
+      pageSize: { width: style.page.widthMm / 25.4, height: style.page.heightMm / 25.4 },
+      margins: { top: marginIn, bottom: marginIn, left: marginIn, right: marginIn },
       printBackground: true,
       displayHeaderFooter: req.options.pageNumbers,
       headerTemplate: req.options.pageNumbers ? '<span></span>' : undefined,

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import katex from 'katex'
 import { parseSciMark, renderHtml, type CrossRefKind, type FigureResolution } from '@suna/markdown'
 import { renderCluster, type Run } from '@suna/bib'
-import type { HeadingLevel } from '@suna/core'
+import type { DocumentStyle, HeadingLevel } from '@suna/core'
 import {
   formatReferenceRow,
   isNumericCitationMode,
@@ -10,6 +10,7 @@ import {
   widthMmForPreset,
   type ExportContent
 } from './export-content'
+import { documentStyleFor, isHouseStyle } from './export-style'
 
 /**
  * Renders an `ExportContent` to one self-contained HTML document — the PDF
@@ -176,33 +177,54 @@ function titlePageHtml(content: ExportContent): string {
 </div>`
 }
 
-const PAGE_CSS = `
+/**
+ * The PDF stylesheet, derived from the same DocumentStyle the DOCX writer
+ * uses (export-style.ts) so a manuscript exported both ways is set the same:
+ * same font, same point sizes, same line spacing, same caption treatment.
+ *
+ * A journal profile states no typography (ADR-002) and gets LEGACY_STYLE,
+ * which reproduces exactly the CSS that was hardcoded here before — so
+ * journal PDFs are unchanged. SUNA style brings docx-tools' geometry.
+ */
+function pageCss(style: DocumentStyle, house: boolean): string {
+  const s = style.sizesPt
+  return `
   * { box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; color: #000; margin: 0; }
-  .ms-titlepage { text-align: center; margin-bottom: 24pt; }
-  .ms-title { font-size: 16pt; font-weight: 700; margin: 0 0 10pt; }
-  .ms-authors { font-size: 12pt; margin-bottom: 6pt; }
-  .ms-affiliation { font-size: 10pt; }
-  .ms-correspondence { font-size: 10pt; font-style: italic; margin: 6pt 0; }
+  body { font-family: '${style.fonts.body}', Georgia, serif; font-size: ${s.body}pt; line-height: ${style.lineSpacing}; color: #000; margin: 0; }
+  .ms-titlepage { text-align: center; margin-bottom: ${house ? 14 : 24}pt; }
+  .ms-title { font-size: ${s.title}pt; font-weight: 700; margin: 0 0 ${house ? 4 : 10}pt; }
+  .ms-authors { font-size: ${s.author}pt; margin-bottom: ${house ? 6 : 6}pt; }
+  .ms-affiliation { font-size: ${s.affiliation}pt; margin-bottom: 1pt; }
+  .ms-correspondence { font-size: ${s.affiliation}pt; font-style: italic; margin: ${house ? '4pt 0 14pt' : '6pt 0'}; }
   .ms-label { font-weight: 700; text-align: left; margin-top: 10pt; }
   .ms-front-text, .ms-highlights { text-align: left; }
   .ms-body { text-align: left; }
   .ms-body.ms-double p, .ms-body.ms-double li { line-height: 2; }
-  .ms-body p { text-align: justify; }
-  .ms-h-a { font-size: 14pt; font-weight: 700; margin-top: 18pt; }
-  .ms-h-b { font-size: 12.5pt; font-weight: 700; margin-top: 12pt; }
+  .ms-body p { text-align: ${house ? 'left' : 'justify'}; margin: 0 0 ${style.bodySpaceAfterPt}pt; }
+  .ms-h-a { font-size: ${s.heading1}pt; font-weight: 700; ${house ? 'color:#000;' : ''} margin: ${house ? '12pt 0 4pt' : '18pt 0 0'}; }
+  .ms-h-b { font-size: ${s.heading2}pt; font-weight: 700; ${house ? 'color:#000;' : ''} margin: ${house ? '8pt 0 4pt' : '12pt 0 0'}; }
   .ms-h-c { font-weight: 700; font-style: italic; margin: 8pt 0 0; }
-  .ms-h-box { font-size: 12.5pt; font-weight: 700; font-style: italic; margin-top: 12pt; }
-  figure.figure { margin: 12pt 0; text-align: center; }
-  figure.figure figcaption { font-size: 10pt; text-align: left; margin-top: 4pt; }
-  .ms-ref { font-size: 10pt; margin: 0 0 4pt 0; padding-left: 1.5em; text-indent: -1.5em; }
+  .ms-h-box { font-size: ${s.heading2}pt; font-weight: 700; font-style: italic; margin-top: 12pt; }
+  figure.figure { margin: ${house ? '6pt 0 12pt' : '12pt 0'}; text-align: center; }
+  figure.figure figcaption { font-size: ${s.caption}pt; text-align: ${house ? 'center' : 'left'}; margin-top: 4pt; }
+  ${house ? 'figure.figure figcaption .ms-caption-body { font-style: italic; }' : ''}
+  .ms-ref { font-size: ${s.reference}pt; margin: 0 0 4pt 0; padding-left: ${style.referenceHangingMm}mm; text-indent: -${style.referenceHangingMm}mm; }
   .ms-ref-num { font-weight: 600; }
   .ms-ref-flag { color: #a00; }
   table { border-collapse: collapse; margin: 8pt 0; width: 100%; }
-  th, td { border: 0.5pt solid #666; padding: 3pt 6pt; font-size: 10pt; }
+  ${
+    house
+      ? // APA rules only, matching the DOCX writer's table treatment.
+        `th, td { border: 0; padding: 2pt 3pt; font-size: ${s.tableCell}pt; text-align: center; }
+  td:first-child { text-align: left; }
+  thead th { border-top: 1pt solid #000; border-bottom: 1pt solid #000; font-weight: 700; }
+  tbody tr:last-child td { border-bottom: 1pt solid #000; }`
+      : `th, td { border: 0.5pt solid #666; padding: 3pt 6pt; font-size: 10pt; }`
+  }
   .ms-table-entry { margin-bottom: 10pt; }
-  .ms-table-footnotes { font-size: 9pt; margin: 2pt 0 0; padding-left: 1.2em; }
+  .ms-table-footnotes { font-size: ${house ? s.caption : 9}pt; margin: 2pt 0 0; padding-left: 1.2em; }
 `
+}
 
 export interface BuildHtmlOptions {
   doubleSpacing: boolean
@@ -252,7 +274,7 @@ export async function buildManuscriptHtml(
   return `<!doctype html>
 <html><head><meta charset="utf-8">
 <link rel="stylesheet" href="katex.min.css">
-<style>${PAGE_CSS}</style>
+<style>${pageCss(documentStyleFor(content.profile), isHouseStyle(content.profile))}</style>
 </head>
 <body>
 <div class="ms-page">

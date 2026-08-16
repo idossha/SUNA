@@ -188,7 +188,10 @@ export async function createProject(
   const manifest = SunaProjectManifestSchema.parse({
     schemaVersion: 1,
     name,
-    activeProfileId: 'nature-astronomy',
+    // A new project drafts in the house style: it flags nothing and is set
+    // in SUNA style's own clean typography. Authors switch to a journal
+    // profile when they know where they are submitting.
+    activeProfileId: 'suna',
     directories: DEFAULT_PROJECT_DIRS,
     createdAt: new Date().toISOString()
   })
