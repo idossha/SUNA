@@ -166,6 +166,8 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           parent: hostRef.current,
           doc: content,
           fileName,
+          filePath: path,
+          rootDir: useProjectStore.getState().rootDir,
           theme: useEditorSettings.getState().editorTheme,
           live: isMarkdown && modeRef.current === 'reading',
           vim: vimRef.current,

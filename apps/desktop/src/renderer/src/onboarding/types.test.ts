@@ -18,7 +18,7 @@ describe('defaultsToProjectSettings', () => {
         editorTheme: 'suna-dark',
         fontSizePx: 14,
         lineHeight: 1.6,
-        contentWidthCh: 68
+        contentWidthCh: 140
       }
     })
   })
@@ -73,7 +73,7 @@ describe('buildScaffoldSettings', () => {
       editorTheme: 'suna-dark',
       fontSizePx: 14,
       lineHeight: 1.6,
-      contentWidthCh: 68
+      contentWidthCh: 140
     })
     expect(ProjectSettingsSchema.safeParse(settings).success).toBe(true)
   })

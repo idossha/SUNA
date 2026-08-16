@@ -39,7 +39,7 @@ export const EDITOR_SETTINGS_LIMITS = {
  * Persisted user values are unaffected: only the fallback changes.
  */
 export const EDITOR_SETTINGS_DEFAULTS: EditorSettings = {
-  contentWidthCh: 68,
+  contentWidthCh: 140,
   fontSizePx: 14,
   fontFamily: 'serif',
   lineHeight: 1.6,
@@ -107,7 +107,19 @@ export const useEditorSettings = create<EditorSettingsState>()(
     }),
     {
       name: 'suna-editor-settings',
-      version: 1,
+      version: 2,
+      // v1 -> v2: the default measure moved 68ch -> 140ch. Installs that never
+      // touched the slider have 68 persisted verbatim and would otherwise be
+      // pinned to the old default forever; adopt the new one for them only.
+      // A deliberate 68 is indistinguishable from the old default, so it is
+      // (knowingly) reset too — every other stored width is left alone.
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<EditorSettings>
+        if (version < 2 && Number(state.contentWidthCh) === 68) {
+          return { ...state, contentWidthCh: EDITOR_SETTINGS_DEFAULTS.contentWidthCh }
+        }
+        return state
+      },
       // Clamp persisted numeric values on rehydrate so stored settings from
       // older builds (or hand-edited storage) always land inside the limits.
       merge: (persisted, current) => {

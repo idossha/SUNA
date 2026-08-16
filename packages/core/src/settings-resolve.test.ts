@@ -52,7 +52,7 @@ describe('resolveSettings precedence', () => {
 
   it('treats an explicit project null with no global as the default', () => {
     const out = resolveSettings({}, project({ editor: { contentWidthCh: null } }));
-    expect(out.value['editor.contentWidthCh']).toBe(68);
+    expect(out.value['editor.contentWidthCh']).toBe(140);
     expect(out.sources['editor.contentWidthCh']).toBe('default');
   });
 
@@ -85,7 +85,7 @@ describe('resolveSettings precedence', () => {
 describe('resolveSettings validation', () => {
   it('ignores a global value of the wrong type and falls through', () => {
     const out = resolveSettings({ 'editor.contentWidthCh': 'wide' }, undefined);
-    expect(out.value['editor.contentWidthCh']).toBe(68);
+    expect(out.value['editor.contentWidthCh']).toBe(140);
     expect(out.sources['editor.contentWidthCh']).toBe('default');
   });
 

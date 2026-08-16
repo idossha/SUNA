@@ -56,6 +56,11 @@ export interface CreateEditorOptions {
   parent: HTMLElement
   doc: string
   fileName: string
+  /** Absolute path of the file being edited; lets live preview resolve
+   *  relative markdown image urls against the file that contains them. */
+  filePath?: string
+  /** Project root; lets live preview find figures/<id>/figure.svg. */
+  rootDir?: string | null
   theme: EditorThemeName
   live: boolean
   /** Vim motions/keymap; works in both source and reading mode. */
@@ -131,6 +136,13 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   // Prose wraps at the content-width measure; code/data scroll horizontally
   // instead so statements and long tokens never soft-break mid-line.
   const isProse = contentKindFor(options.fileName) === 'prose'
+  // Captured once: both the initial extension and every setLive() reconfigure
+  // must resolve images against the same file, or toggling reading mode would
+  // silently stop finding them.
+  const livePreviewConfig = {
+    rootDir: options.rootDir ?? null,
+    filePath: options.filePath ?? null
+  }
   const wrapping: Extension = isProse ? EditorView.lineWrapping : []
   const formattingCallbacks: FormattingCallbacks = {
     onComment: options.onComment,
@@ -158,7 +170,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
       ...searchKeymap
     ]),
     themeCompartment.of(editorTheme(options.theme)),
-    liveCompartment.of(options.live ? livePreview() : []),
+    liveCompartment.of(options.live ? livePreview(livePreviewConfig) : []),
     wrapping,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) options.onDocChanged()
@@ -196,7 +208,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   return {
     view,
     setLive: (on) => {
-      view.dispatch({ effects: liveCompartment.reconfigure(on ? livePreview() : []) })
+      view.dispatch({ effects: liveCompartment.reconfigure(on ? livePreview(livePreviewConfig) : []) })
     },
     setTheme: (name) => {
       view.dispatch({ effects: themeCompartment.reconfigure(editorTheme(name)) })
