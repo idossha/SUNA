@@ -125,6 +125,46 @@ describe('resolveSettings validation', () => {
   });
 });
 
+/**
+ * The precedence this resolver was wrongly blamed for when vim motions stopped
+ * working: an absent project key is "inherit", never "explicit false". The bug
+ * was that the manuscript editor never installed the extension at all.
+ */
+describe('editor.vimMotions precedence', () => {
+  it('inherits a global true when the project says nothing', () => {
+    expect(resolveSetting('editor.vimMotions', { 'editor.vimMotions': true }, undefined)).toEqual({
+      value: true,
+      source: 'global',
+    });
+  });
+
+  it('lets a project false switch vim off against a global true', () => {
+    const out = resolveSetting(
+      'editor.vimMotions',
+      { 'editor.vimMotions': true },
+      project({ editor: { vimMotions: false } }),
+    );
+    expect(out).toEqual({ value: false, source: 'project' });
+  });
+
+  it('is off by default when neither level sets it', () => {
+    expect(resolveSetting('editor.vimMotions', {}, undefined)).toEqual({
+      value: false,
+      source: 'default',
+    });
+  });
+
+  it('ignores a hand-edited non-boolean project value and falls through to global', () => {
+    // suna.json can hold anything; the manifest schema rejects this, but the
+    // resolver must not trust its input either.
+    const settings = { editor: { vimMotions: 'yes' } } as unknown as ProjectSettings;
+    expect(resolveSetting('editor.vimMotions', { 'editor.vimMotions': true }, settings)).toEqual({
+      value: true,
+      source: 'global',
+    });
+  });
+});
+
 describe('resolveSetting (single key)', () => {
   it('matches the whole-surface resolution for the same inputs', () => {
     const global = { 'ai.mode': 'api' };

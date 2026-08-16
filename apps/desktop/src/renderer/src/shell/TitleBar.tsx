@@ -1,7 +1,11 @@
 import { useRef, useState, type JSX } from 'react'
+import { formatShortcut } from '../palette/shortcuts'
 import { useProjectStore } from '../state/project'
+import { useUiStore } from '../state/ui'
 import { ProjectMenu } from './ProjectMenu'
-import { ChevronDownIcon } from './icons'
+import { ChevronDownIcon, PanelLeftIcon } from './icons'
+
+const NAV_TOGGLE_TITLE = `Toggle left nav bar (${formatShortcut('Mod-Alt-KeyB')})`
 
 /**
  * Title bar (feature-plan-7 §3). The project name is a button opening
@@ -12,11 +16,23 @@ import { ChevronDownIcon } from './icons'
  */
 export function TitleBar(): JSX.Element {
   const manifest = useProjectStore((s) => s.manifest)
+  const railVisible = useUiStore((s) => s.railVisible)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <header className="titlebar">
+      {/* Never conditional: nav visibility persists, so the app can start
+          with no left chrome at all and this is the way back. */}
+      <button
+        type="button"
+        className="titlebar__nav-toggle"
+        aria-pressed={railVisible}
+        title={NAV_TOGGLE_TITLE}
+        onClick={() => useUiStore.getState().toggleLeftNav()}
+      >
+        <PanelLeftIcon />
+      </button>
       <div className="titlebar__brand">
         <span className="titlebar__wordmark">SUNA</span>
         <button

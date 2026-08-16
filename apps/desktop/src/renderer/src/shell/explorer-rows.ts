@@ -1,4 +1,4 @@
-import type { FsNode } from '@suna/core'
+import { PROJECT_DIR_KEYS, type FsNode, type ProjectDirKey } from '@suna/core'
 import type { ExplorerEditing, ExplorerRow } from '../state/explorer'
 
 /** The directory a path lives in (the path itself when it has no parent). */
@@ -49,4 +49,86 @@ export function visibleRows(
   }
   if (root.kind === 'dir') for (const child of root.children) walk(child, 0)
   return rows
+}
+
+/** Which icon a file row carries, by extension. */
+export type FileIconKind =
+  | 'markdown'
+  | 'bib'
+  | 'json'
+  | 'figure'
+  | 'image'
+  | 'pdf'
+  | 'table'
+  | 'code'
+  | 'tex'
+  | 'file'
+
+/**
+ * Extensions this app actually routes somewhere: the dock's own file→tab map
+ * (state/dock.ts componentForFile + IMAGE_EXTENSIONS), the editor's language
+ * packs (editor/codemirror.ts) and CLAUDE.md's sources of truth. Anything
+ * else is a plain file — a tree icon that claims to know a format it cannot
+ * open would be a lie.
+ */
+const FILE_ICON_KINDS: Record<string, FileIconKind> = {
+  '.md': 'markdown',
+  '.markdown': 'markdown',
+  '.bib': 'bib',
+  '.json': 'json',
+  '.svg': 'figure',
+  '.png': 'image',
+  '.jpg': 'image',
+  '.jpeg': 'image',
+  '.gif': 'image',
+  '.webp': 'image',
+  '.pdf': 'pdf',
+  '.csv': 'table',
+  '.tsv': 'table',
+  '.py': 'code',
+  '.js': 'code',
+  '.mjs': 'code',
+  '.ts': 'code',
+  '.tex': 'tex'
+}
+
+/**
+ * The extension is the LAST dot onwards, exactly as contentKindFor reads it,
+ * so `figure.svg.suna.json` is the JSON sidecar and not the figure it
+ * describes. A leading dot is not an extension either: `.gitignore` is a
+ * plain file.
+ */
+export function iconKindForFile(name: string): FileIconKind {
+  const lower = name.toLowerCase()
+  const dot = lower.lastIndexOf('.')
+  return FILE_ICON_KINDS[dot >= 0 ? lower.slice(dot) : ''] ?? 'file'
+}
+
+/**
+ * Absolute path → project directory key for the directories suna.json
+ * declares. Driven from the manifest because those folder names are
+ * user-editable (packages/core project.ts), and TOP LEVEL ONLY: a `figures/`
+ * nested inside `manuscript/` is not the project's Figures directory.
+ */
+export function semanticDirs(
+  rootDir: string | null,
+  dirs: Partial<Record<ProjectDirKey, string>> | undefined
+): Map<string, ProjectDirKey> {
+  const out = new Map<string, ProjectDirKey>()
+  if (rootDir === null || dirs === undefined) return out
+  for (const key of PROJECT_DIR_KEYS) {
+    const name = dirs[key]
+    if (name !== undefined && name !== '') out.set(`${rootDir}/${name}`, key)
+  }
+  return out
+}
+
+/** A directory with something in it. Files are never expandable. */
+export function hasChildren(node: FsNode): boolean {
+  return node.kind === 'dir' && node.children.length > 0
+}
+
+/** Left inset for a row drawn at `depth`, shared by tree rows and edit rows so the two cannot drift. */
+export function rowPaddingLeft(depth: number): number {
+  return 8 + depth * 12
 }

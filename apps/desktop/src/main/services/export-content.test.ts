@@ -2,9 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { parseSciMark } from '@suna/markdown'
 import {
+  blockImageOf,
+  blockImagesOf,
   buildExportContent,
+  collectBlockImages,
+  collectMarkdownImages,
+  collectTables,
   headingLevelForDepth,
+  markdownImagePath,
   numberAffiliations,
   pngDimensions,
   splitTexSpans,
@@ -87,6 +94,61 @@ describe('widthMmForPreset', () => {
   })
 })
 
+describe('markdown images', () => {
+  it('collects every image, resolving an imageReference through its definition', () => {
+    const root = parseSciMark('![a](x.png) and ![b][ref]\n\n[ref]: y.png\n\n![c](https://example.org/z.png)')
+    expect(collectMarkdownImages(root).map((i) => [i.url, i.alt])).toEqual([
+      ['x.png', 'a'],
+      ['y.png', 'b'],
+      ['https://example.org/z.png', 'c']
+    ])
+  })
+
+  it('treats only a paragraph that is nothing but an image as the block form', () => {
+    const [block, inline] = parseSciMark('![a](x.png)\n\nSee ![b](y.png) here.').children
+    expect(blockImageOf(block!)?.url).toBe('x.png')
+    expect(blockImageOf(inline!)).toBeNull()
+  })
+
+  it('finds block images nested in blockquotes and list items', () => {
+    const root = parseSciMark('> ![a](x.png)\n\n- ![b](y.png)\n')
+    expect(collectBlockImages(root.children).map((i) => i.url)).toEqual(['x.png', 'y.png'])
+  })
+
+  /**
+   * A soft break makes ONE paragraph out of two images, which a lone-image
+   * test rejects — so both fell back to alt text in DOCX while the HTML
+   * renderer emitted two `<img>`s.
+   */
+  it('treats a paragraph of nothing but images as block images, soft breaks and all', () => {
+    const [both] = parseSciMark('![a](x.png)\n![b](y.png)\n').children
+    expect(blockImagesOf(both!).map((i) => i.url)).toEqual(['x.png', 'y.png'])
+    expect(collectBlockImages(parseSciMark('![a](x.png)\n![b](y.png)\n').children)).toHaveLength(2)
+    // A lone image is still the lone-image form.
+    expect(blockImageOf(both!)).toBeNull()
+  })
+
+  it('leaves a paragraph that also carries prose alone', () => {
+    const [mixed] = parseSciMark('See ![b](y.png)\n![c](z.png) here.').children
+    expect(blockImagesOf(mixed!)).toEqual([])
+  })
+
+  it('collects tables the way it collects images — nested ones included', () => {
+    const root = parseSciMark(
+      '| a |\n| :-- |\n| 1 |\n\n> | b |\n> | --: |\n> | 2 |\n\n- | c |\n  | --- |\n  | 3 |\n'
+    )
+    expect(collectTables(root.children)).toHaveLength(3)
+  })
+
+  it('resolves a relative url against the manuscript directory and refuses a remote one', () => {
+    expect(markdownImagePath('../figures/x.png', '/p/manuscript')).toBe('/p/figures/x.png')
+    expect(markdownImagePath('figures/x.png#panel-a', '/p/manuscript')).toBe('/p/manuscript/figures/x.png')
+    expect(markdownImagePath('https://example.org/x.png', '/p/manuscript')).toBeNull()
+    expect(markdownImagePath('data:image/png;base64,AAAA', '/p/manuscript')).toBeNull()
+    expect(markdownImagePath('', '/p/manuscript')).toBeNull()
+  })
+})
+
 describe('buildExportContent', () => {
   it('assembles sections in document order with their parsed prose', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
@@ -95,6 +157,9 @@ describe('buildExportContent', () => {
     expect(content.sections.map((s) => s.heading)).toEqual(['Introduction', 'Results'])
     expect(content.sections[0]?.source).toContain('baseline')
     expect(content.sections[1]?.root).not.toBeNull()
+    // What a relative image url resolves against — without it neither exporter
+    // can find an image's bytes.
+    expect(content.manuscriptDir).toBe(join(resolve(dir), 'manuscript'))
   })
 
   it('numbers citations by first appearance and renders numeric-superscript style', async () => {

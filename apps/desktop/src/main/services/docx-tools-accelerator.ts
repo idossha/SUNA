@@ -5,6 +5,8 @@ import type { ExportOptions } from '@suna/core'
 import { parseSciMark, type CrossRefKind } from '@suna/markdown'
 import { cliEnv } from './lit'
 import {
+  collectBlockImages,
+  collectTables,
   isNumericCitationMode,
   widthMmForPreset,
   type ExportContent,
@@ -36,6 +38,19 @@ import { assertInsideAllowedRoot } from './roots'
  * arbitrary per-profile templates, so the profile's citation MODE picks the
  * nearer of the two rather than reproducing the profile's exact entry
  * format.
+ *
+ * Two things it cannot express at all, which `docxToolsSupports` therefore
+ * declines rather than exporting wrong (checked against docx_tools/tables.py
+ * and build.py directly):
+ * - PER-COLUMN TABLE ALIGNMENT. `add_table` hardcodes "first column left, the
+ *   rest centred" (tables.py:117-118); there is no per-column option. A GFM
+ *   `:---:` delimiter row would be silently discarded.
+ * - A BLOCK IMAGE. The only image block is 'figure', and `add_figure`
+ *   auto-increments its own figure counter and writes a bold "Figure N."
+ *   caption (figures.py:47-57) — so a loose `![alt](x.png)` would both invent
+ *   a caption and shift every managed figure's number.
+ * The trade is that a document containing either loses the accelerator
+ * entirely and is built by the bundled 'docx' library, which handles both.
  */
 
 const VERSION_TIMEOUT_MS = 5_000
@@ -210,7 +225,9 @@ function blockOf(node: RootChild, content: ExportContent): SpecBlock[] {
     case 'code':
       return [{ type: 'body', text: node.value }]
     case 'math':
-      return [{ type: 'body', text: `$$${node.value}$$` }]
+      // build.py's _render_body honours an "align" key (build.py:561-563), so
+      // display math is centred here the way the bundled writer centres it.
+      return [{ type: 'body', text: `$$${node.value}$$`, align: 'center' }]
     case 'figureEmbed':
       return figureBlocks(node.figureId, content)
     default:
@@ -220,6 +237,25 @@ function blockOf(node: RootChild, content: ExportContent): SpecBlock[] {
 
 function levelFor(level: ExportContent['sections'][number]['level']): number {
   return level === 'A' ? 1 : level === 'B' ? 2 : 3
+}
+
+/**
+ * Can this document go through the spec.json pipeline at all? False for the
+ * two shapes the module doc lists as inexpressible, so `exportDocx` builds
+ * them with the bundled library instead of exporting them wrong.
+ */
+export function docxToolsSupports(content: ExportContent): boolean {
+  for (const section of content.sections) {
+    if (section.root === null) continue
+    if (collectBlockImages(section.root.children).length > 0) return false
+    // Walked, not iterated: `blockOf` recurses into blockquotes and lists, so
+    // a GFM-aligned table one level down reaches the spec too and would have
+    // its delimiter row silently dropped.
+    for (const table of collectTables(section.root.children)) {
+      if ((table.align ?? []).some((align) => align != null)) return false
+    }
+  }
+  return true
 }
 
 interface BuiltSpec {

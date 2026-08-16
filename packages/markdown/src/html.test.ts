@@ -97,6 +97,64 @@ describe('figure embeds', () => {
   });
 });
 
+describe('images', () => {
+  it('renders a markdown image with the shared class and the url as written', () => {
+    const html = render('![a](b.png)');
+    expect(html).toContain('class="md-image"');
+    expect(html).toContain('src="b.png"');
+    expect(html).toContain('alt="a"');
+  });
+
+  it('uses the resolveImage callback as the src when provided', () => {
+    const html = render('![a](b.png)', { resolveImage: (url, alt) => `data:${alt}:${url}` });
+    expect(html).toContain('src="data:a:b.png"');
+    expect(html).not.toContain('src="b.png"');
+  });
+
+  it('falls back to the alt text when resolveImage cannot resolve the image', () => {
+    const html = render('![a](../figures/x.png)', { resolveImage: () => null });
+    expect(html).not.toContain('<img');
+    expect(html).toContain('<p data-pos="1-1">a</p>');
+  });
+
+  it('emits an explicit width as an inline MAX-width, so both axes stay auto', () => {
+    expect(render('![a](b.png){width=50%}')).toContain('style="max-width:min(50%,100%)"');
+    expect(render('![a](b.png){width=320px}')).toContain('style="max-width:min(320px,100%)"');
+    expect(render('![a](b.png){width=320}')).toContain('style="max-width:min(320px,100%)"');
+  });
+
+  it('never emits a definite width, which the height cap would squash', () => {
+    // Measured in Chromium: a definite `width:100%` against the export
+    // stylesheet's `max-height` renders a 500x1400 source at 660x400 — ratio
+    // 1.65 against a natural 0.357 — because object-fit defaults to `fill`.
+    expect(render('![a](b.png){width=100%}')).not.toMatch(/style="[^"]*[^-]width:/);
+    expect(render('![a](b.png){width=9999px}')).toContain('min(9999px,100%)');
+  });
+
+  it('emits no style attribute for an image with no attribute block', () => {
+    expect(render('![a](b.png)')).not.toContain('style=');
+  });
+
+  it('leaves a malformed attribute block as visible text, with no style', () => {
+    const html = render('![a](b.png){width=abc}');
+    expect(html).not.toContain('style=');
+    expect(html).toContain('{width=abc}');
+  });
+
+  it('still routes an image with a width through resolveImage', () => {
+    const html = render('![a](b.png){width=50%}', { resolveImage: (url) => `data:${url}` });
+    expect(html).toContain('src="data:b.png"');
+    expect(html).toContain('style="max-width:min(50%,100%)"');
+  });
+
+  it('gives an imageReference the same class and the same resolution', () => {
+    const source = '![a][ref]\n\n[ref]: b.png "T"';
+    expect(render(source)).toContain('<img class="md-image" src="b.png" alt="a" title="T"/>');
+    expect(render(source, { resolveImage: (url) => `data:${url}` })).toContain('src="data:b.png"');
+    expect(render(source, { resolveImage: () => null })).not.toContain('<img');
+  });
+});
+
 describe('raw latex', () => {
   it('emits a placeholder comment, never the raw latex text', () => {
     const html = render('```{=latex}\n\\begin{tabular}{cc}\na & b\n\\end{tabular}\n```');

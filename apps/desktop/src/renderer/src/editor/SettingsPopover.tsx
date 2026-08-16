@@ -1,5 +1,6 @@
 import { useEffect, useRef, type JSX } from 'react'
-import { useSettingsStore } from '../state/settings'
+import { useResolved, useSettingsStore } from '../state/settings'
+import { sourceLabel } from '../settings/sourceLabel'
 import {
   EDITOR_SETTINGS_LIMITS,
   EDITOR_THEME_LABELS,
@@ -33,10 +34,14 @@ export function SettingsPopover({
   const ref = useRef<HTMLDivElement>(null)
   const settings = useEditorSettings()
   const isCode = contentKind === 'code'
-  // vim lives in the app-wide settings (shared with the Settings tab), not in
-  // the editor-local appearance store
-  const vimMotions = useSettingsStore((s) => s.settings['editor.vimMotions'])
-  const updateGlobal = useSettingsStore((s) => s.update)
+  // vim lives in the two-level settings hierarchy (shared with the Settings
+  // tab), not in the editor-local appearance store — so this shows the
+  // RESOLVED value and names the level it came from, instead of implying the
+  // popover owns a value a project may be overriding. The checkbox still
+  // writes the global level; the project level is the Settings tab's job.
+  const { value: vimMotions, source: vimSource } = useResolved('editor.vimMotions')
+  const setGlobal = useSettingsStore((s) => s.setGlobal)
+  const overriddenByProject = vimSource === 'project'
 
   useEffect(() => {
     const onMouseDown = (event: MouseEvent): void => {
@@ -136,16 +141,33 @@ export function SettingsPopover({
         </select>
       </div>
       <div className="editor-settings__row editor-settings__row--toggle">
-        <label htmlFor="ed-set-vim">Vim motions</label>
+        <label htmlFor="ed-set-vim">
+          Vim motions <span className="editor-settings__value">{sourceLabel(vimSource)}</span>
+        </label>
+        {/* Disabled while a project override is in force. The control shows
+            the RESOLVED value but writes the GLOBAL level, so with an override
+            present every click re-resolves back to the project's value and the
+            box visibly snaps back — a checkbox that cannot be checked. Saying
+            where to change it is the honest answer. */}
         <input
           id="ed-set-vim"
           type="checkbox"
           checked={vimMotions}
-          onChange={(event) => void updateGlobal('editor.vimMotions', event.target.checked)}
+          disabled={overriddenByProject}
+          title={
+            overriddenByProject
+              ? 'Set by this project — change it in Settings → This project'
+              : undefined
+          }
+          onChange={(event) => void setGlobal('editor.vimMotions', event.target.checked)}
         />
       </div>
       <div className="editor-settings__footer">
-        <button className="editor-settings__reset" onClick={() => settings.reset()}>
+        <button
+          className="editor-settings__reset"
+          title="Resets the appearance controls above. Vim motions live in the app-wide settings and are left alone."
+          onClick={() => settings.reset()}
+        >
           Reset to defaults
         </button>
       </div>

@@ -11,7 +11,8 @@ import {
   type ResolvedSettingKey,
   type ResolvedSettings,
   type SettingSource,
-  type SettingsResolution
+  type SettingsResolution,
+  type SunaProjectManifest
 } from '@suna/core'
 import { useProjectStore } from './project'
 
@@ -157,12 +158,18 @@ function errorMessage(error: unknown): string {
 export function parseProjectSettings(content: string): {
   settings: ProjectSettings | null
   error: string | null
+  /** The whole manifest, so a caller can re-seed the project store from the same read. */
+  manifest: SunaProjectManifest | null
 } {
   let json: unknown
   try {
     json = JSON.parse(content) as unknown
   } catch (error) {
-    return { settings: null, error: `suna.json is not valid JSON: ${errorMessage(error)}` }
+    return {
+      settings: null,
+      error: `suna.json is not valid JSON: ${errorMessage(error)}`,
+      manifest: null
+    }
   }
   const parsed = SunaProjectManifestSchema.safeParse(json)
   if (!parsed.success) {
@@ -170,10 +177,11 @@ export function parseProjectSettings(content: string): {
     const where = first && first.path.length > 0 ? ` at ${first.path.join('.')}` : ''
     return {
       settings: null,
-      error: `suna.json is invalid${where}: ${first?.message ?? 'unknown error'}`
+      error: `suna.json is invalid${where}: ${first?.message ?? 'unknown error'}`,
+      manifest: null
     }
   }
-  return { settings: parsed.data.settings ?? null, error: null }
+  return { settings: parsed.data.settings ?? null, error: null, manifest: parsed.data }
 }
 
 interface SettingsState {
@@ -335,7 +343,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const { content } = await window.suna.invoke('fs:read-text', {
         path: `${rootDir}/suna.json`
       })
-      const { settings, error } = parseProjectSettings(content)
+      // The read is async: a project switch mid-flight must not write the old
+      // project's manifest over the new one.
+      if (useProjectStore.getState().rootDir !== rootDir) return
+      const { settings, error, manifest } = parseProjectSettings(content)
       if (error !== null) {
         // Keep the last good block: a half-typed file must not blank the UI.
         set({ projectError: error })
@@ -346,6 +357,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         projectError: null,
         resolved: resolveFrom(get().raw, settings)
       })
+      // Keep the project store's copy of suna.json in step, exactly as
+      // writeProjectSetting does. Without it the two diverge and `load()` —
+      // which every editor mount calls, and which re-seeds the project half
+      // from that manifest — silently reverts an out-of-band edit: hand-edit
+      // suna.json, ⌘S, open any file, and the override is gone again.
+      if (manifest !== null) useProjectStore.setState({ manifest })
     } catch (error) {
       set({ projectError: errorMessage(error) })
     }

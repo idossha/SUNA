@@ -1,10 +1,12 @@
 import type { JSX } from 'react'
+import { formatShortcut } from '../palette/shortcuts'
 import { SIDEBAR_VIEWS, SIDEBAR_VIEW_LABELS, useUiStore } from '../state/ui'
 import { VIEW_ICONS } from './icons'
 
+const TOGGLE_HINT = `${formatShortcut('Mod-Shift-KeyB')} to toggle`
+
 export function ActivityBar(): JSX.Element {
   const activeView = useUiStore((s) => s.activeView)
-  const sidebarVisible = useUiStore((s) => s.sidebarVisible)
   const setActiveView = useUiStore((s) => s.setActiveView)
 
   return (
@@ -15,8 +17,10 @@ export function ActivityBar(): JSX.Element {
           <button
             key={view}
             className="activitybar__item"
-            aria-pressed={activeView === view && sidebarVisible}
-            title={SIDEBAR_VIEW_LABELS[view]}
+            // Tracks the active VIEW, not the panel: the highlight has to say
+            // which view comes back when the panel is shown again.
+            aria-pressed={activeView === view}
+            title={`${SIDEBAR_VIEW_LABELS[view]} (${TOGGLE_HINT})`}
             onClick={() => setActiveView(view)}
           >
             <IconComponent />

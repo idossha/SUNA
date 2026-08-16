@@ -127,6 +127,30 @@ registerCommand({
   }
 })
 
+// Deliberately not Mod-KeyB, the shortcut a VS Code user reaches for first:
+// editor/keymap.ts binds it to bold at Prec.high and the global dispatcher
+// bails on defaultPrevented (palette/CommandPalette.tsx), so ⌘B here would
+// work everywhere except inside the app's primary surface.
+registerCommand({
+  id: 'view.sidebar.toggle',
+  title: 'Toggle Sidebar',
+  category: 'View',
+  shortcut: 'Mod-Shift-KeyB',
+  run: () => useUiStore.getState().toggleSidebar()
+})
+
+registerCommand({
+  id: 'view.leftnav.toggle',
+  // 'Toggle', not 'Hide': the hidden state persists across launches, and
+  // Command.title is a plain string the palette searches verbatim — a
+  // directional label would describe the opposite of what pressing it does
+  // for the one user who needs it most, the one whose nav is already gone.
+  title: 'Toggle Left Nav Bar',
+  category: 'View',
+  shortcut: 'Mod-Alt-KeyB',
+  run: () => useUiStore.getState().toggleLeftNav()
+})
+
 registerCommand({
   id: 'figure.new',
   title: 'New Figure',

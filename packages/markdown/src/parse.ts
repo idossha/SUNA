@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
-import type { Position } from 'unist';
+import type { Point, Position } from 'unist';
 import { visit } from 'unist-util-visit';
 import type {
   CitationNode,
@@ -29,11 +29,19 @@ const BARE = /^@([A-Za-z][\w:.-]+)(\{([^}]*)\})?/;
  * still be recognised even though nothing whitespace-like precedes the `@`.
  */
 const PRECEDING_OK = /[\s([{]/;
+/**
+ * Pandoc-style width attribute block written immediately after an image:
+ * `![alt](fig.png){width=50%}`. One key, one value, no spaces and no quotes is
+ * the whole grammar, deliberately — anything wider turns the source into a
+ * styling dialect. A bare number means px, as pandoc reads it.
+ */
+const IMAGE_WIDTH = /^\{width=(\d+(?:\.\d+)?)(%|px)?\}/;
 
 export function parseSciMark(source: string): SciMarkRoot {
   const root = processor.parse(source);
   transformRawLatex(root);
   transformFigureEmbeds(root);
+  transformImageAttributes(root);
   transformInline(root);
   return root;
 }
@@ -69,6 +77,50 @@ function transformFigureEmbeds(root: SciMarkRoot): void {
     const embed: FigureEmbedNode = { type: 'figureEmbed', figureId };
     copyPosition(embed, node);
     parent.children[index] = embed;
+  });
+}
+
+function shiftPoint(point: Point | undefined, by: number): void {
+  if (point === undefined) return;
+  point.column += by;
+  if (typeof point.offset === 'number') point.offset += by;
+}
+
+function imageWidth(text: string): { css: string; length: number } | undefined {
+  const match = IMAGE_WIDTH.exec(text);
+  const digits = match?.[1];
+  if (match === null || digits === undefined) return undefined;
+  if (Number(digits) <= 0) return undefined;
+  return { css: `${digits}${match[2] ?? 'px'}`, length: match[0].length };
+}
+
+/**
+ * Consumes `{width=…}` into the image node it follows. Anything the grammar
+ * does not accept is left exactly where it is, so the braces survive as
+ * literal text in every renderer — a visible `{width=huge}` is the honest
+ * failure for a file that has to stay portable markdown.
+ *
+ * The block is consumed from both ends: the image's end point grows over it,
+ * which is what makes the editor's syntax hiding cover the braces without a
+ * decoration of its own, and the text node it came from loses it, which keeps
+ * it out of the rendered prose.
+ */
+function transformImageAttributes(root: SciMarkRoot): void {
+  visit(root, 'image', (node, index, parent) => {
+    if (parent === undefined || index === undefined) return;
+    const next = parent.children[index + 1];
+    if (next === undefined || next.type !== 'text') return;
+    const width = imageWidth(next.value);
+    if (width === undefined) return;
+    node.data = { ...node.data, width: width.css };
+    shiftPoint(node.position?.end, width.length);
+    const rest = next.value.slice(width.length);
+    if (rest.length === 0) {
+      parent.children.splice(index + 1, 1);
+      return;
+    }
+    next.value = rest;
+    shiftPoint(next.position?.start, width.length);
   });
 }
 

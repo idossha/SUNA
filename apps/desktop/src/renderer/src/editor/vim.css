@@ -1,0 +1,25 @@
+/* ---------------------------------------------------------------------------
+   Vim surface bits. Loaded from editor/codemirror.ts, the only module that
+   installs the vim extension.
+   --------------------------------------------------------------------------- */
+
+/* Vim's `:` command line mounts through showPanel { top: false }, i.e. as the
+   last flex child of .cm-editor.
+
+   This rule is a deliberate RESTATEMENT, not an override: @codemirror/view's
+   own base theme already declares `.cm-panels { position: sticky }` and
+   `.cm-panels-bottom { bottom: 0 }` (dist/index.js:6981-6993), and nothing in
+   this app touches .cm-panels, so deleting these two declarations would change
+   nothing on screen today. They are pinned here because what makes them WORK
+   in the combined manuscript tab is a decision made in another file:
+   manuscript.css gives .cm-scroller `overflow: visible` and lets the outer
+   .msdoc scroll, so .cm-editor is the full height of the document and sticky
+   resolves against .msdoc. Anyone who moves the scroll back inside CodeMirror
+   should land here and re-check the command line's placement.
+
+   Do NOT add a z-index: the base theme gives .cm-panels z-index 300, and
+   anything lower would drop the command line behind .msdoc__toolbar. */
+.msdoc .cm-panels-bottom {
+  position: sticky;
+  bottom: 0;
+}

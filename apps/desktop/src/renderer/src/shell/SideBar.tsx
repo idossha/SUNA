@@ -1,5 +1,6 @@
 import { useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react'
 import {
+  resolveSidebarDrag,
   SIDEBAR_VIEW_LABELS,
   SIDEBAR_WIDTH_DEFAULT,
   useUiStore,
@@ -43,8 +44,14 @@ export function SideBar(): JSX.Element {
 
   const asideRef = useRef<HTMLElement>(null)
   // pointer-capture drag state: the aside's left edge is fixed, so width
-  // is simply clientX - left, clamped by the store
-  const dragRef = useRef<{ pointerId: number; left: number } | null>(null)
+  // is simply clientX - left, clamped by the store.
+  //
+  // `width0` is the width the drag STARTED from. A drag that ends in a
+  // collapse passes through the clamp floor on the way — 400 -> 250 -> 180 ->
+  // collapse — and every intermediate step persists, so without the snapshot
+  // the gesture documented to preserve the user's width destroys it and the
+  // panel comes back at 180.
+  const dragRef = useRef<{ pointerId: number; left: number; width0: number } | null>(null)
   const [resizing, setResizing] = useState(false)
 
   const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -53,14 +60,36 @@ export function SideBar(): JSX.Element {
     if (!aside) return
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
-    dragRef.current = { pointerId: event.pointerId, left: aside.getBoundingClientRect().left }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      left: aside.getBoundingClientRect().left,
+      width0: useUiStore.getState().sidebarWidth
+    }
     setResizing(true)
+  }
+
+  // Dragging past the collapse threshold hides the panel instead of parking
+  // at the minimum width, and restores the width the drag started from so
+  // showing it again gives back the width the user chose. The drag needs no
+  // cleanup in that case: the handle unmounts with the panel it belongs to.
+  const applyDrag = (px: number, width0: number): void => {
+    const drag = resolveSidebarDrag(px)
+    const ui = useUiStore.getState()
+    if (!drag.collapse) {
+      ui.setSidebarWidth(drag.width)
+      return
+    }
+    // Restore the width the drag started from before hiding, so showing the
+    // panel again returns the user's chosen width rather than the clamp floor
+    // the pointer swept through on its way here.
+    ui.setSidebarWidth(width0)
+    ui.setSidebarVisible(false)
   }
 
   const onResizeMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
-    useUiStore.getState().setSidebarWidth(event.clientX - drag.left)
+    applyDrag(event.clientX - drag.left, drag.width0)
   }
 
   const onResizeEnd = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -69,7 +98,7 @@ export function SideBar(): JSX.Element {
     // Commit where the pointer was released: a fast drag can have its last
     // pointermove events coalesced away, which used to leave the sidebar
     // parked short of where the user let go.
-    useUiStore.getState().setSidebarWidth(event.clientX - drag.left)
+    applyDrag(event.clientX - drag.left, drag.width0)
     dragRef.current = null
     setResizing(false)
   }

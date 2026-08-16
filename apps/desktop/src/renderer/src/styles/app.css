@@ -57,6 +57,40 @@ button {
   padding-right: 16px;
 }
 
+/* Column 1 of the title bar, always rendered: once the left nav is fully
+   hidden this button is the only thing on screen that brings it back. */
+.titlebar__nav-toggle {
+  grid-column: 1;
+  justify-self: start;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--s-radius);
+  /* Brightest in the state where it matters MOST: with the nav hidden this is
+     the only affordance on screen that brings it back, and it has no adjacent
+     label. --s-ink-faint here reads as 3.48:1 on --s-bg-chrome, barely over
+     the non-text floor. */
+  color: var(--s-ink-muted);
+  -webkit-app-region: no-drag;
+}
+
+/* Nav already visible: the button is redundant, so it recedes. Declared BEFORE
+   :hover — both are (0,2,0), so hover has to come last to always brighten. */
+.titlebar__nav-toggle[aria-pressed='true'] {
+  color: var(--s-ink-faint);
+}
+
+.titlebar__nav-toggle:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.titlebar__nav-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+
 .titlebar__brand {
   grid-column: 2;
   display: flex;
@@ -104,6 +138,11 @@ button {
 
 .workbench--sidebar-hidden {
   grid-template-columns: var(--s-activitybar-w) minmax(0, 1fr);
+}
+
+/* Neither rail nor panel: the dock stage is the only column left. */
+.workbench--nav-hidden {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* ---- activity bar -------------------------------------------------------- */
@@ -459,11 +498,32 @@ button {
   color: var(--s-ink);
 }
 
+/* Sized here rather than in explorer.css because this file is injected LAST
+   (main.tsx imports ./App, and its component CSS, before ./styles/app.css),
+   so an equal-specificity rule over there would lose and the chevron SVG
+   would render inside the old 10px text box.
+
+   14px, in --s-ink-muted: this is the tree's PRIMARY open/closed indicator and
+   it replaced a solid 6x4px text glyph. TreeChevronIcon's path spans 8 of 24
+   units, so at 14px the arrow draws ~4.7 x 8 CSS px — parity with
+   ChevronDownIcon, which spans 12 units in the title bar's 15px box. */
 .tree__chevron {
-  width: 10px;
-  font-size: 9px;
-  color: var(--s-ink-faint);
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--s-ink-muted);
   flex-shrink: 0;
+}
+
+.tree__chevron svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 120ms ease;
+}
+
+.tree__chevron--open svg {
+  transform: rotate(90deg);
 }
 
 .tree__name {

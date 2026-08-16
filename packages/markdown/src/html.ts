@@ -21,6 +21,14 @@ export interface RenderOptions {
   resolveCitation?: (keys: string[], narrative: boolean) => string;
   resolveCrossRef?: (kind: CrossRefKind, id: string, suffix?: string) => string;
   resolveFigure?: (figureId: string) => FigureResolution;
+  /**
+   * The `src` to give a markdown image, so a caller that can reach the file
+   * system (the export path) can inline the bytes this package must not read.
+   * `null` means the image could not be resolved at all, and the alt text
+   * stands in for it — the same degradation an `imageReference` with no
+   * definition already gets.
+   */
+  resolveImage?: (url: string, alt: string) => string | null;
 }
 
 interface RenderContext {
@@ -98,6 +106,32 @@ function renderFigureEmbed(node: FigureEmbedNode, ctx: RenderContext): string {
     parts.push(`<figcaption>${numberHtml}${captionHtml ?? ''}</figcaption>`);
   }
   return `<figure class="figure" data-figure-id="${idAttr}"${posAttr(node)}>${parts.join('')}</figure>`;
+}
+
+function renderImage(
+  url: string,
+  alt: string,
+  title: string | null | undefined,
+  width: string | undefined,
+  ctx: RenderContext,
+): string {
+  const resolver = ctx.options.resolveImage;
+  const src = resolver === undefined ? url : resolver(url, alt);
+  if (src === null) return escapeHtml(alt);
+  const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+  // A `max-width`, never a definite `width`. Both axes have to stay `auto`:
+  // measured in Chromium against the export stylesheet (660px column, a
+  // 400px max-height cap, a 500x1400 source), `width:100%` renders 660x400 —
+  // aspect 1.65 against a natural 0.357 — because `object-fit` defaults to
+  // `fill`, while `max-width:50%` renders 142.85x400, the natural ratio.
+  //
+  // `min(…,100%)` so an over-wide value cannot escape the measure either, and
+  // the semantic then matches reading mode exactly (ImageWidget narrows the
+  // holder and leaves the art at its natural size): `{width=…}` can only ever
+  // make an image smaller, in all three renderers.
+  const styleAttr =
+    width === undefined ? '' : ` style="max-width:min(${escapeHtml(width)},100%)"`;
+  return `<img class="md-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${titleAttr}${styleAttr}/>`;
 }
 
 function alignStyle(align: AlignType | undefined): string {
@@ -185,10 +219,8 @@ function renderNode(node: RootContent, ctx: RenderContext): string {
       const titleAttr = node.title ? ` title="${escapeHtml(node.title)}"` : '';
       return `<a href="${escapeHtml(node.url)}"${titleAttr}>${renderChildren(node.children, ctx)}</a>`;
     }
-    case 'image': {
-      const titleAttr = node.title ? ` title="${escapeHtml(node.title)}"` : '';
-      return `<img src="${escapeHtml(node.url)}" alt="${escapeHtml(node.alt ?? '')}"${titleAttr}/>`;
-    }
+    case 'image':
+      return renderImage(node.url, node.alt ?? '', node.title, node.data?.width, ctx);
     case 'linkReference': {
       const definition = ctx.definitions.get(node.identifier);
       const inner = renderChildren(node.children, ctx);
@@ -198,10 +230,10 @@ function renderNode(node: RootContent, ctx: RenderContext): string {
     }
     case 'imageReference': {
       const definition = ctx.definitions.get(node.identifier);
-      const alt = escapeHtml(node.alt ?? '');
-      if (definition === undefined) return alt;
-      const titleAttr = definition.title ? ` title="${escapeHtml(definition.title)}"` : '';
-      return `<img src="${escapeHtml(definition.url)}" alt="${alt}"${titleAttr}/>`;
+      const alt = node.alt ?? '';
+      if (definition === undefined) return escapeHtml(alt);
+      // No width: the attribute block is only read after an inline image.
+      return renderImage(definition.url, alt, definition.title, undefined, ctx);
     }
     case 'definition':
       return '';

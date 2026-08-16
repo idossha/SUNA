@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import {
   AuthorsFileSchema,
   ManuscriptSchema,
@@ -326,6 +326,132 @@ export type RootChild = SciMarkRoot['children'][number]
 export type ListNode = Extract<RootChild, { type: 'list' }>
 export type ListItemNode = ListNode['children'][number]
 export type TableNode = Extract<RootChild, { type: 'table' }>
+export type ImageNode = Extract<RootChild, { type: 'image' }>
+
+/* ------------------------------------------------------------------ */
+/* Markdown images (`![alt](../figures/x.png)`, not managed figures)    */
+/* ------------------------------------------------------------------ */
+
+export interface MarkdownImageRef {
+  /** The mdast node itself, so a renderer can key already-loaded bytes by it. */
+  node: RootChild
+  /** The url as written (an `imageReference` is already resolved through its definition). */
+  url: string
+  alt: string
+}
+
+interface ImageWalkNode {
+  type?: unknown
+  url?: unknown
+  alt?: unknown
+  identifier?: unknown
+  children?: unknown
+}
+
+function walkImages(node: ImageWalkNode, definitions: ReadonlyMap<string, string>, out: MarkdownImageRef[]): void {
+  const alt = typeof node.alt === 'string' ? node.alt : ''
+  if (node.type === 'image' && typeof node.url === 'string') {
+    out.push({ node: node as unknown as RootChild, url: node.url, alt })
+  } else if (node.type === 'imageReference' && typeof node.identifier === 'string') {
+    const url = definitions.get(node.identifier)
+    if (url !== undefined) out.push({ node: node as unknown as RootChild, url, alt })
+  }
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) walkImages(child as ImageWalkNode, definitions, out)
+  }
+}
+
+/** Every markdown image in one section's AST, in document order. */
+export function collectMarkdownImages(root: SciMarkRoot): MarkdownImageRef[] {
+  const definitions = new Map<string, string>()
+  for (const child of root.children as unknown as ImageWalkNode[]) {
+    if (child.type === 'definition' && typeof child.identifier === 'string' && typeof child.url === 'string') {
+      definitions.set(child.identifier, child.url)
+    }
+  }
+  const out: MarkdownImageRef[] = []
+  walkImages(root as unknown as ImageWalkNode, definitions, out)
+  return out
+}
+
+/**
+ * The images a paragraph consists of ENTIRELY — `![alt](x.png)` on its own
+ * line, which mdast wraps in a paragraph, and the several-images-one-paragraph
+ * form that a soft break produces (`![a](x.png)\n![b](y.png)` is ONE
+ * paragraph with a `break` between the two). Empty for a paragraph that also
+ * carries prose: an image sitting inside a sentence has no block to be centred
+ * in and keeps its alt-text fallback.
+ *
+ * This is the block form the DOCX writer renders as real `ImageRun`s — one
+ * centred paragraph each, which is how the HTML renderer's `<br/>` between
+ * them reads on a page.
+ */
+export function blockImagesOf(node: RootChild): ImageNode[] {
+  if (node.type !== 'paragraph') return []
+  const meaningful = node.children.filter(
+    (child) => child.type !== 'break' && (child.type !== 'text' || child.value.trim() !== '')
+  )
+  if (meaningful.length === 0) return []
+  if (meaningful.some((child) => child.type !== 'image')) return []
+  return meaningful as ImageNode[]
+}
+
+/** The lone image a paragraph consists of, or null when it is any other shape. */
+export function blockImageOf(node: RootChild): ImageNode | null {
+  const images = blockImagesOf(node)
+  return images.length === 1 ? (images[0] as ImageNode) : null
+}
+
+/** Every block-level markdown image in one section, including inside blockquotes and list items. */
+export function collectBlockImages(nodes: readonly RootChild[]): ImageNode[] {
+  const out: ImageNode[] = []
+  for (const node of nodes) {
+    const images = blockImagesOf(node)
+    if (images.length > 0) {
+      out.push(...images)
+    } else if (node.type === 'blockquote') {
+      out.push(...collectBlockImages(node.children as readonly RootChild[]))
+    } else if (node.type === 'list') {
+      for (const item of node.children) out.push(...collectBlockImages(item.children as readonly RootChild[]))
+    }
+  }
+  return out
+}
+
+/**
+ * Every markdown table in one section, walked the same way
+ * `collectBlockImages` walks images — a table nested in a blockquote or a list
+ * item is still a table the writer has to be able to express.
+ */
+export function collectTables(nodes: readonly RootChild[]): TableNode[] {
+  const out: TableNode[] = []
+  for (const node of nodes) {
+    if (node.type === 'table') {
+      out.push(node)
+    } else if (node.type === 'blockquote') {
+      out.push(...collectTables(node.children as readonly RootChild[]))
+    } else if (node.type === 'list') {
+      for (const item of node.children) out.push(...collectTables(item.children as readonly RootChild[]))
+    }
+  }
+  return out
+}
+
+/**
+ * Absolute path a markdown image url points at, or null when it is not a local
+ * file (a remote scheme, an empty url). Mirrors
+ * renderer/src/editor/figureAssets.ts's `resolveImageUrl` — the renderer
+ * resolves against the file that contains the image, the exporters against
+ * `ExportContent.manuscriptDir`, which IS that file's directory. This only
+ * says where the url points: the caller still has to run
+ * `assertInsideAllowedRoot` before reading there.
+ */
+export function markdownImagePath(url: string, manuscriptDir: string): string | null {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^file:/i.test(url)) return null
+  const clean = url.replace(/^file:\/\//i, '').split('#')[0]?.split('?')[0] ?? ''
+  if (clean === '') return null
+  return resolve(manuscriptDir, clean)
+}
 
 /**
  * Pixel dimensions straight from a PNG's IHDR chunk (bytes 16-23: width,
@@ -389,6 +515,13 @@ export interface ExportTableContent {
 
 export interface ExportContent {
   manuscript: Manuscript
+  /**
+   * Absolute path of the directory holding the prose file — what a relative
+   * markdown image url (`../figures/x.png`) resolves against. Without it
+   * neither exporter can find an image's bytes, and the PDF page is loaded
+   * from a temp directory where nothing relative resolves at all.
+   */
+  manuscriptDir: string
   /** The byline, from manuscript/authors.json (feature-plan-7 §1) — empty when the file doesn't exist yet. */
   authors: AuthorsFile
   profile: PublisherProfile
@@ -492,6 +625,7 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
 
   return {
     manuscript,
+    manuscriptDir,
     authors,
     profile,
     affiliations: numberAffiliations(authors.authors, authors.affiliations),

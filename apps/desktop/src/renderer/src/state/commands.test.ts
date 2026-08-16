@@ -72,7 +72,9 @@ describe('registerCommand / listCommands / getCommand', () => {
         'figure.export.png',
         'figure.export.pdf',
         'manuscript.open',
-        'profile.switch'
+        'profile.switch',
+        'view.sidebar.toggle',
+        'view.leftnav.toggle'
       ])
     )
   })
@@ -82,6 +84,31 @@ describe('registerCommand / listCommands / getCommand', () => {
     expect(getCommand('split.down')?.shortcut).toBe('Mod-Shift-Backslash')
     // terminal.toggle deliberately has none — TerminalPanel owns Ctrl-` itself
     expect(getCommand('terminal.toggle')?.shortcut).toBeUndefined()
+  })
+
+  it('makes both left-nav toggles reachable with no project open', () => {
+    const sidebar = getCommand('view.sidebar.toggle')
+    const leftNav = getCommand('view.leftnav.toggle')
+    expect(sidebar?.shortcut).toBe('Mod-Shift-KeyB')
+    expect(leftNav?.shortcut).toBe('Mod-Alt-KeyB')
+    expect(sidebar && isCommandEnabled(sidebar)).toBe(true)
+    expect(leftNav && isCommandEnabled(leftNav)).toBe(true)
+    // Neither title may be directional: the hidden state persists, so the
+    // palette entry a user reaches for to RESTORE the nav must not be worded
+    // as the action that hides it.
+    expect(sidebar?.title).toBe('Toggle Sidebar')
+    expect(leftNav?.title).toBe('Toggle Left Nav Bar')
+  })
+
+  it('never double-books a shortcut, and never claims Mod-KeyB', () => {
+    // Mod-KeyB is bold inside every prose editor (editor/keymap.ts), and the
+    // global dispatcher bails on defaultPrevented — a command bound to it
+    // would be dead on the app's primary surface.
+    const shortcuts = listCommands()
+      .map((c) => c.shortcut)
+      .filter((s): s is string => s !== undefined)
+    expect(new Set(shortcuts).size).toBe(shortcuts.length)
+    expect(shortcuts).not.toContain('Mod-KeyB')
   })
 })
 

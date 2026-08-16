@@ -9,6 +9,8 @@ import { useManuscriptStore } from '../state/manuscript'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useCommentsStore } from '../state/comments'
 import { useEditorSettings } from '../editor/settings'
+import type { EditorViewMode } from '../editor/EditorTab'
+import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
 import '../editor/editor.css'
@@ -23,6 +25,11 @@ import { ReferencesBlock } from './ReferencesBlock'
 import './manuscript.css'
 
 const TAB_TITLE = 'Manuscript'
+/** EditorTab keeps its own copy unexported; same labels, so the two toolbars read alike. */
+const MODE_LABEL: Record<EditorViewMode, string> = {
+  source: 'Source',
+  reading: 'Reading'
+}
 /** A heading is "active" once its top is within this band below the viewport top. */
 const ACTIVE_BAND_PX = 96
 /** manuscript.css's .msdoc__toolbar height — kept clear of the sticky toolbar when scrolling to a heading. */
@@ -82,6 +89,12 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const [settled, setSettled] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Same contract as EditorTab: open in the resolved default mode, and once
+  // the user has picked one with ⌘E or the button, stop following the setting.
+  const defaultMode = useResolved('editor.defaultMode').value as EditorViewMode
+  const [mode, setMode] = useState<EditorViewMode>(() => getResolved('editor.defaultMode').value)
+  const userPickedModeRef = useRef(false)
+
   // ---- margin comment gutter (comments/CommentGutter) ----------------------
   const gutterTrackRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<ManuscriptEditorHandle>(null)
@@ -125,6 +138,43 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
     editorRef.current?.recomputePositions()
     recalcActive()
   }, [recalcActive])
+
+  const toggleMode = useCallback((): void => {
+    userPickedModeRef.current = true
+    setMode((current) => {
+      const next: EditorViewMode = current === 'source' ? 'reading' : 'source'
+      editorRef.current?.setLive(next === 'reading')
+      return next
+    })
+  }, [])
+
+  // adopt the persisted default once settings arrive, unless ⌘E already ran
+  useEffect(() => {
+    if (userPickedModeRef.current) return
+    setMode(defaultMode)
+    editorRef.current?.setLive(defaultMode === 'reading')
+  }, [defaultMode])
+
+  // Swapping the live compartment changes every block widget's height, so the
+  // comment anchors and the scroll-spy have to be re-measured against the new
+  // geometry — the same recompute a resize triggers.
+  useEffect(() => {
+    editorRef.current?.getView()?.requestMeasure()
+    recomputeAll()
+  }, [mode, recomputeAll])
+
+  // ⌘E toggles reading ⇄ source, matching EditorTab
+  useEffect(() => {
+    const node = rootRef.current
+    if (!node) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.key !== 'e') return
+      event.preventDefault()
+      toggleMode()
+    }
+    node.addEventListener('keydown', onKey)
+    return () => node.removeEventListener('keydown', onKey)
+  }, [toggleMode])
 
   // container geometry drives both the gutter's edge-badge math and the
   // narrow-mode breakpoint; scroll is rAF-throttled since it fires on every
@@ -256,11 +306,18 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   return (
     <div
       ref={rootRef}
-      className={`msdoc editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
+      className={`msdoc msdoc--${mode} editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
       style={settingsStyle}
     >
       <div className="msdoc__toolbar">
         {dirty && <span className="msdoc__dirty" aria-hidden="true" />}
+        <button
+          className="editor-tab__mode"
+          onClick={toggleMode}
+          title="Toggle reading / source (⌘E)"
+        >
+          {MODE_LABEL[mode]}
+        </button>
         <button
           className="msdoc__export-btn"
           onClick={() => !stale && openExportTab(rootDir)}
@@ -306,6 +363,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
                 ref={editorRef}
                 rootDir={rootDir}
                 contentPath={manuscriptFile}
+                live={mode === 'reading'}
                 onDirtyChange={handleDirtyChange}
                 onSettled={handleSettled}
                 onOutlineChange={handleOutlineChange}

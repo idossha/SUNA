@@ -13,8 +13,9 @@ import { json } from '@codemirror/lang-json'
 import { python } from '@codemirror/lang-python'
 import { javascript } from '@codemirror/lang-javascript'
 import { linter, lintGutter } from '@codemirror/lint'
-import { vim } from '@replit/codemirror-vim'
+import { Vim, getCM, vim } from '@replit/codemirror-vim'
 import { livePreview } from './livePreview'
+import { exRegistry } from './vimEx'
 import { sunaJsonLinter } from './jsonLint'
 import { bibLanguage, bibLinter } from './bibLang'
 import { editorTheme } from './themes'
@@ -23,8 +24,42 @@ import { formattingKeymap, type FormattingCallbacks } from './keymap'
 import { openContextMenu } from './ContextMenu'
 import { citationKeyAtLineOffset } from './citationHit'
 import { getReferencePdf } from '../state/referencePdfs'
+import { useUiStore } from '../state/ui'
 import type { EditorThemeName } from './settings'
 import type { OpenReferencePdfHit } from './contextMenuItems'
+import './vim.css'
+
+// The vim engine's own `write` has nothing to call under CM6 — it is
+// `CM.commands.save ?? cm.save()` and the shim defines neither — so `:w` is a
+// silent no-op until the host registers its own, and `quit` is not in the
+// default ex map at all. Registered once at module scope because defineEx is
+// process-wide; the handlers look the calling view up in exRegistry rather
+// than closing over one editor.
+//
+// `wq` IS registerable next to `w`. The real constraint (vim.js:5827-5841) is
+// that matchCommand_ scans the LONGEST prefix of the typed name first and then
+// requires the typed name to be a prefix of the command's full name: `:wq`
+// hits commandMap_['wq'] at i=2, `:w` hits commandMap_['w'] at i=1, and
+// neither can shadow the other. Without it the single commonest vim keystroke
+// answers "Not an editor command", which funnels the user into `:q` — the one
+// that discards their work.
+//
+// `:q!` needs no registration of its own: parseInput_ matches the command name
+// as `\w+`, so `q!` arrives as commandName 'q' with argString '!'.
+//
+// `:wq` / `:x` write and then close, and refuse to close if the write did not
+// land — see saveAndClose in vimEx.ts.
+const FORCED = (params: { argString?: string | undefined } | undefined): boolean =>
+  params?.argString?.trim() === '!'
+
+Vim.defineEx('write', 'w', (cm) => exRegistry.save(cm))
+Vim.defineEx('quit', 'q', (cm, params) => exRegistry.close(cm, FORCED(params)))
+Vim.defineEx('wq', 'wq', (cm) => exRegistry.saveAndClose(cm))
+Vim.defineEx('xit', 'x', (cm) => exRegistry.saveAndClose(cm))
+
+// Where a refusal ("no write since last change") is shown. Wired here because
+// defineEx is process-wide, so the registry is too.
+exRegistry.setNotify((message) => useUiStore.getState().setStatusNote(message))
 
 /** Extension-based language pick. Anything unknown stays plain and falls
  *  back to the shared highlight style. */
@@ -68,7 +103,26 @@ export interface CreateEditorOptions {
   /** Read-only surfaces (e.g. the data grid's text view) skip the save keymap. */
   readOnly?: boolean
   onDocChanged: () => void
-  onSave: () => void
+  onSave: () => void | Promise<void>
+  /**
+   * What vim's `:q` closes. `force` is `:q!`; return false to REFUSE (an
+   * unsaved buffer), which surfaces vim's own "no write since last change"
+   * instead of discarding the work. Omitted by hosts that own their own
+   * surface (the combined manuscript view is the tab, not a file in it), which
+   * makes `:q` report that rather than doing nothing at all.
+   */
+  onClose?: (force: boolean) => boolean
+  /**
+   * Current vim mode ('normal', 'insert', 'visual line', …) for a mode
+   * indicator, and null once vim is off or the editor is gone. Only ever
+   * called while the vim keymap is installed.
+   *
+   * `owner` identifies the reporting editor, so a store behind this can ignore
+   * a `null` from an editor that is not the one it is currently showing —
+   * without it, tearing down any one editor blanks the indicator for every
+   * other mounted editor that still has vim installed.
+   */
+  onVimMode?: (owner: object, mode: string | null) => void
   /**
    * Formatting UX (feature-plan-3.md §1): ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K always work on
    * prose files (contentKindFor === 'prose'); ⌘⇧M and ⌘⇧K plus the
@@ -161,7 +215,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
       {
         key: 'Mod-s',
         run: () => {
-          options.onSave()
+          void options.onSave()
           return true
         }
       },
@@ -205,6 +259,44 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     parent: options.parent
   })
 
+  exRegistry.register(view, { save: options.onSave, close: options.onClose })
+
+  // The vim plugin builds a fresh CM5 adapter on every compartment swap, so
+  // the mode listener is re-attached each time vim is installed. The initial
+  // 'normal' has to be seeded by hand: enterVimMode signals it from inside the
+  // plugin constructor, which has already run by the time we get here.
+  //
+  // Every report carries `vimOwner`, an identity token for this editor. A
+  // dedicated object rather than the view itself, so a mode store cannot end
+  // up retaining a destroyed EditorView.
+  const vimOwner = {}
+  let detachVimMode: (() => void) | null = null
+  const attachVimMode = (): void => {
+    const report = options.onVimMode
+    const cm = getCM(view)
+    if (report === undefined || cm === null) return
+    const onModeChange = (event: { mode: string; subMode?: string }): void => {
+      const sub = event.subMode === undefined ? '' : event.subMode
+      report(
+        vimOwner,
+        sub === '' ? event.mode : `${event.mode} ${sub === 'linewise' ? 'line' : 'block'}`
+      )
+    }
+    // Focus, not just mode changes: with two vim editors mounted the chip is
+    // last-writer-wins, so without this it keeps asserting the OTHER editor's
+    // mode until the focused one happens to change mode — a positively wrong
+    // reading, which is worse than none.
+    const onFocus = (): void => report(vimOwner, cm.state.vim?.mode ?? 'normal')
+    cm.on('vim-mode-change', onModeChange)
+    view.contentDOM.addEventListener('focus', onFocus)
+    detachVimMode = () => {
+      cm.off('vim-mode-change', onModeChange)
+      view.contentDOM.removeEventListener('focus', onFocus)
+    }
+    report(vimOwner, cm.state.vim?.mode ?? 'normal')
+  }
+  if (options.vim === true) attachVimMode()
+
   return {
     view,
     setLive: (on) => {
@@ -214,7 +306,11 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
       view.dispatch({ effects: themeCompartment.reconfigure(editorTheme(name)) })
     },
     setVim: (on) => {
+      detachVimMode?.()
+      detachVimMode = null
       view.dispatch({ effects: vimCompartment.reconfigure(on ? vim() : []) })
+      if (on) attachVimMode()
+      else options.onVimMode?.(vimOwner, null)
     },
     // `requestMeasure` alone re-reads geometry but keeps the cached font
     // metrics; `setState`-free invalidation is what CodeMirror exposes for
@@ -225,6 +321,12 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     remeasure: () => {
       view.requestMeasure()
     },
-    destroy: () => view.destroy()
+    destroy: () => {
+      detachVimMode?.()
+      detachVimMode = null
+      options.onVimMode?.(vimOwner, null)
+      exRegistry.unregister(view)
+      view.destroy()
+    }
   }
 }

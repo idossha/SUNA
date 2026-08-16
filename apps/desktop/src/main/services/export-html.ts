@@ -1,16 +1,20 @@
 import { readFile } from 'node:fs/promises'
+import { extname } from 'node:path'
 import katex from 'katex'
 import { parseSciMark, renderHtml, type CrossRefKind, type FigureResolution } from '@suna/markdown'
 import { renderCluster, type Run } from '@suna/bib'
 import type { DocumentStyle, HeadingLevel } from '@suna/core'
 import {
+  collectMarkdownImages,
   formatReferenceRow,
   isNumericCitationMode,
+  markdownImagePath,
   splitTexSpans,
   widthMmForPreset,
   type ExportContent
 } from './export-content'
 import { documentStyleFor, isHouseStyle } from './export-style'
+import { assertInsideAllowedRoot } from './roots'
 
 /**
  * Renders an `ExportContent` to one self-contained HTML document — the PDF
@@ -62,9 +66,55 @@ function runsToHtml(runs: readonly Run[]): string {
     .join('')
 }
 
-async function pngDataUri(path: string): Promise<string> {
+const IMAGE_MIME: Readonly<Record<string, string>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml'
+}
+
+/**
+ * An image file as a data: URI. Everything the page shows has to be inlined:
+ * export-pdf.ts writes this HTML into a temp directory and `loadFile`s it
+ * there, so a relative url like `../figures/x.png` resolves against the temp
+ * directory and can never be found.
+ */
+async function imageDataUri(path: string): Promise<string> {
+  const mime = IMAGE_MIME[extname(path).toLowerCase()]
+  if (mime === undefined) throw new Error(`unsupported image type: ${path}`)
   const bytes = await readFile(path)
-  return `data:image/png;base64,${bytes.toString('base64')}`
+  return `data:${mime};base64,${bytes.toString('base64')}`
+}
+
+/**
+ * Every markdown image in the prose, inlined and keyed by the url as written —
+ * `renderHtml` is synchronous, so the bytes have to be in hand before it runs
+ * (the same shape `figuresHtml` uses for managed figures). A url that is
+ * remote, outside the project, or unreadable maps to `null`, which
+ * `resolveImage` turns into the image's alt text rather than a broken `<img>`.
+ */
+async function markdownImages(content: ExportContent): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>()
+  for (const section of content.sections) {
+    if (section.root === null) continue
+    for (const { url } of collectMarkdownImages(section.root)) {
+      if (map.has(url)) continue
+      const path = markdownImagePath(url, content.manuscriptDir)
+      if (path === null) {
+        map.set(url, null)
+        continue
+      }
+      try {
+        map.set(url, await imageDataUri(assertInsideAllowedRoot(path)))
+      } catch (error) {
+        console.warn(`export: image "${url}" left as its alt text:`, error)
+        map.set(url, null)
+      }
+    }
+  }
+  return map
 }
 
 function headingHtml(level: HeadingLevel, text: string): string {
@@ -83,26 +133,41 @@ function headingHtml(level: HeadingLevel, text: string): string {
   }
 }
 
-async function figuresHtml(content: ExportContent): Promise<Map<string, FigureResolution>> {
+/** The `src` for one markdown image url, or null when it has to fall back to alt text. */
+type ImageResolver = (url: string) => string | null
+
+async function figuresHtml(
+  content: ExportContent,
+  resolveImage: ImageResolver
+): Promise<Map<string, FigureResolution>> {
   const map = new Map<string, FigureResolution>()
   for (const fig of content.figures) {
     const widthMm = widthMmForPreset(fig.figure.widthPreset, content.profile)
-    const dataUri = await pngDataUri(fig.pngPath)
-    const img = `<img src="${dataUri}" alt="" style="width:${widthMm}mm;max-width:100%;height:auto;display:block;margin:0 auto;" />`
-    const titleHtml = renderHtml(parseSciMark(fig.figure.caption.title))
-    const bodyHtml = fig.figure.caption.body.trim() === '' ? '' : renderHtml(parseSciMark(fig.figure.caption.body))
+    const dataUri = await imageDataUri(fig.pngPath)
+    // `max-width`, not a definite `width`: pageCss now caps every image's
+    // height at the page text height, and a definite width against that cap
+    // squashes any figure taller than the page instead of scaling it.
+    const img = `<img src="${dataUri}" alt="" style="max-width:min(${widthMm}mm,100%);height:auto;display:block;margin:0 auto;" />`
+    const titleHtml = renderHtml(parseSciMark(fig.figure.caption.title), { resolveImage })
+    const bodyHtml =
+      fig.figure.caption.body.trim() === ''
+        ? ''
+        : renderHtml(parseSciMark(fig.figure.caption.body), { resolveImage })
     const captionHtml = `<strong>${escapeHtml(fig.label)}.</strong> ${titleHtml} ${bodyHtml}`.trim()
     map.set(fig.figure.id, { svgHtml: img, captionHtml })
   }
   return map
 }
 
-function tablesHtml(content: ExportContent): string {
+function tablesHtml(content: ExportContent, resolveImage: ImageResolver): string {
   if (content.tables.length === 0) return ''
   const rows = content.tables
     .map((t) => {
-      const title = renderHtml(parseSciMark(t.table.caption.title))
-      const body = t.table.caption.body === undefined ? '' : renderHtml(parseSciMark(t.table.caption.body))
+      const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
+      const body =
+        t.table.caption.body === undefined
+          ? ''
+          : renderHtml(parseSciMark(t.table.caption.body), { resolveImage })
       const footnotes =
         t.table.footnotes.length === 0
           ? ''
@@ -188,6 +253,9 @@ function titlePageHtml(content: ExportContent): string {
  */
 function pageCss(style: DocumentStyle, house: boolean): string {
   const s = style.sizesPt
+  // The printable box, which is what an image may not exceed in either axis.
+  const round1 = (mm: number): number => Math.round(mm * 10) / 10
+  const textHeightMm = round1(style.page.heightMm - 2 * style.page.marginMm)
   return `
   * { box-sizing: border-box; }
   body { font-family: '${style.fonts.body}', Georgia, serif; font-size: ${s.body}pt; line-height: ${style.lineSpacing}; color: #000; margin: 0; }
@@ -206,20 +274,25 @@ function pageCss(style: DocumentStyle, house: boolean): string {
   .ms-h-c { font-weight: 700; font-style: italic; margin: 8pt 0 0; }
   .ms-h-box { font-size: ${s.heading2}pt; font-weight: 700; font-style: italic; margin-top: 12pt; }
   figure.figure { margin: ${house ? '6pt 0 12pt' : '12pt 0'}; text-align: center; }
-  figure.figure figcaption { font-size: ${s.caption}pt; text-align: ${house ? 'center' : 'left'}; margin-top: 4pt; }
+  figure.figure figcaption { font-size: ${s.caption}pt; text-align: center; margin-top: 4pt; }
   ${house ? 'figure.figure figcaption .ms-caption-body { font-style: italic; }' : ''}
+  img.md-image, .ms-body img, figure.figure img { display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: ${textHeightMm}mm; }
   .ms-ref { font-size: ${s.reference}pt; margin: 0 0 4pt 0; padding-left: ${style.referenceHangingMm}mm; text-indent: -${style.referenceHangingMm}mm; }
   .ms-ref-num { font-weight: 600; }
   .ms-ref-flag { color: #a00; }
-  table { border-collapse: collapse; margin: 8pt 0; width: 100%; }
+  table { border-collapse: collapse; margin: 8pt auto; width: auto; max-width: 100%; }
   ${
     house
-      ? // APA rules only, matching the DOCX writer's table treatment.
-        `th, td { border: 0; padding: 2pt 3pt; font-size: ${s.tableCell}pt; text-align: center; }
-  td:first-child { text-align: left; }
+      ? // APA rules only, matching the DOCX writer's table treatment. The
+        // house column convention is scoped to cells carrying no inline
+        // style, so a GFM `:---:` delimiter row (which @suna/markdown emits
+        // as `style="text-align:…"`) wins over it.
+        `th, td { border: 0; padding: 2pt 3pt; font-size: ${s.tableCell}pt; text-align: start; }
+  th:not([style]), td:not([style]) { text-align: center; }
+  td:first-child:not([style]) { text-align: left; }
   thead th { border-top: 1pt solid #000; border-bottom: 1pt solid #000; font-weight: 700; }
   tbody tr:last-child td { border-bottom: 1pt solid #000; }`
-      : `th, td { border: 0.5pt solid #666; padding: 3pt 6pt; font-size: 10pt; }`
+      : `th, td { border: 0.5pt solid #666; padding: 3pt 6pt; font-size: 10pt; text-align: start; }`
   }
   .ms-table-entry { margin-bottom: 10pt; }
   .ms-table-footnotes { font-size: ${house ? s.caption : 9}pt; margin: 2pt 0 0; padding-left: 1.2em; }
@@ -236,7 +309,11 @@ export async function buildManuscriptHtml(
   content: ExportContent,
   options: BuildHtmlOptions
 ): Promise<string> {
-  const figureMap = await figuresHtml(content)
+  const imageMap = await markdownImages(content)
+  // Anything the map does not carry — remote, outside the project, unreadable
+  // — resolves to null, so a broken `<img>` can never reach the printed page.
+  const resolveImage: ImageResolver = (url) => imageMap.get(url) ?? null
+  const figureMap = await figuresHtml(content, resolveImage)
 
   const resolveCitation = (keys: string[], narrative: boolean): string => {
     const rendering = renderCluster({ keys, narrative }, content.numbers, content.citeStyle, content.entryMap)
@@ -264,7 +341,9 @@ export async function buildManuscriptHtml(
     .map((section) => {
       const heading = section.heading !== null ? headingHtml(section.level, section.heading) : ''
       const body =
-        section.root === null ? '' : renderHtml(section.root, { resolveCitation, resolveCrossRef, resolveFigure })
+        section.root === null
+          ? ''
+          : renderHtml(section.root, { resolveCitation, resolveCrossRef, resolveFigure, resolveImage })
       return `${heading}\n${body}`
     })
     .join('\n')
@@ -281,7 +360,7 @@ export async function buildManuscriptHtml(
 ${titlePageHtml(content)}
 <div class="${bodyClass}" id="ms-body">
 ${sectionsHtml}
-${tablesHtml(content)}
+${tablesHtml(content, resolveImage)}
 ${referencesHtml(content)}
 </div>
 </div>

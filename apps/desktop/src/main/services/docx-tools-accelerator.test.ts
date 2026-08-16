@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { docxToolsAvailable, resetDocxToolsAvailabilityCache, type DocxToolsProbe } from './docx-tools-accelerator'
+import type { ExportContent } from './export-content'
 
 /**
  * `buildViaDocxTools`'s spec.json construction (the bulk of this module) is
@@ -45,6 +46,65 @@ describe('docxToolsAvailable', () => {
     expect(await docxToolsAvailable(async () => false)).toBe(false)
     resetDocxToolsAvailabilityCache()
     expect(await docxToolsAvailable(async () => true)).toBe(true)
+  })
+})
+
+/**
+ * The accelerator's spec.json cannot express per-column table alignment
+ * (docx_tools/tables.py:117-118 hardcodes "first column left, rest centred")
+ * or a caption-less block image ('figure' is the only image block and
+ * docx_tools/figures.py:47-57 numbers it), so a document containing either has
+ * to go to the bundled writer instead of being exported wrong.
+ */
+describe('docxToolsSupports', () => {
+  async function contentFor(markdown: string): Promise<ExportContent> {
+    const { mkdtemp, writeFile } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { writeFixtureProject, FIXTURE_MANUSCRIPT_MD } = await import('./export-fixture')
+    const { buildExportContent } = await import('./export-content')
+    const { allowRoot } = await import('./roots')
+
+    const dir = await mkdtemp(join(tmpdir(), 'suna-accel-supports-'))
+    allowRoot(dir)
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    await writeFile(join(dir, 'manuscript', 'manuscript.md'), `${FIXTURE_MANUSCRIPT_MD}\n${markdown}\n`, 'utf8')
+    return buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+  }
+
+  it('accepts the fixture, whose only table has no explicit alignment', async () => {
+    const { docxToolsSupports } = await import('./docx-tools-accelerator')
+    expect(docxToolsSupports(await contentFor(''))).toBe(true)
+  })
+
+  it('declines a document containing an aligned table', async () => {
+    const { docxToolsSupports } = await import('./docx-tools-accelerator')
+    expect(docxToolsSupports(await contentFor('| a | b |\n| :--- | ---: |\n| 1 | 2 |'))).toBe(false)
+  })
+
+  it('declines a document containing a block image', async () => {
+    const { docxToolsSupports } = await import('./docx-tools-accelerator')
+    expect(docxToolsSupports(await contentFor('![Registration QC](../figures/x.png)'))).toBe(false)
+  })
+
+  it('still accepts an image that only sits inside a sentence', async () => {
+    const { docxToolsSupports } = await import('./docx-tools-accelerator')
+    expect(docxToolsSupports(await contentFor('See ![QC](../figures/x.png) inline.'))).toBe(true)
+  })
+
+  /**
+   * The guard used to scan only `section.root.children`, while `blockOf`
+   * recurses into blockquotes and lists — so a nested aligned table reached
+   * the spec anyway and had its delimiter row silently dropped.
+   */
+  it('declines an aligned table nested in a blockquote or a list item', async () => {
+    const { docxToolsSupports } = await import('./docx-tools-accelerator')
+    expect(docxToolsSupports(await contentFor('> | a | b |\n> | :-- | --: |\n> | 1 | 2 |'))).toBe(
+      false
+    )
+    expect(
+      docxToolsSupports(await contentFor('- | a | b |\n  | :-- | --: |\n  | 1 | 2 |'))
+    ).toBe(false)
   })
 })
 
