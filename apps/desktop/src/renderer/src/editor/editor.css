@@ -328,9 +328,10 @@
    surface these have to agree with is `pageCss` in
    apps/desktop/src/main/services/export-html.ts, which styles the same markup
    for HTML/PDF export. */
+/* Vertical space as PADDING, never margin — see the block-widget height note
+   above .cm-lp-figure. */
 .editor-tab .cm-lp-table {
-  margin: 6px 0;
-  padding: 0 var(--ed-line-pad);
+  padding: 6px var(--ed-line-pad);
   overflow-x: auto;
 }
 
@@ -390,10 +391,20 @@
    Never set `text-align: left` here: centring the art is this declaration
    inheriting down to the replaced element. The body below is deliberately
    NOT a flex container — a viewBox-only SVG is a flex item with base size 0,
-   which is what made every SVG figure render invisible. */
+   which is what made every SVG figure render invisible.
+
+   NEVER give a block widget a vertical MARGIN. CodeMirror measures a block
+   widget's height from its element rect, which excludes margins, so every
+   margin is height the height map does not know about. The error accumulates
+   down the document until the map and the real DOM disagree by more than half
+   a line, at which point drawSelection's wrappedLine() — which asks
+   posAtCoords (height-map driven) about a y it got from coordsAtPos (DOM
+   driven) — resolves the wrong visual line, inverts its range, and paints a
+   selection rectangle a full line-height into the text below. That is the
+   "selection leaks into the line below" bug. Vertical space goes in the
+   padding, which the rect does include. */
 .editor-tab .cm-lp-figure {
-  margin: 12px 0 16px;
-  padding: 0 var(--ed-line-pad);
+  padding: 12px var(--ed-line-pad) 16px;
   text-align: center;
 }
 
