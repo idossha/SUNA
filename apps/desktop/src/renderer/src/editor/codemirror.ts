@@ -16,6 +16,7 @@ import { linter, lintGutter } from '@codemirror/lint'
 import { Vim, getCM, vim } from '@replit/codemirror-vim'
 import { livePreview } from './livePreview'
 import { exRegistry } from './vimEx'
+import { moveByDocumentLines } from './vimMotions'
 import { sunaJsonLinter } from './jsonLint'
 import { bibLanguage, bibLinter } from './bibLang'
 import { editorTheme } from './themes'
@@ -56,6 +57,17 @@ Vim.defineEx('write', 'w', (cm) => exRegistry.save(cm))
 Vim.defineEx('quit', 'q', (cm, params) => exRegistry.close(cm, FORCED(params)))
 Vim.defineEx('wq', 'wq', (cm) => exRegistry.saveAndClose(cm))
 Vim.defineEx('xit', 'x', (cm) => exRegistry.saveAndClose(cm))
+
+// j/k step one document line even where a block widget (an image, a figure, a
+// display equation) stands in for the source — otherwise the covered line is
+// unreachable and its source can never be revealed for editing. See vimMotions.ts.
+//
+// Replacing the motion rather than remapping keys fixes every binding that
+// routes to it (j, k, +, -, _) at once, and shadows no user remap of those keys.
+// The cast is the `this` parameter: the engine invokes a motion as
+// `motions[name](…)`, so it is bound to the motions object, which MotionFn —
+// declared without a `this` — cannot express.
+Vim.defineMotion('moveByLines', moveByDocumentLines as unknown as Parameters<typeof Vim.defineMotion>[1])
 
 // Where a refusal ("no write since last change") is shown. Wired here because
 // defineEx is process-wide, so the registry is too.
