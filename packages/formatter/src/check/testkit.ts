@@ -115,46 +115,9 @@ export function makeManuscript(): Manuscript {
     articleType: 'article',
     doi: null,
     openAccess: null,
-    authors: [
-      {
-        id: 'a1',
-        given: 'Ada',
-        family: 'Lovelace',
-        nativeScript: null,
-        orcid: null,
-        affiliationRefs: [],
-        corresponding: true,
-        email: null,
-        equalContribution: false,
-        deceased: false,
-      },
-    ],
-    affiliations: [],
     history: { received: null, accepted: null, publishedOnline: null },
     abstract: { content: words(100) },
-    body: [
-      {
-        kind: 'section',
-        heading: 'Introduction',
-        level: 'A',
-        content: 'sections/intro.md',
-        children: [],
-      },
-      {
-        kind: 'section',
-        heading: 'Methods',
-        level: 'A',
-        content: 'sections/methods.md',
-        children: [],
-      },
-      {
-        kind: 'section',
-        heading: 'Results',
-        level: 'A',
-        content: 'sections/results.md',
-        children: [],
-      },
-    ],
+    manuscriptFile: 'manuscript.md',
     figures: [
       {
         id: 'fig1',
@@ -179,11 +142,28 @@ export function makeManuscript(): Manuscript {
   });
 }
 
-/** Section markdown matching makeManuscript's body: 900 words + 100 abstract. */
+/**
+ * The manuscript prose — ONE flat `manuscript.md` since feature-plan-7 §1,
+ * whose Markdown headings are the sections the required-section check reads.
+ *
+ * Total counted words is still exactly 900 (the fixture arithmetic every word
+ * limit test relies on: abstract 100 + prose 900 + captions 10 = 1010). The
+ * three heading words count too, so the filler is 199 + 299 + 399 = 897.
+ */
 export function makeSectionTexts(): Record<string, string> {
   return {
-    'sections/intro.md': words(200),
-    'sections/methods.md': words(300),
-    'sections/results.md': words(400),
+    'manuscript.md': [
+      '# Introduction',
+      '',
+      words(199),
+      '',
+      '# Methods',
+      '',
+      words(299),
+      '',
+      '# Results',
+      '',
+      words(399),
+    ].join('\n'),
   };
 }

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@suna/canvas": "workspace:*",
-    "@suna/core": "workspace:*"
+    "@suna/core": "workspace:*",
+    "@suna/markdown": "workspace:*"
   },
   "devDependencies": {
     "jsdom": "^30.0.1"

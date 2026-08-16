@@ -72,8 +72,26 @@ button {
 }
 
 .titlebar__project {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: var(--s-radius);
   font-size: var(--s-text-sm);
   color: var(--s-ink-faint);
+  -webkit-app-region: no-drag;
+}
+
+.titlebar__project:hover,
+.titlebar__project[aria-expanded='true'] {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.titlebar__project svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.8;
 }
 
 /* ---- workbench ----------------------------------------------------------- */

@@ -15,6 +15,26 @@ verification environment could not launch. The DOCX half is asserted down to
 `word/document.xml`; the PDF half only as far as the HTML it prints. See
 TESTING.md → *DOCX import / export*.
 
+**Exception — feature-plan-7 (flat manuscript, authors.json,
+tab-opens-manuscript, project switcher).** `pnpm smoke` was excluded from
+this milestone too, and the driver was **not updated** for the new layout:
+`scripts/e2e/smoke.mjs` still clicks the removed `.ms__open` button and
+still reads and writes `manuscript/sections/*.md`, so it would fail if
+run. That is deliberate — rewriting an e2e driver that cannot be executed
+to confirm the rewrite would trade a known-stale suite for an unverified
+one. The milestone's gates were `pnpm typecheck`, `pnpm test` and
+`pnpm --filter @suna/desktop build` (all green: 1762 unit tests across 129
+files), plus four **Node-driven fixture round-trips**: the shipped example
+is flat and schema-valid with every citation key and every line of prose
+intact; the pre-flat example restored from git history migrates with 84/84
+non-empty prose lines preserved, idempotently, and rolls back byte-identical
+when it must abandon; a real `.docx` exports from the flat example with the
+title, an author name and all three derived headings present in
+`word/document.xml`; and the bundled MCP server answers `read_manuscript`,
+`list_outline` and the legacy `read_section` alias over stdio. **Not
+verified**: the switcher and the automatic on-open migration inside a
+running Electron process. See TESTING.md → *Flat-layout coverage*.
+
 ## Built & verified
 
 | Area | State |
@@ -23,7 +43,9 @@ TESTING.md → *DOCX import / export*.
 | Project | Scaffold + git init; "Open example" copies the demo to userData and git-inits it |
 | Editor | Reading default, working content-width (50–150ch), **layout by content kind** (prose wraps at the measure — left-aligned in Source, centered in Reading; code/data never wrapped or width-constrained, always mono, flush at the gutter), GFM tables in reading mode, vim motions, .bib language pack (highlight/lint/completion), CSV/TSV data grid |
 | Manuscript editing | SciMark (math, citations, cross-refs, figure embeds, raw LaTeX); Source ↔ Reading modes, Reading = editable live preview with cursor-reveal |
-| Manuscript document | Combined tab: title page (authors/affiliations/abstract/significance/highlights), per-section editors, references page numbered by first appearance per profile; scroll-spy outline with word counts; own settings gear driving **one measure** for title page + sections + references; live cross-reference resolution (`Fig. 1a`, `equation (1)`, numbered display equations) with unresolved ids flagged, never blanked |
+| Manuscript layout | **One flat prose file** (feature-plan-7 §1). `manuscript/` is exactly `manuscript.md` + `manuscript.json` (metadata only) + `authors.json` + `references.bib`; no `sections/`. Sections are Markdown headings and the outline is **derived** by `outlineFromMarkdown` in `@suna/markdown` (fence/setext/blockquote aware, tiling offsets, word counts excluding markdown syntax), with the prose before the first heading kept as an untitled leading section. `manuscript.json` names its own prose file in `manuscriptFile`. Old projects **migrate on open**: build and validate in memory → atomic-write the three files → re-read and re-parse → retarget `comments.json` → and only then delete `sections/`; any failure rolls back to a byte-identical project that still opens unmigrated, and the outcome rides back on `project:open` as `{ migrated, notes, error }` for the UI to surface. Idempotent. Everything downstream follows the same one file: DOCX import writes it, export derives its sections from it, compliance matches required sections against its headings, `useCitedKeys` reads it once, and the MCP verbs became `read_manuscript`/`write_manuscript`/`list_outline` with `read_section`/`write_section` kept as path-ignoring aliases |
+| Manuscript document | Combined tab: title page (authors/affiliations from `authors.json`, abstract/significance/highlights), **one** live-preview editor over the whole of `manuscript.md` (feature-plan-7 §1 — headings render through the editor's own live preview, not per-section wrappers), references page numbered by first appearance per profile; scroll-spy outline with word counts, run against each outline entry's heading offset in that single document; own settings gear driving **one measure** for title page + prose + references; live cross-reference resolution (`Fig. 1a`, `equation (1)`, numbered display equations) with unresolved ids flagged, never blanked. Activating **Manuscript** in the activity bar opens or focuses this tab directly — the *Open full manuscript* button is gone (§2) |
+| Project switcher | The title bar's project name is a menu button (feature-plan-7 §3): up to 8 recents with their parent paths (a missing one dimmed, with Remove), *Open project…*, *New project…*, *Open example*; it reads *Open project* with nothing open. One switching function, `openProjectAt(dir)`, serves every "open an existing project" path — it re-points the project store, closes the previous project's file/canvas/PDF/image/manuscript tabs (settings/export/import/onboarding stay), refreshes the tree, reloads comments and runs the migration; reference-PDF and settings resolution follow on their own because both already subscribe to the project store |
 | Editable title page | Every title-page field writes `manuscript.json`: click-to-edit in place for title/running title/abstract/significance/highlights, compact row editors for authors and affiliations (reorder, add/remove, ORCID + e-mail with inline validation, corresponding/equal-contribution flags, affiliation multi-select). Read → merge → validate → **atomic write** in the main process on every commit, so an agent editing the same file is never clobbered; invalid input shows an error and leaves the file byte-identical. Affiliation superscripts stay **derived** from author order |
 | Comments | Sidecar `manuscript/comments.json` — the prose is never marked up. W3C-style prefix/quote/suffix anchors re-locate exactly → by context → fuzzy, and mark `detached` instead of ever deleting. **Margin gutter** beside the text (manuscript tab + prose editor tabs; the sidebar view is gone): each card sits level with its anchor's line (measured within ±8 px), collision push-down keeps neighbours from overlapping, off-screen anchors collapse to an "N above/below" edge badge, detached ones collect in *Unanchored (N)*, resolved hide behind a toggle, and below a 1100 px **window** it degrades to dots + popover. Click card ⇄ anchor both ways; in-editor highlight + line dot; ⌘⇧M on a selection. One anchoring implementation in `@suna/core` shared by the app and the MCP tools (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`), so human- and agent-authored anchors resolve identically |
 | Text editing | Word/Flux-grade markdown formatting on prose files: ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K plus a right-click context menu (Comment, the four inline toggles, Link…, Insert citation…, **Open reference PDF**, Cut/Copy/Paste) that disables what cannot apply. ⌘K makes a link out of a **selection**; with an empty selection it falls through to the command palette, and the no-selection *Link…* stays on the context menu. `toggleWrap` is a pure `EditorState → TransactionSpec` function — it toggles the word under a bare cursor, unwraps the **whole** enclosing delimiter pair for a partial selection (so it can never orphan a `**`), and splits multi-line selections per line. Every command is one transaction, so one ⌘Z reverts it whole |
@@ -35,7 +57,7 @@ TESTING.md → *DOCX import / export*.
 | PDF & image viewers | `.pdf` opens in a pdf.js viewer in the **renderer** (continuous scroll, page N-of-M + jump, fit-width/zoom/⌘±/⌘0, a real text layer so selection and ⌘F work). Pages render lazily through one IntersectionObserver and unmount outside a ±800 px window, so a long document keeps a small constant number of live canvases however far you scroll. `.png/.jpg/.jpeg/.gif/.webp` open in an image viewer with fit/100 %/zoom, drag-to-pan and a pixel readout. Bytes arrive over `fs:read-binary` (root-confined, 200 MB ceiling, base64) — no `file://`, no CSP relaxation, and PDFs are never rewritten |
 | Reference PDFs | Pure `resolvePdfPath` in `@suna/bib`: the BibTeX `file` field (Zotero/JabRef forms included), then `references/<citekey>.pdf`, then an `Author_Year*` fuzzy match. A store scans once per project and on every save, so the citekey → PDF map is ready even if the References view was never opened. Right-clicking a citation in the manuscript offers **Open reference PDF** (disabled and naming the key when none resolves), which opens the paper in the side group without disturbing the manuscript. Selecting a References row auto-opens its PDF there (`references.autoOpenPdf`, default on); rows without one offer **Attach PDF…**, which *copies* the picked file to the conventional path and rescans |
 | Command palette | One ⌘K popup (⌘⇧P straight into command mode) with four prefix modes: fuzzy file search over **project-relative** paths, `>` app commands from a registry any feature can add to, `$` a line run in the integrated terminal, `?` a prompt sent to the agent CLI with streamed progress and a Cancel that really kills the child. Recents persist per project |
-| DOCX import | `.docx` → a real project (`manuscript.json`, `sections/*.md`, `references.bib`, extracted figures) with `mammoth` + `jszip`, no external binary. Documented heuristics — title as the first heading *or fully-bold paragraph* (real manuscripts bold it), authors from `<sup>` markers, affiliations, abstract — each reported with its reason in an **import review screen that writes nothing until confirmed**. Citation markers are rewritten to `[@key]` **only where the mapping is unambiguous**; everything else stays literal and is listed. Import refuses to overwrite an existing SUNA project unconditionally. Verified on a real 55 MB manuscript: 10/10 authors with affiliation links, 24 sections, 69 references round-tripping through `parseBibtex`, 7 figures as files, **zero `data:` URIs**, source byte-identical |
+| DOCX import | `.docx` → a real project (`manuscript.json`, `manuscript.md`, `authors.json`, `references.bib`, extracted figures) with `mammoth` + `jszip`, no external binary. Documented heuristics — title as the first heading *or fully-bold paragraph* (real manuscripts bold it), authors from `<sup>` markers, affiliations, abstract — each reported with its reason in an **import review screen that writes nothing until confirmed**. Citation markers are rewritten to `[@key]` **only where the mapping is unambiguous**; everything else stays literal and is listed. Import refuses to overwrite an existing SUNA project unconditionally. Verified on a real 55 MB manuscript: 10/10 authors with affiliation links, 24 sections, 69 references round-tripping through `parseBibtex`, 7 figures as files, **zero `data:` URIs**, source byte-identical |
 | DOCX / PDF export | Both driven by the **active profile** off one shared content model that reproduces the live Manuscript tab's citation numbering, reference ordering and cross-reference labels. `.docx` via the bundled `docx` library; `.pdf` via Electron's `printToPDF` on our own HTML — **no LaTeX, no Tectonic, no external binary**. `docx-tools` is detected and offered as an *optional accelerator*, never required. Output lands in `output/`; sources are never mutated. The compliance checker runs first and **warns, never blocks** |
 | Source control | Status, diffs, commit, history, init |
 | Terminal | node-pty + xterm panel, multiple tabs, env activation |
@@ -46,7 +68,14 @@ TESTING.md → *DOCX import / export*.
 
 ## In progress
 
-Nothing — the last batch landed. `pnpm smoke` runs **55 steps green**:
+Nothing — the last batch landed. **The `pnpm smoke` account below is from
+before feature-plan-7 and the driver has not been updated since** (see the
+feature-plan-7 exception at the top): the steps that touch the manuscript
+tab, its per-section saves and its comment targets — 17, 18, 29, 31,
+35–37 and 43 — reference selectors and paths the flat layout removed.
+What each of them measures is still a real requirement.
+
+`pnpm smoke` ran **55 steps green** at feature-plan-6:
 steps 29–33 measure the layout/citation contract in
 `docs/design/ui-fix-plan.md`, steps 34–43 measure every acceptance
 criterion in `docs/design/feature-plan-2.md` — including a live Crossref
@@ -122,6 +151,17 @@ the full billed answer is not exercised on every run.
 
 ## Outstanding (next milestones)
 
+0. **Bring `scripts/e2e/smoke.mjs` up to the flat layout**, then run it.
+   Concretely: replace the `.ms__open` clicks (lines 1070, 1074, 1658,
+   1662, 2029) with activating the Manuscript view, which now opens the
+   tab itself; retarget the per-section ⌘S round-trip and the
+   bogus-crossref byte-identical probe (1183, 1607, 1852, 4490) at
+   `manuscript/manuscript.md`; and change the comment targets (2316,
+   2409) from `sections/02-results.md` to `manuscript.md`. Then add the
+   two steps feature-plan-7 has no automated coverage for at all: a
+   project **switch** through `__sunaDev.openProjectAt` asserting the old
+   project's tabs closed, and an **old-layout project opened** so the
+   automatic migration runs inside a live Electron process.
 1. **LaTeX-native export** — *not* a repeat of feature-plan-6. DOCX and PDF
    export are **built** (see *Built & verified*); PDF goes through Electron's
    `printToPDF`, which is a clean submission manuscript, **not
@@ -177,8 +217,16 @@ the full billed answer is not exercised on every run.
   strip; everything else becomes an edge badge. That is the intended
   design, but it means "click the card for comment X" is only possible
   once X's anchor is scrolled into view.
-- A section's dirty dot is set by any edit and only cleared by a save —
-  undoing back to the on-disk text still shows the tab as modified.
+- The manuscript tab's dirty dot is set by any edit and only cleared by a
+  save — undoing back to the on-disk text still shows the tab as
+  modified. With one editor over the whole file it is now one dot for the
+  whole manuscript rather than an aggregate over sections.
+- **`@suna/formatter` gained a dependency on `@suna/markdown`** so the
+  required-section check can read headings out of the prose through the
+  one outline implementation instead of a second, private heading scanner.
+  It is declared in `packages/formatter/package.json`; the workspace link
+  was created by hand (no `pnpm install` was run during this milestone),
+  so the next real install is what makes it official.
 - Layers panel lists matplotlib's metadata/RDF nodes unfiltered.
 - Agent chat has no streaming or tool use yet (single-turn text); the MCP
   path (agent CLIs) is the richer route.

@@ -2,36 +2,34 @@ import type { Manuscript, PublisherProfile } from '@suna/core'
 import { assignNumbers } from '@suna/bib'
 import { checkManuscript, type Diagnostic } from '@suna/formatter'
 import { collectClusters } from '../manuscript/citations'
-import { flattenBody } from '../views/outline'
 
 /**
  * Runs the compliance checker (ADR-002 §4) against the profile the export
  * dialog is about to render with, BEFORE export — spec §5: "RUN THE
  * COMPLIANCE CHECKER FIRST and show violations as warnings that do not
- * block". Mirrors ReferencesBlock.tsx's own section-text reading (fs:read-text
- * per content path) so the word counts and citation scan see the same prose
- * the combined document renders.
+ * block". The prose lives in ONE flat manuscript.md now (feature-plan-7 §1),
+ * so there is only one section text to read — `checkManuscript`'s
+ * `sectionTexts` keys are never inspected, only `Object.values()`'d for word
+ * counts and figure-reference scanning, so a single-entry record is exactly
+ * as sound as the old per-section map.
  */
 export async function runComplianceCheck(
   rootDir: string,
   manuscript: Manuscript,
   profile: PublisherProfile
 ): Promise<Diagnostic[]> {
-  const contentPaths = flattenBody(manuscript.body)
-    .map((row) => row.contentPath)
-    .filter((p): p is string => p !== null)
-
-  const sectionTexts: Record<string, string> = {}
-  for (const path of contentPaths) {
-    try {
-      const { content } = await window.suna.invoke('fs:read-text', { path: `${rootDir}/manuscript/${path}` })
-      sectionTexts[path] = content
-    } catch {
-      sectionTexts[path] = ''
-    }
+  let prose = ''
+  try {
+    const { content } = await window.suna.invoke('fs:read-text', {
+      path: `${rootDir}/manuscript/${manuscript.manuscriptFile}`
+    })
+    prose = content
+  } catch {
+    prose = ''
   }
+  const sectionTexts: Record<string, string> = { [manuscript.manuscriptFile]: prose }
 
-  const clusters = Object.values(sectionTexts).flatMap((text) => collectClusters(text))
+  const clusters = collectClusters(prose)
   const numbers = assignNumbers(clusters.map((c) => [...c.keys]))
 
   // The checker needs one of the profile's OWN article-type ids (they are

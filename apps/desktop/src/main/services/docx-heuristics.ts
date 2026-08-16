@@ -296,13 +296,17 @@ export interface SectionDraft {
 }
 
 /**
- * "Split at h1/h2 boundaries into sections/NN-slug.md" (spec §2.3). Deeper
- * headings (h3+) stay inside the enclosing section's block list and are
- * rendered as sub-headings in that section's markdown rather than becoming
- * separate manuscript.json body nodes — matching the spec's own "split at
- * h1/h2" wording (SectionNode's A/B/C-runin levels are a typographic
- * classification the profile/editor apply later, not something the importer
- * has enough information to assign correctly).
+ * Split at h1/h2 boundaries (spec §2.3). Deeper headings (h3+) stay inside
+ * the enclosing section's block list and are rendered as sub-headings in that
+ * section's markdown rather than starting a new section — matching the spec's
+ * own "split at h1/h2" wording.
+ *
+ * These drafts are what the import REVIEW screen shows and lets the user
+ * edit. Since feature-plan-7 §1 they are no longer written out as
+ * `sections/NN-slug.md`: `commitDocxAnalysis` joins them into the single
+ * `manuscript/manuscript.md`, each draft's heading emitted at its level. The
+ * split still matters, because it is the unit the reviewer renames, merges
+ * and drops.
  */
 export function splitSections(blocks: readonly Block[], startIndex: number, excluded: ReadonlySet<number>): SectionDraft[] {
   const sections: SectionDraft[] = []

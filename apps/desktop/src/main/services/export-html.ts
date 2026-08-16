@@ -66,7 +66,7 @@ async function pngDataUri(path: string): Promise<string> {
   return `data:image/png;base64,${bytes.toString('base64')}`
 }
 
-function headingHtml(level: HeadingLevel | 'box', text: string): string {
+function headingHtml(level: HeadingLevel, text: string): string {
   const safe = escapeHtml(text)
   switch (level) {
     case 'A':
@@ -79,8 +79,6 @@ function headingHtml(level: HeadingLevel | 'box', text: string): string {
       // layout (ADR-002 out of scope). This renders as its own bold line —
       // structurally distinguishable from A/B, not a page facsimile.
       return `<p class="ms-h-c">${safe}</p>`
-    case 'box':
-      return `<h3 class="ms-h-box">${safe}</h3>`
   }
 }
 
@@ -136,7 +134,7 @@ function referencesHtml(content: ExportContent): string {
 
 function titlePageHtml(content: ExportContent): string {
   const m = content.manuscript
-  const authorLine = m.authors
+  const authorLine = content.authors.authors
     .map((author, i) => {
       const markers: string[] = []
       for (const id of author.affiliationRefs) {
@@ -152,7 +150,7 @@ function titlePageHtml(content: ExportContent): string {
   const affiliationLines = content.affiliations.ordered
     .map((a, i) => `<div class="ms-affiliation"><sup>${i + 1}</sup>${escapeHtml(a.text)}</div>`)
     .join('')
-  const correspondence = m.authors
+  const correspondence = content.authors.authors
     .filter((a) => a.corresponding && a.email !== null)
     .map((a) => a.email)
     .filter((e): e is string => e !== null)

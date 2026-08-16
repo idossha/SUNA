@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { openManuscriptTab } from './dock'
+import { useProjectStore } from './project'
 
 export const SIDEBAR_VIEWS = ['explorer', 'manuscript', 'figures', 'references', 'git', 'agent'] as const
 
@@ -44,18 +46,25 @@ interface UiState {
   setStatusNote: (note: string | null) => void
 }
 
-export const useUiStore = create<UiState>((set) => ({
+export const useUiStore = create<UiState>((set, get) => ({
   activeView: 'explorer',
   sidebarVisible: true,
   sidebarWidth: loadSidebarWidth(),
   statusNote: null,
-  setActiveView: (view) =>
-    set((s) =>
-      // clicking the active view toggles the sidebar, like VS Code
-      s.activeView === view
-        ? { sidebarVisible: !s.sidebarVisible }
-        : { activeView: view, sidebarVisible: true }
-    ),
+  setActiveView: (view) => {
+    const wasActive = get().activeView === view
+    // clicking the active view toggles the sidebar, like VS Code
+    set(wasActive ? (s) => ({ sidebarVisible: !s.sidebarVisible }) : { activeView: view, sidebarVisible: true })
+    // Activating the Manuscript view (not merely toggling it while it's
+    // already active, per the branch above) opens or focuses the combined
+    // manuscript tab directly (feature-plan-7 §2) — the sidebar still shows
+    // the outline + metadata summary alongside it. A side effect, so it runs
+    // after the state update rather than inside the `set` updater itself.
+    if (!wasActive && view === 'manuscript') {
+      const { rootDir } = useProjectStore.getState()
+      if (rootDir !== null) openManuscriptTab(rootDir)
+    }
+  },
   setSidebarWidth: (px) => {
     const width = clampSidebarWidth(px)
     try {

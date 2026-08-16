@@ -352,7 +352,7 @@ function blocksFromRoot(root: SciMarkRoot, ctx: DocxCtx): (Paragraph | Table)[] 
   return root.children.flatMap((node) => blockNode(node, ctx))
 }
 
-function headingParagraph(level: ManuscriptHeadingLevel | 'box', text: string): Paragraph {
+function headingParagraph(level: ManuscriptHeadingLevel, text: string): Paragraph {
   switch (level) {
     case 'A':
       return new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: false, children: [textRun(text)] })
@@ -363,8 +363,6 @@ function headingParagraph(level: ManuscriptHeadingLevel | 'box', text: string): 
       // rendered as their own bold+italic line rather than inline with the
       // following paragraph.
       return new Paragraph({ spacing: { before: 160, after: 40 }, children: [textRun(text, { bold: true, italics: true })] })
-    case 'box':
-      return new Paragraph({ heading: HeadingLevel.HEADING_2, children: [textRun(`Box: ${text}`, { italics: true })] })
   }
 }
 
@@ -381,7 +379,7 @@ function titlePageParagraphs(content: ExportContent): Paragraph[] {
   )
 
   const authorRuns: DocxInline[] = []
-  m.authors.forEach((author, i) => {
+  content.authors.authors.forEach((author, i) => {
     if (i > 0) authorRuns.push(textRun(', '))
     authorRuns.push(textRun(`${author.given} ${author.family}`))
     const markers = authorMarkers(author, content.affiliations.numberOf)
@@ -399,7 +397,7 @@ function titlePageParagraphs(content: ExportContent): Paragraph[] {
     )
   })
 
-  const corresponding = m.authors
+  const corresponding = content.authors.authors
     .filter((a) => a.corresponding && a.email !== null)
     .map((a) => a.email)
     .filter((e): e is string => e !== null)

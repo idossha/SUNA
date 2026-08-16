@@ -15,7 +15,7 @@ import { useAgentChatStore } from './state/agentChat'
 import { useCommentsStore } from './state/comments'
 import { useExplorerStore } from './state/explorer'
 import { useManuscriptStore } from './state/manuscript'
-import { useProjectStore } from './state/project'
+import { openProjectAt, useProjectStore } from './state/project'
 import { getReferencePdf, useReferencePdfsStore } from './state/referencePdfs'
 import { useRenderProfileStore } from './state/renderProfile'
 import { useUiStore } from './state/ui'
@@ -28,6 +28,14 @@ if (import.meta.env.DEV) {
     __sunaDev: {
       openFileTab,
       projectStore: useProjectStore,
+      // --- feature-plan-7 ---------------------------------------------------
+      // Project switcher (§3): the title-bar menu's own "Open project…" opens a
+      // NATIVE directory picker a CDP driver cannot operate, so the one
+      // switching function is seamed directly. It re-points the whole app
+      // (store, comments, reference PDFs, settings, open tabs) and runs the
+      // flat-manuscript migration, so a driver asserts the switch by calling
+      // this and then reading projectStore/dock/commentsStore.
+      openProjectAt,
       uiStore: useUiStore,
       canvasTools: canvasToolsSeam,
       editorSettings: editorDevSeam.settingsStore,

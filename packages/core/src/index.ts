@@ -1,5 +1,6 @@
 export * from './project';
 export * from './settings-resolve';
+export * from './authors';
 export * from './manuscript';
 export * from './anchor';
 export * from './comments';

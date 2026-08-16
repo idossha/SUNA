@@ -7,11 +7,28 @@ import {
 } from './figure';
 
 /**
- * manuscript.json — the journal-agnostic source of truth.
+ * manuscript.json — the journal-agnostic METADATA source of truth.
  * RULE: numbering (figures, tables, equations, references, affiliations,
  * author markers) is NEVER stored; it is derived at format time from
  * array/tree order and the active publisher profile.
+ *
+ * As of feature-plan-7 §1 the prose is NOT here either: `manuscript/` is flat
+ * and holds exactly manuscript.md (all prose, sections are Markdown
+ * headings), manuscript.json (this), authors.json and references.bib. The
+ * old `body` array of `sections/NN-name.md` pointers is gone — sections are
+ * DERIVED from the Markdown with `outlineFromMarkdown` (@suna/markdown) —
+ * and authors/affiliations moved to AuthorsFileSchema (./authors).
  */
+
+// Re-exported for compatibility: these used to be declared here, and the
+// whole workspace imports them from '@suna/core'.
+export {
+  AffiliationSchema,
+  AuthorSchema,
+  OrcidSchema,
+  type Affiliation,
+  type Author,
+} from './authors';
 
 export const ArticleTypeSchema = z.enum(['article', 'review', 'letter']);
 export type ArticleType = z.infer<typeof ArticleTypeSchema>;
@@ -25,28 +42,6 @@ export const OpenAccessSchema = z.object({
 });
 export type OpenAccess = z.infer<typeof OpenAccessSchema>;
 
-export const OrcidSchema = z.string().regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/);
-
-export const AuthorSchema = z.object({
-  id: z.string().min(1),
-  given: z.string().min(1),
-  family: z.string().min(1),
-  nativeScript: z.string().min(1).nullable(),
-  orcid: OrcidSchema.nullable(),
-  affiliationRefs: z.array(z.string().min(1)),
-  corresponding: z.boolean(),
-  email: z.email().nullable(),
-  equalContribution: z.boolean(),
-  deceased: z.boolean(),
-});
-export type Author = z.infer<typeof AuthorSchema>;
-
-export const AffiliationSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-});
-export type Affiliation = z.infer<typeof AffiliationSchema>;
-
 export const HistorySchema = z.object({
   received: z.iso.date().nullable(),
   accepted: z.iso.date().nullable(),
@@ -54,38 +49,14 @@ export const HistorySchema = z.object({
 });
 export type History = z.infer<typeof HistorySchema>;
 
+/**
+ * Typographic heading rank as publisher profiles talk about it. No longer
+ * stored anywhere — Markdown heading depth is the storage — but still the
+ * vocabulary export/formatting speak: outline depth 1 → 'A', 2 → 'B',
+ * 3+ → 'C-runin'.
+ */
 export const HeadingLevelSchema = z.enum(['A', 'B', 'C-runin']);
 export type HeadingLevel = z.infer<typeof HeadingLevelSchema>;
-
-/** Section prose lives in sections/*.md files, never inline. */
-export const SectionContentPathSchema = z.string().regex(/^sections\/.+\.md$/);
-
-/** `heading: null` = unheaded block (intro before Results); never synthesized. */
-export const SectionNodeSchema = z.object({
-  kind: z.literal('section'),
-  heading: z.string().min(1).nullable(),
-  level: HeadingLevelSchema,
-  content: SectionContentPathSchema.nullable(),
-  get children() {
-    return z.array(SectionNodeSchema);
-  },
-});
-export type SectionNode = z.infer<typeof SectionNodeSchema>;
-
-export const BoxNodeSchema = z.object({
-  kind: z.literal('box'),
-  id: z.string().min(1),
-  title: z.string().min(1),
-  content: SectionContentPathSchema,
-  figureRefs: z.array(z.string().min(1)),
-});
-export type BoxNode = z.infer<typeof BoxNodeSchema>;
-
-export const BodyNodeSchema = z.discriminatedUnion('kind', [
-  SectionNodeSchema,
-  BoxNodeSchema,
-]);
-export type BodyNode = z.infer<typeof BodyNodeSchema>;
 
 export const ManuscriptFigureSchema = z.object({
   id: z.string().min(1),
@@ -153,14 +124,16 @@ export const ManuscriptSchema = z.object({
   articleType: ArticleTypeSchema,
   doi: DoiSchema.nullable(),
   openAccess: OpenAccessSchema.nullable(),
-  authors: z.array(AuthorSchema).min(1),
-  affiliations: z.array(AffiliationSchema),
   history: HistorySchema,
   abstract: z.object({ content: z.string().min(1) }),
   /** Title-page extras; present or not depending on the user's needs. */
   significance: z.string().min(1).nullable().optional(),
   highlights: z.array(z.string().min(1)).nullable().optional(),
-  body: z.array(BodyNodeSchema).min(1),
+  /**
+   * The prose file, relative to the manuscript directory. Data, not a
+   * constant scattered through the code, so a project can rename it.
+   */
+  manuscriptFile: z.string().min(1).default('manuscript.md'),
   figures: z.array(ManuscriptFigureSchema),
   tables: z.array(ManuscriptTableSchema),
   availability: AvailabilitySchema,

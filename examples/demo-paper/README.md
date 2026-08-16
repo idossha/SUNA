@@ -7,11 +7,14 @@ from the files beside it.
 
 ## What this project demonstrates
 
-- **Manuscript as data** — `manuscript/manuscript.json` is the
-  journal-agnostic source of truth (validated by `@suna/core`'s
-  `ManuscriptSchema`). Section prose lives in `manuscript/sections/*.md`;
-  numbering of figures, tables, equations, and references is never stored,
-  only derived from order plus the active publisher profile
+- **Manuscript as data** — `manuscript/` is flat and holds exactly four
+  files: `manuscript.md` (the entire prose — sections are Markdown
+  headings, and the introduction is deliberately unheaded),
+  `manuscript.json` (journal-agnostic metadata, validated by `@suna/core`'s
+  `ManuscriptSchema`), `authors.json` (byline + affiliations,
+  `AuthorsFileSchema`) and `references.bib`. The outline is DERIVED from the
+  Markdown, and numbering of figures, tables, equations, and references is
+  never stored — only derived from order plus the active publisher profile
   (`suna.json` → `nature-astronomy`).
 - **Reproducible figures** — each figure directory holds `figure.svg`, its
   `figure.json` document (caption, panels, provenance), and the generating
@@ -24,14 +27,14 @@ from the files beside it.
   quoted in the manuscript's Results section come from that file. Reusable
   model code (the Gunn–Gott stripping radius) lives in `code/`.
 - **Citations from BibTeX** — `manuscript/references.bib` mixes `@article`,
-  `@book`, `@software`, and `@misc` entries, cited from the sections with
+  `@book`, `@software`, and `@misc` entries, cited from the prose with
   `[@key]` syntax.
 
 ## Directory map
 
 | Directory    | Contents |
 | ------------ | -------- |
-| `manuscript/` | `manuscript.json`, `references.bib`, `sections/*.md` |
+| `manuscript/` | `manuscript.md`, `manuscript.json`, `authors.json`, `references.bib` |
 | `figures/`    | one directory per figure: `figure.svg` + `figure.json` + `figure.svg.suna.json` + `source/plot.py` |
 | `data/`       | raw demo inputs (`spectrum.csv`, `members.csv`, `velocity_map.csv`) |
 | `analysis/`   | pipeline scripts that turn `data/` into `results/` |

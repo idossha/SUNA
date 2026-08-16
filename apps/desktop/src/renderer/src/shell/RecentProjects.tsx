@@ -1,7 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 import type { RecentProjectEntry } from '@suna/core'
-import { useProjectStore } from '../state/project'
-import { useUiStore } from '../state/ui'
+import { openProjectAt } from '../state/project'
 import { toRecentProjectRow } from './recentsFormat'
 
 function errMessage(error: unknown): string {
@@ -21,14 +20,12 @@ function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T
  * §1). Renders nothing while loading and nothing when the list is empty, so a
  * first-time install still shows today's plain welcome copy.
  *
- * Deviation from the brief, noted honestly: opening a project from here does
- * NOT jump to `manuscript/sections/01-introduction.md` the way the toolbar's
- * "Open project…" button does (that behaviour lives in a private helper
- * inside state/project.ts, which is outside this build's zone). It sets
- * `rootDir`/`manifest` and refreshes the tree — everything the acceptance
- * criterion ("opening a listed project restores it") requires — through the
- * store's public surface only, so this file never had to touch state shared
- * with the parallel onboarding-wizard build.
+ * Opening a row goes through state/project.ts's `openProjectAt` (feature-
+ * plan-7 §3), the one function every project switch funnels through: it
+ * closes tabs scoped to whatever project was open before, refreshes the
+ * tree, and reloads comments for the new root — this file no longer
+ * hand-rolls that sequence itself (see the title-bar Project menu for the
+ * other caller).
  */
 export function RecentProjects(): JSX.Element | null {
   const [entries, setEntries] = useState<RecentProjectEntry[] | null>(null)
@@ -54,10 +51,7 @@ export function RecentProjects(): JSX.Element | null {
     setBusyPath(entry.path)
     setRowErrors((prev) => withoutKey(prev, entry.path))
     try {
-      const { manifest } = await window.suna.invoke('project:open', { dir: entry.path })
-      useProjectStore.setState({ rootDir: entry.path, manifest })
-      useUiStore.getState().setStatusNote(`Opened project "${manifest.name}"`)
-      await useProjectStore.getState().refreshTree()
+      await openProjectAt(entry.path)
     } catch (error) {
       // Never a silent no-op: surface the failure inline and let the row
       // offer Remove even if its last-known `exists` said it was fine.

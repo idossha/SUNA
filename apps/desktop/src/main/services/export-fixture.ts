@@ -4,11 +4,13 @@ import { join } from 'node:path'
 /**
  * A small, deliberately non-trivial fixture project for the export tests
  * (export-content.test.ts, export-docx.test.ts, export-html.test.ts): two
- * authors/affiliations, two sections, a citation cluster that includes one
- * key MISSING from references.bib (exercises the "cited but not found" row),
- * a figure embed, and a GFM table — writes manuscript.json, sections/*.md,
- * references.bib and figures/fig-a/figure.png (a real, valid 1x1 PNG) under
- * `dir`, which the caller must have already `allowRoot`-ed.
+ * authors/affiliations, two sections (an untitled leading section plus a
+ * "Results" heading), a citation cluster that includes one key MISSING from
+ * references.bib (exercises the "cited but not found" row), a figure embed,
+ * and a GFM table — writes the FLAT layout (feature-plan-7 §1):
+ * manuscript.json, manuscript.md, authors.json, references.bib and
+ * figures/fig-a/figure.png (a real, valid 1x1 PNG) under `dir`, which the
+ * caller must have already `allowRoot`-ed.
  */
 
 /** A byte-valid 1x1 PNG (black pixel) — enough for pngDimensions() and a real ImageRun/embed. */
@@ -21,6 +23,36 @@ export const FIXTURE_MANUSCRIPT = {
   articleType: 'article',
   doi: null,
   openAccess: null,
+  history: { received: null, accepted: null, publishedOnline: null },
+  abstract: { content: 'We test the export pipeline with a small fixture manuscript.' },
+  significance: null,
+  highlights: null,
+  manuscriptFile: 'manuscript.md',
+  figures: [
+    {
+      id: 'fig-a',
+      namespace: 'main',
+      canvasRef: 'figures/fig-a/figure.svg',
+      widthPreset: 'single',
+      caption: { title: 'A fixture figure.', body: 'Panel **a** shows nothing in particular.' },
+      panels: []
+    }
+  ],
+  tables: [],
+  availability: { data: '', code: '' },
+  backMatter: {
+    acknowledgements: null,
+    authorContributions: null,
+    funding: [],
+    competingInterests: null,
+    peerReview: null,
+    supplementaryInfo: null
+  },
+  bibliography: 'references.bib'
+}
+
+export const FIXTURE_AUTHORS = {
+  schemaVersion: 1,
   authors: [
     {
       id: 'a1',
@@ -50,41 +82,17 @@ export const FIXTURE_MANUSCRIPT = {
   affiliations: [
     { id: 'af1', text: 'Department of Astronomy, Fixture University' },
     { id: 'af2', text: 'Institute of Testing' }
-  ],
-  history: { received: null, accepted: null, publishedOnline: null },
-  abstract: { content: 'We test the export pipeline with a small fixture manuscript.' },
-  significance: null,
-  highlights: null,
-  body: [
-    { kind: 'section', heading: 'Introduction', level: 'A', content: 'sections/01-intro.md', children: [] },
-    { kind: 'section', heading: 'Results', level: 'A', content: 'sections/02-results.md', children: [] }
-  ],
-  figures: [
-    {
-      id: 'fig-a',
-      namespace: 'main',
-      canvasRef: 'figures/fig-a/figure.svg',
-      widthPreset: 'single',
-      caption: { title: 'A fixture figure.', body: 'Panel **a** shows nothing in particular.' },
-      panels: []
-    }
-  ],
-  tables: [],
-  availability: { data: '', code: '' },
-  backMatter: {
-    acknowledgements: null,
-    authorContributions: null,
-    funding: [],
-    competingInterests: null,
-    peerReview: null,
-    supplementaryInfo: null
-  },
-  bibliography: 'references.bib'
+  ]
 }
 
-export const FIXTURE_INTRO_MD = 'Prior work established the baseline [@smith2020].\n'
+/** One flat manuscript.md — two headed sections, "Introduction" then "Results". */
+export const FIXTURE_MANUSCRIPT_MD = `# Introduction
 
-export const FIXTURE_RESULTS_MD = `Our results extend this [@smith2020; @jones2019] and note an
+Prior work established the baseline [@smith2020].
+
+# Results
+
+Our results extend this [@smith2020; @jones2019] and note an
 unresolved citation [@missing2099] (@fig:fig-a).
 
 ![[fig:fig-a]]
@@ -122,14 +130,14 @@ export interface FixtureProject {
 }
 
 export async function writeFixtureProject(dir: string): Promise<FixtureProject> {
-  await mkdir(join(dir, 'manuscript', 'sections'), { recursive: true })
+  await mkdir(join(dir, 'manuscript'), { recursive: true })
   await writeFile(
     join(dir, 'manuscript', 'manuscript.json'),
     JSON.stringify(FIXTURE_MANUSCRIPT, null, 2) + '\n',
     'utf8'
   )
-  await writeFile(join(dir, 'manuscript', 'sections', '01-intro.md'), FIXTURE_INTRO_MD, 'utf8')
-  await writeFile(join(dir, 'manuscript', 'sections', '02-results.md'), FIXTURE_RESULTS_MD, 'utf8')
+  await writeFile(join(dir, 'manuscript', 'authors.json'), JSON.stringify(FIXTURE_AUTHORS, null, 2) + '\n', 'utf8')
+  await writeFile(join(dir, 'manuscript', 'manuscript.md'), FIXTURE_MANUSCRIPT_MD, 'utf8')
   await writeFile(join(dir, 'manuscript', 'references.bib'), FIXTURE_BIB, 'utf8')
 
   const figurePngPath = join(dir, 'output', 'fig-a.png')

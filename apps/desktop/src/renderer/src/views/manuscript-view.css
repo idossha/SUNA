@@ -1,28 +1,9 @@
 /* ---------------------------------------------------------------------------
-   Manuscript sidebar view additions (Task B zone) — the "Open full
-   manuscript" button and scroll-spy outline rows. Complements views.css;
-   only tokens from tokens.css.
+   Manuscript sidebar view additions — scroll-spy outline rows (clicking one
+   opens/focuses the combined manuscript tab directly; feature-plan-7 §2
+   removed the separate "Open full manuscript" button). Complements
+   views.css; only tokens from tokens.css.
    --------------------------------------------------------------------------- */
-
-.ms__open {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  width: 100%;
-  padding: 7px 10px;
-  font-size: var(--s-text-sm);
-  font-weight: 600;
-  color: var(--s-accent);
-  background: var(--s-bg-active);
-  border: 1px solid rgba(232, 180, 92, 0.35);
-  border-radius: var(--s-radius);
-}
-
-.ms__open:hover {
-  border-color: var(--s-accent);
-  background: rgba(232, 180, 92, 0.18);
-}
 
 /* rows gain a quiet 2px left slot so the active gold rule doesn't shift text */
 .ms__row {

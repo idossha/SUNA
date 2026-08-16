@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import {
   assignNumbers,
   formatReference,
@@ -6,12 +6,12 @@ import {
   type Run
 } from '@suna/bib'
 import { getBundledProfile } from '@suna/formatter'
+import { outlineFromMarkdown } from '@suna/markdown'
+import type { Manuscript } from '@suna/core'
 import { useProjectStore } from '../state/project'
-import { useManuscriptStore } from '../state/manuscript'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
 import { usePreviewProfileId } from '../state/renderProfile'
 import { citeStyleOf, maxAuthorsFor } from '../views/refs'
-import { flattenBody } from '../views/outline'
 import { buildLabelMap, collectClusters, orderedReferences, type ReferenceRow } from './citations'
 
 function RunSpans({ runs }: { runs: readonly Run[] }): JSX.Element {
@@ -36,48 +36,42 @@ function RunSpans({ runs }: { runs: readonly Run[] }): JSX.Element {
 
 interface ReferencesBlockProps {
   rootDir: string
-  /** Section content paths in body order (relative to manuscript/). */
-  contentPaths: readonly string[]
+  /** The manuscript's prose file, relative to manuscript/ (manuscript.json's `manuscriptFile`). */
+  manuscriptFile: string
+  /** Figures/tables from manuscript.json, for @fig:/@tbl: label numbering. */
+  figures: Manuscript['figures']
+  tables: Manuscript['tables']
   /** Bibliography file name from manuscript.json (e.g. "references.bib"). */
   bibliography: string
 }
 
 /**
- * The reference list of the combined document: every section is parsed with
- * parseSciMark, citation clusters are collected in first-appearance order,
- * and the *preview* profile (state/renderProfile — the References view's
- * 'Rendered as' selection, defaulting to the project's activeProfileId)
- * decides in-text mode and list ordering. Recomputed on saveBump. Each
- * recompute also publishes the numbers/entries/style to state/manuscriptDoc
- * so section editors can resolve their citation chips the same way.
+ * The reference list of the combined document: the whole prose file is
+ * parsed with parseSciMark section by section (outlineFromMarkdown slices
+ * it — same tiling the sidebar outline uses), citation clusters are
+ * collected in first-appearance order, and the *preview* profile
+ * (state/renderProfile — the References view's 'Rendered as' selection,
+ * defaulting to the project's activeProfileId) decides in-text mode and
+ * list ordering. Recomputed on saveBump (i.e. after a save, not on every
+ * keystroke — matches citations/cross-refs only updating once the prose
+ * they cite is saved). Each recompute also publishes the numbers/entries/
+ * style to state/manuscriptDoc so the editor resolves its citation chips
+ * the same way.
  */
 export function ReferencesBlock({
   rootDir,
-  contentPaths,
+  manuscriptFile,
+  figures,
+  tables,
   bibliography
 }: ReferencesBlockProps): JSX.Element {
   const saveBump = useProjectStore((s) => s.saveBump)
   const previewProfileId = usePreviewProfileId()
-  const manuscript = useManuscriptStore((s) => s.manuscript)
 
   const [rows, setRows] = useState<ReferenceRow[] | null>(null)
   const [bibError, setBibError] = useState<string | null>(null)
 
   const profile = getBundledProfile(previewProfileId)
-
-  const pathsKey = contentPaths.join(' ')
-
-  // heading text per section content path, for @sec: crossRef resolution —
-  // recomputed from the same manuscript.body the combined tab flattened into
-  // `contentPaths`, so the two stay in lockstep without an extra prop.
-  const headingByPath = useMemo(() => {
-    const map = new Map<string, string | null>()
-    if (manuscript === null) return map
-    for (const row of flattenBody(manuscript.body)) {
-      if (row.contentPath !== null) map.set(row.contentPath, row.label)
-    }
-    return map
-  }, [manuscript])
 
   // clear the shared citation render data when the combined tab closes
   useEffect(
@@ -86,21 +80,24 @@ export function ReferencesBlock({
   )
 
   useEffect(() => {
-    if (profile === null || manuscript === null) return
+    if (profile === null) return
     let cancelled = false
     void (async () => {
-      const sources = await Promise.all(
-        contentPaths.map(async (contentPath) => {
-          try {
-            const { content } = await window.suna.invoke('fs:read-text', {
-              path: `${rootDir}/manuscript/${contentPath}`
-            })
-            return content
-          } catch {
-            return ''
-          }
+      let proseText = ''
+      try {
+        const { content } = await window.suna.invoke('fs:read-text', {
+          path: `${rootDir}/manuscript/${manuscriptFile}`
         })
-      )
+        proseText = content
+      } catch {
+        // no prose file yet — an empty document has no citations
+      }
+      const outline = outlineFromMarkdown(proseText)
+      const sections = outline.map((section) => ({
+        heading: section.level === 0 ? null : section.title,
+        source: proseText.slice(section.from, section.to)
+      }))
+
       let bibText = ''
       let bibProblem: string | null = null
       try {
@@ -113,7 +110,7 @@ export function ReferencesBlock({
       }
       if (cancelled) return
 
-      const clusters = sources.flatMap((source) => collectClusters(source))
+      const clusters = sections.flatMap((section) => collectClusters(section.source))
       const numbers = assignNumbers(clusters.map((c) => [...c.keys]))
       const parsed = parseBibtex(bibText)
       const entryMap = new Map(parsed.entries.map((e) => [e.key, e]))
@@ -121,15 +118,8 @@ export function ReferencesBlock({
         orderedReferences(numbers, entryMap, profile.citations.referenceList.sortOrder)
       )
       setBibError(bibProblem)
-      const labels = buildLabelMap(
-        manuscript.figures,
-        manuscript.tables,
-        contentPaths.map((contentPath, i) => ({
-          heading: headingByPath.get(contentPath) ?? null,
-          source: sources[i] ?? ''
-        }))
-      )
-      // share numbering + style + labels so section editors resolve their
+      const labels = buildLabelMap(figures, tables, sections)
+      // share numbering + style + labels so the editor resolves its
       // citation and cross-reference chips the same way
       useManuscriptDocStore.getState().publishCitationRender({
         numbers,
@@ -141,8 +131,7 @@ export function ReferencesBlock({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rootDir, pathsKey, bibliography, saveBump, profile, manuscript, headingByPath])
+  }, [rootDir, manuscriptFile, bibliography, saveBump, profile, figures, tables])
 
   if (profile === null) {
     return (

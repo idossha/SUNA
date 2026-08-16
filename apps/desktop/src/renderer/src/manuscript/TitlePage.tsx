@@ -1,5 +1,5 @@
 import { useMemo, type JSX } from 'react'
-import type { Manuscript } from '@suna/core'
+import type { Affiliation, Author, Manuscript } from '@suna/core'
 import { authorMarkers, numberAffiliations } from './title-page'
 import { AffiliationsEditor } from './titlepage-edit/AffiliationsEditor'
 import { ArticleTypeField } from './titlepage-edit/ArticleTypeField'
@@ -13,11 +13,16 @@ import { useInlineField } from './titlepage-edit/useInlineField'
 
 interface TitlePageProps {
   manuscript: Manuscript
+  /** The byline (manuscript/authors.json — feature-plan-7 §1 split it out of
+   *  manuscript.json), passed separately since ManuscriptSchema no longer
+   *  carries it. */
+  authors: readonly Author[]
+  affiliations: readonly Affiliation[]
   /** Combined manuscript tab passes `true` (gated on the same `!stale`
    *  condition it already renders under); any other caller stays read-only. */
   editable?: boolean
   /** Required (and used) only when `editable` — the project root `dir` for
-   *  `manuscript:update`. */
+   *  `manuscript:update` / the authors.json commit path. */
   rootDir?: string
 }
 
@@ -32,17 +37,24 @@ interface TitlePageProps {
  * affiliations switch to a compact row editor (titlepage-edit/AuthorsEditor,
  * AffiliationsEditor) since add/remove/reorder/affiliation-membership need
  * real controls, not an inline click target. Every commit is the smallest
- * manuscript.json patch that expresses the change; the manuscript prop
- * refreshes via the project store's saveBump once the write lands, so
+ * patch that expresses the change — manuscript.json for the scalar fields,
+ * authors.json for authors/affiliations; the manuscript/authors props
+ * refresh via the project store's saveBump once the write lands, so
  * affiliation superscripts (derived, not stored) renumber automatically.
  */
-export function TitlePage({ manuscript, editable = false, rootDir = '' }: TitlePageProps): JSX.Element {
+export function TitlePage({
+  manuscript,
+  authors,
+  affiliations,
+  editable = false,
+  rootDir = ''
+}: TitlePageProps): JSX.Element {
   const numbering = useMemo(
-    () => numberAffiliations(manuscript.authors, manuscript.affiliations),
-    [manuscript.authors, manuscript.affiliations]
+    () => numberAffiliations(authors, affiliations),
+    [authors, affiliations]
   )
 
-  const correspondenceEmails = manuscript.authors
+  const correspondenceEmails = authors
     .filter((a) => a.corresponding && a.email !== null)
     .map((a) => a.email)
     .filter((e): e is string => e !== null)
@@ -78,7 +90,7 @@ export function TitlePage({ manuscript, editable = false, rootDir = '' }: TitleP
   // as the click-to-edit face of the editors when `editable`, so the derived
   // affiliation superscripts stay on screen and visibly renumber after an
   // author/affiliation reorder.
-  const authorLine = manuscript.authors.map((author, i) => {
+  const authorLine = authors.map((author, i) => {
     const markers = authorMarkers(author, numbering.numberOf)
     return (
       <span key={author.id} className="msdoc__author">
@@ -123,8 +135,8 @@ export function TitlePage({ manuscript, editable = false, rootDir = '' }: TitleP
         <EditableGroup className="msdoc__authors" ariaLabel="authors" display={authorLine}>
           <AuthorsEditor
             rootDir={rootDir}
-            authors={manuscript.authors}
-            affiliations={manuscript.affiliations}
+            authors={authors}
+            affiliations={affiliations}
           />
         </EditableGroup>
       ) : (
@@ -145,8 +157,8 @@ export function TitlePage({ manuscript, editable = false, rootDir = '' }: TitleP
         >
           <AffiliationsEditor
             rootDir={rootDir}
-            affiliations={manuscript.affiliations}
-            authors={manuscript.authors}
+            affiliations={affiliations}
+            authors={authors}
           />
         </EditableGroup>
       ) : (

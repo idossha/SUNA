@@ -1,0 +1,151 @@
+/* ---- title-bar project switcher (feature-plan-7 §3) ----------------------- */
+
+.projmenu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  -webkit-app-region: no-drag;
+}
+
+.projmenu {
+  position: fixed;
+  z-index: 71;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font: inherit;
+  -webkit-app-region: no-drag;
+}
+
+.projmenu__section {
+  padding: 6px 10px 4px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+}
+
+.projmenu__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 4px;
+}
+
+.projmenu__row-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.projmenu__row {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: var(--s-radius);
+  border: none;
+  background: transparent;
+  color: var(--s-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projmenu__row--active,
+.projmenu__row:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+}
+
+.projmenu__row:disabled {
+  cursor: default;
+}
+
+.projmenu__row--missing {
+  color: var(--s-ink-faint);
+}
+
+.projmenu__name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.projmenu__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-sm);
+}
+
+.projmenu__badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: var(--s-radius);
+  border: 1px solid var(--s-warn);
+  color: var(--s-warn);
+  font-size: var(--s-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.projmenu__remove {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  background: var(--s-bg-panel);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.projmenu__remove:hover:not(:disabled) {
+  color: var(--s-err);
+  border-color: var(--s-err);
+}
+
+.projmenu__remove:disabled {
+  opacity: 0.4;
+}
+
+.projmenu__error {
+  flex-basis: 100%;
+  padding: 0 10px 4px;
+  font-size: var(--s-text-xs);
+  color: var(--s-err);
+}
+
+.projmenu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--s-border);
+}
+
+.projmenu__item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--s-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projmenu__item--active,
+.projmenu__item:hover {
+  background: var(--s-bg-hover);
+}

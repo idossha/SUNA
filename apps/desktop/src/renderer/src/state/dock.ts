@@ -126,6 +126,42 @@ export function openManuscriptTab(rootDir: string): void {
   })
 }
 
+/**
+ * Components whose panels point into a specific project's directory —
+ * closed by closeProjectTabs (feature-plan-7 §3) when the app switches to a
+ * different project, so no stale editor/viewer survives pointing at the
+ * directory that is no longer open. The combined manuscript tab is handled
+ * separately below since it keys off `params.rootDir`, not a file path.
+ */
+const PROJECT_SCOPED_PATH_COMPONENTS = new Set(['editor', 'canvas', 'dataview', 'pdf', 'image'])
+
+/**
+ * Close every open tab scoped to `rootDir`: editor/canvas/dataview/pdf/image
+ * panels whose path falls inside it, plus the combined manuscript tab for it.
+ * Called by state/project.ts's openProjectAt right after the project store
+ * switches to a different directory — the one place project-scoped tabs are
+ * closed on a switch (feature-plan-7 §3). Deliberately narrower than "every
+ * panel": settings/export/docx-import/onboarding tabs are left open, since
+ * none of them silently misrepresents data from the old project the way a
+ * stale editor tab would.
+ */
+export function closeProjectTabs(rootDir: string): void {
+  if (!dockApi) return
+  const prefix = `${rootDir}/`
+  for (const panel of [...dockApi.panels]) {
+    const component = panel.view.contentComponent
+    if (component === 'manuscript') {
+      if (panel.params?.['rootDir'] === rootDir) dockApi.removePanel(panel)
+      continue
+    }
+    if (!PROJECT_SCOPED_PATH_COMPONENTS.has(component)) continue
+    const path = panel.params?.['path']
+    if (typeof path === 'string' && (path === rootDir || path.startsWith(prefix))) {
+      dockApi.removePanel(panel)
+    }
+  }
+}
+
 /** Open (or focus) the DOCX/PDF export dialog for a project (feature-plan-6 §3/§4). */
 export function openExportTab(rootDir: string): void {
   if (!dockApi) return
@@ -281,6 +317,8 @@ export const dockDevSeam = {
   openDocxImportTab,
   /** feature-plan-6 §3/§4: open the export dialog for a project. */
   openExportTab,
+  /** feature-plan-7 §3: close every tab scoped to a project directory. */
+  closeProjectTabs,
   sideGroupId,
   activePanelPath,
   groupCount: (): number => dockApi?.groups.length ?? 0,

@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { DockviewApi } from 'dockview'
 import {
   activePanelPath,
+  closeProjectTabs,
   componentForFile,
   openFileTab,
   openInSplit,
+  openManuscriptTab,
   openViewerInSide,
   setDockApi,
   sideGroupId,
@@ -71,6 +73,9 @@ function fakeDock(): {
     },
     getPanel(id: string) {
       return groups.flatMap((g) => g.panels).find((panel) => panel.id === id)
+    },
+    removePanel(panel: FakePanel) {
+      panel.api.close()
     },
     addPanel(options: AddOptions) {
       const panel: FakePanel = {
@@ -258,6 +263,48 @@ describe('activePanelPath', () => {
     expect(activePanelPath()).toBe(SECTION)
     openInSplit(PDF_A, 'right')
     expect(activePanelPath()).toBe(PDF_A)
+  })
+})
+
+describe('closeProjectTabs', () => {
+  const OTHER_SECTION = '/work/other/manuscript/sections/01-introduction.md'
+  const OTHER_PDF = '/work/other/references/gunn1972.pdf'
+
+  it('closes editor/pdf/image tabs and the manuscript tab scoped to the old root, leaving the rest', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    openFileTab(OTHER_SECTION)
+    openManuscriptTab('/work/paper')
+    openManuscriptTab('/work/other')
+    dock.api.addPanel({ id: 'settings', component: 'settings', title: 'Settings' })
+
+    closeProjectTabs('/work/paper')
+
+    const remainingIds = dock.groups.flatMap((g) => g.panels.map((p) => p.id))
+    expect(remainingIds).toEqual(
+      expect.arrayContaining([OTHER_SECTION, 'manuscript:/work/other', 'settings'])
+    )
+    expect(remainingIds).not.toContain(SECTION)
+    expect(remainingIds).not.toContain('manuscript:/work/paper')
+  })
+
+  it('closes a side-group viewer scoped to the old root', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    openViewerInSide(PDF_A)
+    openViewerInSide(OTHER_PDF)
+
+    closeProjectTabs('/work/paper')
+
+    const remainingIds = dock.groups.flatMap((g) => g.panels.map((p) => p.id))
+    expect(remainingIds).toEqual([OTHER_PDF])
+  })
+
+  it('is a no-op with no dock attached', () => {
+    setDockApi(null as unknown as DockviewApi)
+    expect(() => closeProjectTabs('/work/paper')).not.toThrow()
   })
 })
 

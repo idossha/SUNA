@@ -1,11 +1,12 @@
-import { useEffect, useMemo, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import katex from 'katex'
+import { outlineFromMarkdown, type OutlineSection } from '@suna/markdown'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
 import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openManuscriptTab } from '../state/dock'
 import { splitTexSpans } from '../manuscript/title-page'
-import { flattenBody } from './outline'
+import { outlineRows } from './outline'
 import './views.css'
 import './manuscript-view.css'
 
@@ -34,54 +35,57 @@ function TexText({ text }: { text: string }): JSX.Element {
   )
 }
 
+/**
+ * Manuscript sidebar: title/authors/abstract summary plus the outline —
+ * clicking a row opens (or focuses) the combined manuscript tab and scrolls
+ * it to that heading (feature-plan-7 §2 — activating the Manuscript view
+ * itself, via the activity bar, also opens the tab; see state/ui.ts).
+ */
 export function ManuscriptView(): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
   const saveBump = useProjectStore((s) => s.saveBump)
   const manuscript = useManuscriptStore((s) => s.manuscript)
   const error = useManuscriptStore((s) => s.error)
+  const authors = useManuscriptStore((s) => s.authors)
   const refresh = useManuscriptStore((s) => s.refresh)
 
-  const wordCounts = useManuscriptDocStore((s) => s.wordCounts)
+  const liveOutline = useManuscriptDocStore((s) => s.outline)
   const activeSectionIndex = useManuscriptDocStore((s) => s.activeSectionIndex)
   const tabActive = useManuscriptDocStore((s) => s.tabActive)
   const tabMounted = useManuscriptDocStore((s) => s.tabMounted)
+
+  const [diskOutline, setDiskOutline] = useState<OutlineSection[]>([])
 
   useEffect(() => {
     void refresh()
   }, [refresh, rootDir, saveBump])
 
-  const rows = useMemo(
-    () => (manuscript === null ? [] : flattenBody(manuscript.body)),
-    [manuscript]
-  )
-
-  // While the combined tab is closed, word counts come from disk; when it is
-  // mounted, its live editors own the counts (they recount on edit + save).
+  // While the combined tab is closed, the outline comes from a disk read of
+  // the manuscript file; once the tab is mounted, its live editor owns the
+  // outline (state/manuscriptDoc) and tracks unsaved edits too.
   useEffect(() => {
     if (tabMounted || rootDir === null || manuscript === null) return
     let cancelled = false
     void (async () => {
-      const counts: Record<string, number> = {}
-      await Promise.all(
-        rows.map(async (row) => {
-          const contentPath = row.contentPath
-          if (contentPath === null) return
-          try {
-            const { content } = await window.suna.invoke('fs:read-text', {
-              path: `${rootDir}/manuscript/${contentPath}`
-            })
-            counts[contentPath] = countWords(content)
-          } catch {
-            // missing section file — leave the count blank
-          }
+      try {
+        const { content } = await window.suna.invoke('fs:read-text', {
+          path: `${rootDir}/manuscript/${manuscript.manuscriptFile}`
         })
-      )
-      if (!cancelled) useManuscriptDocStore.getState().replaceWordCounts(counts)
+        if (!cancelled) setDiskOutline(outlineFromMarkdown(content))
+      } catch {
+        // no prose file yet
+        if (!cancelled) setDiskOutline([])
+      }
     })()
     return () => {
       cancelled = true
     }
-  }, [tabMounted, rootDir, manuscript, rows, saveBump])
+  }, [tabMounted, rootDir, manuscript, saveBump])
+
+  const rows = useMemo(
+    () => outlineRows(tabMounted ? liveOutline : diskOutline),
+    [tabMounted, liveOutline, diskOutline]
+  )
 
   if (error !== null) {
     return (
@@ -100,24 +104,14 @@ export function ManuscriptView(): JSX.Element {
 
   return (
     <div className="view">
-      <button
-        className="ms__open"
-        disabled={rootDir === null}
-        onClick={() => {
-          if (rootDir !== null) openManuscriptTab(rootDir)
-        }}
-      >
-        Open full manuscript
-      </button>
-
       <div>
         <div className="ms__title">
           <TexText text={manuscript.title} />
         </div>
         <div className="ms__meta">
           <span>
-            <strong>{manuscript.authors.length}</strong>{' '}
-            {manuscript.authors.length === 1 ? 'author' : 'authors'}
+            <strong>{authors.authors.length}</strong>{' '}
+            {authors.authors.length === 1 ? 'author' : 'authors'}
           </span>
           <span>
             abstract <strong>{countWords(manuscript.abstract.content)}</strong> words
@@ -130,8 +124,6 @@ export function ManuscriptView(): JSX.Element {
         <div className="ms__outline">
           {rows.map((row, index) => {
             const active = tabActive && activeSectionIndex === index
-            const count =
-              row.contentPath !== null ? wordCounts[row.contentPath] : undefined
             return (
               <button
                 key={row.key}
@@ -144,7 +136,7 @@ export function ManuscriptView(): JSX.Element {
                   useManuscriptDocStore.getState().requestScroll(index)
                 }}
               >
-                <span className="chip">{row.chip}</span>
+                {row.chip !== '' && <span className="chip">{row.chip}</span>}
                 <span
                   className={
                     row.label === null
@@ -154,7 +146,7 @@ export function ManuscriptView(): JSX.Element {
                 >
                   {row.label ?? 'untitled'}
                 </span>
-                {count !== undefined && <span className="ms__count">{count}</span>}
+                <span className="ms__count">{row.words}</span>
               </button>
             )
           })}

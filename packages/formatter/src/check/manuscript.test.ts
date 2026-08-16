@@ -112,7 +112,7 @@ describe('checkManuscript — total word limit (RNAAS-style, references included
   });
 
   it('skips the rule when the profile states no word limit', () => {
-    const input = makeInput({ sectionTexts: { 'sections/intro.md': words(90000) } });
+    const input = makeInput({ sectionTexts: { 'manuscript.md': words(90000) } });
     expect(byId(checkManuscript(input, apjProfile(), 'apj-article'), 'ms.word-limit')).toEqual([]);
   });
 });
@@ -159,17 +159,17 @@ describe('checkManuscript — required sections', () => {
     expect(missing[0]?.target).toEqual({ sectionPath: 'acknowledgments' });
   });
 
-  it('matches generic required sections against body headings', () => {
+  it('matches generic required sections against the prose headings', () => {
     const profile = apjProfile();
     profile.manuscript.requiredSections.push({ id: 'methods', label: 'Methods', required: true });
     expect(byId(checkManuscript(makeInput(), profile, 'apj-article'), 'ms.section-missing')).toEqual(
       [],
     );
 
-    const input = makeInput();
-    input.manuscript.body = input.manuscript.body.filter(
-      (node) => node.kind !== 'section' || node.heading !== 'Methods',
-    );
+    // Drop the Methods heading from manuscript.md — the section is gone.
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Introduction\n\nintro\n\n# Results\n\nresults' },
+    });
     const missing = byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing');
     expect(missing).toHaveLength(1);
     expect(missing[0]?.message).toContain('Methods');
@@ -182,11 +182,21 @@ describe('checkManuscript — required sections', () => {
       label: 'Materials & Methods',
       required: true,
     });
-    const input = makeInput();
-    const methods = input.manuscript.body[1];
-    if (methods === undefined || methods.kind !== 'section') throw new Error('fixture body changed');
-    methods.heading = 'MATERIALS  &  METHODS';
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '## MATERIALS  &  METHODS\n\nwe did things' },
+    });
     expect(byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+
+  it('a "#" inside a fenced code block is code, not a section heading', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({ id: 'methods', label: 'Methods', required: true });
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Introduction\n\n```sh\n# Methods\n```\n' },
+    });
+    const missing = byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing');
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.message).toContain('Methods');
   });
 
   it('ignores sections the profile lists as not required', () => {
@@ -359,7 +369,7 @@ describe('scanFigureReferences — own vs foreign figures', () => {
 describe('checkManuscript — figure cross-references ignore foreign figures', () => {
   function inputWithProse(prose: string, figureCount = 1): ManuscriptCheckInput {
     const input = makeInput();
-    input.sectionTexts = { 'sections/intro.md': prose };
+    input.sectionTexts = { 'manuscript.md': prose };
     for (let i = 2; i <= figureCount; i++) {
       input.manuscript.figures.push({
         id: `fig${i}`,

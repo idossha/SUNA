@@ -11,6 +11,34 @@ beside them** from the CSVs in `data/`, a real analysis pipeline
 `code/stripping_model.py`), and the Nature Astronomy profile active in
 `suna.json`.
 
+**`manuscript/` is flat** (feature-plan-7 §1) — exactly four files, no
+`sections/` directory:
+
+```
+manuscript/
+  manuscript.md      # ALL the prose; sections are Markdown headings
+  manuscript.json    # metadata only — no body, no authors, no affiliations
+  authors.json       # { schemaVersion: 1, authors, affiliations }
+  references.bib
+```
+
+The outline is **derived**, not stored: `outlineFromMarkdown` (in
+`@suna/markdown`) reads `manuscript.md`'s headings, and the prose before the
+first heading — the demo's introduction — is the *untitled leading section*,
+which must never vanish from the outline. `manuscript.json` names its prose
+file in `manuscriptFile` (default `manuscript.md`), so nothing hardcodes the
+name.
+
+**Projects in the old layout migrate on open.** `project:open` and
+`project:open-example` run `migrateProject` before returning, and the
+outcome rides back on the response as `{ migrated, notes, error }`, which
+the renderer surfaces as a status note. Migration writes the three new
+files, re-reads and re-parses them, retargets `comments.json`, and only
+**then** removes `sections/`. `error !== null` means it was abandoned and
+rolled back — the project is byte-identical to before and still opens in
+its old layout. Re-running it on an already-flat project is a no-op
+(`migrated: false`, note `project is already flat`).
+
 **Open example makes a copy.** The app never edits the shipped demo:
 the first *Open example* copies it to `<userData>/example-project`
 (macOS: `~/Library/Application Support/@suna/desktop/example-project`),
@@ -29,8 +57,9 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
 
 1. `pnpm install && pnpm dev`
 2. Welcome screen → **Open example**. The explorer shows the project;
-   the intro section opens; the status bar shows *Nature Astronomy*.
-   Drag the sidebar's right edge (it glows gold) to resize it
+   the **manuscript tab opens** (there is one prose file now, so there is
+   nothing else it could sensibly open); the status bar shows *Nature
+   Astronomy*. Drag the sidebar's right edge (it glows gold) to resize it
    (180–560 px); double-click the edge to reset to 272 px. The width
    persists across restarts.
 3. **Editor modes**: the intro tab's mode button (or **⌘E**) toggles
@@ -53,22 +82,29 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
    Folder…, Rename… (inline input, basename pre-selected), Delete
    (two-step *Confirm delete?*; files go to the system trash, never
    `rm`). The header buttons create at the project root.
-6. **Manuscript view** (activity bar): title (its `$z = 1.7$` typeset
-   through KaTeX, like the title page), author count, abstract word
-   count, the ordered outline (level chips + per-section word counts;
-   the intro shows as *untitled* since it precedes the first heading),
-   figure/table counts. *Open full manuscript* — or any outline row —
-   opens the combined document tab.
-7. **Manuscript document**: one scrollable page. The rendered title page
-   (KaTeX in the title, affiliation superscripts derived from author
-   order, `*` + e-mail for the corresponding author, small-caps
-   Abstract/Significance blocks) is followed by one live-preview editor
-   per body section — ⌘S inside a section saves just that section's
-   `sections/*.md`, and the tab title shows an aggregated dirty dot —
-   then the profile-driven reference list (numbered by first appearance
-   under numeric profiles; `gunn1972` is entry 1). Scrolling the
-   document moves the outline's active row in the sidebar; clicking an
-   outline row smooth-scrolls the document to that section.
+6. **Manuscript view** (activity bar): **clicking the activity-bar icon
+   opens (or focuses) the manuscript tab directly** — the old *Open full
+   manuscript* button is gone (feature-plan-7 §2). The sidebar still
+   shows the title (its `$z = 1.7$` typeset through KaTeX, like the title
+   page), author count (from `authors.json`), abstract word count, the
+   ordered outline (level chips + per-section word counts, both derived
+   from `manuscript.md`; the intro shows as *untitled* since it precedes
+   the first heading), and figure/table counts. Any outline row scrolls
+   the open document to that section.
+7. **Manuscript document**: one scrollable page with **ONE editor** over
+   the whole of `manuscript.md` (feature-plan-7 §1 — not one editor per
+   section as before). The rendered title page (KaTeX in the title,
+   affiliation superscripts derived from author order, `*` + e-mail for
+   the corresponding author, small-caps Abstract/Significance blocks) is
+   followed by that single live-preview editor — ⌘S saves
+   `manuscript.md`, and the tab title carries one dirty dot — then the
+   profile-driven reference list (numbered by first appearance under
+   numeric profiles; `gunn1972` is entry 1). Headings render through the
+   editor's own live preview (`.cm-lp-h1`/`h2`/…), so section styling is
+   the editor's, not a wrapper element's. Scrolling moves the outline's
+   active row in the sidebar (scroll-spy runs against each outline
+   entry's `headingFrom` offset in the one document); clicking an outline
+   row scrolls the editor to that heading.
 8. **Manuscript appearance**: the gear pinned at the top of the document
    opens the same popover as an editor tab and drives the **whole**
    document from one measure — the title page, every section editor, and
@@ -256,12 +292,47 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     project directory and drops the answer into the Agent transcript,
     with progress and a **Cancel** that really kills the child. Escape
     closes with nothing changed.
+24. **Project switcher in the title bar** (feature-plan-7 §3). The title
+    bar's `SUNA · <project name>` is now a **button** with a chevron
+    (with no project open it reads *Open project*). Click it: a menu
+    lists up to 8 **recent projects**, each with its parent path, then
+    *Open project…*, *New project…* (the onboarding wizard) and *Open
+    example*. A recent whose directory no longer exists is dimmed and
+    offers **Remove**.
+
+    Switching must re-point the **whole** app, not just the title:
+    open the example, open a couple of file tabs and the manuscript tab,
+    then switch to another project from this menu and check that
+    (a) the explorer, manuscript view and references all show the new
+    project, (b) the old project's editor/canvas/PDF/image tabs and its
+    manuscript tab are **closed** rather than left pointing at the old
+    directory (settings/export/import/onboarding tabs deliberately stay
+    open — none of them shows stale project data), (c) comments,
+    reference-PDF resolution and settings resolution follow, and (d) the
+    status bar names the new project's profile. If the project you
+    switch to is in the old `sections/` layout, the status note tells you
+    it was migrated — or, if migration was abandoned, says so and leaves
+    the project untouched.
 
 ## Agent / CI smoke test
 
 ```bash
 pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
+
+> **STALE as of feature-plan-7 — the driver has not been updated to the
+> flat layout and several steps below still describe the old one.**
+> `scripts/e2e/smoke.mjs` still clicks `.ms__open` (the removed *Open full
+> manuscript* button, lines 1070/1074/1658/1662/2029), still saves and
+> compares `manuscript/sections/*.md` (lines 1183, 1607, 1852, 4490) and
+> still targets comments at `sections/02-results.md` (lines 2316, 2409).
+> None of those paths or selectors exist any more, so those steps will
+> fail. Feature-plan-7 shipped with `pnpm typecheck`, `pnpm test` and
+> `pnpm --filter @suna/desktop build` as its gates and **no smoke run**;
+> updating the driver is the outstanding follow-up tracked in
+> `docs/design/roadmap.md`. The steps that need rewriting are 17, 18, 29,
+> 31, 35–37 and 43. Everything each of them measures is still a real
+> requirement — only the selectors and file paths changed.
 
 Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
 default 9321) and drives 55 steps end to end. The userData example copy
@@ -621,9 +692,27 @@ overwrites it.
 ```bash
 cd packages/agent && node build-mcp.mjs        # dist-mcp/server.mjs
 node scripts/e2e/mcp-probe.mjs --project examples/demo-paper
+node scripts/e2e/mcp-probe.mjs --project <dir> --call read_manuscript '{}'
+node scripts/e2e/mcp-probe.mjs --project <dir> --call list_outline '{}'
 node scripts/e2e/mcp-probe.mjs --project <dir> --call add_comment \
-  '{"path":"sections/02-results.md","quote":"…","body":"…"}'
+  '{"path":"manuscript.md","quote":"…","body":"…"}'
 ```
+
+**Rebuild `dist-mcp/server.mjs` after changing any package it bundles** —
+it is a standalone esbuild bundle, so an edit to `@suna/core`,
+`@suna/markdown` or `verbs.ts` does not reach a running agent CLI until
+`node build-mcp.mjs` runs again.
+
+The prose verbs follow the flat layout (feature-plan-7 §1):
+`read_manuscript` / `write_manuscript` operate on
+`manuscript/<manuscriptFile>` (resolved from `manuscript.json` on every
+call), `list_outline` reports the derived outline (heading, depth, word
+count — the demo answers *(untitled leading section) — 159 words*,
+*Results — 97*, *Discussion — 117*, *Methods — 214*), and
+`read_manuscript_meta` appends `authors.json`. **`read_section` /
+`write_section` are kept as deprecated aliases** that ignore their `path`
+argument and operate on the whole file, so an agent mid-session does not
+break.
 
 `scripts/e2e/mcp-probe.mjs` speaks the same stdio JSON-RPC an agent CLI
 does: `--tools-only` checks the verb list and schemas, `--call` runs one
@@ -638,7 +727,24 @@ then evaluate JS in the page — dev builds expose `window.__sunaDev` with
 `explorerStore`, `manuscriptStore`, `manuscriptDocStore`,
 `renderProfileStore`, `agentChatStore`, `commentsStore`, `validateDoc`,
 `validateFile`, `dock`, `commands`, `referencePdfsStore`,
-`getReferencePdf`, `settingsStore`, `settingsDefaults` and `terminal`.
+`getReferencePdf`, `settingsStore`, `settingsDefaults`, `terminal` and
+`openProjectAt`.
+
+`openProjectAt(dir)` is feature-plan-7 §3's switching function — the one
+call every "open an existing project" path goes through (the title-bar
+menu's recents, the welcome screen's recents, and *Open project…* once
+its native picker has returned a path). It re-points the project store,
+closes the previous project's file/canvas/PDF/image/manuscript tabs,
+refreshes the tree, reloads comments, and runs the flat-layout migration;
+reference-PDF and settings resolution follow on their own because both
+subscribe to the project store. It is seamed because the menu item
+itself opens a **native** directory picker CDP cannot drive. Assert a
+switch by calling it and then reading `projectStore`, `dock` and
+`commentsStore`.
+
+`manuscriptDocStore` carries `outline` (the derived `OutlineSection[]`
+the open tab published) instead of the old per-path `wordCounts` — word
+counts now come from `outline[i].words`.
 
 `dock` is `state/dock.ts`'s seam: `openFileTab`, `openInSplit`,
 `openViewerInSide`, `componentForFile`, `activePanelPath`, `sideGroupId`,
@@ -747,8 +853,60 @@ cd python/suna_mpl && uv run pytest  # matplotlib companion
 Note that `pnpm typecheck | tail` **hides a failure** — the pipe reports
 `tail`'s exit status, not `tsc`'s. Check `$?` on the unpiped command.
 
+### Flat-layout coverage (feature-plan-7)
+
+| Test file | Covers |
+| --- | --- |
+| `packages/markdown/src/outline.test.ts` | `outlineFromMarkdown`: tiling offsets, `#` in fenced/indented/inline code, setext headings, blockquote/list-item headings, word counting (`$…$` = 1 word, code/display-math/raw-HTML/alt-text = 0), empty input → `[]` |
+| `packages/core/src/authors.test.ts` | `AuthorsFileSchema`, `emptyAuthorsFile()`, and that `AuthorSchema`/`AffiliationSchema`/`OrcidSchema` still re-export from `./manuscript` |
+| `packages/core/src/manuscript.test.ts` | `ManuscriptSchema` without `body`/`authors`/`affiliations`, `manuscriptFile` defaulting |
+| `apps/desktop/src/main/services/migrate-manuscript.test.ts` | the whole migration contract: no prose lost, idempotence, comment retargeting, and each abort-and-roll-back case (existing `manuscript.md`, a path escaping `manuscript/`, an invalid result, unreadable JSON, a half-migrated project) |
+| `packages/formatter/src/check/manuscript.test.ts` | required sections matched against **derived** prose headings — including that a `#` inside a fenced code block is not a section |
+| `packages/agent/src/mcp/verbs.test.ts` | `read_manuscript`/`write_manuscript`/`list_outline` and the legacy `read_section`/`write_section` aliases |
+| `apps/desktop/src/main/services/export-content.test.ts`, `docx-import.test.ts` | export and DOCX import against the flat layout |
+| `apps/desktop/src/renderer/src/state/project.test.ts`, `state/dock.test.ts` | `openProjectAt` and `closeProjectTabs` (the project switcher's two halves) |
+
+### Verifying the shipped example and the migration by hand
+
+The example is committed flat, so a bad merge that resurrects `sections/`
+should be caught immediately:
+
+```bash
+ls examples/demo-paper/manuscript
+# authors.json  manuscript.json  manuscript.md  references.bib   (nothing else)
+```
+
+To re-check migration against real prose, restore the pre-flat example
+from git history into a scratch directory and run `migrateProject` on it,
+then assert that every non-empty line of every old `sections/*.md` still
+appears in `manuscript.md` and that a second run changes nothing. Last
+run (2026-08-15) against the 4-section demo: 4 section files merged, 84
+non-empty lines all present, 2 authors + 2 affiliations moved to
+`authors.json`, 3 headings emitted at their mapped depths, second run
+`{ migrated: false, notes: ['project is already flat'] }` with every file
+byte-identical; and with a stray `manuscript.md` planted next to a live
+`body`, migration abandoned with `error` set and the project left
+byte-identical with `sections/` intact.
+
 ## Not yet covered
 
+- **The smoke driver's flat-layout update** (feature-plan-7). See the
+  warning at the top of *Agent / CI smoke test*: `scripts/e2e/smoke.mjs`
+  still drives `.ms__open` and `manuscript/sections/*.md`. The milestone
+  shipped without a smoke run by request, and the driver was **not**
+  rewritten blind — rewriting an e2e driver that cannot be executed to
+  confirm the rewrite would replace a known-stale suite with an
+  unverified one.
+- **Feature-plan-7 §3's switching behaviour in the running app.**
+  `openProjectAt` and `closeProjectTabs` have unit tests, and the menu
+  itself is ordinary DOM, but no automated run has actually switched a
+  live app between two projects and watched the tabs close. Walkthrough
+  step 24 is the manual check.
+- **Migration triggered through a real `project:open`.** `migrateProject`
+  is covered by unit tests and by the Node-driven check described above,
+  and `ipc.ts` wires it into `project:open` / `project:open-example`, but
+  the automatic-on-open path has not been exercised inside a running
+  Electron process.
 - Manuscript-side compliance surfacing (word limits, required sections)
   has engine tests but no UI yet.
 - Agent chat against a live provider (the smoke test stops at provider

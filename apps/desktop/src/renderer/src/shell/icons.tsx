@@ -96,6 +96,14 @@ export function NewFolderIcon(): JSX.Element {
   )
 }
 
+export function ChevronDownIcon(): JSX.Element {
+  return (
+    <Icon>
+      <path d="M6 9.5l6 6 6-6" />
+    </Icon>
+  )
+}
+
 export const VIEW_ICONS: Record<SidebarView, () => JSX.Element> = {
   explorer: ExplorerIcon,
   manuscript: ManuscriptIcon,

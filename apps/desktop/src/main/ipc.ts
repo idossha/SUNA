@@ -8,6 +8,7 @@ import {
   LIT_PROVIDER_META,
   type ChannelName,
   type LitCliPreference,
+  type MigrationOutcome,
   type RequestOf,
   type ResponseOf
 } from '@suna/core'
@@ -49,6 +50,7 @@ import {
   searchLiterature
 } from './services/lit'
 import { updateManuscript } from './services/manuscript'
+import { migrateProject } from './services/migrate-manuscript'
 import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
 import {
   checkScaffoldTarget,
@@ -192,6 +194,23 @@ function followProjectManifest(dir: string): void {
   })
 }
 
+/**
+ * Bring a project to the flat manuscript layout as it opens (feature-plan-7
+ * §1). migrateProject already returns a structured error rather than throwing,
+ * but an unexpected throw must not stop a project from opening either — the
+ * old layout on disk is intact in that case, and the renderer surfaces the
+ * outcome.
+ */
+async function migrateOnOpen(dir: string): Promise<MigrationOutcome> {
+  try {
+    return await migrateProject(dir)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn('manuscript migration failed (opening the project as-is):', error)
+    return { migrated: false, notes: [], error: message }
+  }
+}
+
 /** Register a handler with request/response zod validation on both edges. */
 function handle<C extends ChannelName>(
   channel: C,
@@ -214,16 +233,19 @@ export function registerIpcHandlers(): void {
   })
   handle('project:open', async ({ dir }) => {
     const opened = await openProject(dir)
+    const migration = await migrateOnOpen(dir)
     await noteRecentProject(dir, opened.manifest.name)
     followProjectManifest(dir)
-    return opened
+    return { ...opened, migration }
   })
+  handle('project:migrate', ({ dir }) => migrateProject(dir))
   handle('project:open-example', async () => {
     const dir = await ensureExampleProjectCopy()
     const { manifest } = await openProject(dir)
+    const migration = await migrateOnOpen(dir)
     await noteRecentProject(dir, manifest.name)
     followProjectManifest(dir)
-    return { dir, manifest }
+    return { dir, manifest, migration }
   })
   handle('project:scaffold-status', ({ dir }) => scaffoldStatus(dir))
   handle('project:update-settings', async ({ dir, patch }) => ({

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import {
   buildExportContent,
-  flattenManuscriptBody,
+  headingLevelForDepth,
   numberAffiliations,
   pngDimensions,
   splitTexSpans,
@@ -36,23 +36,12 @@ describe('splitTexSpans', () => {
   })
 })
 
-describe('flattenManuscriptBody', () => {
-  it('flattens nested sections depth-first, keeping heading level and content path', () => {
-    const rows = flattenManuscriptBody([
-      {
-        kind: 'section',
-        heading: 'Results',
-        level: 'A',
-        content: 'sections/results.md',
-        children: [{ kind: 'section', heading: 'Sub', level: 'B', content: 'sections/sub.md', children: [] }]
-      },
-      { kind: 'box', id: 'b1', title: 'Box 1', content: 'sections/box.md', figureRefs: [] }
-    ])
-    expect(rows).toEqual([
-      { heading: 'Results', level: 'A', contentPath: 'sections/results.md' },
-      { heading: 'Sub', level: 'B', contentPath: 'sections/sub.md' },
-      { heading: 'Box 1', level: 'box', contentPath: 'sections/box.md' }
-    ])
+describe('headingLevelForDepth', () => {
+  it('maps outline depth to the typographic vocabulary (1→A, 2→B, 3+→C-runin)', () => {
+    expect(headingLevelForDepth(1)).toBe('A')
+    expect(headingLevelForDepth(2)).toBe('B')
+    expect(headingLevelForDepth(3)).toBe('C-runin')
+    expect(headingLevelForDepth(6)).toBe('C-runin')
   })
 })
 
@@ -192,7 +181,7 @@ describe('buildExportContent — examples/demo-paper round trip', () => {
     })
 
     expect(content.manuscript.title).toContain('ram-pressure stripping')
-    expect(content.manuscript.authors).toHaveLength(2)
+    expect(content.authors.authors).toHaveLength(2)
     expect(content.sections.length).toBeGreaterThanOrEqual(4)
     expect(content.figures).toHaveLength(2)
     // references.bib has 10 entries; the demo's sections cite a subset of them.
