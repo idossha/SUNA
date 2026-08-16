@@ -153,3 +153,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   }
 }))
+
+/**
+ * Keep the explorer honest about what is actually on disk.
+ *
+ * Main watches the open project's directory and pushes on any change, so the
+ * tree reflects writes the renderer never made — a DOCX/PDF export, an agent
+ * working through MCP, a `git checkout` in the built-in terminal, or the user
+ * dragging a file in from Finder. Before this, `refreshTree()` was called by
+ * hand at the three places the renderer itself created/renamed/deleted a file,
+ * and every other route left the tree silently stale.
+ *
+ * Self-starting at module load, like the settings watch. Guarded because unit
+ * tests import this module without a preload bridge.
+ */
+if (typeof window !== 'undefined' && typeof window.suna?.onProjectTreeChanged === 'function') {
+  window.suna.onProjectTreeChanged(({ dir }) => {
+    // Ignore a push for a project that is no longer the open one.
+    if (useProjectStore.getState().rootDir !== dir) return
+    void useProjectStore.getState().refreshTree()
+  })
+}

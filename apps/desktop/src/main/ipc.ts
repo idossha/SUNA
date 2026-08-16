@@ -62,6 +62,7 @@ import {
   updateProjectSettings
 } from './services/project'
 import { watchProjectManifest } from './services/projectWatch'
+import { watchProjectTree } from './services/projectTreeWatch'
 import { allowRoot } from './services/roots'
 import { createEnvWithUv, detectEnvs, selectEnv, selectedEnv, uvAvailable } from './services/envs'
 import {
@@ -184,13 +185,20 @@ async function noteRecentProject(dir: string, name: string): Promise<void> {
  * resolver without a restart. Best-effort: a project that cannot be watched
  * still opens, it just loses live re-resolution.
  */
+function broadcast(channel: string, payload: unknown): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.webContents.isDestroyed()) win.webContents.send(channel, payload)
+  }
+}
+
 function followProjectManifest(dir: string): void {
   watchProjectManifest(dir, (changed) => {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.webContents.isDestroyed()) {
-        win.webContents.send(EVENT_CHANNELS.projectManifestChanged, { dir: changed })
-      }
-    }
+    broadcast(EVENT_CHANNELS.projectManifestChanged, { dir: changed })
+  })
+  // and the directory itself, so the explorer reflects writes the renderer
+  // never made — exports, agents, the terminal, Finder (nav-bar item 4).
+  watchProjectTree(dir, (changed) => {
+    broadcast(EVENT_CHANNELS.projectTreeChanged, { dir: changed })
   })
 }
 

@@ -64,3 +64,90 @@
   margin: 4px 6px;
   background: var(--s-border);
 }
+
+/* ---- explorer: rows, selection, focus ------------------------------------ */
+
+/* Rows are divs (not buttons) so a row can host a selection gesture, a
+   context menu and an open-state marker without nesting interactive
+   elements — so the affordances buttons gave us for free are restored here. */
+.tree__row {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree:focus {
+  outline: none;
+}
+
+/* Selected: the row the next action applies to. Reads as a filled band, and
+   stays legible under the hover tint so a multi-selection does not appear to
+   lose members as the pointer sweeps across it. */
+.tree__row--selected,
+.tree__row--selected:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-selected, rgba(197, 160, 89, 0.18));
+}
+
+/* Keyboard cursor: which row the arrow keys will move FROM. Distinct from
+   selection, since shift-arrow leaves several rows selected but only one
+   carries the cursor. */
+.tree:focus .tree__row--focused {
+  box-shadow: inset 0 0 0 1px var(--s-accent);
+}
+
+/* ---- explorer: open-in-a-tab indicators ---------------------------------- */
+
+/* A file that is open in a tab reads brighter than one that is not, and
+   carries a dot on the right. Two signals rather than one: the dot is
+   unambiguous, the weight makes the pattern legible when scanning the tree. */
+.tree__row--open .tree__name {
+  color: var(--s-ink);
+}
+
+.tree__open-dot {
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--s-accent);
+  opacity: 0.55;
+}
+
+/* The frontmost tab: solid dot plus an accent rule down the left edge, so the
+   file you are actually looking at is findable at a glance. */
+.tree__row--active .tree__open-dot {
+  opacity: 1;
+}
+
+.tree__row--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--s-accent);
+}
+
+.tree__row--active .tree__name {
+  font-weight: 600;
+}
+
+.ctxmenu__item:disabled {
+  color: var(--s-ink-faint);
+  cursor: default;
+}
+
+.ctxmenu__item:disabled:hover {
+  background: transparent;
+}
+
+/* The name must be the part that shrinks, so a long filename ellipsizes
+   instead of pushing the open-tab dot out of the row. */
+.tree__name {
+  min-width: 0;
+  flex: 0 1 auto;
+}

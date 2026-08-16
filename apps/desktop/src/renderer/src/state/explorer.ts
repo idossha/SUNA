@@ -13,11 +13,35 @@ export interface ExplorerMenu {
   y: number
   node: FsNode
   confirmingDelete: boolean
+  /**
+   * Paths the menu's actions apply to. Right-clicking INSIDE the selection
+   * acts on the whole selection; right-clicking outside it acts on the one
+   * row (and selects it), which is what every file manager does.
+   */
+  targets: string[]
+}
+
+/** One visible row of the flattened tree — what arrow keys step through. */
+export interface ExplorerRow {
+  node: FsNode
+  depth: number
 }
 
 interface ExplorerState {
   menu: ExplorerMenu | null
   editing: ExplorerEditing | null
+  /** Expanded directory paths. Explicit rather than per-row component state so
+   *  the keyboard can drive it and it survives a tree refresh. */
+  expanded: ReadonlySet<string>
+  /** The project whose default expansion has been seeded, so a switch re-seeds. */
+  seededFor: string | null
+  /** Selected paths, in click order. */
+  selection: readonly string[]
+  /** Range-select origin: shift-click/shift-arrow extends from here. */
+  anchor: string | null
+  /** The row the keyboard is on. Usually the last-clicked row. */
+  focusPath: string | null
+
   openMenu: (node: FsNode, x: number, y: number) => void
   closeMenu: () => void
   armDelete: () => void
@@ -26,6 +50,15 @@ interface ExplorerState {
   startRename: (node: FsNode) => void
   cancelEdit: () => void
   commitEdit: (name: string) => Promise<void>
+
+  seedExpansion: (rootDir: string, paths: string[]) => void
+  toggleExpanded: (path: string, open?: boolean) => void
+  /** Click on a row. `additive` = ⌘/Ctrl (toggle), `range` = shift (extend). */
+  selectRow: (path: string, rows: readonly ExplorerRow[], modifiers: { additive?: boolean; range?: boolean }) => void
+  setFocus: (path: string | null) => void
+  clearSelection: () => void
+  selectAll: (rows: readonly ExplorerRow[]) => void
+  openSelection: (rows: readonly ExplorerRow[]) => void
 }
 
 function reportError(prefix: string, error: unknown): void {
@@ -33,31 +66,78 @@ function reportError(prefix: string, error: unknown): void {
   useUiStore.getState().setStatusNote(`${prefix}: ${message}`)
 }
 
+/** Paths between two rows inclusive, in visible order. */
+function rangeBetween(rows: readonly ExplorerRow[], from: string, to: string): string[] {
+  const a = rows.findIndex((r) => r.node.path === from)
+  const b = rows.findIndex((r) => r.node.path === to)
+  if (a === -1 || b === -1) return [to]
+  const [lo, hi] = a <= b ? [a, b] : [b, a]
+  return rows.slice(lo, hi + 1).map((r) => r.node.path)
+}
+
 export const useExplorerStore = create<ExplorerState>((set, get) => ({
   menu: null,
   editing: null,
+  expanded: new Set<string>(),
+  seededFor: null,
+  selection: [],
+  anchor: null,
+  focusPath: null,
 
-  openMenu: (node, x, y) => set({ menu: { node, x, y, confirmingDelete: false } }),
+  openMenu: (node, x, y) => {
+    const { selection } = get()
+    // right-click inside the selection keeps it; outside it, the row becomes
+    // the selection so the menu can never act on rows the user cannot see.
+    const inSelection = selection.includes(node.path)
+    const targets = inSelection ? [...selection] : [node.path]
+    set({
+      menu: { node, x, y, confirmingDelete: false, targets },
+      selection: targets,
+      anchor: inSelection ? get().anchor : node.path,
+      focusPath: node.path
+    })
+  },
 
   closeMenu: () => set({ menu: null }),
 
-  armDelete: () =>
-    set((s) => (s.menu ? { menu: { ...s.menu, confirmingDelete: true } } : {})),
+  armDelete: () => set((s) => (s.menu ? { menu: { ...s.menu, confirmingDelete: true } } : {})),
 
   confirmDelete: async () => {
     const { menu } = get()
     if (!menu) return
     set({ menu: null })
-    try {
-      await window.suna.invoke('fs:delete', { path: menu.node.path })
-      await useProjectStore.getState().refreshTree()
-      useUiStore.getState().setStatusNote(`Moved ${menu.node.name} to the trash`)
-    } catch (error) {
-      reportError(`Could not delete ${menu.node.name}`, error)
+    const targets = menu.targets
+    const failures: string[] = []
+    for (const path of targets) {
+      try {
+        await window.suna.invoke('fs:delete', { path })
+      } catch (error) {
+        failures.push(`${path.split('/').pop() ?? path} (${error instanceof Error ? error.message : String(error)})`)
+      }
+    }
+    set({ selection: [], anchor: null })
+    await useProjectStore.getState().refreshTree()
+    const moved = targets.length - failures.length
+    if (failures.length > 0) {
+      useUiStore
+        .getState()
+        .setStatusNote(`Moved ${moved} to the trash; could not delete ${failures.join(', ')}`)
+    } else {
+      useUiStore
+        .getState()
+        .setStatusNote(
+          moved === 1
+            ? `Moved ${targets[0]?.split('/').pop() ?? ''} to the trash`
+            : `Moved ${moved} items to the trash`
+        )
     }
   },
 
-  startCreate: (parentPath, kind) => set({ editing: { kind, parentPath }, menu: null }),
+  startCreate: (parentPath, kind) => {
+    // a create inside a collapsed folder must reveal it, or the input row
+    // renders into a subtree nobody can see
+    set((s) => ({ editing: { kind, parentPath }, menu: null, expanded: new Set(s.expanded).add(parentPath) }))
+  },
 
   startRename: (node) =>
     set({
@@ -87,18 +167,66 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
           newName: trimmed
         })
         await useProjectStore.getState().refreshTree()
+        set({ selection: [path], anchor: path, focusPath: path })
         if (!editing.isDir) openFileTab(path)
       } else if (editing.kind === 'create-file') {
         const path = `${editing.parentPath}/${trimmed}`
         await window.suna.invoke('fs:create-file', { path, content: '' })
         await useProjectStore.getState().refreshTree()
+        set({ selection: [path], anchor: path, focusPath: path })
         openFileTab(path)
       } else {
-        await window.suna.invoke('fs:mkdir', { path: `${editing.parentPath}/${trimmed}` })
+        const path = `${editing.parentPath}/${trimmed}`
+        await window.suna.invoke('fs:mkdir', { path })
         await useProjectStore.getState().refreshTree()
+        set({ selection: [path], anchor: path, focusPath: path })
       }
     } catch (error) {
       reportError(`Could not ${editing.kind === 'rename' ? 'rename' : 'create'} ${trimmed}`, error)
+    }
+  },
+
+  seedExpansion: (rootDir, paths) => set({ expanded: new Set(paths), seededFor: rootDir }),
+
+  toggleExpanded: (path, open) =>
+    set((s) => {
+      const next = new Set(s.expanded)
+      const shouldOpen = open ?? !next.has(path)
+      if (shouldOpen) next.add(path)
+      else next.delete(path)
+      return { expanded: next }
+    }),
+
+  selectRow: (path, rows, modifiers) => {
+    const { selection, anchor } = get()
+    if (modifiers.range && anchor !== null) {
+      set({ selection: rangeBetween(rows, anchor, path), focusPath: path })
+      return
+    }
+    if (modifiers.additive) {
+      const next = selection.includes(path)
+        ? selection.filter((p) => p !== path)
+        : [...selection, path]
+      set({ selection: next, anchor: path, focusPath: path })
+      return
+    }
+    set({ selection: [path], anchor: path, focusPath: path })
+  },
+
+  setFocus: (path) => set({ focusPath: path }),
+
+  clearSelection: () => set({ selection: [], anchor: null }),
+
+  selectAll: (rows) => {
+    const paths = rows.map((r) => r.node.path)
+    set({ selection: paths, anchor: paths[0] ?? null, focusPath: paths[paths.length - 1] ?? null })
+  },
+
+  /** Open every selected FILE, in visible order; directories are skipped. */
+  openSelection: (rows) => {
+    const selected = new Set(get().selection)
+    for (const row of rows) {
+      if (row.node.kind === 'file' && selected.has(row.node.path)) openFileTab(row.node.path)
     }
   }
 }))
