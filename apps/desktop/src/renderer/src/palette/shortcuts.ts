@@ -54,7 +54,24 @@ const CODE_LABELS: Record<string, string> = {
   Enter: '⏎',
   Escape: 'Esc',
   Minus: '-',
-  Equal: '='
+  Equal: '=',
+  Slash: '/'
+}
+
+/**
+ * Punctuation whose SHIFTED glyph is the name of the chord (feature-plan-9
+ * §1): `Mod-Shift-Slash` is ⌘?, because Shift+Slash *is* the `?` key and a
+ * reader hunting for "?" must find "?" — "⌘⇧/" makes them decode it. The ⇧
+ * glyph is dropped with the substitution, or the label would read as a third
+ * key to press.
+ *
+ * Deliberately narrow: matching is untouched (still `event.code` + the exact
+ * modifier set), and `⌘⇧\` (split down) keeps its unshifted name because that
+ * is what the app calls it everywhere else — `⌘|` would name no key the user
+ * recognises.
+ */
+const SHIFTED_CODE_LABELS: Record<string, string> = {
+  Slash: '?'
 }
 
 function codeLabel(code: string): string {
@@ -70,10 +87,11 @@ function codeLabel(code: string): string {
 /** Human-readable macOS-glyph label: "Mod-Shift-Backslash" -> "⌘⇧\\". */
 export function formatShortcut(spec: string): string {
   const parsed = parseShortcut(spec)
+  const shifted = parsed.shift ? SHIFTED_CODE_LABELS[parsed.code] : undefined
   let out = ''
   if (parsed.mod) out += '⌘'
   if (parsed.alt) out += '⌥'
-  if (parsed.shift) out += '⇧'
-  out += codeLabel(parsed.code)
+  if (parsed.shift && shifted === undefined) out += '⇧'
+  out += shifted ?? codeLabel(parsed.code)
   return out
 }

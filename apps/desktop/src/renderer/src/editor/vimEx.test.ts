@@ -74,6 +74,46 @@ describe('createExRegistry', () => {
   })
 
   /**
+   * `:help` / `:h` (feature-plan-9 §1). In vim NORMAL mode a bare `?` is
+   * search-backward and never reaches a window listener at all, so `:help` is
+   * the vim-native way out of the buffer — and it is app-wide, not per-view.
+   */
+  describe(':help', () => {
+    it('opens whatever the app injected', () => {
+      const registry = createExRegistry()
+      const showHelp = vi.fn()
+      registry.setShowHelp(showHelp)
+      registry.help()
+      expect(showHelp).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not need a registered view — any buffer can ask for help', () => {
+      const registry = createExRegistry()
+      const showHelp = vi.fn()
+      registry.setShowHelp(showHelp)
+      // no register() call at all: `:help` routes to the app, not to a view
+      registry.help()
+      expect(showHelp).toHaveBeenCalledTimes(1)
+    })
+
+    it('is a silent no-op before the app wires it', () => {
+      const registry = createExRegistry()
+      expect(() => registry.help()).not.toThrow()
+    })
+
+    it('routes to the latest destination when re-wired', () => {
+      const registry = createExRegistry()
+      const first = vi.fn()
+      const second = vi.fn()
+      registry.setShowHelp(first)
+      registry.setShowHelp(second)
+      registry.help()
+      expect(first).not.toHaveBeenCalled()
+      expect(second).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  /**
    * The destructive shape: `:q` used to be wired straight to `api.close()`, so
    * it threw away a buffer that had never been written — while `:wq`, the
    * keystroke that would have saved it, was not registered at all and errored
