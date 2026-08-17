@@ -30,6 +30,43 @@ const SIDEBAR_WIDTH_KEY = 'suna.sidebarWidth'
 const SIDEBAR_VISIBLE_KEY = 'suna.sidebarVisible'
 const RAIL_VISIBLE_KEY = 'suna.activityBarVisible'
 
+/* ---- comments rail (comments/CommentsRail) -------------------------------- */
+
+export const COMMENTS_RAIL_WIDTH_MIN = 260
+export const COMMENTS_RAIL_WIDTH_MAX = 520
+export const COMMENTS_RAIL_WIDTH_DEFAULT = 300
+
+const COMMENTS_RAIL_VISIBLE_KEY = 'suna.commentsRailVisible'
+const COMMENTS_RAIL_WIDTH_KEY = 'suna.commentsRailWidth'
+
+export function clampCommentsRailWidth(value: number): number {
+  if (!Number.isFinite(value)) return COMMENTS_RAIL_WIDTH_DEFAULT
+  return Math.min(COMMENTS_RAIL_WIDTH_MAX, Math.max(COMMENTS_RAIL_WIDTH_MIN, Math.round(value)))
+}
+
+function loadCommentsRailWidth(): number {
+  try {
+    const raw = window.localStorage.getItem(COMMENTS_RAIL_WIDTH_KEY)
+    return raw === null ? COMMENTS_RAIL_WIDTH_DEFAULT : clampCommentsRailWidth(Number(raw))
+  } catch {
+    return COMMENTS_RAIL_WIDTH_DEFAULT
+  }
+}
+
+/* ---- app-shell toasts (shell/Toasts) --------------------------------------- */
+
+export interface Toast {
+  id: number
+  message: string
+  ttlMs: number
+  /** One optional action (e.g. Undo). Running it dismisses the toast. */
+  action?: { label: string; run: () => void }
+}
+
+export const TOAST_TTL_DEFAULT_MS = 8000
+
+let nextToastId = 1
+
 function clampSidebarWidth(value: number): number {
   if (!Number.isFinite(value)) return SIDEBAR_WIDTH_DEFAULT
   return Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, Math.round(value)))
@@ -112,6 +149,11 @@ interface UiState {
   /** Sidebar width in px, clamped to [SIDEBAR_WIDTH_MIN, SIDEBAR_WIDTH_MAX]. */
   sidebarWidth: number
   statusNote: string | null
+  /** App-shell toasts, newest last (shell/Toasts renders them). */
+  toasts: Toast[]
+  /** Comments rail (both editing surfaces share one visibility + width). */
+  commentsRailVisible: boolean
+  commentsRailWidth: number
   setActiveView: (view: SidebarView) => void
   setSidebarVisible: (visible: boolean) => void
   setRailVisible: (visible: boolean) => void
@@ -121,6 +163,11 @@ interface UiState {
   toggleLeftNav: () => void
   setSidebarWidth: (px: number) => void
   setStatusNote: (note: string | null) => void
+  pushToast: (message: string, opts?: { ttlMs?: number; action?: Toast['action'] }) => number
+  dismissToast: (id: number) => void
+  setCommentsRailVisible: (visible: boolean) => void
+  toggleCommentsRail: () => void
+  setCommentsRailWidth: (px: number) => void
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -128,6 +175,9 @@ export const useUiStore = create<UiState>((set, get) => ({
   ...loadChrome(),
   sidebarWidth: loadSidebarWidth(),
   statusNote: null,
+  toasts: [],
+  commentsRailVisible: loadFlag(COMMENTS_RAIL_VISIBLE_KEY, true),
+  commentsRailWidth: loadCommentsRailWidth(),
   setActiveView: (view) => {
     const wasActive = get().activeView === view
     // clicking the active view toggles the sidebar, like VS Code
@@ -159,5 +209,36 @@ export const useUiStore = create<UiState>((set, get) => ({
     }
     set({ sidebarWidth: width })
   },
-  setStatusNote: (note) => set({ statusNote: note })
+  setStatusNote: (note) => set({ statusNote: note }),
+  pushToast: (message, opts) => {
+    const id = nextToastId
+    nextToastId += 1
+    const toast: Toast = {
+      id,
+      message,
+      ttlMs: opts?.ttlMs ?? TOAST_TTL_DEFAULT_MS,
+      ...(opts?.action !== undefined ? { action: opts.action } : {})
+    }
+    set((s) => ({ toasts: [...s.toasts, toast] }))
+    return id
+  },
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  setCommentsRailVisible: (visible) => {
+    try {
+      window.localStorage.setItem(COMMENTS_RAIL_VISIBLE_KEY, String(visible))
+    } catch {
+      // persistence is best-effort; the in-memory state still applies
+    }
+    set({ commentsRailVisible: visible })
+  },
+  toggleCommentsRail: () => get().setCommentsRailVisible(!get().commentsRailVisible),
+  setCommentsRailWidth: (px) => {
+    const width = clampCommentsRailWidth(px)
+    try {
+      window.localStorage.setItem(COMMENTS_RAIL_WIDTH_KEY, String(width))
+    } catch {
+      // persistence is best-effort; the in-memory width still applies
+    }
+    set({ commentsRailWidth: width })
+  }
 }))

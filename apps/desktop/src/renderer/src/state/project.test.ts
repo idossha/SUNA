@@ -60,9 +60,10 @@ function resetStores(): void {
     loaded: false,
     loading: false,
     error: null,
-    filter: 'all',
     draft: null,
-    flashRequest: null
+    flashRequest: null,
+    activeId: null,
+    composing: false
   })
   useUiStore.setState({ statusNote: null })
   setDockApi(fakeDock([]).api)
