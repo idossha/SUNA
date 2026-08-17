@@ -198,26 +198,29 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     `manuscript.json` from disk, merges, validates, and writes
     atomically; type a malformed ORCID and you get an inline error with
     the file left byte-identical.
-19. **Comments in the margin** (no activity-bar entry any more): select
-    any text in a section of the combined manuscript tab and press
-    **⌘⇧M** — a composer opens in the **right margin gutter**, beside the
-    text, quoting your selection. Post it and the text carries a subtle
-    highlight plus a dot at the start of its line, and
-    `manuscript/comments.json` gains a W3C-style quote anchor (prefix /
-    quote / suffix). The prose itself is never touched. Each card sits
-    level with its anchor's line; two comments on neighbouring lines push
-    each other down instead of overlapping, and a comment whose anchor is
-    off-screen collapses into an *"N comments above/below"* edge badge.
-    Detached comments collect in an *Unanchored (N)* group at the top;
-    resolved ones hide behind *Show resolved (N)*. Click a card to scroll
-    to and flash its anchor, or click the highlighted text to activate
-    its card. Edit the sentence around the quote and the comment stays
-    attached; delete the quoted words and it is marked **detached**
-    rather than dropped — paste them back and it re-attaches.
-    Agent-authored comments carry the model name in accent. Below a
-    **1100 px window** the gutter collapses to margin dots that open a
-    popover. The gutter appears in the combined manuscript tab and in
-    single-file prose editor tabs. Agents reach the same file over MCP
+19. **Comments in the rail**: select any text in the combined manuscript
+    tab and press **⌘⇧M** — the right-side comments rail opens (if
+    hidden) with a composer quoting your selection. Post it and the text
+    carries a subtle highlight, and `manuscript/comments.json` gains a
+    W3C-style quote anchor (prefix / quote / suffix). The prose itself is
+    never touched. The rail is ANCHOR-ALIGNED: each card sits level with
+    the text it annotates and moves 1:1 with it while scrolling (the
+    track follows the document via a single compositor transform per
+    frame — no per-frame React work, so none of the old gutter's scroll
+    lag); clicking a highlight activates its card, clicking a card
+    flashes its anchor; Delete is immediate with an Undo toast; the grip
+    resizes the rail and ⌘⌥M or the 💬 toolbar button toggles it. Two
+    comments on neighbouring lines push each other down instead of
+    overlapping.
+    Detached comments collect in a *Detached / unanchored (N)* group
+    pinned under the header; resolved ones stay in place, dimmed. Click
+    a card to scroll to and flash its anchor, or click the highlighted
+    text to activate its card. Edit the sentence around the quote and
+    the comment stays attached; delete the quoted words and it is marked
+    **detached** rather than dropped — paste them back and it
+    re-attaches. Agent-authored comments carry the model name in accent.
+    The rail appears in the combined manuscript tab and in single-file
+    prose editor tabs. Agents reach the same file over MCP
     (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`).
 20. **Canvas parity rail** (right panel of a figure tab): **Align**
     (6 buttons + Distribute H/V, disabled with a hint under 2/3 selected),
@@ -255,8 +258,9 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     selected library entry seeds the search from that entry. OpenAlex now
     meters requests: without budget or a key it answers **HTTP 429**, and
     the panel says so verbatim with "try Crossref instead" inline rather
-    than showing an empty list. NASA ADS asks for its free key; arXiv is
-    best-effort. Agents get `search_literature`, `lookup_doi` and
+    than showing an empty list. bioRxiv/medRxiv searches keyless through
+    Crossref (openRxiv member 54368 posted-content) and shows the server name as the
+    venue; arXiv is best-effort. Agents get `search_literature`, `lookup_doi` and
     `add_reference` over MCP — deliberately **without** the `ai-cli`
     provider, so an agent never recurses into another agent CLI.
 22. **Word-grade text editing** (prose files, both modes): select a word
@@ -492,16 +496,14 @@ Steps 34–43 are the acceptance criteria of
     affiliation list reorders so *his* institute is superscript 1, disk
     order is `[a2, a1]`, and no number was persisted.
 35. **comments-select-create-anchor** — drag-select *"best-fit
-    centroid"* in the Results editor with real mouse events, press
+    centroid"* in the manuscript editor with real mouse events, press
     **⌘⇧M**: the draft carries a prefix/quote/suffix anchor for
-    `sections/02-results.md` and the composer opens **in the margin
-    gutter**. Post it → `comments.json` holds exactly that anchor, the
-    section prose contains no marker, the editor paints one
-    `.cmt-anchor` over the quote plus one `.cmt-line-dot`, exactly one
-    **positioned** card (`.cmt-gutter__slot`) exists, and the composer
-    has closed. (Counting `.cmt-gutter .cmt-card` instead would also
-    count the draft composer — which shares that base class — and would
-    pass even with no real card rendered.)
+    `manuscript.md`, the rail **auto-opens**, and the composer renders in
+    its list. Post it → `comments.json` holds exactly that anchor, the
+    prose contains no marker, the editor paints one `.cmt-anchor` over
+    the quote, exactly one thread card (`.cmt-rail
+    .cmt-card[data-comment-id]`) exists, and the composer has closed.
+    (Counting bare `.cmt-card` would also count the draft composer.)
 36. **comments-survive-edits-then-detach** — insert *"carefully
     measured"* before the quote and ⌘S: still attached, still
     highlighted. Delete the quoted words and ⌘S: the comment is
@@ -511,10 +513,9 @@ Steps 34–43 are the acceptance criteria of
     (`packages/agent/dist-mcp/server.mjs`, built on demand) is driven
     over real stdio JSON-RPC to `add_comment` on the same example copy;
     reloading the store in the app shows two comments with both anchors
-    highlighted, and after scrolling to the agent comment's anchor its
-    card carries the agent badge. (The scroll matters: the gutter only
-    renders a card for an anchor inside the visible strip, so asserting
-    the badge without scrolling asks about a card that never existed.)
+    highlighted, the agent card carries the agent badge (rail cards
+    always render — no visible-strip collapse any more), and the rail's
+    list order equals the anchors' document order.
 38. **canvas-align-and-rulers** — scoped to the *visible* canvas tab (two
     figures are open by now, and dockview keeps the hidden one mounted at
     zero size). Rulers: 181 horizontal and 59 vertical 1 mm ticks for the
@@ -548,8 +549,12 @@ Steps 34–43 are the acceptance criteria of
     budget/a key) or an error naming the rate limit/budget/key **plus**
     the inline "try Crossref" switch. A silent empty list fails.
 43. **mcp-server-exposes-all-verbs** — the bundled server is probed over
-    stdio for `tools/list`: all 15 verbs (including the four comment and
-    three literature tools) with JSON Schemas.
+    stdio for `tools/list`: all 20 verbs (including the four comment and
+    three literature tools, plus `edit_manuscript` and `check_manuscript`
+    from adr-004) with JSON Schemas. The step then round-trips a real
+    `edit_manuscript` (edit a unique phrase, assert the section report,
+    revert) and asserts `check_manuscript` speaks against the demo's
+    active profile.
 
 Steps 44–47 are the acceptance criteria of
 `docs/design/feature-plan-3.md`, measured the same way:
@@ -565,17 +570,28 @@ Steps 44–47 are the acceptance criteria of
     selection-only item is `disabled`, *Paste* is not. Finally the menu's
     *Comment* and ⌘⇧M are shown to produce the **identical** draft
     (target path, anchor quote and preview all equal).
-45. **margin-comments-align-with-anchors** (§3) — the geometry the spec
-    actually names, measured off `getBoundingClientRect()`. First it
-    asserts the gutter is **not** in narrow/dot mode at this window width
-    and is ~260 px wide. Then a second comment is anchored on the line
-    directly below an existing one, and for each comment the card is
-    matched to its anchor through `data-comment-id` (both the
-    `.cmt-gutter__slot` and the `.cmt-anchor` decoration carry it): the
-    **topmost** card — the only one whose position is purely
-    anchor-driven — must sit within **±8 px** of its anchor's row, and no
-    two card boxes may overlap. Clicking a card must flash its anchor and
-    leave it on screen.
+45. **comments-rail-interactions** — the rail measured off real DOM:
+    the rail renders beside the scroller at its persisted width (>200
+    px); clicking an in-text highlight activates its thread, whose card
+    sits level with the visible highlight (aligned rail — the topmost
+    card is asserted within 24 px of its anchor, before and after a
+    document scroll, proving cards track the text); clicking a *different* card
+    flashes + scrolls to its anchor; Delete removes the card immediately
+    (no confirm row — that UI clipped out of bounds by design flaw) and
+    raises an Undo toast whose Undo restores the **exact** thread
+    (compared as JSON) at its original index; a grip drag widens the
+    rail and the width round-trips through localStorage.
+
+    Two shared-buffer steps follow (state/docSessions):
+    **shared-buffer-live-sync** — type in the manuscript tab, the
+    unsaved edit is in the session buffer but NOT on disk, the raw
+    editor tab opened on the same file already shows it (one buffer,
+    two views; `meta.views === 2`), and one ⌘S in the file tab cleans
+    both surfaces. **external-edit-live-reload** — an MCP
+    `edit_manuscript` against the copy reaches the LIVE editor within
+    the watcher debounce: buffer + visible text update, the session
+    stays clean, and the scroll position holds (the reload is a minimal
+    mapped change, not a document replace).
 46. **new-figure-and-svg-import** (§4) — *New Figure* named *Velocity
     Map* → `figures/velocity-map/` exists with `figure.svg` and
     `figure.json`; the JSON is validated with the **real**
@@ -590,10 +606,11 @@ Steps 44–47 are the acceptance criteria of
     children to `imp1-`, and hide the hint — and **one** ⌘Z must remove
     all of it and bring the hint back.
 47. **ai-cli-provider-and-cancel** (§2, the unbilled half) — the picker
-    lists five providers with *AI search* first. If `lit:cli-status`
-    reports no CLI, the step asserts the honest install hint and stops.
-    Otherwise *AI search* must be the **default**, the panel must name
-    the detected CLI, and a real search is started and **cancelled after
+    lists five providers with *AI search* first and **OpenAlex selected
+    by default** (ai-cli is opt-in even with a CLI installed). The step
+    clicks *AI search* explicitly; if `lit:cli-status` reports no CLI,
+    it asserts the honest install hint and stops. Otherwise the panel
+    must name the detected CLI, and a real search is started and **cancelled after
     ~3 s**: the child process is located in `ps` by the adapter's own
     prompt text (never by the string "claude", so a developer running
     this suite from inside an agent CLI session is not matched), and
@@ -729,9 +746,18 @@ cd packages/agent && node build-mcp.mjs        # dist-mcp/server.mjs
 node scripts/e2e/mcp-probe.mjs --project examples/demo-paper
 node scripts/e2e/mcp-probe.mjs --project <dir> --call read_manuscript '{}'
 node scripts/e2e/mcp-probe.mjs --project <dir> --call list_outline '{}'
+node scripts/e2e/mcp-probe.mjs --project <dir> --call edit_manuscript \
+  '{"find":"exact text to replace","replace":"its replacement"}'
+node scripts/e2e/mcp-probe.mjs --project <dir> --call check_manuscript '{}'
 node scripts/e2e/mcp-probe.mjs --project <dir> --call add_comment \
   '{"path":"manuscript.md","quote":"…","body":"…"}'
 ```
+
+Booting the server has one side effect (adr-004): it heals the machine
+context layer (`~/SunaConfig`, or `$SUNA_CONFIG_DIR`) and the target
+project's agent files (AGENTS.md/CLAUDE.md stubs, `context/`,
+`.gitignore`'s `.mcp.json` line, `.mcp.json`) best-effort before serving.
+Point `SUNA_CONFIG_DIR` at a temp dir to keep a probe hermetic.
 
 **Rebuild `dist-mcp/server.mjs` after changing any package it bundles** —
 it is a standalone esbuild bundle, so an edit to `@suna/core`,
@@ -923,29 +949,23 @@ style**, then **Nature Astronomy**) and open both in Word:
 | Tables | APA rules only (header top/bottom, last row bottom) | full border grid |
 | References | 10 pt, 0.5 in hanging indent, alphabetical | 12 pt, numbered |
 
-The structure was verified against the real CLI, not just asserted: building
-the same fixture through `exportDocx({useDocxTools:false})` and
-`{useDocxTools:true}` (which shells out to `docx-tools build`) produces the
-same page size (12240×15840 twips), the same 720-twip margins, and the same
-paragraph sequence at the same point sizes. Three deliberate differences
-remain, all cases where SUNA's own path is better:
+The structure was verified against the real docx-tools CLI while it was
+still integrated (identical page size 12240×15840 twips, 720-twip margins,
+same paragraph sequence at the same point sizes). The external accelerator
+has since been REMOVED — the bundled `docx` library is the only builder, and
+it is deliberately better than docx-tools was in three ways:
 
-- inline math in the title is typeset (`z = 1.7`), where docx-tools leaves
+- inline math in the title is typeset (`z = 1.7`), where docx-tools left
   the literal `$z=1.7$`;
 - in-text citations honour the profile (author-year here), where docx-tools
-  always renders numeric brackets;
+  always rendered numeric brackets;
 - a cited-but-missing bib key is reported in the reference list, where
-  docx-tools drops it silently.
-
-References are also alphabetical (APA 7) rather than docx-tools'
-first-citation order — that is a citation-style choice stated in the profile,
-not a layout difference.
+  docx-tools dropped it silently.
 
 | Test file | Covers |
 | --- | --- |
-| `packages/formatter/src/profiles.test.ts` | the house style's invariants: it is the ONLY profile with a `documentStyle`, it enforces nothing (every limit null), and it claims no journal as a source; journal profiles are asserted to carry no typography |
-| `apps/desktop/src/main/services/export-docx.test.ts` | the real OOXML: Letter/0.5 in page, 1.15 line spacing (and double spacing still overriding it), black 13 pt headings, the page break after the front matter, caption after image, 0.5 in hanging references, cleared table borders — plus that a journal profile is left completely alone |
-| `apps/desktop/src/main/services/docx-tools-accelerator.test.ts` | that figure captions are passed to docx-tools WITHOUT our label, since it writes its own (this was producing "Figure 1. Figure 1. …") |
+| `packages/formatter/src/profiles.test.ts` | the house style's invariants and that it claims no journal as a source |
+| `apps/desktop/src/main/services/export-docx.test.ts` | the real OOXML: Letter/0.5 in page, 1.15 line spacing (and double spacing still overriding it), black 13 pt headings, the page break after the front matter, caption after image, 0.5 in hanging references, cleared table borders |
 
 ### Figure and image rendering
 

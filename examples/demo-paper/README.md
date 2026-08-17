@@ -61,3 +61,8 @@ uv run --project ../../python/suna_mpl python code/stripping_model.py
 
 Every step is deterministic: rerunning it reproduces the committed files
 byte for byte.
+
+The project is agent-ready (adr-004): `AGENTS.md`/`CLAUDE.md` point coding
+agents at the machine context layer, `context/` holds the mission, notebook,
+and rules, and opening the project in SUNA writes a machine-local `.mcp.json`
+wiring its manuscript tools.

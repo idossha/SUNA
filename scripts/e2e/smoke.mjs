@@ -119,6 +119,10 @@ async function step(name, fn) {
   } catch (error) {
     results.push({ name, ok: false, error: String(error.message ?? error) })
     console.error(`  ✗ ${name}: ${error.message ?? error}`)
+    // surface renderer/main errors piped through electron-vite dev — a React
+    // unmount-on-error is invisible to DOM assertions otherwise
+    const errLines = devLog.join('').split('\n').filter((l) => /error|Error|unhandled|Warning/.test(l))
+    if (errLines.length > 0) console.error('    dev log errors:\n      ' + errLines.slice(-8).join('\n      '))
     await screenshot(`FAIL-${name}.png`).catch(() => {})
     if (!KEEP_GOING) throw error
   }
@@ -372,7 +376,6 @@ const reloadComments = () =>
       authors: s.comments.map((c) => c.author.kind),
       bodies: s.comments.map((c) => c.body),
       anchorsInDom: document.querySelectorAll('.cm-content .cmt-anchor').length,
-      lineDots: document.querySelectorAll('.cm-line.cmt-line-dot').length,
       detachedChips: document.querySelectorAll('.cmt__detached').length
     };
   })()`)
@@ -1120,24 +1123,23 @@ try {
   })
 
   await step('manuscript-doc', async () => {
-    // the view's button opens (here: refocuses) the combined document tab
-    // (Manuscript view is usually still active — re-activating would TOGGLE
-    // the sidebar closed, so only activate when the view is not showing)
-    if (!(await evalJs(`!!document.querySelector('.ms__open')`))) {
+    // Activating the Manuscript view opens (or refocuses) the combined
+    // document tab directly (feature-plan-7 §2 — the old .ms__open button is
+    // gone; outline rows and the activity bar are the entry points).
+    if (!(await evalJs(`!!document.querySelector('.msdoc__titlepage')`))) {
       await activateView('Manuscript')
-      await sleep(400)
+      await sleep(1200)
     }
-    await evalJs(`document.querySelector('.ms__open').click()`)
-    // four live section editors, one CodeMirror per body section
+    // ONE CodeMirror over the whole flat manuscript.md (feature-plan-7 §1)
     const edDeadline = Date.now() + 10_000
     let editors = 0
-    while (Date.now() < edDeadline && editors !== 4) {
+    while (Date.now() < edDeadline && editors !== 1) {
       editors = await evalJs(
         `document.querySelectorAll('.msdoc__editor .cm-content').length`
       )
-      if (editors !== 4) await sleep(300)
+      if (editors !== 1) await sleep(300)
     }
-    assert(editors === 4, `expected 4 section editors, got ${editors}`)
+    assert(editors === 1, `expected the single flat-manuscript editor, got ${editors}`)
 
     // title page: KaTeX title, authors with affiliation superscripts,
     // numbered affiliations, Abstract + Significance front-matter blocks
@@ -1218,13 +1220,16 @@ try {
     )
     await screenshot('manuscript-outline-active.png')
 
-    // ⌘S routes to the focused section only: edit Methods, save, restore
-    const methodsPath = join(COPY_DIR, 'manuscript', 'sections', '04-methods.md')
-    const methodsOriginal = readFileSync(methodsPath, 'utf8')
+    // ⌘S saves the whole flat manuscript (one file since feature-plan-7):
+    // edit a visible line, save, then undo+save restores byte-identical.
+    const prosePath = join(COPY_DIR, 'manuscript', 'manuscript.md')
+    const proseOriginal = readFileSync(prosePath, 'utf8')
     const line = await evalJs(`(() => {
-      const ed = document.querySelectorAll('.msdoc__editor')[3];
-      const l = ed.querySelector('.cm-line');
-      if (!l) throw new Error('Methods section has no rendered lines');
+      const l = [...document.querySelectorAll('.msdoc__editor .cm-line')].find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.top > 90 && r.bottom < window.innerHeight - 40;
+      });
+      if (!l) throw new Error('no visible manuscript line to click');
       const r = l.getBoundingClientRect();
       return { x: r.left + Math.min(30, r.width / 2), y: r.top + r.height / 2 };
     })()`)
@@ -1233,18 +1238,18 @@ try {
     await insertText('QQSMOKE ')
     await sleep(200)
     await key('s', 'KeyS', 4) // ⌘S
-    await sleep(700)
+    await sleep(900)
     assert(
-      readFileSync(methodsPath, 'utf8').includes('QQSMOKE'),
-      '⌘S in the Methods editor did not save sections/04-methods.md'
+      readFileSync(prosePath, 'utf8').includes('QQSMOKE'),
+      '⌘S in the manuscript editor did not save manuscript.md'
     )
     await key('z', 'KeyZ', 4) // ⌘Z
     await sleep(200)
     await key('s', 'KeyS', 4)
-    await sleep(700)
+    await sleep(900)
     assert(
-      readFileSync(methodsPath, 'utf8') === methodsOriginal,
-      'undo+save did not restore the Methods section byte-identical'
+      readFileSync(prosePath, 'utf8') === proseOriginal,
+      'undo+save did not restore manuscript.md byte-identical'
     )
   })
 
@@ -2160,7 +2165,16 @@ try {
       const dir = window.__sunaDev.projectStore.getState().rootDir;
       const { path } = await window.suna.invoke('agent:write-mcp-config', { dir });
       const { content } = await window.suna.invoke('fs:read-text', { path });
-      return { path, config: JSON.parse(content) };
+      const read = async (p) =>
+        (await window.suna.invoke('fs:read-text', { path: dir + '/' + p }).catch(() => ({ content: '' }))).content;
+      return {
+        path,
+        config: JSON.parse(content),
+        agents: await read('AGENTS.md'),
+        claude: await read('CLAUDE.md'),
+        notebook: await read('context/NOTEBOOK.md'),
+        gitignore: await read('.gitignore')
+      };
     })()`)
     const server = written.config.mcpServers?.suna
     assert(server !== undefined, `.mcp.json has no suna server: ${JSON.stringify(written.config)}`)
@@ -2169,6 +2183,14 @@ try {
       `mcp server path looks wrong: ${JSON.stringify(server.args)}`
     )
     assert(existsSync(server.args[0]), `mcp server bundle missing at ${server.args[0]}`)
+    // adr-004: the write heals the whole agent layer, not just .mcp.json
+    assert(written.agents.includes('suna:agent-stub'), 'AGENTS.md stub missing after heal')
+    assert(written.claude.includes('suna:agent-stub'), 'CLAUDE.md stub missing after heal')
+    assert(written.notebook.includes('Session log'), 'context/NOTEBOOK.md missing after heal')
+    assert(
+      written.gitignore.split('\n').some((l) => l.trim() === '.mcp.json'),
+      '.gitignore does not ignore .mcp.json after heal'
+    )
   })
 
   await step('terminal-panel', async () => {
@@ -2414,7 +2436,7 @@ try {
     }
 
     // --- prose source: wraps at the measure, block starts at the gutter
-    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__D__/manuscript/sections/01-introduction.md')}.replace('__D__', ${JSON.stringify(dir)}))`)
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__D__/manuscript/manuscript.md')}.replace('__D__', ${JSON.stringify(dir)}))`)
     await sleep(1600)
     const toMode = async (want) => {
       for (let i = 0; i < 3; i++) {
@@ -2465,18 +2487,33 @@ try {
 
   /** Focus the combined manuscript tab (already created by manuscript-doc). */
   const focusManuscript = async () => {
-    if (!(await evalJs(`!!document.querySelector('.ms__open')`))) {
+    // The combined tab opens by focusing its dock tab (or activating the
+    // Manuscript view, which opens it directly — the .ms__open button is
+    // gone). ONE editor over the flat manuscript.md since feature-plan-7.
+    const focused = await evalJs(`(() => {
+      const tab = [...document.querySelectorAll('.dv-tab')]
+        .find((t) => t.textContent.trim().replace(/\s*[•✕×]\s*$/, '') === 'Manuscript');
+      if (!tab) return false;
+      // dockview activates on POINTERDOWN — a plain click() only ever
+      // "worked" when the panel was already the active one in its group
+      const r = tab.getBoundingClientRect();
+      const opts = { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 };
+      tab.dispatchEvent(new PointerEvent('pointerdown', opts));
+      tab.dispatchEvent(new PointerEvent('pointerup', opts));
+      tab.dispatchEvent(new MouseEvent('click', opts));
+      return true;
+    })()`)
+    if (!focused) {
       await activateView('Manuscript')
       await sleep(500)
     }
-    await evalJs(`document.querySelector('.ms__open').click()`)
     const deadline = Date.now() + 10_000
     while (Date.now() < deadline) {
       const n = await evalJs(`document.querySelectorAll('.msdoc__editor .cm-content').length`)
-      if (n === 4) return
+      if (n === 1) return
       await sleep(300)
     }
-    throw new Error('combined manuscript tab did not come forward with 4 editors')
+    throw new Error('combined manuscript tab did not come forward with its editor')
   }
 
   /** Content-box width of a selector's first match (padding excluded). */
@@ -2615,12 +2652,20 @@ try {
     // a bogus id keeps its raw text and is flagged — typed live, then undone
     // (never saved: the section file on disk is untouched)
     const spot = await evalJs(`(async () => {
-      const editor = document.querySelectorAll('.msdoc__editor')[0];
-      editor.scrollIntoView({ block: 'center' });
+      // ONE editor over the whole flat file now: centering it would put its
+      // first line far above the viewport. Scroll to the top and pick a
+      // VISIBLE line instead.
+      document.querySelector('.msdoc').scrollTop = 0;
       await new Promise((r) => setTimeout(r, 600));
-      const line = editor.querySelector('.cm-line');
+      const line = [...document.querySelectorAll('.msdoc__editor .cm-line')].find((l) => {
+        const b = l.getBoundingClientRect();
+        return b.width > 0 && b.top > 90 && b.bottom < window.innerHeight - 40;
+      });
+      if (!line) throw new Error('no visible manuscript line');
       const r = line.getBoundingClientRect();
-      const x = r.right - 4;
+      // near the line's LEFT edge: the right edge can sit under the scroll
+      // container's overlay-scrollbar strip, which hit-tests to .msdoc
+      const x = r.left + Math.min(30, r.width / 2);
       const y = r.top + r.height / 2;
       // the point must really be over the editor — a panel covering it would
       // silently send the keystrokes somewhere else (e.g. the terminal)
@@ -2645,7 +2690,7 @@ try {
       bogus.includes('fig:nope'),
       `a bogus @fig:nope should stay raw and flagged, got: ${bogus.join(', ')}`
     )
-    const introPath = join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md')
+    const introPath = join(COPY_DIR, 'manuscript', 'manuscript.md')
     const introBefore = readFileSync(introPath, 'utf8')
     for (let i = 0; i < 6; i++) {
       await key('z', 'KeyZ', 4)
@@ -2659,7 +2704,7 @@ try {
     assert(cleared, 'undo did not remove the bogus crossref from the document')
     assert(
       readFileSync(introPath, 'utf8') === introBefore,
-      'the bogus-crossref probe wrote to sections/01-introduction.md (it must never save)'
+      'the bogus-crossref probe wrote to manuscript.md (it must never save)'
     )
   })
 
@@ -2820,8 +2865,9 @@ try {
   // files inside the example copy, or on measured DOM boxes.
 
   const MANUSCRIPT_JSON = join(COPY_DIR, 'manuscript', 'manuscript.json')
+  const AUTHORS_JSON = join(COPY_DIR, 'manuscript', 'authors.json')
   const COMMENTS_JSON = join(COPY_DIR, 'manuscript', 'comments.json')
-  const RESULTS_MD = join(COPY_DIR, 'manuscript', 'sections', '02-results.md')
+  const MANUSCRIPT_MD = join(COPY_DIR, 'manuscript', 'manuscript.md')
   const BIB = join(COPY_DIR, 'manuscript', 'references.bib')
 
   /** Make the combined manuscript tab the active dock panel. */
@@ -2830,19 +2876,32 @@ try {
       const tab = [...document.querySelectorAll('.dv-tab')]
         .find((t) => t.textContent.trim().replace(/\\s*[•✕×]\\s*$/, '') === 'Manuscript');
       if (!tab) return false;
-      tab.click();
+      // dockview activates on POINTERDOWN — a plain click() only ever
+      // "worked" when the panel was already the active one in its group
+      const r = tab.getBoundingClientRect();
+      const opts = { bubbles: true, cancelable: true, clientX: r.left + 5, clientY: r.top + 5 };
+      tab.dispatchEvent(new PointerEvent('pointerdown', opts));
+      tab.dispatchEvent(new PointerEvent('pointerup', opts));
+      tab.dispatchEvent(new MouseEvent('click', opts));
       return true;
     })()`)
     if (!focused) {
+      // activating the Manuscript view opens the combined tab directly
       await showView('manuscript')
       await sleep(700)
-      await evalJs(`document.querySelector('.ms__open').click()`)
     }
     await sleep(2000)
-    assert(
-      await evalJs(`!!document.querySelector('.msdoc__titlepage')`),
-      'combined manuscript tab did not come up'
-    )
+    const up = await evalJs(`!!document.querySelector('.msdoc__titlepage')`)
+    if (!up) {
+      const diag = await evalJs(`({
+        tabs: [...document.querySelectorAll('.dv-tab')].map((t) => t.textContent.trim()),
+        msdoc: !!document.querySelector('.msdoc'),
+        hint: document.querySelector('.msdoc__hint')?.textContent ?? null,
+        error: document.querySelector('.msdoc__error')?.textContent ?? null,
+        app: !!document.querySelector('.app')
+      })`)
+      assert(false, 'combined manuscript tab did not come up: ' + JSON.stringify(diag))
+    }
   }
 
   await step('title-page-edits-manuscript-json', async () => {
@@ -2879,17 +2938,17 @@ try {
       `[...document.querySelectorAll('.tp__author-row')][1].querySelector('.tp__author-family').blur()`
     )
     await sleep(1000)
-    const renamed = JSON.parse(readFileSync(MANUSCRIPT_JSON, 'utf8'))
+    const renamed = JSON.parse(readFileSync(AUTHORS_JSON, 'utf8'))
     assert(
       renamed.authors[1].family === 'Kowalczyk',
-      `manuscript.json author 2: ${renamed.authors[1].family}`
+      `authors.json author 2: ${renamed.authors[1].family}`
     )
     assert(renamed.authors[0].family === 'Researcher', 'the other author was disturbed')
     assert(Array.isArray(renamed.affiliations) && renamed.affiliations.length === 2,
       'affiliations were disturbed by an author rename')
 
     // --- an invalid ORCID: inline error, file byte-identical ---------------
-    const before = readFileSync(MANUSCRIPT_JSON)
+    const before = readFileSync(AUTHORS_JSON)
     await evalJs(
       setFieldJs(
         `[...document.querySelectorAll('.tp__author-row')][0].querySelector('.tp__author-orcid')`,
@@ -2908,8 +2967,8 @@ try {
       `no visible ORCID error, got: ${rejected.error}`)
     assert(rejected.invalidInput, 'the offending ORCID input is not marked invalid')
     assert(
-      readFileSync(MANUSCRIPT_JSON).equals(before),
-      'an invalid ORCID reached manuscript.json — the file changed'
+      readFileSync(AUTHORS_JSON).equals(before),
+      'an invalid ORCID reached authors.json — the file changed'
     )
 
     // put a valid ORCID back so the doc is writable again
@@ -2946,7 +3005,7 @@ try {
         reordered.affs[1].includes('Department of Astronomy'),
       `affiliations did not renumber: ${JSON.stringify(reordered.affs)}`
     )
-    const onDisk = JSON.parse(readFileSync(MANUSCRIPT_JSON, 'utf8'))
+    const onDisk = JSON.parse(readFileSync(AUTHORS_JSON, 'utf8'))
     assert(onDisk.authors[0].id === 'a2', `author order on disk: ${onDisk.authors.map((a) => a.id)}`)
     // superscripts are derived: nothing numeric is persisted
     assert(
@@ -2965,7 +3024,7 @@ try {
    */
   await step('markdown-formatting-and-context-menu', async () => {
     await openManuscriptDoc()
-    const original = readFileSync(RESULTS_MD, 'utf8')
+    const original = readFileSync(MANUSCRIPT_MD, 'utf8')
     const saveSection = async () => {
       await key('s', 'KeyS', 4)
       await sleep(1200)
@@ -2980,14 +3039,14 @@ try {
     await sleep(350)
     await saveSection()
     assert(
-      readFileSync(RESULTS_MD, 'utf8').includes('**centroid**'),
+      readFileSync(MANUSCRIPT_MD, 'utf8').includes('**centroid**'),
       '⌘B did not write **centroid** to the section file'
     )
     await key('b', 'KeyB', 4)
     await sleep(350)
     await saveSection()
     assert(
-      readFileSync(RESULTS_MD, 'utf8') === original,
+      readFileSync(MANUSCRIPT_MD, 'utf8') === original,
       '⌘B a second time did not restore the file byte-for-byte'
     )
 
@@ -3020,7 +3079,7 @@ try {
     await evalJs(`document.querySelector('.md-ctxmenu__item[data-action="bold"]').click()`)
     await sleep(400)
     await saveSection()
-    assert(readFileSync(RESULTS_MD, 'utf8').includes('**centroid**'), 'menu Bold did not apply')
+    assert(readFileSync(MANUSCRIPT_MD, 'utf8').includes('**centroid**'), 'menu Bold did not apply')
     await evalJs(`(() => {
       const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('centroid'));
       cm.querySelector('.cm-content').focus();
@@ -3030,7 +3089,7 @@ try {
     await sleep(400)
     await saveSection()
     assert(
-      readFileSync(RESULTS_MD, 'utf8') === original,
+      readFileSync(MANUSCRIPT_MD, 'utf8') === original,
       'ONE ⌘Z did not undo the whole menu action'
     )
 
@@ -3098,43 +3157,42 @@ try {
     await evalJs(`window.__sunaDev.commentsStore.getState().cancelDraft()`)
     await sleep(250)
     assert(
-      readFileSync(RESULTS_MD, 'utf8') === original,
+      readFileSync(MANUSCRIPT_MD, 'utf8') === original,
       'the formatting step left the section file modified'
     )
   })
 
   await step('comments-select-create-anchor', async () => {
     await openManuscriptDoc()
-    const selected = await dragSelectInSection('best-fit centroid')
-    assert(selected === 'best-fit centroid', `selection in the section editor: ${selected}`)
+    const selected = await dragSelectInSection('best-fit centroid of')
+    assert(selected === 'best-fit centroid of', `selection in the section editor: ${selected}`)
     await key('m', 'KeyM', 12) // ⌘⇧M
     await sleep(700)
-    // feature-plan-3 §3: comments moved to the margin gutter (comments/
-    // CommentGutter.tsx) — there is no more Comments sidebar view to switch
-    // to; the draft composer appears inline in the gutter (.cmt-gutter
-    // .cmt__draft, an additional class alongside its .cmt-card.cmt-card--
-    // active base) as soon as useCommentsStore's `draft` is set.
+    // The comments rail (comments/CommentsRail): ⌘⇧M sets the store draft AND
+    // summons the rail (auto-open), where the composer renders in the list.
     const draft = await evalJs(`(() => {
       const d = window.__sunaDev.commentsStore.getState().draft;
       return {
         path: d?.target?.path ?? null,
         quote: d?.target?.anchor?.quote ?? null,
-        composer: !!document.querySelector('.cmt-gutter .cmt__draft')
+        railOpen: window.__sunaDev.uiStore.getState().commentsRailVisible,
+        composer: !!document.querySelector('.cmt-rail .cmt__draft')
       };
     })()`)
-    assert(draft.quote === 'best-fit centroid', `draft anchor quote: ${draft.quote}`)
-    assert(draft.path === 'sections/02-results.md', `draft target: ${draft.path}`)
-    assert(draft.composer, 'no comment composer appeared in the margin gutter')
+    assert(draft.quote === 'best-fit centroid of', `draft anchor quote: ${draft.quote}`)
+    assert(draft.path === 'manuscript.md', `draft target: ${draft.path}`)
+    assert(draft.railOpen, 'starting a comment did not auto-open the rail')
+    assert(draft.composer, 'no comment composer appeared in the rail')
 
     await evalJs(
       setFieldJs(
-        `document.querySelector('.cmt-gutter .cmt__draft .cmt-textarea')`,
+        `document.querySelector('.cmt-rail .cmt__draft .cmt-textarea')`,
         'Should this be the vacuum wavelength?',
         'HTMLTextAreaElement'
       )
     )
     await sleep(150)
-    await evalJs(`[...document.querySelectorAll('.cmt-gutter .cmt__draft .cmt__btn')]
+    await evalJs(`[...document.querySelectorAll('.cmt-rail .cmt__draft .cmt__btn')]
       .find((b) => b.textContent.trim() === 'Comment').click()`)
     await sleep(1200)
 
@@ -3142,33 +3200,28 @@ try {
     assert(file.schemaVersion === 1, `comments.json schemaVersion: ${file.schemaVersion}`)
     assert(file.comments.length === 1, `comments.json entries: ${file.comments.length}`)
     assert(
-      file.comments[0].target.anchor.quote === 'best-fit centroid',
+      file.comments[0].target.anchor.quote === 'best-fit centroid of',
       `stored anchor: ${JSON.stringify(file.comments[0].target.anchor)}`
     )
     assert(file.comments[0].author.kind === 'human', 'comment is not attributed to the human')
     // sidecar only: the prose must be untouched
     assert(
-      !readFileSync(RESULTS_MD, 'utf8').includes(file.comments[0].id),
+      !readFileSync(MANUSCRIPT_MD, 'utf8').includes(file.comments[0].id),
       'a comment marker leaked into the section prose'
     )
     const ui = await evalJs(`({
-      // .cmt-gutter__slot is a POSITIONED card (one per anchored comment).
-      // Counting '.cmt-gutter .cmt-card' instead would also count the draft
-      // composer, which carries the same .cmt-card base class — that made
-      // this assertion pass even when the composer failed to close and no
-      // positioned card existed at all.
-      slots: document.querySelectorAll('.cmt-gutter__slot').length,
-      drafts: document.querySelectorAll('.cmt-gutter .cmt__draft').length,
-      anchors: [...document.querySelectorAll('.cm-content .cmt-anchor')].map((a) => a.textContent),
-      lineDots: document.querySelectorAll('.cm-line.cmt-line-dot').length
+      // cards carry data-comment-id; the draft composer does not, so this
+      // counts REAL threads only even if the composer failed to close.
+      cards: document.querySelectorAll('.cmt-rail .cmt-card[data-comment-id]').length,
+      drafts: document.querySelectorAll('.cmt-rail .cmt__draft').length,
+      anchors: [...document.querySelectorAll('.cm-content .cmt-anchor')].map((a) => a.textContent)
     })`)
-    assert(ui.slots === 1, `positioned comment cards in the gutter: ${ui.slots}`)
+    assert(ui.cards === 1, `comment cards in the rail: ${ui.cards}`)
     assert(ui.drafts === 0, 'the draft composer stayed open after the comment was submitted')
     assert(
-      ui.anchors.length === 1 && ui.anchors[0] === 'best-fit centroid',
+      ui.anchors.length === 1 && ui.anchors[0] === 'best-fit centroid of',
       `anchor highlight: ${JSON.stringify(ui.anchors)}`
     )
-    assert(ui.lineDots === 1, `anchor line dots: ${ui.lineDots}`)
   })
 
   await step('comments-survive-edits-then-detach', async () => {
@@ -3186,8 +3239,8 @@ try {
     assert(state.anchorsInDom === 1, 'anchor highlight lost after an edit around it')
 
     // delete the quoted text -> detached, NEVER dropped
-    const quote = await dragSelectInSection('best-fit centroid')
-    assert(quote === 'best-fit centroid', `could not select the quote: ${quote}`)
+    const quote = await dragSelectInSection('best-fit centroid of')
+    assert(quote === 'best-fit centroid of', `could not select the quote: ${quote}`)
     await key('Backspace', 'Backspace')
     await sleep(300)
     await key('s', 'KeyS', 4)
@@ -3203,8 +3256,8 @@ try {
     )
 
     // restore the quote -> it re-attaches (re-locate, never delete)
-    const gap = await dragSelectInSection('carefully measured  of')
-    assert(gap === 'carefully measured  of', `could not select the gap: ${gap}`)
+    const gap = await dragSelectInSection('carefully measured ')
+    assert(gap === 'carefully measured ', `could not select the gap: ${gap}`)
     await insertText('best-fit centroid of')
     await sleep(300)
     await key('s', 'KeyS', 4)
@@ -3216,7 +3269,7 @@ try {
   await step('comments-mcp-add-shows-in-app', async () => {
     await openManuscriptDoc()
     const out = mcpCall(COPY_DIR, 'add_comment', {
-      path: 'sections/02-results.md',
+      path: 'manuscript.md',
       quote: 'regular rotation pattern',
       body: 'The kinematic asymmetry needs an uncertainty here.'
     })
@@ -3226,11 +3279,8 @@ try {
     assert(state.authors.includes('agent'), 'the agent-authored comment is missing')
     assert(state.anchorsInDom === 2, `anchors after the MCP comment: ${state.anchorsInDom}`)
 
-    // The margin gutter only renders a CARD for a comment whose anchor is in
-    // the visible strip; anything above/below collapses into an edge badge
-    // (feature-plan-3 §3). The agent comment's anchor is further down the
-    // document, so scroll to it first — otherwise "is it visually distinct?"
-    // is asking about a card that was never rendered.
+    // Rail cards always render (no viewport-strip collapse any more), sorted
+    // by document offset. The flash still proves card -> anchor navigation.
     const agentId = await evalJs(`(() => {
       const c = window.__sunaDev.commentsStore.getState().comments.find((x) => x.author.kind === 'agent');
       if (!c) throw new Error('no agent-authored comment in the store');
@@ -3239,114 +3289,323 @@ try {
     })()`)
     await sleep(1200)
     const agent = await evalJs(`(() => {
-      const slot = document.querySelector('.cmt-gutter__slot[data-comment-id="' + ${JSON.stringify(agentId)} + '"]');
+      const card = document.querySelector('.cmt-rail .cmt-card[data-comment-id="' + ${JSON.stringify(agentId)} + '"]');
+      const ordered = [...document.querySelectorAll('.cmt-rail .cmt-card[data-comment-id]')]
+        .map((c) => c.dataset.commentId);
+      const anchors = [...document.querySelectorAll('.msdoc .cm-content .cmt-anchor[data-comment-id]')]
+        .map((a) => a.dataset.commentId);
       return {
-        card: !!slot,
-        badge: slot ? slot.querySelectorAll('.cmt__badge--agent').length : 0,
-        anyBadge: document.querySelectorAll('.cmt-gutter__slot .cmt__badge--agent').length
+        card: !!card,
+        badge: card ? card.querySelectorAll('.cmt__badge--agent').length : 0,
+        listOrder: ordered,
+        docOrder: anchors
       };
     })()`)
-    assert(agent.card, `the agent comment has no card in the gutter after scrolling to it`)
+    assert(agent.card, 'the agent comment has no card in the rail')
     assert(agent.badge === 1, `the agent comment is not visually distinct: ${JSON.stringify(agent)}`)
+    assert(
+      JSON.stringify(agent.listOrder) === JSON.stringify(agent.docOrder),
+      `rail order ${JSON.stringify(agent.listOrder)} != document order ${JSON.stringify(agent.docOrder)}`
+    )
     await screenshot('21-comments.png')
   })
 
   /**
-   * feature-plan-3 §3 acceptance, MEASURED off real boxes: a card sits within
-   * ±8 px of its anchor's row, and two comments on adjacent lines never
-   * overlap. Both regressed during the build — the gutter was stuck in
-   * narrow/dot mode (panel-width breakpoint instead of window-width), and the
-   * positioning track silently moved whenever the gutter's header changed.
+   * The comments rail (flux model): rail interactions measured off real DOM —
+   * highlight-click activates + scrolls the card into the rail's viewport,
+   * card-click flashes the anchor, delete is immediate with an Undo toast
+   * that restores the exact thread, and the resize grip persists its width.
    */
-  await step('margin-comments-align-with-anchors', async () => {
+  await step('comments-rail-interactions', async () => {
     await openManuscriptDoc()
     const mode = await evalJs(`({
-      narrow: !!document.querySelector('.msdoc__body .cmt-gutter--narrow'),
-      width: document.querySelector('.msdoc__body .cmt-gutter')?.getBoundingClientRect().width ?? 0,
-      innerWidth: window.innerWidth
+      rail: !!document.querySelector('.mstab > .cmt-rail'),
+      width: document.querySelector('.mstab > .cmt-rail')?.getBoundingClientRect().width ?? 0
     })`)
-    assert(
-      !mode.narrow,
-      `the gutter is in narrow/dot mode at a ${mode.innerWidth}px window (breakpoint is 1100px)`
-    )
-    assert(mode.width > 200, `the comment gutter is only ${mode.width}px wide (expected ~260)`)
+    assert(mode.rail, 'no comments rail beside the manuscript document')
+    assert(mode.width > 200, `the comments rail is only ${mode.width}px wide (expected ~300)`)
 
-    // One more comment on the line directly BELOW the agent comment's anchor
-    // ("regular rotation pattern"), so the two sit on adjacent rows — the
-    // collision case the spec calls out. Deliberately not a substring of that
-    // quote, so the two anchors never nest.
-    const near = await selectPhraseInSection('infall direction')
-    await sleep(250)
-    assert(near === 'infall direction', `could not select a second anchor: ${near}`)
-    await key('m', 'KeyM', 12)
-    await sleep(700)
-    await evalJs(
-      setFieldJs(
-        `document.querySelector('.cmt-gutter .cmt__draft .cmt-textarea')`,
-        'Second anchor, for the collision check.',
-        'HTMLTextAreaElement'
-      )
-    )
-    await sleep(150)
-    await evalJs(`[...document.querySelectorAll('.cmt-gutter .cmt__draft .cmt__btn')]
-      .find((b) => b.textContent.trim() === 'Comment').click()`)
-    await sleep(1400)
-
-    const geom = await evalJs(`(() => {
-      const byId = {};
-      for (const s of document.querySelectorAll('.msdoc__body .cmt-gutter__slot')) {
-        const r = s.getBoundingClientRect();
-        byId[s.dataset.commentId] = { card: { top: r.top, bottom: r.bottom } };
-      }
-      for (const a of document.querySelectorAll('.msdoc .cm-content .cmt-anchor')) {
-        const r = a.getBoundingClientRect();
-        (byId[a.dataset.commentId] ??= {}).anchor = { top: r.top, text: a.textContent };
-      }
-      return Object.entries(byId)
-        .filter(([, v]) => v.card && v.anchor)
-        .map(([id, v]) => ({ id, cardTop: v.card.top, cardBottom: v.card.bottom, anchorTop: v.anchor.top, text: v.anchor.text }));
+    // (a) clicking an in-text highlight activates its card; in the aligned
+    // rail the card sits level with the (visible) highlight, so it must
+    // already intersect the rail viewport — no rail scrolling exists
+    const hl = await evalJs(`(async () => {
+      const el = document.querySelector('.msdoc .cm-content .cmt-anchor[data-comment-id]');
+      if (!el) return { clicked: false };
+      const id = el.dataset.commentId;
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
+      await new Promise((r) => setTimeout(r, 600));
+      const card = document.querySelector('.cmt-rail .cmt-card[data-comment-id="' + id + '"]');
+      const vp = document.querySelector('.cmt-rail__viewport');
+      const cr = card?.getBoundingClientRect();
+      const vr = vp?.getBoundingClientRect();
+      return {
+        clicked: true,
+        storeActive: window.__sunaDev.commentsStore.getState().activeId === id,
+        cardActive: card?.classList.contains('cmt-card--active') ?? false,
+        inView: !!(cr && vr && cr.bottom > vr.top && cr.top < vr.bottom)
+      };
     })()`)
-    assert(geom.length >= 2, `expected >=2 positioned cards to compare, got ${geom.length}`)
-    geom.sort((a, b) => a.anchorTop - b.anchorTop)
+    assert(hl.clicked, 'no anchored highlight to click')
+    assert(hl.storeActive, 'clicking a highlight did not activate its thread')
+    assert(hl.cardActive, 'the active thread card is not visually active')
+    assert(hl.inView, 'the active card is not level with its visible anchor')
 
-    // the TOPMOST card is the one whose position is purely anchor-driven;
-    // any card below it may legitimately be pushed down by collision.
-    const first = geom[0]
-    const delta = Math.abs(first.cardTop - first.anchorTop)
+    // (a2) anchor alignment: the TOPMOST anchored card (which collision
+    // push-down can never move) sits level with its anchor's line, and
+    // scrolling the document moves the cards with it 1:1
+    const align = await evalJs(`(async () => {
+      const measure = () => {
+        const pairs = [];
+        for (const card of document.querySelectorAll('.cmt-rail__track .cmt-card[data-comment-id]')) {
+          const a = document.querySelector('.msdoc .cm-content .cmt-anchor[data-comment-id="' + card.dataset.commentId + '"]');
+          if (!a) continue;
+          pairs.push({ cardTop: card.getBoundingClientRect().top, anchorTop: a.getBoundingClientRect().top });
+        }
+        pairs.sort((p, q) => p.anchorTop - q.anchorTop);
+        return pairs[0] ?? null;
+      };
+      const before = measure();
+      const scroller = document.querySelector('.msdoc');
+      scroller.scrollTop += 120;
+      await new Promise((r) => setTimeout(r, 300));
+      const after = measure();
+      scroller.scrollTop -= 120;
+      await new Promise((r) => setTimeout(r, 300));
+      return { before, after };
+    })()`)
+    assert(align.before !== null, 'no visible card/anchor pair to measure alignment on')
     assert(
-      delta <= 8,
-      `card for "${first.text}" is ${delta.toFixed(1)}px from its anchor row (spec: <=8px)`
+      Math.abs(align.before.cardTop - align.before.anchorTop) <= 24,
+      `topmost card is ${Math.round(align.before.cardTop - align.before.anchorTop)}px off its anchor`
+    )
+    assert(
+      align.after === null ||
+        Math.abs(align.after.cardTop - align.after.anchorTop) <= 24,
+      'cards did not track the document while scrolling'
     )
 
-    const boxes = geom.map((g) => ({ top: g.cardTop, bottom: g.cardBottom })).sort((a, b) => a.top - b.top)
-    for (let i = 1; i < boxes.length; i++) {
-      assert(
-        boxes[i].top >= boxes[i - 1].bottom,
-        `cards overlap: [${boxes[i - 1].top.toFixed(1)}..${boxes[i - 1].bottom.toFixed(1)}] vs [${boxes[i].top.toFixed(1)}..]`
-      )
-    }
-
-    // Clicking a card highlights its anchor and brings it into view. Note the
-    // gutter only renders a card while its anchor is inside the visible strip
-    // (everything else collapses into an edge badge), so this deliberately
-    // does NOT scroll away first — that would leave nothing to click.
-    const clicked = await evalJs(`(() => {
-      const main = document.querySelector('.msdoc__body .cmt-gutter__slot .cmt-card__main');
-      if (!main) return false;
-      main.click();
-      return true;
-    })()`)
-    assert(clicked, 'no positioned comment card was on screen to click')
-    await sleep(1000)
-    const flash = await evalJs(`(() => {
+    // (b) clicking a DIFFERENT card flashes + scrolls to its anchor
+    const flash = await evalJs(`(async () => {
+      const activeId = window.__sunaDev.commentsStore.getState().activeId;
+      const card = [...document.querySelectorAll('.cmt-rail .cmt-card[data-comment-id]')]
+        .find((c) => c.dataset.commentId !== activeId);
+      if (!card) return { clicked: false };
+      card.querySelector('.cmt-card__main')?.click();
+      await new Promise((r) => setTimeout(r, 900));
       const f = document.querySelector('.msdoc .cm-content .cmt-anchor--flash');
-      if (!f) return { flashed: false };
+      if (!f) return { clicked: true, flashed: false };
       const r = f.getBoundingClientRect();
-      return { flashed: true, visible: r.top > 0 && r.bottom < window.innerHeight };
+      return { clicked: true, flashed: true, visible: r.top > 0 && r.bottom < window.innerHeight };
     })()`)
-    assert(flash.flashed, 'clicking a margin card did not flash its anchor')
-    assert(flash.visible, 'clicking a margin card did not scroll its anchor into view')
+    assert(flash.clicked, 'no second comment card to click')
+    assert(flash.flashed, 'clicking a rail card did not flash its anchor')
+    assert(flash.visible, 'clicking a rail card did not scroll its anchor into view')
+
+    // (c) delete -> gone immediately + Undo toast; Undo restores the thread
+    const beforeDelete = JSON.parse(readFileSync(COMMENTS_JSON, 'utf8'))
+    const del = await evalJs(`(async () => {
+      const s = window.__sunaDev.commentsStore.getState();
+      const target = s.comments[0];
+      s.setActive(target.id);
+      await new Promise((r) => setTimeout(r, 300));
+      const card = document.querySelector('.cmt-rail .cmt-card[data-comment-id="' + target.id + '"]');
+      const btn = [...(card?.querySelectorAll('.cmt__actions .cmt__btn') ?? [])]
+        .find((b) => b.textContent.trim() === 'Delete');
+      if (!btn) return { ok: false };
+      btn.click();
+      await new Promise((r) => setTimeout(r, 900));
+      return {
+        ok: true,
+        id: target.id,
+        cardGone: !document.querySelector('.cmt-rail .cmt-card[data-comment-id="' + target.id + '"]'),
+        toast: !!document.querySelector('.toast'),
+        undo: !![...document.querySelectorAll('.toast .toast__action')]
+          .find((b) => b.textContent.trim() === 'Undo')
+      };
+    })()`)
+    assert(del.ok, 'no Delete button on the active card (confirm rows are gone by design)')
+    assert(del.cardGone, 'the deleted comment card is still in the rail')
+    assert(del.toast && del.undo, 'no Undo toast after deleting a comment')
+    const afterDelete = JSON.parse(readFileSync(COMMENTS_JSON, 'utf8'))
+    assert(
+      afterDelete.comments.length === beforeDelete.comments.length - 1,
+      `comments.json after delete: ${afterDelete.comments.length}`
+    )
+
+    await evalJs(`[...document.querySelectorAll('.toast .toast__action')]
+      .find((b) => b.textContent.trim() === 'Undo').click()`)
+    await sleep(900)
+    const restored = JSON.parse(readFileSync(COMMENTS_JSON, 'utf8'))
+    const restoredThread = restored.comments.find((c) => c.id === del.id)
+    const originalThread = beforeDelete.comments.find((c) => c.id === del.id)
+    assert(
+      JSON.stringify(restoredThread) === JSON.stringify(originalThread),
+      'Undo did not restore the exact comment thread'
+    )
+
+    // (d) the resize grip widens the rail and persists the width — from a
+    // NORMALIZED starting width, or repeat runs saturate at the 520px clamp
+    await evalJs(`window.__sunaDev.uiStore.getState().setCommentsRailWidth(300)`)
+    await sleep(300)
+    const resized = await evalJs(`(async () => {
+      const grip = document.querySelector('.cmt-rail__grip');
+      const rail = document.querySelector('.mstab > .cmt-rail');
+      if (!grip || !rail) return { ok: false };
+      const before = rail.getBoundingClientRect().width;
+      const r = grip.getBoundingClientRect();
+      grip.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left, clientY: r.top + 60 }));
+      window.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left - 80, clientY: r.top + 60 }));
+      window.dispatchEvent(new PointerEvent('pointerup', {}));
+      await new Promise((res) => setTimeout(res, 300));
+      const after = rail.getBoundingClientRect().width;
+      const stored = Number(window.localStorage.getItem('suna.commentsRailWidth'));
+      return { ok: true, before, after, stored };
+    })()`)
+    assert(resized.ok, 'no resize grip on the rail')
+    assert(
+      resized.after > resized.before + 40,
+      `grip drag did not widen the rail (${resized.before} -> ${resized.after})`
+    )
+    assert(
+      Math.abs(resized.stored - resized.after) <= 1,
+      `persisted rail width ${resized.stored} != rendered ${resized.after}`
+    )
     await screenshot('margin-comments.png')
+  })
+
+  /**
+   * Shared doc sessions (state/docSessions): the raw editor tab and the
+   * combined manuscript tab are two windows onto ONE buffer — typing in one
+   * appears in the other WITHOUT saving, there is a single dirty state, and
+   * one ⌘S cleans both.
+   */
+  await step('shared-buffer-live-sync', async () => {
+    await openManuscriptDoc()
+    const marker = 'SYNCMARK-' + Date.now().toString(36)
+    // type into the MANUSCRIPT tab (helpers target .msdoc__editor)
+    const sel = await dragSelectInSection('regular rotation pattern')
+    assert(sel === 'regular rotation pattern', `could not select in the manuscript tab: ${sel}`)
+    await insertText('regular rotation pattern ' + marker)
+    await sleep(600)
+
+    // buffer truth has it; disk does NOT (no save yet)
+    const buffered = await evalJs(
+      `window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})?.includes(${JSON.stringify(marker)})`
+    )
+    assert(buffered, 'the shared session buffer does not hold the unsaved edit')
+    assert(
+      !readFileSync(MANUSCRIPT_MD, 'utf8').includes(marker),
+      'the unsaved edit reached the disk'
+    )
+
+    // open the SAME file as a raw editor tab: the visible text already
+    // contains the unsaved edit (one buffer, two views)
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(MANUSCRIPT_MD)})`)
+    await sleep(2000)
+    const fileTab = await evalJs(`(() => {
+      const tab = [...document.querySelectorAll('.editor-tab')]
+        .filter((t) => !t.classList.contains('msdoc'))
+        .find((t) => t.getBoundingClientRect().width > 0);
+      const meta = window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(MANUSCRIPT_MD)});
+      return {
+        found: !!tab,
+        hasMarker: tab ? tab.querySelector('.cm-content')?.textContent.includes(${JSON.stringify(marker)}) ?? false : false,
+        views: meta?.views ?? 0,
+        dirty: meta?.dirty ?? false
+      };
+    })()`)
+    assert(fileTab.found, 'the raw editor tab did not open')
+    assert(fileTab.hasMarker, 'the raw editor tab does not show the other tab\'s unsaved edit')
+    assert(fileTab.views === 2, `session views: ${fileTab.views} (expected 2)`)
+    assert(fileTab.dirty, 'the shared session is not marked dirty after an edit')
+
+    // one ⌘S (in the file tab, the active panel) cleans BOTH surfaces —
+    // click into its editor first so the keystroke lands there
+    const lineSpot = await evalJs(`(() => {
+      const tab = [...document.querySelectorAll('.editor-tab')]
+        .filter((t) => !t.classList.contains('msdoc'))
+        .find((t) => t.getBoundingClientRect().width > 0);
+      const l = [...tab.querySelectorAll('.cm-line')].find((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.top > 60 && r.bottom < window.innerHeight - 40;
+      });
+      if (!l) throw new Error('no visible line in the raw editor tab');
+      const r = l.getBoundingClientRect();
+      return { x: r.left + Math.min(30, r.width / 2), y: r.top + r.height / 2 };
+    })()`)
+    await click(lineSpot.x, lineSpot.y)
+    await sleep(250)
+    await key('s', 'KeyS', 4)
+    await sleep(1200)
+    assert(
+      readFileSync(MANUSCRIPT_MD, 'utf8').includes(marker),
+      'the save did not reach the disk'
+    )
+    const clean = await evalJs(
+      `window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(MANUSCRIPT_MD)})?.dirty`
+    )
+    assert(clean === false, 'the shared session is still dirty after the save')
+
+    // revert OUT-OF-BAND (edit_manuscript) — robust against the marker being
+    // split across highlight spans in either editor, and it doubles as an
+    // external-reload exercise: the live buffers must follow the revert
+    mcpCall(COPY_DIR, 'edit_manuscript', {
+      find: 'regular rotation pattern ' + marker,
+      replace: 'regular rotation pattern'
+    })
+    await sleep(1500)
+    assert(
+      !readFileSync(MANUSCRIPT_MD, 'utf8').includes(marker),
+      'could not revert the sync marker on disk'
+    )
+    const bufferReverted = await evalJs(
+      `!window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})?.includes(${JSON.stringify(marker)})`
+    )
+    assert(bufferReverted, 'the live buffer did not follow the out-of-band revert')
+  })
+
+  /**
+   * External edits (an agent's edit_manuscript over MCP) reach LIVE editors:
+   * the watcher-driven reload applies the disk text as a minimal mapped
+   * change — the buffer updates, stays clean, and the scroll position holds.
+   */
+  await step('external-edit-live-reload', async () => {
+    await openManuscriptDoc()
+    const scrollBefore = await evalJs(`document.querySelector('.msdoc').scrollTop`)
+    const out = mcpCall(COPY_DIR, 'edit_manuscript', {
+      find: 'regular rotation pattern',
+      replace: 'regular rotation pattern (externally edited)'
+    })
+    assert(/replaced \d+ chars/.test(out), `edit_manuscript said: ${out}`)
+    await sleep(1500) // watcher debounce (150ms) + reload round trip
+
+    const state = await evalJs(`(() => {
+      const meta = window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(MANUSCRIPT_MD)});
+      return {
+        buffered: window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})?.includes('(externally edited)') ?? false,
+        visible: document.querySelector('.msdoc .cm-content')?.textContent.includes('(externally edited)') ?? false,
+        dirty: meta?.dirty ?? null,
+        scrollTop: document.querySelector('.msdoc').scrollTop
+      };
+    })()`)
+    assert(state.buffered, 'the external edit did not reach the shared buffer')
+    assert(state.visible, 'the external edit is not visible in the live editor')
+    assert(state.dirty === false, `the external reload left the session dirty: ${state.dirty}`)
+    assert(
+      Math.abs(state.scrollTop - scrollBefore) <= 4,
+      `the external reload moved the scroll position (${scrollBefore} -> ${state.scrollTop})`
+    )
+
+    // revert out-of-band too; the live buffer must follow again
+    mcpCall(COPY_DIR, 'edit_manuscript', {
+      find: 'regular rotation pattern (externally edited)',
+      replace: 'regular rotation pattern'
+    })
+    await sleep(1500)
+    const back = await evalJs(
+      `window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})?.includes('(externally edited)')`
+    )
+    assert(back === false, 'the revert edit did not reach the live buffer')
   })
 
   // Two figures get canvas tabs during this run, and dockview keeps the
@@ -3738,10 +3997,11 @@ try {
 
   /**
    * feature-plan-3 §2 plumbing, WITHOUT spending the developer's tokens: the
-   * ai-cli provider is offered (and defaults) when a CLI is detected, and
-   * cancelling an in-flight search actually kills the child process and
-   * releases the UI. The billed "≥3 results with DOIs inside 180 s" leg is a
-   * manual verification — see TESTING.md — because every run of it costs real
+   * ai-cli provider is offered when a CLI is detected (OpenAlex stays the
+   * selected default — ai-cli is strictly opt-in), and cancelling an
+   * in-flight search actually kills the child process and releases the UI.
+   * The billed "≥3 results with DOIs inside 180 s" leg is a manual
+   * verification — see TESTING.md — because every run of it costs real
    * money.
    *
    * The cancel leg starts a real child and kills it after ~3 s, which is
@@ -3765,6 +4025,20 @@ try {
     })()`)
     assert(picker.labels.length === 5, `provider buttons: ${picker.labels.join(' | ')}`)
     assert(picker.labels[0].includes('AI search'), `AI search is not listed first: ${picker.labels[0]}`)
+    // OpenAlex is the default selection — even on a machine with an agent
+    // CLI installed, ai-cli is opt-in only.
+    assert(
+      picker.selected && picker.selected.includes('OpenAlex'),
+      `OpenAlex is not the default provider: ${picker.selected}`
+    )
+
+    // opt into ai-cli explicitly for the rest of the step
+    await evalJs(`[...document.querySelectorAll('.lit-search__providers .refs__style')]
+      .find((b) => b.textContent.includes('AI search')).click()`)
+    await sleep(400)
+    const aiNote = await evalJs(
+      `document.querySelector('.lit-search .view__hint')?.textContent ?? null`
+    )
 
     const cliAvailable = await evalJs(
       `window.suna.invoke('lit:cli-status', {}).then((r) => r.available)`
@@ -3772,20 +4046,16 @@ try {
     if (cliAvailable.length === 0) {
       // Honest-failure path: no CLI on this machine.
       assert(
-        /Install Claude Code or Codex/.test(picker.note ?? ''),
-        `with no CLI installed the panel must show the install hint, got: ${picker.note}`
+        /Install Claude Code or Codex/.test(aiNote ?? ''),
+        `with no CLI installed the panel must show the install hint, got: ${aiNote}`
       )
       console.log('    (no agent CLI installed — verified the install-hint path)')
       return
     }
 
     assert(
-      picker.selected && picker.selected.includes('AI search'),
-      `ai-cli did not become the default with ${cliAvailable.join('/')} installed: ${picker.selected}`
-    )
-    assert(
-      /Claude Code|Codex/.test(picker.note ?? ''),
-      `the panel does not name the detected CLI: ${picker.note}`
+      /Claude Code|Codex/.test(aiNote ?? ''),
+      `the panel does not name the detected CLI: ${aiNote}`
     )
 
     // --- start a real search, then cancel it -------------------------------
@@ -3859,14 +4129,14 @@ try {
     const providers = await evalJs(
       `[...document.querySelectorAll('.lit-search__providers .refs__style')].map((b) => b.textContent)`
     )
-    // feature-plan-3 §2 added 'ai-cli' as a FIFTH provider, listed first and
-    // auto-selected when a CLI is detected (@suna/core's UI_LIT_PROVIDER_IDS).
+    // feature-plan-3 §2 added 'ai-cli' as a FIFTH provider, listed first
+    // (@suna/core's UI_LIT_PROVIDER_IDS); OpenAlex is the selected default.
     assert(providers.length === 5, `provider buttons: ${providers.join(' | ')}`)
     assert(providers[0].includes('AI search'), `AI search is not listed first: ${providers[0]}`)
 
-    // Pin Crossref explicitly. This step exercises the HTTP provider path, and
-    // ai-cli is the default on any machine with Claude Code/Codex installed —
-    // leaving it selected would spend the developer's tokens on every smoke run.
+    // Pin Crossref explicitly — this step exercises the HTTP provider path
+    // (the previous step may have left ai-cli selected, and running a search
+    // on it would spend the developer's tokens on every smoke run).
     await evalJs(`[...document.querySelectorAll('.lit-search__providers .refs__style')]
       .find((b) => b.textContent.includes('Crossref')).click()`)
     await sleep(300)
@@ -3999,11 +4269,28 @@ try {
     assert(probe.ok, `MCP probe failed: ${out}`)
     for (const name of [
       'list_comments', 'add_comment', 'reply_comment', 'resolve_comment',
-      'search_literature', 'lookup_doi', 'add_reference'
+      'search_literature', 'lookup_doi', 'add_reference',
+      'edit_manuscript', 'check_manuscript'
     ]) {
       assert(probe.tools.includes(name), `bundled MCP server is missing ${name}`)
     }
-    assert(probe.tools.length === 15, `MCP tool count: ${probe.tools.length}`)
+    assert(probe.tools.length === 20, `MCP tool count: ${probe.tools.length}`)
+
+    // the anchored edit primitive, round-tripped through the real bundle:
+    // edit a unique phrase, verify the section report, put it back
+    const phrase = 'Galaxies falling into dense cluster environments'
+    const edited = mcpCall(COPY_DIR, 'edit_manuscript', {
+      find: phrase, replace: `${phrase} (smoke)`
+    })
+    assert(/replaced \d+ chars/.test(edited), `edit_manuscript said: ${edited}`)
+    mcpCall(COPY_DIR, 'edit_manuscript', { find: `${phrase} (smoke)`, replace: phrase })
+
+    // manuscript-side compliance speaks against the demo's active profile
+    const checked = mcpCall(COPY_DIR, 'check_manuscript', {})
+    assert(
+      /compliant with|error |warning /.test(checked),
+      `check_manuscript said: ${checked}`
+    )
   })
 
   /* ------------------------------------------------------------------
@@ -4041,7 +4328,7 @@ try {
     cortese2021: join(ROOT, 'references', 's41550-026-02905-7.pdf'),
     jachym2019: join(ROOT, 'references', 's41550-026-02892-9.pdf')
   }
-  const INTRO_MD = join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md')
+  const INTRO_MD = join(COPY_DIR, 'manuscript', 'manuscript.md')
 
   await step('split-view-two-groups', async () => {
     await resetDock()
@@ -4396,17 +4683,17 @@ try {
       `the palette opened without focus on its input: ${opened.focused}`
     )
 
-    // file mode: typing 'intro' finds the intro section and Enter opens it
-    await insertText('intro')
+    // file mode: typing the prose file's name finds it and Enter opens it
+    await insertText('manuscript.md')
     await sleep(800)
     const fileRows = await evalJs(`[...document.querySelectorAll('.palette__item')].map((i) => ({
       label: i.querySelector('.palette__item-label')?.textContent ?? '',
       sub: i.querySelector('.palette__item-sub')?.textContent ?? ''
     }))`)
-    assert(fileRows.length > 0, "typing 'intro' matched nothing")
+    assert(fileRows.length > 0, "typing 'manuscript.md' matched nothing")
     assert(
-      fileRows[0].label === '01-introduction.md',
-      `'intro' ranked ${fileRows[0].label} first, want 01-introduction.md`
+      fileRows[0].label === 'manuscript.md',
+      `'manuscript.md' ranked ${fileRows[0].label} first, want manuscript.md`
     )
     // matched on the PROJECT-RELATIVE path: every file shares the absolute
     // prefix, so scoring absolute paths returns the entire project
@@ -4415,8 +4702,8 @@ try {
       `file rows show an absolute path: ${fileRows[0].sub}`
     )
     assert(
-      fileRows.length < 5,
-      `'intro' matched ${fileRows.length} files — the query is not discriminating (${fileRows.map((r) => r.label).join(', ')})`
+      fileRows.length < 6,
+      `'manuscript.md' matched ${fileRows.length} files — the query is not discriminating (${fileRows.map((r) => r.label).join(', ')})`
     )
     await screenshot('command-palette.png')
     await resetDock()
@@ -4980,7 +5267,7 @@ try {
     // also worn by the data-grid tab (which sets no --ed-* variables), and
     // with the Settings tab focused no editor surface need be mounted at all.
     await evalJs(
-      `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md'))})`
+      `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'manuscript.md'))})`
     )
     await sleep(1200)
     const surface = await evalJs(`(() => {
@@ -5016,7 +5303,7 @@ try {
       return { value: input.value, badge: row.querySelector('.settings__source').textContent };
     })()`)
     await evalJs(
-      `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'sections', '01-introduction.md'))})`
+      `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'manuscript.md'))})`
     )
     await sleep(1200)
     const afterReset = {
@@ -5026,9 +5313,10 @@ try {
       )
     }
     assert(afterReset.badge === 'default', `after reset the badge reads ${afterReset.badge}`)
-    assert(afterReset.value === '68', `after reset the value is ${afterReset.value} (want the 68 default)`)
+    // 140 is SETTINGS_DEFAULTS['editor.contentWidthCh'] (settings-resolve.ts)
+    assert(afterReset.value === '140', `after reset the value is ${afterReset.value} (want the 140 default)`)
     assert(
-      afterReset.cssVar === '68ch',
+      afterReset.cssVar === '140ch',
       `the editor stayed on the reset override: ${afterReset.cssVar}`
     )
 
@@ -5290,14 +5578,17 @@ try {
       .split('\n')
       .slice(1)
       .filter((line) => /^ {2}\S/.test(line))
-      .map((line) => line.trim().replace(/\/$/, ''))
+      // strip trailing annotations like "(machine-local, not committed)"
+      .map((line) => line.trim().replace(/\s*\(.*\)$/, '').replace(/\/$/, ''))
       .sort()
     assert(
       onDisk.join(',') === previewTop.join(','),
       `created tree ≠ Review tree\n  disk:    ${onDisk.join(',')}\n  preview: ${previewTop.join(',')}`
     )
     for (const relative of ['manuscript/manuscript.json', 'manuscript/references.bib',
-      'manuscript/sections/01-introduction.md']) {
+      'manuscript/manuscript.md', 'manuscript/authors.json',
+      'AGENTS.md', 'CLAUDE.md', 'context/MISSION.md', 'context/NOTEBOOK.md',
+      'context/RULES.md', '.mcp.json']) {
       assert(existsSync(join(WIZARD_DIR, relative)), `missing ${relative}`)
     }
 
