@@ -181,9 +181,9 @@ export function createTerminalTab(
 }
 
 /** Open the panel and start a terminal that immediately runs `command`. */
-export function openTerminalWithCommand(command: string): string {
+export function openTerminalWithCommand(command: string, title?: string): string {
   useTerminalPanelStore.getState().setOpen(true)
-  return createTerminalTab({ command, title: command })
+  return createTerminalTab({ command, title: title ?? command })
 }
 
 export function setActiveTerminalTab(id: string): void {

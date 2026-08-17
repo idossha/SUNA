@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DEFAULT_PROJECT_DIRS, type CommentsFile } from '@suna/core'
-import { addComment, listComments, replyComment, resolveComment } from './comments'
+import { addComment, agentAuthor, listComments, replyComment, resolveComment } from './comments'
 import type { ProjectContext } from './project'
 
 let dir = ''
@@ -41,7 +41,7 @@ describe('listComments', () => {
       body: 'Vacuum or air wavelength?'
     })
     const out = await listComments(ctx, {})
-    expect(out).toContain('Claude Code (agent): Vacuum or air wavelength?')
+    expect(out).toContain('Agent (agent): Vacuum or air wavelength?')
     expect(out).toContain('"best-fit centroid of 6563.3"')
     expect(out).toContain('[open]')
   })
@@ -90,7 +90,7 @@ describe('addComment', () => {
         suffix: ' Å with high confidence.'
       }
     })
-    expect(comment?.author).toEqual({ kind: 'agent', name: 'Claude Code' })
+    expect(comment?.author).toEqual({ kind: 'agent', name: 'Agent' })
     expect(comment?.resolved).toBe(false)
     expect(comment?.detached).toBe(false)
   })
@@ -129,7 +129,7 @@ describe('replyComment', () => {
     expect(file.comments[0]?.replies).toHaveLength(1)
     expect(file.comments[0]?.replies[0]).toMatchObject({
       body: 'Will add a sigma value.',
-      author: { kind: 'agent', name: 'Claude Code' }
+      author: { kind: 'agent', name: 'Agent' }
     })
   })
 
@@ -158,5 +158,24 @@ describe('resolveComment', () => {
     await expect(resolveComment(ctx, { id: 'c-does-not-exist', resolved: true })).rejects.toThrow(
       /no comment with id/
     )
+  })
+})
+
+describe('agentAuthor', () => {
+  it('defaults to a generic agent identity with no env set', () => {
+    expect(agentAuthor({})).toEqual({ kind: 'agent', name: 'Agent' })
+  })
+
+  it('takes name and model from SUNA_AGENT_NAME / SUNA_AGENT_MODEL', () => {
+    expect(
+      agentAuthor({ SUNA_AGENT_NAME: 'Claude Code', SUNA_AGENT_MODEL: 'claude-fable-5' })
+    ).toEqual({ kind: 'agent', name: 'Claude Code', model: 'claude-fable-5' })
+  })
+
+  it('ignores blank values rather than producing empty fields', () => {
+    expect(agentAuthor({ SUNA_AGENT_NAME: '  ', SUNA_AGENT_MODEL: '' })).toEqual({
+      kind: 'agent',
+      name: 'Agent'
+    })
   })
 })

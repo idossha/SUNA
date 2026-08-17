@@ -1,8 +1,9 @@
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { emptyAuthorsFile } from '@suna/core'
-import { outlineFromMarkdown } from '@suna/markdown'
+import { ManuscriptSchema, emptyAuthorsFile } from '@suna/core'
+import { outlineFromMarkdown, parseSciMark } from '@suna/markdown'
+import { writeAtomic } from '../context/ensure'
 import { loadProjectContext, resolveInside, type ProjectContext } from './project'
 import {
   addComment,
@@ -32,6 +33,12 @@ import {
 export const listProjectInput = z.object({})
 export const readManuscriptInput = z.object({})
 export const writeManuscriptInput = z.object({ content: z.string() })
+export const editManuscriptInput = z.object({
+  /** Exact text to replace — must occur exactly once in the manuscript. */
+  find: z.string().min(1),
+  replace: z.string()
+})
+export const checkManuscriptInput = z.object({})
 /** Kept only so an agent mid-session that still calls the old name doesn't break — see TOOLS below. */
 export const readSectionInput = z.object({ path: z.string().min(1) })
 export const writeSectionInput = z.object({
@@ -117,11 +124,89 @@ export async function readManuscript(ctx: ProjectContext): Promise<string> {
   return readFile(resolveInside(ctx.root, ctx.dirs.manuscript, name), 'utf8')
 }
 
-/** Overwrites the whole manuscript prose file. */
+/** Overwrites the whole manuscript prose file (atomically — a crash
+ * mid-write must never truncate the user's prose). */
 export async function writeManuscript(ctx: ProjectContext, content: string): Promise<string> {
   const name = await manuscriptFileName(ctx)
-  await writeFile(resolveInside(ctx.root, ctx.dirs.manuscript, name), content, 'utf8')
+  await writeAtomic(resolveInside(ctx.root, ctx.dirs.manuscript, name), content)
   return `wrote ${content.length} characters to ${name}`
+}
+
+function allIndicesOf(text: string, find: string): number[] {
+  if (find.length === 0) return [] // same convention as @suna/core's anchor.ts
+  const out: number[] = []
+  let at = text.indexOf(find)
+  while (at !== -1) {
+    out.push(at)
+    // Advance by 1, not by find.length: self-overlapping anchors (find "nono"
+    // in "nonono") must count as ambiguous, never as a single clean match.
+    at = text.indexOf(find, at + 1)
+  }
+  return out
+}
+
+/** One line of context around a match, for the ambiguity error. */
+function matchContext(text: string, at: number, length: number): string {
+  const lineStart = text.lastIndexOf('\n', at) + 1
+  const lineEndRaw = text.indexOf('\n', at + length)
+  const lineEnd = lineEndRaw === -1 ? text.length : lineEndRaw
+  const line = text.slice(lineStart, lineEnd)
+  return line.length > 160 ? `${line.slice(0, 160)}…` : line
+}
+
+/** The section (by derived outline) whose range contains offset `at`. */
+function sectionLabelAt(md: string, at: number): string {
+  const sections = outlineFromMarkdown(md)
+  if (sections.length === 0) return '(empty manuscript)'
+  // A whitespace-only lead emits no level-0 section, so an offset before the
+  // first heading belongs to the start of the file, not to "no manuscript".
+  let label = '(start of file)'
+  for (const s of sections) {
+    if (s.headingFrom > at) break
+    label = s.level === 0 ? '(untitled leading section)' : s.title
+  }
+  return label
+}
+
+/**
+ * The anchored edit primitive: replace one exact occurrence of `find`, or
+ * fail loudly. An edit from a stale read fails (0 matches) instead of
+ * silently clobbering concurrent changes — the same discipline the app's own
+ * editor applies — which is why this, not write_manuscript, is the verb the
+ * shipped agent docs teach for routine edits.
+ */
+export async function editManuscript(
+  ctx: ProjectContext,
+  find: string,
+  replace: string
+): Promise<string> {
+  const name = await manuscriptFileName(ctx)
+  const path = resolveInside(ctx.root, ctx.dirs.manuscript, name)
+  const text = await readFile(path, 'utf8')
+  const matches = allIndicesOf(text, find)
+  if (matches.length === 0) {
+    const fuzzyHit = text.replace(/\s+/g, ' ').includes(find.replace(/\s+/g, ' '))
+    throw new Error(
+      `find matched nothing in ${name}` +
+        (fuzzyHit
+          ? ' — it DOES match ignoring whitespace; re-read the manuscript and resend find with its exact whitespace'
+          : ' — re-read the manuscript and copy the text exactly')
+    )
+  }
+  if (matches.length > 1) {
+    const shown = matches
+      .slice(0, 5)
+      .map((at) => `  at ${at}: ${matchContext(text, at, find.length)}`)
+      .join('\n')
+    throw new Error(
+      `find matched at ${matches.length} positions (overlaps counted) in ${name} — extend it until it is unique:\n${shown}` +
+        (matches.length > 5 ? `\n  … and ${matches.length - 5} more` : '')
+    )
+  }
+  const at = matches[0] as number
+  const next = text.slice(0, at) + replace + text.slice(at + find.length)
+  await writeAtomic(path, next)
+  return `replaced ${find.length} chars with ${replace.length} chars at offset ${at} in section "${sectionLabelAt(next, at)}"`
 }
 
 /**
@@ -248,11 +333,93 @@ export async function checkFigureCompliance(
   return diagnostics.map((d) => `${d.severity} ${d.id}: ${d.message}`).join('\n')
 }
 
+/**
+ * Distinct cited keys in the prose — the same number the app's export
+ * compliance check derives (assignNumbers over the citation clusters has one
+ * entry per distinct key), without pulling the whole bib engine in.
+ */
+function citedKeyCount(md: string): number {
+  const keys = new Set<string>()
+  const visit = (node: unknown): void => {
+    if (typeof node !== 'object' || node === null) return
+    const n = node as { type?: unknown; keys?: unknown; children?: unknown }
+    if (n.type === 'citation' && Array.isArray(n.keys)) {
+      for (const key of n.keys) if (typeof key === 'string') keys.add(key)
+    }
+    if (Array.isArray(n.children)) for (const child of n.children) visit(child)
+  }
+  visit(parseSciMark(md))
+  return keys.size
+}
+
+/**
+ * Manuscript-side compliance against the active profile — word/abstract/
+ * section limits, required sections, availability statements, and prose ↔
+ * figure referential integrity. Mirrors the app's export-time check: one
+ * flat prose file as the only section text, and the profile's first declared
+ * article type as its primary research-article type.
+ */
+export async function checkManuscriptCompliance(ctx: ProjectContext): Promise<string> {
+  const [{ checkManuscript, getBundledProfile }, prose] = await Promise.all([
+    import('@suna/formatter'),
+    readManuscript(ctx)
+  ])
+  const profile = ctx.activeProfileId ? getBundledProfile(ctx.activeProfileId) : null
+  if (!profile) return 'no active publisher profile: nothing to check against'
+  const articleTypeId = profile.manuscript.articleTypes[0]?.id
+  if (articleTypeId === undefined) {
+    return `profile ${profile.id} declares no article types: nothing to check against`
+  }
+  // Name the file in every failure mode — a bare ENOENT or zod issue dump
+  // gives an agent nothing to act on (same discipline as readCommentsFile).
+  const metaPath = resolveInside(ctx.root, ctx.dirs.manuscript, 'manuscript.json')
+  let metaRaw: string
+  try {
+    metaRaw = await readFile(metaPath, 'utf8')
+  } catch {
+    throw new Error(`manuscript.json is missing (${metaPath}): nothing to check against`)
+  }
+  let metaJson: unknown
+  try {
+    metaJson = JSON.parse(metaRaw)
+  } catch (error) {
+    throw new Error(
+      `manuscript.json is not valid JSON (${metaPath}): ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+  const parsed = ManuscriptSchema.safeParse(metaJson)
+  if (!parsed.success) {
+    throw new Error(
+      `manuscript.json does not match the manuscript schema (${metaPath}): ${parsed.error.message}`
+    )
+  }
+  const manuscript = parsed.data
+  const name = await manuscriptFileName(ctx)
+  const diagnostics = checkManuscript(
+    { manuscript, sectionTexts: { [name]: prose }, referenceCount: citedKeyCount(prose) },
+    profile,
+    articleTypeId
+  )
+  if (diagnostics.length === 0) return `manuscript: compliant with ${profile.journalName}`
+  return diagnostics.map((d) => `${d.severity} ${d.id}: ${d.message}`).join('\n')
+}
+
 /** Tool metadata shared by the server and its tests. */
 export const TOOLS = [
   { name: 'list_project', description: 'List every file in the SUNA project', schema: listProjectInput },
   { name: 'read_manuscript', description: 'Read the whole manuscript prose file (manuscript/manuscript.md)', schema: readManuscriptInput },
-  { name: 'write_manuscript', description: 'Overwrite the whole manuscript prose file (manuscript/manuscript.md)', schema: writeManuscriptInput },
+  {
+    name: 'write_manuscript',
+    description:
+      'Overwrite the whole manuscript prose file (manuscript/manuscript.md) — for wholesale restructures; prefer edit_manuscript for routine edits',
+    schema: writeManuscriptInput
+  },
+  {
+    name: 'edit_manuscript',
+    description:
+      'Replace one exact occurrence of `find` with `replace` in the manuscript prose — errors if `find` matches zero or several times (with per-match context so you can extend it)',
+    schema: editManuscriptInput
+  },
   {
     name: 'read_section',
     description: 'DEPRECATED alias for read_manuscript — the manuscript is one flat file now, so `path` is ignored and the whole file is returned',
@@ -273,6 +440,12 @@ export const TOOLS = [
   { name: 'read_figure_svg', description: 'Read a figure SVG source', schema: readFigureSvgInput },
   { name: 'read_bib', description: 'Read the BibTeX bibliography', schema: readBibInput },
   { name: 'check_figure_compliance', description: "Check a figure against the journal's author guidelines", schema: checkFigureComplianceInput },
+  {
+    name: 'check_manuscript',
+    description:
+      "Check the manuscript against the journal's author guidelines (word/abstract/section limits, required sections, availability statements, figure-reference integrity)",
+    schema: checkManuscriptInput
+  },
   { name: 'list_comments', description: 'List review comments, optionally filtered by resolved status or section path', schema: listCommentsInput },
   { name: 'add_comment', description: 'Add a review comment anchored to an exact quote in a manuscript section', schema: addCommentInput },
   { name: 'reply_comment', description: 'Reply to an existing review comment thread', schema: replyCommentInput },
@@ -299,6 +472,10 @@ export async function callTool(
       return readManuscript(ctx)
     case 'write_manuscript':
       return writeManuscript(ctx, writeManuscriptInput.parse(args).content)
+    case 'edit_manuscript': {
+      const input = editManuscriptInput.parse(args)
+      return editManuscript(ctx, input.find, input.replace)
+    }
     case 'read_section':
       return readSection(ctx, readSectionInput.parse(args).path)
     case 'write_section': {
@@ -318,6 +495,9 @@ export async function callTool(
       return readBib(ctx)
     case 'check_figure_compliance':
       return checkFigureCompliance(ctx, checkFigureComplianceInput.parse(args).figureId)
+    case 'check_manuscript':
+      checkManuscriptInput.parse(args)
+      return checkManuscriptCompliance(ctx)
     case 'list_comments':
       return listComments(ctx, listCommentsInput.parse(args))
     case 'add_comment':

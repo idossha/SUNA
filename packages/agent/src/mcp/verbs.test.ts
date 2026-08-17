@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { DEFAULT_PROJECT_DIRS } from '@suna/core'
 import {
   callTool,
+  checkManuscriptCompliance,
+  editManuscript,
   listOutline,
   readManuscript,
   readManuscriptMeta,
@@ -136,11 +138,94 @@ describe('callTool dispatch', () => {
   })
 })
 
+describe('editManuscript', () => {
+  it('replaces a unique match and names the containing section', async () => {
+    const out = await editManuscript(ctx, 'Hello world.', 'Hello there, world.')
+    expect(out).toContain('section "Introduction"')
+    expect(await readFile(join(dir, 'manuscript', 'manuscript.md'), 'utf8')).toContain(
+      'Hello there, world.'
+    )
+  })
+
+  it('rejects a find that matches nothing, hinting when only whitespace differs', async () => {
+    await expect(editManuscript(ctx, 'Hello  world.', 'x')).rejects.toThrow(
+      /ignoring whitespace/
+    )
+    await expect(editManuscript(ctx, 'not in the file', 'x')).rejects.toThrow(
+      /matched nothing/
+    )
+  })
+
+  it('rejects an ambiguous find, listing each match with context', async () => {
+    await writeFile(
+      join(dir, 'manuscript', 'manuscript.md'),
+      '# A\n\nthe result\n\n# B\n\nthe result\n',
+      'utf8'
+    )
+    await expect(editManuscript(ctx, 'the result', 'x')).rejects.toThrow(/matched at 2 positions/)
+  })
+
+  it('routes through callTool', async () => {
+    const out = await callTool(dir, 'edit_manuscript', {
+      find: 'More text follows here.',
+      replace: 'Rewritten.'
+    })
+    expect(out).toContain('section "Results"')
+  })
+})
+
+describe('checkManuscriptCompliance', () => {
+  /** Minimal schema-valid manuscript.json, the starter scaffold's shape. */
+  const meta = {
+    title: 'T',
+    shortTitle: 'T',
+    articleType: 'article',
+    doi: null,
+    openAccess: null,
+    history: { received: null, accepted: null, publishedOnline: null },
+    abstract: { content: 'An abstract.' },
+    manuscriptFile: 'manuscript.md',
+    figures: [],
+    tables: [],
+    availability: { data: '', code: '' },
+    backMatter: {
+      acknowledgements: null,
+      authorContributions: null,
+      funding: [],
+      competingInterests: null,
+      peerReview: null,
+      supplementaryInfo: null
+    },
+    bibliography: 'references.bib'
+  }
+
+  it('reports "nothing to check" without an active profile', async () => {
+    expect(await checkManuscriptCompliance(ctx)).toContain('no active publisher profile')
+  })
+
+  it('returns diagnostics (or a compliant verdict) against a bundled profile', async () => {
+    await writeFile(join(dir, 'manuscript', 'manuscript.json'), JSON.stringify(meta), 'utf8')
+    const out = await checkManuscriptCompliance({ ...ctx, activeProfileId: 'nature-astronomy' })
+    // The tiny fixture is under every limit but misses required sections /
+    // availability statements — either way the checker must speak, not throw.
+    expect(out).toMatch(/compliant with|error |warning /)
+  })
+
+  it('routes through callTool', async () => {
+    await writeFile(join(dir, 'manuscript', 'manuscript.json'), JSON.stringify(meta), 'utf8')
+    expect(await callTool(dir, 'check_manuscript', {})).toMatch(
+      /no active publisher profile|compliant with|error |warning /
+    )
+  })
+})
+
 describe('TOOLS', () => {
   it('lists the new manuscript verbs and keeps the deprecated aliases', () => {
     const names = TOOLS.map((t) => t.name)
     expect(names).toContain('read_manuscript')
     expect(names).toContain('write_manuscript')
+    expect(names).toContain('edit_manuscript')
+    expect(names).toContain('check_manuscript')
     expect(names).toContain('list_outline')
     expect(names).toContain('read_section')
     expect(names).toContain('write_section')
