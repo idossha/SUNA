@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { BUNDLED_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
+import { PICKER_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
 import type { CitationMode } from '@suna/core'
 import type { StepProps } from '../types'
 
@@ -32,7 +32,7 @@ export function Step2Profile({ state, update }: StepProps): JSX.Element {
       </p>
 
       <div className="onboard__cards">
-        {BUNDLED_PROFILE_IDS.map((id) => {
+        {PICKER_PROFILE_IDS.map((id) => {
           const profile = getBundledProfile(id)
           if (profile === null) return null
           const selected = state.profileId === id && !state.decideLater

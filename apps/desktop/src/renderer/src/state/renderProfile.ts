@@ -13,7 +13,9 @@ import { useProjectStore } from './project'
  * a project setting.
  */
 
-export const FALLBACK_PROFILE_ID: BundledProfileId = 'nature-astronomy'
+// The house style: what new projects draft in (main's project.ts default),
+// and — unlike a journal — never hidden from the pickers.
+export const FALLBACK_PROFILE_ID: BundledProfileId = 'suna'
 
 export function isBundledProfileId(
   id: string | null | undefined

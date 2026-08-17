@@ -157,7 +157,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     const warnings: string[] = []
     update({ creating: true, createError: null, createWarnings: [], progress })
 
-    const activeProfileId = snapshot.profileId ?? 'nature-astronomy'
+    const activeProfileId = snapshot.profileId ?? 'suna'
     const settings = buildScaffoldSettings(snapshot)
 
     let scaffoldResult: ResponseOf<'project:scaffold'>
@@ -225,18 +225,11 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     }
     update({ progress, createWarnings: [...warnings] })
 
-    progress = { ...progress, mcp: 'active' }
-    update({ progress })
-    if (snapshot.writeMcpConfig) {
-      try {
-        await window.suna.invoke('agent:write-mcp-config', { dir: targetPath })
-        progress = { ...progress, mcp: 'done' }
-      } catch (error) {
-        warnings.push(errorMessage(error))
-        progress = { ...progress, mcp: 'error' }
-      }
-    } else {
-      progress = { ...progress, mcp: 'skipped' }
+    // The agent layer (stubs, context/, .mcp.json) is written by the scaffold
+    // itself now — this substep only reports how that went.
+    progress = { ...progress, mcp: scaffoldResult.agentLayerWritten ? 'done' : 'error' }
+    if (!scaffoldResult.agentLayerWritten) {
+      warnings.push('Agent wiring could not be written — open the project to retry.')
     }
 
     update({ creating: false, progress, createWarnings: [...warnings] })
@@ -247,7 +240,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     // warning must stay on screen, not vanish with the tab that reported it.
     useProjectStore.setState({ rootDir: targetPath, manifest: scaffoldResult.manifest, tree: null })
     await useProjectStore.getState().refreshTree()
-    openFileTab(`${targetPath}/manuscript/sections/01-introduction.md`)
+    openFileTab(`${targetPath}/manuscript/manuscript.md`)
     if (warnings.length === 0) api.close()
   }
 

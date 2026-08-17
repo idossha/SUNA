@@ -39,7 +39,7 @@ export const INITIAL_CREATE_PROGRESS: CreateProgress = {
 /** Step 6 seed/output — the five resolved keys the spec names for "Defaults". */
 export interface WizardDefaults {
   defaultMode: 'source' | 'reading'
-  editorTheme: 'suna-dark' | 'suna-light' | 'high-contrast'
+  editorTheme: 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
   fontSizePx: number
   lineHeight: number
   contentWidthCh: number
@@ -86,7 +86,6 @@ export interface WizardState {
   aiCliCommand: string | null
   apiProvider: AgentProviderId | null
   apiKey: string
-  writeMcpConfig: boolean
 
   // Step 6 — Defaults
   defaults: WizardDefaults
@@ -146,7 +145,6 @@ export function createInitialWizardState(
     aiCliCommand: null,
     apiProvider: null,
     apiKey: '',
-    writeMcpConfig: false,
 
     defaults: FALLBACK_DEFAULTS,
     saveDefaultsToProject: false,

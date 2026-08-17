@@ -18,7 +18,7 @@ const SUBSTEP_LABELS: Record<CreateSubstep, string> = {
   files: 'Writing manuscript files',
   git: 'Initializing git',
   env: 'Python environment',
-  mcp: '.mcp.json'
+  mcp: 'Agent wiring'
 }
 
 function scaffoldSummary(state: StepProps['state']): string {
@@ -44,7 +44,7 @@ function aiSummary(state: StepProps['state']): string {
 
 /** Step 7 — Review (feature-plan-5 §5). Presentational only; the Create button lives in the footer. */
 export function Step7Review({ state, targetPath }: Step7Props): JSX.Element {
-  const activeProfileId = state.profileId ?? 'nature-astronomy'
+  const activeProfileId = state.profileId ?? 'suna'
   const profile = getBundledProfile(activeProfileId)
   // createdAt is necessarily a preview — the real write timestamps at Create
   // time — but it must still be a valid ISO datetime for the schema to accept
@@ -81,7 +81,6 @@ export function Step7Review({ state, targetPath }: Step7Props): JSX.Element {
         </div>
         <div>
           <span>AI</span> {aiSummary(state)}
-          {state.writeMcpConfig && ' + .mcp.json'}
         </div>
         <div>
           <span>Defaults</span>{' '}

@@ -20,7 +20,7 @@ import {
   type ResolvedSettings,
   type UiLitProviderId
 } from '@suna/core'
-import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, PICKER_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { openFileTab } from '../state/dock'
 import { profileLabel } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
@@ -42,7 +42,8 @@ const MODE_LABELS: Record<EditorModeSetting, string> = {
 const THEME_LABELS: Record<EditorThemeSetting, string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
-  'high-contrast': 'High Contrast'
+  gruvbox: 'Gruvbox',
+  jellybeans: 'Jellybeans'
 }
 
 const FONT_FAMILY_LABELS: Record<EditorFontFamily, string> = {
@@ -72,7 +73,7 @@ function litProviderLabel(id: UiLitProviderId): string {
 }
 
 /** Only these providers accept a stored key server-side (agent-keys `lit:<id>` slots). */
-const KEY_CAPABLE_PROVIDERS = new Set<LitProviderId>(['openalex', 'ads'])
+const KEY_CAPABLE_PROVIDERS = new Set<LitProviderId>(['openalex'])
 
 interface LitProviderStatus {
   id: LitProviderId
@@ -513,7 +514,7 @@ function PreviewProfileRow(): JSX.Element {
       label="Preview / render profile"
       hint="Which publisher profile the References view and the combined manuscript preview render as."
       autoLabel={`Auto (${activeLabel})`}
-      options={BUNDLED_PROFILE_IDS}
+      options={PICKER_PROFILE_IDS}
       labelFor={(id) => (isBundledProfile(id) ? profileLabel(id) : id)}
     />
   )
@@ -610,7 +611,7 @@ function ProjectSettingsSection(): JSX.Element {
         settingKey="editor.editorTheme"
         id="proj-editor-theme"
         label="Editor theme"
-        hint="Editor-surface theme for this project."
+        hint="Theme for this project — editor surface and app chrome."
         options={EDITOR_THEME_IDS}
         labelFor={(theme) => THEME_LABELS[theme]}
       />
@@ -816,7 +817,7 @@ export function SettingsTab(): JSX.Element {
           <div className="settings-tab__row">
             <label htmlFor="set-editor-theme">
               Editor theme
-              <span className="settings-tab__hint">Default theme for the editor surface; app chrome stays dark.</span>
+              <span className="settings-tab__hint">Default theme for the whole app — editor surface and chrome.</span>
             </label>
             <select
               id="set-editor-theme"

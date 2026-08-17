@@ -10,6 +10,13 @@ export function projectTreeLines(state: WizardState): string[] {
   const lines: string[] = [`${state.name || 'project'}/`]
   lines.push('  suna.json')
   lines.push('  .gitignore')
+  // The agent layer (adr-004) — written unconditionally by every scaffold.
+  lines.push('  AGENTS.md')
+  lines.push('  CLAUDE.md')
+  lines.push('  context/')
+  lines.push('    MISSION.md')
+  lines.push('    NOTEBOOK.md')
+  lines.push('    RULES.md')
   // Flat manuscript directory (feature-plan-7 §1) — one prose file, sections
   // are its Markdown headings, and the byline lives in authors.json. Mirrors
   // writeManuscriptDir's write order in main/services/project.ts.
@@ -31,7 +38,7 @@ export function projectTreeLines(state: WizardState): string[] {
     if (dir === DEFAULT_PROJECT_DIRS.manuscript) continue
     lines.push(`  ${dir}/`)
   }
-  if (state.writeMcpConfig) lines.push('  .mcp.json')
+  lines.push('  .mcp.json  (machine-local, not committed)')
   if (state.pythonChoice === 'create-uv') lines.push('  .venv/  (created by uv)')
 
   return lines
