@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { DEFAULT_PROJECT_DIRS } from '@suna/core'
-import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId, type Diagnostic } from '@suna/formatter'
+import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId, type Diagnostic } from '@suna/formatter'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
@@ -58,6 +58,8 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   /** null while the probe is in flight; the supplement option stays disabled until it lands. */
   const [supplementAvailable, setSupplementAvailable] = useState<boolean | null>(null)
   const [profileId, setProfileId] = useState<BundledProfileId>(defaultProfileId)
+  /** '' = None: the requirements panel shows the generic journal overview. */
+  const [articleTypeId, setArticleTypeId] = useState<string>('')
   const [outputName, setOutputName] = useState<string>('')
   const [doubleSpacing, setDoubleSpacing] = useState(true)
   const [lineNumbers, setLineNumbers] = useState(true)
@@ -70,6 +72,18 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const [error, setError] = useState<string | null>(null)
 
   const profile = getBundledProfile(profileId)
+
+  // A hidden profile a project already points at stays selectable — the
+  // picker offers the visible set plus, when needed, the current selection.
+  const pickerIds: readonly BundledProfileId[] = PICKER_PROFILE_IDS.includes(profileId)
+    ? PICKER_PROFILE_IDS
+    : [...PICKER_PROFILE_IDS, profileId]
+
+  // Article-type ids are journal-specific — switching journals resets the
+  // selector to None (the generic overview).
+  useEffect(() => {
+    setArticleTypeId('')
+  }, [profileId])
 
   // suna.json can remap the manuscript directory; fall back to the default
   // layout when the manifest is absent or leaves it unset.
@@ -149,7 +163,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     }
     let cancelled = false
     setChecking(true)
-    void runComplianceCheck(rootDir, manuscriptDir, manuscript, profile)
+    void runComplianceCheck(rootDir, manuscriptDir, manuscript, profile, articleTypeId || null)
       .then((result) => {
         if (!cancelled) setDiagnostics(result)
       })
@@ -163,7 +177,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [rootDir, manuscriptDir, manuscript, profile, target])
+  }, [rootDir, manuscriptDir, manuscript, profile, target, articleTypeId])
 
   const errorCount = useMemo(() => diagnostics?.filter((d) => d.severity === 'error').length ?? 0, [diagnostics])
   const warningCount = useMemo(
@@ -238,7 +252,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                 <label className="export-dialog__field">
                   <span>Journal profile</span>
                   <select value={profileId} onChange={(e) => setProfileId(e.target.value as BundledProfileId)}>
-                    {BUNDLED_PROFILE_IDS.map((id) => (
+                    {pickerIds.map((id) => (
                       <option key={id} value={id}>
                         {getBundledProfile(id)?.journalName ?? id}
                       </option>
@@ -246,6 +260,20 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                   </select>
                 </label>
               </div>
+
+              {profile !== null && profile.manuscript.articleTypes.length > 0 && (
+                <label className="export-dialog__field export-dialog__field--wide">
+                  <span>Article type</span>
+                  <select value={articleTypeId} onChange={(e) => setArticleTypeId(e.target.value)}>
+                    <option value="">None — generic journal overview</option>
+                    {profile.manuscript.articleTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label className="export-dialog__field export-dialog__field--wide">
                 <span>Output file name</span>
@@ -339,7 +367,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
 
         {profile !== null && (
           <aside className="export-dialog__requirements">
-            <RequirementsPanel profile={profile} />
+            <RequirementsPanel profile={profile} articleTypeId={articleTypeId || null} />
           </aside>
         )}
       </div>

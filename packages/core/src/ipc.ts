@@ -63,11 +63,12 @@ export type RecentProjectEntry = z.infer<typeof RecentProjectEntrySchema>;
 
 /**
  * Submission-format knobs the export dialog exposes (feature-plan-6 §3/§4):
- * whichever of these the ACTIVE PROFILE states a value for, the dialog fixes
- * and disables (the journal has an opinion); whichever the profile leaves
- * `null` ("does not state this"), the dialog offers as a user toggle. Either
- * way the resolved boolean the user is left with travels here — export
- * services never re-read the profile to decide these, they just apply them.
+ * a profile-stated value SEEDS the checkbox default on profile switch but is
+ * never forced — the journal's stance shows as an informational tag and the
+ * user can override it (a `null` value, "does not state this", leaves the
+ * prior choice alone). Either way the resolved boolean the user is left with
+ * travels here — export services never re-read the profile to decide these,
+ * they just apply them.
  */
 export const ExportOptionsSchema = z.object({
   doubleSpacing: z.boolean(),

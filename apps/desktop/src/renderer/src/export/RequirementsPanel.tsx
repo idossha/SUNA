@@ -32,9 +32,21 @@ function FactRows({ facts }: { facts: Fact[] }): JSX.Element {
  * here is INFORMATIONAL: it shows what the journal's author guidelines state
  * (null = "not stated", rendered as such, never invented) — SUNA flags
  * mismatches in the compliance check but never enforces any of it.
+ *
+ * `articleTypeId` (the dialog's Article type selector; null = None) narrows
+ * the view: the selected type is spotlighted with its limits and the other
+ * types recede, so the user sees exactly the numbers that apply to what they
+ * are submitting. With None, every type shows equally — the generic summary.
  */
-export function RequirementsPanel({ profile }: { profile: PublisherProfile }): JSX.Element {
+export function RequirementsPanel({
+  profile,
+  articleTypeId = null
+}: {
+  profile: PublisherProfile
+  articleTypeId?: string | null
+}): JSX.Element {
   const req = useMemo(() => profileRequirements(profile), [profile])
+  const selectedType = articleTypeId === null ? null : (req.articleTypes.find((t) => t.id === articleTypeId) ?? null)
 
   return (
     <div className="req-panel">
@@ -75,18 +87,27 @@ export function RequirementsPanel({ profile }: { profile: PublisherProfile }): J
 
       {req.articleTypes.length > 0 && (
         <section className="req-panel__section">
-          <div className="req-panel__section-title">Article types</div>
-          {req.articleTypes.map((t) => (
-            <div key={t.id} className="req-panel__article-type">
-              <span className="req-panel__article-name">{t.name}</span>
-              {t.chips.map((chip) => (
-                <span key={chip} className="req-panel__chip req-panel__chip--limit">
-                  {chip}
-                </span>
-              ))}
-              {t.chips.length === 0 && <span className="req-panel__none">no stated limits</span>}
-            </div>
-          ))}
+          <div className="req-panel__section-title">
+            {selectedType !== null ? 'Your article type' : 'Article types'}
+          </div>
+          {req.articleTypes.map((t) => {
+            const active = selectedType !== null && t.id === selectedType.id
+            const muted = selectedType !== null && t.id !== selectedType.id
+            return (
+              <div
+                key={t.id}
+                className={`req-panel__article-type${active ? ' req-panel__article-type--active' : ''}${muted ? ' req-panel__article-type--muted' : ''}`}
+              >
+                <span className="req-panel__article-name">{t.name}</span>
+                {t.chips.map((chip) => (
+                  <span key={chip} className="req-panel__chip req-panel__chip--limit">
+                    {chip}
+                  </span>
+                ))}
+                {t.chips.length === 0 && <span className="req-panel__none">no stated limits</span>}
+              </div>
+            )
+          })}
         </section>
       )}
 
