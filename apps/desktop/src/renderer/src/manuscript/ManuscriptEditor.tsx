@@ -5,8 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type JSX,
-  type RefObject
+  type JSX
 } from 'react'
 import { StateEffect } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
@@ -15,18 +14,17 @@ import { outlineFromMarkdown, type OutlineSection } from '@suna/markdown'
 import { createEditor, type EditorHandle } from '../editor/codemirror'
 import { openCitationPicker } from '../editor/CitationPicker'
 import { useEditorSettings } from '../editor/settings'
-import { locate, makeAnchor } from '../comments/anchor'
+import { makeAnchor } from '../comments/anchor'
 import {
-  anchorTopsFor,
   applySectionComments,
-  commentAnchorExtension,
-  flashAnchor
+  commentHighlightExtension,
+  liveAnchors,
+  registerLiveAnchorSource
 } from '../comments/anchorExtension'
 import '../comments/comments.css'
 import { commentsByPath, useCommentsStore } from '../state/comments'
-import { devSeam } from '../state/devSeam'
+import { acquireDocSession } from '../state/docSessions'
 import { useResolved, useSettingsStore } from '../state/settings'
-import { useUiStore } from '../state/ui'
 import { useVimModeStore } from '../state/vimMode'
 import {
   applyCiteChips,
@@ -39,8 +37,6 @@ import { useManuscriptDocStore } from '../state/manuscriptDoc'
 const NO_COMMENTS: Comment[] = []
 
 export interface ManuscriptEditorHandle {
-  /** Re-diff comment anchors (and the outline) against current geometry — called by the tab on scroll/resize. */
-  recomputePositions: () => void
   /** The live CodeMirror view, once mounted — for the tab's coordsAtPos-driven scroll-spy and click-to-scroll. */
   getView: () => EditorView | null
   /** Swap reading ⇄ source. A compartment reconfigure, so document state, scroll and comment anchors survive. */
@@ -51,19 +47,12 @@ interface ManuscriptEditorProps {
   rootDir: string
   /** Path relative to manuscript/ — the manuscript.json `manuscriptFile`, e.g. "manuscript.md". */
   contentPath: string
-  onDirtyChange: (dirty: boolean) => void
   /** Reading mode (live-preview decorations). Read once at mount; use the handle's `setLive` to change it after. */
   live: boolean
   /** Fired once the editor has mounted (or failed to load) and again with false on unmount. */
   onSettled: (settled: boolean) => void
   /** Fired (debounced) with the outline of the editor's CURRENT buffer, on mount and on every edit. */
   onOutlineChange: (outline: OutlineSection[]) => void
-  /** The margin gutter's track element (comments/CommentGutter's forwarded ref). */
-  gutterRef: RefObject<HTMLElement | null>
-  /** This document's current comment anchor positions (commentId -> px), reported after every recompute. */
-  onPositionsChange: (positions: ReadonlyMap<string, number>) => void
-  /** A click landed directly on an anchored highlight. */
-  onActivateComment: (commentId: string) => void
 }
 
 const OUTLINE_DEBOUNCE_MS = 500
@@ -76,13 +65,9 @@ const OUTLINE_DEBOUNCE_MS = 500
  * ⌘S saves the whole file.
  */
 export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProps>(
-  function ManuscriptEditor(
-    { rootDir, contentPath, onDirtyChange, live, onSettled, onOutlineChange, gutterRef, onPositionsChange, onActivateComment },
-    ref
-  ) {
+  function ManuscriptEditor({ rootDir, contentPath, live, onSettled, onOutlineChange }, ref) {
     const hostRef = useRef<HTMLDivElement>(null)
     const handleRef = useRef<EditorHandle | null>(null)
-    const dirtyRef = useRef(false)
     const outlineTimerRef = useRef<number | null>(null)
     const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -99,8 +84,6 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     liveRef.current = live
 
     // latest callbacks without re-creating the editor
-    const onDirtyChangeRef = useRef(onDirtyChange)
-    onDirtyChangeRef.current = onDirtyChange
     const onSettledRef = useRef(onSettled)
     onSettledRef.current = onSettled
     const onOutlineChangeRef = useRef(onOutlineChange)
@@ -117,22 +100,10 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     )
     const commentsForPathRef = useRef(commentsForPath)
     commentsForPathRef.current = commentsForPath
-    const flashRequest = useCommentsStore((s) => s.flashRequest)
 
-    const onPositionsChangeRef = useRef(onPositionsChange)
-    onPositionsChangeRef.current = onPositionsChange
-    const onActivateCommentRef = useRef(onActivateComment)
-    onActivateCommentRef.current = onActivateComment
-    // Set once the view mounts; recomputes this document's comment anchor
-    // positions and reports them up. Read through a ref so both this
-    // editor's own updateListener and the manuscript tab's imperative
-    // handle (driven by its scroll/resize observers) call the same
-    // up-to-date closure.
-    const recomputeRef = useRef<() => void>(() => {})
     useImperativeHandle(
       ref,
       () => ({
-        recomputePositions: () => recomputeRef.current(),
         getView: () => handleRef.current?.view ?? null,
         setLive: (on: boolean) => handleRef.current?.setLive(on)
       }),
@@ -153,12 +124,6 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
       // mount before the status bar's own load has settled
       void useSettingsStore.getState().load()
 
-      const markDirty = (dirty: boolean): void => {
-        if (dirtyRef.current === dirty) return
-        dirtyRef.current = dirty
-        onDirtyChangeRef.current(dirty)
-      }
-
       const reportOutline = (): void => {
         const view = handleRef.current?.view
         if (!view) return
@@ -173,31 +138,13 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
         }, OUTLINE_DEBOUNCE_MS)
       }
 
-      const save = async (): Promise<void> => {
-        const view = handleRef.current?.view
-        if (!view) return
-        try {
-          await window.suna.invoke('fs:write-text', {
-            path: absPath,
-            content: view.state.doc.toString()
-          })
-          markDirty(false)
-          reportOutline()
-          devSeam.noteFileSaved(absPath)
-          useUiStore.getState().setStatusNote(`Saved ${fileName}`)
-        } catch (error) {
-          useUiStore
-            .getState()
-            .setStatusNote(
-              `Could not save ${fileName}: ${error instanceof Error ? error.message : String(error)}`
-            )
-        }
-      }
-
       let disposed = false
+      let detach: (() => void) | null = null
+      let unregisterAnchors: (() => void) | null = null
+      const { session, release } = acquireDocSession(absPath)
       void (async () => {
         try {
-          const { content } = await window.suna.invoke('fs:read-text', { path: absPath })
+          const content = await session.ready()
           if (disposed || !hostRef.current) return
           handleRef.current = createEditor({
             parent: hostRef.current,
@@ -214,12 +161,16 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
             // No onClose: this view IS the tab, so there is no file for `:q`
             // to close. The registry says so in the status bar rather than
             // doing nothing at all, which read as "vim is half-broken here".
+            // Dirty tracking lives in the shared session; the outline follows
+            // every doc change, including edits forwarded from another tab.
             onDocChanged: () => {
-              markDirty(true)
               scheduleOutline()
             },
             // Returns the promise, so vim's `:wq` can wait for the write.
-            onSave: () => save(),
+            onSave: () =>
+              session.save().then((ok) => {
+                if (ok) reportOutline()
+              }),
             // ⌘⇧M / context-menu "Comment": same anchored-comment flow as the
             // gutter's own drag-to-comment gesture dispatched below.
             onComment: (view) => {
@@ -234,50 +185,21 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
             onInsertCitation: (view) => openCitationPicker(view)
           })
           const view = handleRef.current.view
-
-          let recomputeScheduled = false
-          const recompute = (): void => {
-            const gutterEl = gutterRef.current
-            if (gutterEl === null) return
-            const positions = anchorTopsFor(view, commentsForPathRef.current, gutterEl)
-            onPositionsChangeRef.current(positions)
-          }
-          const scheduleRecompute = (): void => {
-            if (recomputeScheduled) return
-            recomputeScheduled = true
-            requestAnimationFrame(() => {
-              recomputeScheduled = false
-              recompute()
-            })
-          }
-          recomputeRef.current = recompute
+          detach = session.attach(view)
 
           view.dispatch({
             effects: StateEffect.appendConfig.of([
-              commentAnchorExtension(
-                (from, to) => {
-                  const anchor = makeAnchor(view.state.doc.toString(), from, to)
-                  useCommentsStore
-                    .getState()
-                    .startDraft({ kind: 'section', path: contentPath, anchor }, anchor.quote)
-                },
-                (commentId) => onActivateCommentRef.current(commentId)
-              ),
-              EditorView.updateListener.of((u) => {
-                // `selectionSet` matters since feature-plan-5 §3: live preview
-                // now REPLACES markdown syntax with zero-width decorations and
-                // reveals it under the cursor, so moving the caret can re-wrap a
-                // line and shift every anchor below it. The recompute is rAF-
-                // debounced, so adding a trigger costs one measure per frame.
-                if (u.docChanged || u.viewportChanged || u.geometryChanged || u.selectionSet) {
-                  scheduleRecompute()
-                }
-              })
+              // highlight decorations + click-to-activate; the rail owns the
+              // reverse direction (card click -> flash) and the flash watcher
+              commentHighlightExtension((commentId) =>
+                useCommentsStore.getState().setActive(commentId)
+              )
             ])
           })
           applySectionComments(view, commentsForPathRef.current)
+          // save-time re-anchoring prefers the editor's mapped ranges
+          unregisterAnchors = registerLiveAnchorSource(contentPath, () => liveAnchors(view.state))
           reportOutline()
-          scheduleRecompute()
           onSettledRef.current(true)
         } catch (error) {
           if (!disposed) {
@@ -292,20 +214,17 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
         disposed = true
         onSettledRef.current(false)
         onOutlineChangeRef.current([])
-        recomputeRef.current = () => {}
-        onPositionsChangeRef.current(new Map())
         if (outlineTimerRef.current !== null) {
           window.clearTimeout(outlineTimerRef.current)
           outlineTimerRef.current = null
         }
-        if (dirtyRef.current) {
-          dirtyRef.current = false
-          onDirtyChangeRef.current(false)
-        }
+        unregisterAnchors?.()
+        detach?.()
         handleRef.current?.destroy()
         handleRef.current = null
+        release()
       }
-    }, [rootDir, contentPath, gutterRef])
+    }, [rootDir, contentPath])
 
     // theme changes apply to the live CM instance without losing state
     useEffect(() => {
@@ -327,26 +246,13 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     }, [vimMotions])
 
     // push comment-list changes (new/resolved/deleted comments anywhere) into
-    // this editor's live anchor decorations, and re-diff their positions —
-    // resolving/adding/removing a comment changes the set the gutter tracks
-    // even when the document itself hasn't changed.
+    // this editor's live anchor decorations — resolving/adding/removing a
+    // comment changes the set even when the document itself hasn't changed.
+    // (The rail owns the flash watcher and the active-thread mirror.)
     useEffect(() => {
       const view = handleRef.current?.view
       if (view) applySectionComments(view, commentsForPath)
-      recomputeRef.current()
     }, [commentsForPath])
-
-    // "scroll to and flash the anchor" requests from the margin gutter
-    // (comments/CommentGutter.tsx, via manuscript/ManuscriptTab).
-    useEffect(() => {
-      if (flashRequest === null) return
-      const view = handleRef.current?.view
-      const comment = commentsForPathRef.current.find((c) => c.id === flashRequest.commentId)
-      if (!view || comment === undefined || comment.target.kind !== 'section') return
-      const range = locate(view.state.doc.toString(), comment.target.anchor)
-      if (range === null) return
-      flashAnchor(view, range.from, range.to)
-    }, [flashRequest])
 
     // Resolve reading-mode citation and cross-reference chips against the
     // render data the References block publishes (numbers + preview-profile

@@ -9,6 +9,7 @@ import { getBundledProfile } from '@suna/formatter'
 import { outlineFromMarkdown } from '@suna/markdown'
 import type { Manuscript } from '@suna/core'
 import { useProjectStore } from '../state/project'
+import { peekDocSessionText } from '../state/docSessions'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
 import { usePreviewProfileId } from '../state/renderProfile'
 import { citeStyleOf, maxAuthorsFor } from '../views/refs'
@@ -83,14 +84,19 @@ export function ReferencesBlock({
     if (profile === null) return
     let cancelled = false
     void (async () => {
-      let proseText = ''
-      try {
-        const { content } = await window.suna.invoke('fs:read-text', {
-          path: `${rootDir}/manuscript/${manuscriptFile}`
-        })
-        proseText = content
-      } catch {
-        // no prose file yet — an empty document has no citations
+      // Buffer truth first (state/docSessions): while the manuscript is open
+      // in ANY editor, its live buffer — not the possibly-stale disk copy —
+      // is what the reference numbering should reflect.
+      let proseText = peekDocSessionText(`${rootDir}/manuscript/${manuscriptFile}`) ?? ''
+      if (proseText === '') {
+        try {
+          const { content } = await window.suna.invoke('fs:read-text', {
+            path: `${rootDir}/manuscript/${manuscriptFile}`
+          })
+          proseText = content
+        } catch {
+          // no prose file yet — an empty document has no citations
+        }
       }
       const outline = outlineFromMarkdown(proseText)
       const sections = outline.map((section) => ({

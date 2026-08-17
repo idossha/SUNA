@@ -23,7 +23,7 @@ describe('manuscriptStyleVars', () => {
       fontSizePx: 14,
       fontFamily: 'sans' as const,
       lineHeight: 1.9,
-      editorTheme: 'high-contrast' as const
+      editorTheme: 'gruvbox' as const
     }
     // Regression guard: if a future edit rebuilds this object by hand again
     // instead of delegating, this test catches the drift before the title

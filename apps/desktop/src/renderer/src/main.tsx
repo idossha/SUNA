@@ -13,6 +13,7 @@ import { commandsDevSeam } from './state/commands'
 import { dockDevSeam, openFileTab } from './state/dock'
 import { useAgentChatStore } from './state/agentChat'
 import { useCommentsStore } from './state/comments'
+import { peekDocSessionText, useDocSessionsStore } from './state/docSessions'
 import { useExplorerStore } from './state/explorer'
 import { useManuscriptStore } from './state/manuscript'
 import { openProjectAt, useProjectStore } from './state/project'
@@ -37,6 +38,10 @@ if (import.meta.env.DEV) {
       // this and then reading projectStore/dock/commentsStore.
       openProjectAt,
       uiStore: useUiStore,
+      // Shared doc sessions (state/docSessions): the smoke driver reads
+      // buffer truth (before a save reaches disk) and session meta to assert
+      // the cross-tab live sync and the external-reload flow.
+      docSessions: { peek: peekDocSessionText, meta: useDocSessionsStore },
       canvasTools: canvasToolsSeam,
       editorSettings: editorDevSeam.settingsStore,
       editorViewModes: editorDevSeam.viewModes,
