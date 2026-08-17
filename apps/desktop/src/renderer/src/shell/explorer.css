@@ -50,6 +50,23 @@
   background: var(--s-bg-hover);
 }
 
+/* A row carrying an accelerator becomes a flex line so the chord sits at the
+   right edge like a native menu, instead of running on as part of the label
+   (HTML would collapse any spacing typed into the text). Rows without one
+   keep the plain block layout above. */
+.ctxmenu__item:has(.ctxmenu__accel) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ctxmenu__accel {
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
+  white-space: nowrap;
+}
+
 .ctxmenu__item--danger {
   color: var(--s-err);
 }
@@ -206,4 +223,33 @@
 .tree__name {
   min-width: 0;
   flex: 0 1 auto;
+}
+
+/* ---- explorer: drag and drop --------------------------------------------- */
+
+/* The tree must OWN the empty space below its last row, or a drop aimed at
+   the project root lands on .sidebar__body and goes nowhere. .sidebar__body is
+   a flex item of a column flexbox, so its height is definite and this
+   percentage resolves; border-box keeps app.css's vertical padding inside the
+   100% instead of overflowing it into a scrollbar. */
+.tree {
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* The resolved target of the drag in flight. Reads like the selection band
+   plus an outline, so "where this lands" is distinguishable from "what is
+   selected" while both are on screen — the dragged rows stay selected
+   throughout. `.tree`-prefixed for the same load-order reason as the
+   selection band above: app.css is injected after this file. */
+.tree .tree__row--droptarget,
+.tree .tree__row--droptarget:hover {
+  background: var(--s-bg-selected, rgba(197, 160, 89, 0.18));
+  box-shadow: inset 0 0 0 1px var(--s-accent);
+}
+
+/* Root drop: the target is the whole tree, so the outline goes around it. */
+.tree--droptarget {
+  box-shadow: inset 0 0 0 1px var(--s-accent);
+  border-radius: var(--s-radius);
 }
