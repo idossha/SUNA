@@ -32,3 +32,6 @@ coverage/
 scripts/e2e/.artifacts/
 packages/agent/dist-mcp/
 .playwright-mcp/
+
+# real manuscripts used as export ground truth — personal documents, never published to the repo
+examples/docx_examples/

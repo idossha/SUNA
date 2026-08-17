@@ -17,12 +17,17 @@ import { collectClusters } from '../manuscript/citations'
  * `directories` block can remap it away from the default 'manuscript/') —
  * the caller resolves it from the project manifest, falling back to
  * DEFAULT_PROJECT_DIRS.manuscript.
+ *
+ * `articleTypeId` is the user's explicit pick from the export page's
+ * article-type selector; null/unknown falls back to the profile's first
+ * declared type (its primary research-article type).
  */
 export async function runComplianceCheck(
   rootDir: string,
   manuscriptDir: string,
   manuscript: Manuscript,
-  profile: PublisherProfile
+  profile: PublisherProfile,
+  articleTypeId?: string | null
 ): Promise<Diagnostic[]> {
   let prose = ''
   try {
@@ -40,11 +45,14 @@ export async function runComplianceCheck(
 
   // The checker needs one of the profile's OWN article-type ids (they are
   // journal-specific, e.g. "apj-article", not the generic
-  // manuscript.articleType) — the first declared type is each profile's
-  // primary research-article type (same convention onboarding/Step2Profile
-  // uses for its abstract-limit preview).
-  const articleTypeId = profile.manuscript.articleTypes[0]?.id
-  if (articleTypeId === undefined) return []
+  // manuscript.articleType). An explicit user pick wins; otherwise the first
+  // declared type is each profile's primary research-article type (same
+  // convention onboarding/Step2Profile uses for its abstract-limit preview).
+  const picked =
+    articleTypeId != null && profile.manuscript.articleTypes.some((t) => t.id === articleTypeId)
+      ? articleTypeId
+      : profile.manuscript.articleTypes[0]?.id
+  if (picked === undefined) return []
 
-  return checkManuscript({ manuscript, sectionTexts, referenceCount: numbers.size }, profile, articleTypeId)
+  return checkManuscript({ manuscript, sectionTexts, referenceCount: numbers.size }, profile, picked)
 }

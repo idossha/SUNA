@@ -354,6 +354,19 @@
   padding: 3px 0;
 }
 
+/* the dialog's Article type selector spotlights one type: the pick gets an
+   accent card, the rest recede — with None, every type renders equally */
+.req-panel__article-type--active {
+  padding: 6px 8px;
+  border: 1px solid var(--s-accent);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-active);
+}
+
+.req-panel__article-type--muted {
+  opacity: 0.45;
+}
+
 .req-panel__article-name {
   font-weight: 500;
   margin-right: 2px;
