@@ -8,21 +8,30 @@ import {
   openInSplit,
   openManuscriptTab,
   openViewerInSide,
+  retargetPanels,
   setDockApi,
   sideGroupId,
   dockDevSeam
 } from './dock'
+import { useOpenTabsStore } from './openTabs'
 
 /**
  * A fake dockview just big enough for the split logic: groups in creation
  * order, panels inside them, and the placement rules of `addPanel` —
  * `referenceGroup` appends to that group, `referencePanel` + direction makes a
- * new group, no position appends to the active group.
+ * new group EXCEPT for direction 'within' which appends to that panel's own
+ * group, no position appends to the active group. `index` and `inactive` are
+ * honoured because retargetPanels relies on both to put a moved file's tab
+ * back exactly where it was without stealing focus. `title` is stored (real
+ * dockview keeps it on the panel) so the tab LABEL a move leaves behind is
+ * observable — it is derived from the path, not carried over.
  */
 interface FakePanel {
   id: string
+  title: string | undefined
   params: Record<string, unknown>
   view: { contentComponent: string }
+  readonly group: FakeGroup | undefined
   api: { setActive: () => void; close: () => void }
 }
 
@@ -36,10 +45,12 @@ interface AddOptions {
   component: string
   title?: string
   params?: Record<string, unknown>
+  inactive?: boolean
   position?: {
     referenceGroup?: FakeGroup | string
     referencePanel?: string
     direction?: string
+    index?: number
   }
 }
 
@@ -93,8 +104,12 @@ function fakeDock(): {
     addPanel(options: AddOptions) {
       const panel: FakePanel = {
         id: options.id,
+        title: options.title,
         params: options.params ?? {},
         view: { contentComponent: options.component },
+        get group() {
+          return groupOf(panel)
+        },
         api: {
           setActive: () => {
             active = panel
@@ -111,18 +126,24 @@ function fakeDock(): {
         }
       }
       const reference = options.position?.referenceGroup
+      const referencePanel = options.position?.referencePanel
       let group: FakeGroup | undefined
       if (reference !== undefined) {
         group =
           typeof reference === 'string' ? groups.find((g) => g.id === reference) : reference
-      } else if (options.position?.referencePanel !== undefined) {
-        group = makeGroup()
+      } else if (referencePanel !== undefined) {
+        group =
+          options.position?.direction === 'within'
+            ? groups.find((g) => g.panels.some((p) => p.id === referencePanel))
+            : makeGroup()
       } else {
         group = (active !== null ? groupOf(active) : undefined) ?? groups[0] ?? makeGroup()
       }
       if (!group) group = makeGroup()
-      group.panels.push(panel)
-      active = panel
+      const index = options.position?.index
+      if (index === undefined) group.panels.push(panel)
+      else group.panels.splice(index, 0, panel)
+      if (options.inactive !== true) active = panel
       emit()
       return panel
     }
@@ -321,6 +342,110 @@ describe('closeProjectTabs', () => {
   it('is a no-op with no dock attached', () => {
     setDockApi(null as unknown as DockviewApi)
     expect(() => closeProjectTabs('/work/paper')).not.toThrow()
+  })
+})
+
+describe('retargetPanels', () => {
+  const DATA_CSV = '/work/paper/data/table.csv'
+  const DATA2_CSV = '/work/paper/data2/table.csv'
+
+  it('follows a renamed/moved file, keeping its id, params and title in step', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+
+    const moved = '/work/paper/manuscript/sections/01-intro.md'
+    expect(retargetPanels(SECTION, moved)).toBe(1)
+
+    const panels = dock.groups.flatMap((g) => g.panels)
+    expect(panels).toHaveLength(1)
+    expect(panels[0]?.id).toBe(moved)
+    expect(panels[0]?.params['path']).toBe(moved)
+    // The label is re-derived from the new path: carrying the old panel's
+    // title over would leave the tab reading 01-introduction.md for a file
+    // that no longer exists under that name.
+    expect(panels[0]?.title).toBe('01-intro.md')
+    expect(useOpenTabsStore.getState().paths.has(SECTION)).toBe(false)
+    expect(useOpenTabsStore.getState().paths.has(moved)).toBe(true)
+  })
+
+  it('re-routes the tab when the new extension belongs to another component', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab('/work/paper/figures/f/draft.md')
+    retargetPanels('/work/paper/figures/f/draft.md', '/work/paper/figures/f/draft.svg')
+    expect(dock.groups[0]?.panels[0]?.view.contentComponent).toBe('canvas')
+  })
+
+  it('follows every tab inside a renamed directory', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(DATA_CSV)
+    openFileTab('/work/paper/data/raw/notes.md')
+
+    expect(retargetPanels('/work/paper/data', '/work/paper/measurements')).toBe(2)
+
+    expect(dock.groups[0]?.panels.map((p) => p.id)).toEqual([
+      '/work/paper/measurements/table.csv',
+      '/work/paper/measurements/raw/notes.md'
+    ])
+  })
+
+  it('leaves /work/paper/data2 alone when /work/paper/data moves', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(DATA_CSV)
+    openFileTab(DATA2_CSV)
+
+    expect(retargetPanels('/work/paper/data', '/work/paper/measurements')).toBe(1)
+
+    expect(dock.groups[0]?.panels.map((p) => p.id)).toEqual([
+      '/work/paper/measurements/table.csv',
+      DATA2_CSV
+    ])
+  })
+
+  it('rewrites nothing for a path no tab is showing, or for a no-op move', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    expect(retargetPanels('/work/paper/data/table.csv', '/work/paper/t.csv')).toBe(0)
+    expect(retargetPanels(SECTION, SECTION)).toBe(0)
+    expect(dock.groups[0]?.panels.map((p) => p.id)).toEqual([SECTION])
+  })
+
+  it('keeps the tab at its own index in its own group, without stealing focus', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    openFileTab(DATA_CSV)
+    openViewerInSide(PDF_A)
+    // the side viewer is frontmost; retargeting a background tab must not
+    // pull the focus over to it
+    expect(dock.activeId()).toBe(PDF_A)
+
+    retargetPanels(SECTION, '/work/paper/manuscript/sections/01-intro.md')
+
+    expect(dock.groups[0]?.panels.map((p) => p.id)).toEqual([
+      '/work/paper/manuscript/sections/01-intro.md',
+      DATA_CSV
+    ])
+    expect(dock.groups).toHaveLength(2)
+    expect(dock.activeId()).toBe(PDF_A)
+  })
+
+  it('keeps the frontmost tab frontmost when it is the one that moved', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    retargetPanels(SECTION, '/work/paper/intro.md')
+    expect(dock.activeId()).toBe('/work/paper/intro.md')
+    expect(useOpenTabsStore.getState().activePath).toBe('/work/paper/intro.md')
+  })
+
+  it('is a no-op with no dock attached', () => {
+    setDockApi(null as unknown as DockviewApi)
+    expect(retargetPanels('/work/paper/a.md', '/work/paper/b.md')).toBe(0)
   })
 })
 

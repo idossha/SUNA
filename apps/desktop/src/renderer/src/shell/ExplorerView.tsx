@@ -3,12 +3,17 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
   type JSX,
-  type KeyboardEvent as ReactKeyboardEvent
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent
 } from 'react'
+import { flushSync } from 'react-dom'
 import type { ProjectDirKey } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
+import { useUiStore } from '../state/ui'
 import { useExplorerStore, type ExplorerEditing, type ExplorerRow } from '../state/explorer'
 import { useOpenTabsStore } from '../state/openTabs'
 import { openFileTab, openInSplit } from '../state/dock'
@@ -22,8 +27,27 @@ import {
   semanticDirs,
   visibleRows
 } from './explorer-rows'
+import {
+  dropTargetDir,
+  EXPLORER_DRAG_MIME,
+  namesInDir,
+  parseDragPayload,
+  pathsToMove,
+  resolveDrop,
+  type DropResolution
+} from './explorer-dnd'
+import {
+  OS_ACTION_SHORTCUTS,
+  openWithOs,
+  osActionLabels,
+  revealInOs
+} from './os-actions'
+import { formatShortcut, matchesShortcut } from '../palette/shortcuts'
 import { FILE_ICONS, FolderIcon, FolderOpenIcon, PROJECT_DIR_ICONS, TreeChevronIcon } from './icons'
 import './explorer.css'
+
+/** Platform wording is fixed for the process; resolve it once. */
+const osLabels = osActionLabels(window.suna.platform)
 
 function EditRow({ depth, initial }: { depth: number; initial: string }): JSX.Element {
   const commitEdit = useExplorerStore((s) => s.commitEdit)
@@ -71,6 +95,21 @@ function EditRow({ depth, initial }: { depth: number; initial: string }): JSX.El
   )
 }
 
+/**
+ * Pointer and drag handlers for a row. They live in ExplorerView, not in
+ * TreeRow, because all of them share one deferred-collapse and one
+ * dragged-paths ref across every row in the tree.
+ */
+interface RowGestures {
+  onMouseDown: (event: ReactMouseEvent<HTMLDivElement>, row: ExplorerRow) => void
+  onMouseUp: (event: ReactMouseEvent<HTMLDivElement>, row: ExplorerRow) => void
+  onDragStart: (event: ReactDragEvent<HTMLDivElement>, row: ExplorerRow) => void
+  onDragEnter: (event: ReactDragEvent<HTMLDivElement>, row: ExplorerRow) => void
+  onDragOver: (event: ReactDragEvent<HTMLDivElement>, row: ExplorerRow) => void
+  onDragLeave: (event: ReactDragEvent<HTMLDivElement>) => void
+  onDrop: (event: ReactDragEvent<HTMLDivElement>, row: ExplorerRow) => void
+}
+
 interface TreeRowProps {
   row: ExplorerRow
   rows: readonly ExplorerRow[]
@@ -80,6 +119,9 @@ interface TreeRowProps {
   isOpen: boolean
   isActive: boolean
   expanded: boolean
+  /** This row is the directory the drag in flight would land in. */
+  droptarget: boolean
+  gestures: RowGestures
   /** Set when this row is one of the directories suna.json declares. */
   semantic: ProjectDirKey | undefined
 }
@@ -93,11 +135,12 @@ function TreeRow({
   isOpen,
   isActive,
   expanded,
+  droptarget,
+  gestures,
   semantic
 }: TreeRowProps): JSX.Element {
   const { node, depth } = row
   const openMenu = useExplorerStore((s) => s.openMenu)
-  const selectRow = useExplorerStore((s) => s.selectRow)
   const toggleExpanded = useExplorerStore((s) => s.toggleExpanded)
   const openSelection = useExplorerStore((s) => s.openSelection)
 
@@ -122,7 +165,8 @@ function TreeRow({
     selected ? 'tree__row--selected' : '',
     focused ? 'tree__row--focused' : '',
     isOpen ? 'tree__row--open' : '',
-    isActive ? 'tree__row--active' : ''
+    isActive ? 'tree__row--active' : '',
+    droptarget ? 'tree__row--droptarget' : ''
   ]
     .filter(Boolean)
     .join(' ')
@@ -139,11 +183,14 @@ function TreeRow({
       data-path={node.path}
       data-open={isOpen || undefined}
       data-active={isActive || undefined}
-      onMouseDown={(e) => {
-        const additive = e.metaKey || e.ctrlKey
-        const range = e.shiftKey
-        selectRow(node.path, rows, { additive, range })
-      }}
+      draggable
+      onDragStart={(e) => gestures.onDragStart(e, row)}
+      onDragEnter={(e) => gestures.onDragEnter(e, row)}
+      onDragOver={(e) => gestures.onDragOver(e, row)}
+      onDragLeave={gestures.onDragLeave}
+      onDrop={(e) => gestures.onDrop(e, row)}
+      onMouseDown={(e) => gestures.onMouseDown(e, row)}
+      onMouseUp={(e) => gestures.onMouseUp(e, row)}
       onClick={(e) => {
         // ⌘/ctrl-click is "add to selection" here, so opening to the side moves
         // to ⌥-click; a plain click opens a file or toggles a folder.
@@ -201,8 +248,11 @@ function ExplorerMenu(): JSX.Element | null {
   const targetDir = menu.node.kind === 'dir' ? menu.node.path : parentDirOf(menu.node.path)
   const count = menu.targets.length
   const multi = count > 1
-  const left = Math.min(menu.x, window.innerWidth - 190)
-  const top = Math.min(menu.y, window.innerHeight - 170)
+  // Clamp against the menu's REAL size: 7 items + 2 separators, and a widest
+  // row of "Reveal in Finder ⌘⌥R". Sized for 5 items these constants let the
+  // Delete row render past the bottom edge, where it cannot be clicked.
+  const left = Math.min(menu.x, window.innerWidth - 240)
+  const top = Math.min(menu.y, window.innerHeight - 240)
 
   return (
     <>
@@ -234,6 +284,33 @@ function ExplorerMenu(): JSX.Element | null {
           onClick={() => startRename(menu.node)}
         >
           Rename…
+        </button>
+        <div className="ctxmenu__sep" />
+        {/* Single-target for the same reason Rename is: N rows would mean N
+            Finder windows and N app launches. */}
+        <button
+          className="ctxmenu__item"
+          data-action="reveal-in-os"
+          disabled={multi}
+          onClick={() => {
+            closeMenu()
+            void revealInOs(menu.node.path)
+          }}
+        >
+          <span>{osLabels.reveal}</span>
+          <span className="ctxmenu__accel">{formatShortcut(OS_ACTION_SHORTCUTS.reveal)}</span>
+        </button>
+        <button
+          className="ctxmenu__item"
+          data-action="open-with-os"
+          disabled={multi}
+          onClick={() => {
+            closeMenu()
+            void openWithOs(menu.node.path)
+          }}
+        >
+          <span>{osLabels.open}</span>
+          <span className="ctxmenu__accel">{formatShortcut(OS_ACTION_SHORTCUTS.open)}</span>
         </button>
         <button
           className={
@@ -274,6 +351,22 @@ export function ExplorerView(): JSX.Element {
   const manuscriptRoots = useOpenTabsStore((s) => s.manuscriptRoots)
   const activeManuscriptRoot = useOpenTabsStore((s) => s.activeManuscriptRoot)
   const listRef = useRef<HTMLDivElement>(null)
+
+  /** Directory the drag in flight would land in, or null when nothing is
+   *  hovered or the hovered target is refused. Mirrored in a ref so a handler
+   *  can tell "already painted" from "needs painting" without re-rendering. */
+  const [dropDir, setDropDir] = useState<string | null>(null)
+  const dropDirRef = useRef<string | null>(null)
+  /**
+   * Paths the current drag carries. Held in a ref rather than read back from
+   * the DataTransfer because `getData` is unreadable during `dragover` — only
+   * the type list is exposed there, which is what EXPLORER_DRAG_MIME is for.
+   */
+  const draggedRef = useRef<readonly string[]>([])
+  /** A selection collapse a plain mousedown deferred; see onRowMouseDown. */
+  const pendingCollapseRef = useRef<string | null>(null)
+  /** The status note a refused hover put up, so it can be taken down again. */
+  const dragNoteRef = useRef<string | null>(null)
 
   // The combined Manuscript tab is a window onto the prose file (shared doc
   // session), so its row shows the open/active marker too — without this,
@@ -332,6 +425,25 @@ export function ExplorerView(): JSX.Element {
       if (!next) return
       event.preventDefault()
       store.selectRow(next.node.path, rows, { range: event.shiftKey })
+    }
+
+    // ⌥⌘R / ⌥⌘O are matched on event.code through the shared matcher, NOT in
+    // the switch below: ⌥ is a layout modifier on macOS (⌥R types ®), so
+    // event.key is not the letter here, and matchesShortcut also rejects the
+    // extra-modifier chords a hand-rolled check would let through. Both act on
+    // the focused row alone — like Rename…, they take one target, and N rows
+    // would mean N Finder windows.
+    if (current) {
+      if (matchesShortcut(event, OS_ACTION_SHORTCUTS.reveal)) {
+        event.preventDefault()
+        void revealInOs(current.node.path)
+        return
+      }
+      if (matchesShortcut(event, OS_ACTION_SHORTCUTS.open)) {
+        event.preventDefault()
+        void openWithOs(current.node.path)
+        return
+      }
     }
 
     switch (event.key) {
@@ -407,14 +519,188 @@ export function ExplorerView(): JSX.Element {
     }
   }
 
+  /* ---- drag and drop (feature-plan-9 §2) ---------------------------------- */
+
+  /** What a drop over `overPath` (null = the empty area, i.e. the root) does. */
+  const resolveOver = (
+    overPath: string | null,
+    overIsDir: boolean,
+    dragged: readonly string[]
+  ): DropResolution => {
+    if (rootDir === null) return { targetDir: null, allowed: false, reason: null }
+    const targetDir = dropTargetDir(overPath, overIsDir, rootDir)
+    return resolveDrop({
+      dragged,
+      overPath,
+      overIsDir,
+      rootDir,
+      namesInTarget: namesInDir(tree, targetDir)
+    })
+  }
+
+  /**
+   * Paint (or unpaint) the resolved drop target. React classes `dragover` as a
+   * CONTINUOUS event, so a plain setState lands a scheduler tick later — after
+   * the dragover it answers has already returned. Feedback that trails the
+   * pointer is wrong for a user and invisible to a driver reading the DOM in
+   * the same turn it dispatched the event, so the one paint is flushed on the
+   * spot. The ref guard keeps that to the frames where it actually changes.
+   */
+  const paintDropTarget = (next: string | null): void => {
+    if (dropDirRef.current === next) return
+    dropDirRef.current = next
+    flushSync(() => setDropDir(next))
+  }
+
+  /**
+   * Take down the note a refused hover put up — but only while it is still
+   * ours: anything written since (a save, an error) belongs to somebody else
+   * and outranks a drag that is over.
+   */
+  const clearDragNote = (): void => {
+    const mine = dragNoteRef.current
+    if (mine === null) return
+    dragNoteRef.current = null
+    const ui = useUiStore.getState()
+    if (ui.statusNote === mine) ui.setStatusNote(null)
+  }
+
+  /** Undo everything a drag painted or said. */
+  const endDrag = (): void => {
+    draggedRef.current = []
+    paintDropTarget(null)
+    clearDragNote()
+  }
+
+  const onRowMouseDown = (event: ReactMouseEvent<HTMLDivElement>, row: ExplorerRow): void => {
+    if (event.button !== 0) return
+    const path = row.node.path
+    const additive = event.metaKey || event.ctrlKey
+    const range = event.shiftKey
+    const store = useExplorerStore.getState()
+    pendingCollapseRef.current = null
+    // Finder/VS Code semantics: pressing on a row that is ALREADY part of a
+    // multi-selection must not collapse it, or the drag this press begins
+    // would carry one row instead of the several under the pointer. The
+    // collapse is deferred to mouseup, where a plain click still gets it and
+    // a dragstart cancels it. Modifier clicks are unchanged.
+    if (!additive && !range && store.selection.length > 1 && store.selection.includes(path)) {
+      pendingCollapseRef.current = path
+      return
+    }
+    store.selectRow(path, rows, { additive, range })
+  }
+
+  const onRowMouseUp = (event: ReactMouseEvent<HTMLDivElement>, row: ExplorerRow): void => {
+    const pending = pendingCollapseRef.current
+    pendingCollapseRef.current = null
+    if (event.button !== 0 || pending !== row.node.path) return
+    // mouseup lands before click, so the row this collapses onto is the row
+    // the click then opens.
+    useExplorerStore.getState().selectRow(row.node.path, rows, {})
+  }
+
+  const onRowDragStart = (event: ReactDragEvent<HTMLDivElement>, row: ExplorerRow): void => {
+    const path = row.node.path
+    const store = useExplorerStore.getState()
+    // The drag takes the whole selection, so the deferred collapse is off.
+    pendingCollapseRef.current = null
+    let paths: readonly string[] = store.selection
+    if (!paths.includes(path)) {
+      store.selectRow(path, rows, {})
+      paths = [path]
+    }
+    draggedRef.current = [...paths]
+    event.dataTransfer.setData(EXPLORER_DRAG_MIME, JSON.stringify(paths))
+    // A text/plain fallback of the same paths, so the payload is legible to
+    // anything that only speaks text (a terminal, a text field).
+    event.dataTransfer.setData('text/plain', paths.join('\n'))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const onDragOverTarget = (
+    event: ReactDragEvent<HTMLDivElement>,
+    row: ExplorerRow | null
+  ): void => {
+    if (!event.dataTransfer.types.includes(EXPLORER_DRAG_MIME)) return
+    // A row answers for itself; without this the container underneath would
+    // re-resolve the same pointer as a drop on the project root.
+    if (row !== null) event.stopPropagation()
+    event.preventDefault()
+    const resolution = resolveOver(
+      row?.node.path ?? null,
+      row?.node.kind === 'dir',
+      draggedRef.current
+    )
+    event.dataTransfer.dropEffect = resolution.allowed ? 'move' : 'none'
+    paintDropTarget(resolution.allowed ? resolution.targetDir : null)
+    // dropEffect 'none' cancels the drag outright — no drop event ever fires —
+    // so a refusal with something to say has to say it here, while the pointer
+    // is still over the target being refused.
+    if (!resolution.allowed && resolution.reason !== null) {
+      if (dragNoteRef.current !== resolution.reason) {
+        useUiStore.getState().setStatusNote(resolution.reason)
+        dragNoteRef.current = resolution.reason
+      }
+    } else {
+      clearDragNote()
+    }
+  }
+
+  const onDragLeaveTarget = (event: ReactDragEvent<HTMLDivElement>): void => {
+    // dragleave fires on every row boundary crossed; only a pointer that has
+    // actually left the tree should unpaint it.
+    const related = event.relatedTarget as Node | null
+    if (related !== null && listRef.current?.contains(related) === true) return
+    paintDropTarget(null)
+  }
+
+  const onDropTarget = (event: ReactDragEvent<HTMLDivElement>, row: ExplorerRow | null): void => {
+    if (!event.dataTransfer.types.includes(EXPLORER_DRAG_MIME)) return
+    if (row !== null) event.stopPropagation()
+    event.preventDefault()
+    // At drop time the DataTransfer is readable, and it — not the ref dragover
+    // had to make do with — is the payload of record.
+    const dragged =
+      parseDragPayload(event.dataTransfer.getData(EXPLORER_DRAG_MIME)) ?? draggedRef.current
+    const resolution = resolveOver(row?.node.path ?? null, row?.node.kind === 'dir', dragged)
+    endDrag()
+    if (!resolution.allowed || resolution.targetDir === null) return
+    void useExplorerStore
+      .getState()
+      .moveInto(pathsToMove(dragged, resolution.targetDir), resolution.targetDir)
+  }
+
+  const gestures: RowGestures = {
+    onMouseDown: onRowMouseDown,
+    onMouseUp: onRowMouseUp,
+    onDragStart: onRowDragStart,
+    // dragenter shares dragover's handler: the HTML spec has dragenter
+    // participating in drop-target selection, and cancelling only dragover
+    // leaves the target up to engine behaviour no driver here exercises.
+    onDragEnter: onDragOverTarget,
+    onDragOver: onDragOverTarget,
+    onDragLeave: onDragLeaveTarget,
+    onDrop: onDropTarget
+  }
+
   return (
     <div
       ref={listRef}
-      className="tree"
+      className={dropDir !== null && dropDir === rootDir ? 'tree tree--droptarget' : 'tree'}
       role="tree"
       aria-multiselectable
       tabIndex={0}
       onKeyDown={onKeyDown}
+      // The container handles the empty area below the last row (rows stop
+      // their own drag events from reaching it), which is the project-root
+      // drop. dragend bubbles here from the source row, so one handler clears
+      // a drag that ended anywhere — including a cancelled one.
+      onDragEnter={(e) => onDragOverTarget(e, null)}
+      onDragOver={(e) => onDragOverTarget(e, null)}
+      onDragLeave={onDragLeaveTarget}
+      onDrop={(e) => onDropTarget(e, null)}
+      onDragEnd={endDrag}
     >
       {creatingAtRoot && <EditRow depth={0} initial="" />}
       {rows.map((row) => {
@@ -437,6 +723,8 @@ export function ExplorerView(): JSX.Element {
                 (path === manuscriptProsePath && activeManuscriptRoot === rootDir)
               }
               expanded={expanded.has(path) || forcesOpen(editing, path)}
+              droptarget={dropDir !== null && dropDir === path}
+              gestures={gestures}
               semantic={semantic.get(path)}
             />
             {creatingHere && <EditRow depth={row.depth + 1} initial="" />}

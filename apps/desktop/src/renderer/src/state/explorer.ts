@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import type { FsNode } from '@suna/core'
+import type { FsNode, ResponseOf } from '@suna/core'
 import { useProjectStore } from './project'
 import { useUiStore } from './ui'
-import { openFileTab } from './dock'
+import { openFileTab, retargetPanels } from './dock'
+import { moveNote } from '../shell/explorer-dnd'
 
 export type ExplorerEditing =
   | { kind: 'rename'; path: string; name: string; isDir: boolean }
@@ -50,6 +51,8 @@ interface ExplorerState {
   startRename: (node: FsNode) => void
   cancelEdit: () => void
   commitEdit: (name: string) => Promise<void>
+  /** Drop handler's other half: batch-move `paths` into `targetDir`. */
+  moveInto: (paths: readonly string[], targetDir: string) => Promise<void>
 
   seedExpansion: (rootDir: string, paths: string[]) => void
   toggleExpanded: (path: string, open?: boolean) => void
@@ -166,6 +169,12 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
           path: editing.path,
           newName: trimmed
         })
+        // Before this, a rename orphaned its open tab: the panel kept the old
+        // path and quietly stopped matching anything on disk
+        // (feature-plan-9 measurement 5). Retarget FIRST, so the openFileTab
+        // below focuses the tab that already holds the file instead of
+        // opening a second one beside the dead one.
+        retargetPanels(editing.path, path)
         await useProjectStore.getState().refreshTree()
         set({ selection: [path], anchor: path, focusPath: path })
         if (!editing.isDir) openFileTab(path)
@@ -184,6 +193,45 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
     } catch (error) {
       reportError(`Could not ${editing.kind === 'rename' ? 'rename' : 'create'} ${trimmed}`, error)
     }
+  },
+
+  /**
+   * One drop is one `fs:move` call and one status note (feature-plan-9 §2).
+   * The tree is NOT re-listed here: main watches the project directory and
+   * pushes a refresh, which is the same route an agent's or the terminal's
+   * writes take. What this does own is everything the watcher cannot know —
+   * the open tabs that must follow the files, and the selection, which lands
+   * on the moved rows at their NEW paths so the drop's result stays in hand.
+   *
+   * The missing refreshTree() is deliberate, not an oversight: confirmDelete
+   * and commitEdit in this store still call it by hand, while a drop waits for
+   * the tree watch (projectTreeWatch.ts, TREE_DEBOUNCE_MS = 150) to push the
+   * re-list — a route verified working, and an explicit re-list here would only
+   * race that push.
+   */
+  moveInto: async (paths, targetDir) => {
+    if (paths.length === 0) return
+    let result: ResponseOf<'fs:move'>
+    try {
+      result = await window.suna.invoke('fs:move', { paths: [...paths], targetDir })
+    } catch (error) {
+      reportError(`Could not move into ${targetDir.split('/').pop() ?? targetDir}`, error)
+      return
+    }
+    for (const entry of result.moved) retargetPanels(entry.from, entry.to)
+    if (result.moved.length > 0) {
+      const landed = result.moved.map((entry) => entry.to)
+      // Reveal the target for the same reason startCreate does: rows selected
+      // inside a collapsed folder are rows nobody can see.
+      set((s) => ({
+        expanded: new Set(s.expanded).add(targetDir),
+        selection: landed,
+        anchor: landed[0] ?? null,
+        focusPath: landed[landed.length - 1] ?? null
+      }))
+    }
+    const note = moveNote(result.moved, result.failed, targetDir)
+    if (note !== null) useUiStore.getState().setStatusNote(note)
   },
 
   seedExpansion: (rootDir, paths) => set({ expanded: new Set(paths), seededFor: rootDir }),

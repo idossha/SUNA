@@ -196,6 +196,67 @@ export function closeProjectTabs(rootDir: string): void {
   }
 }
 
+/**
+ * Follow a file or directory that moved on disk: every open tab showing
+ * `from` — or showing something INSIDE it, when `from` is a directory —
+ * reopens at the matching path under `to`. Returns how many panels it
+ * rewrote. Called after each successful `fs:move`, and after `fs:rename`,
+ * which without it leaves the tab pointing at a path that no longer exists
+ * (feature-plan-9 measurement 5).
+ *
+ * "Rewrites" means close-and-re-add rather than an in-place patch, and two
+ * things force that: DockHost renders a panel's React component ONCE from
+ * `parameters.params` (dockview-core has no re-render on `update`), and for a
+ * file tab the panel ID *is* the path — which is what useOpenTabsStore keys
+ * the explorer's open/active markers off. Neither survives a mutation. The
+ * replacement is added at the original's group and tab index BEFORE the
+ * original is removed, so a retarget can never collapse a split by closing a
+ * group's last panel.
+ *
+ * A dirty buffer does not come along: doc sessions are keyed by path, and the
+ * one at `from` stays behind (docSessions keeps a dirty session alive past its
+ * last view). Saving before moving is still the only way to carry unsaved
+ * edits across — the same as before this existed, minus the dead tab.
+ */
+export function retargetPanels(from: string, to: string): number {
+  if (!dockApi || from === to) return 0
+  const api = dockApi
+  const prefix = `${from}/`
+  const activeId = api.activePanel?.id ?? null
+  let rewritten = 0
+  for (const panel of [...api.panels]) {
+    if (!PROJECT_SCOPED_PATH_COMPONENTS.has(panel.view.contentComponent)) continue
+    const current = panel.params?.['path']
+    if (typeof current !== 'string') continue
+    // The separator is the whole guard: a bare startsWith(from) also matches
+    // /a/data2 when /a/data is what moved.
+    const next =
+      current === from
+        ? to
+        : current.startsWith(prefix)
+          ? `${to}/${current.slice(prefix.length)}`
+          : null
+    if (next === null) continue
+    api.addPanel({
+      id: freePanelId(next),
+      component: componentForFile(next),
+      title: titleForFile(next),
+      params: { ...panel.params, path: next },
+      position: {
+        referencePanel: panel.id,
+        direction: 'within',
+        index: panel.group.panels.indexOf(panel)
+      },
+      // Re-adding always activates; only the tab that WAS frontmost may take
+      // the focus back, or moving a background file would steal it.
+      inactive: panel.id !== activeId
+    })
+    api.removePanel(panel)
+    rewritten += 1
+  }
+  return rewritten
+}
+
 /** Open (or focus) the DOCX/PDF export dialog for a project (feature-plan-6 §3/§4). */
 export function openExportTab(rootDir: string): void {
   if (!dockApi) return
@@ -371,6 +432,13 @@ export const dockDevSeam = {
   closeProjectTabs,
   sideGroupId,
   activePanelPath,
+  /**
+   * The surface the help overlay keys its section off. Seamed because
+   * `activePanelPath` answers null for every panel without a file path
+   * (the combined manuscript tab among them), so a driver cannot tell
+   * "no active panel" from "an active panel that is not a file".
+   */
+  activePanelComponent,
   groupCount: (): number => dockApi?.groups.length ?? 0,
   /** Panel ids per group, in dock order — groups()[0] is the primary group. */
   groupPanelIds: (): string[][] =>
