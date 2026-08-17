@@ -57,13 +57,15 @@ describe('projectTreeLines', () => {
     expect(projectTreeLines(state)).toContain('    references.bib')
   })
 
-  it('adds .mcp.json only when writeMcpConfig is on', () => {
-    expect(
-      projectTreeLines(createInitialWizardState('create', { writeMcpConfig: true }))
-    ).toContain('  .mcp.json')
-    expect(
-      projectTreeLines(createInitialWizardState('create', { writeMcpConfig: false }))
-    ).not.toContain('  .mcp.json')
+  it('always lists the agent layer: stubs, context/ files, and machine-local .mcp.json', () => {
+    const lines = projectTreeLines(createInitialWizardState('create'))
+    expect(lines).toContain('  AGENTS.md')
+    expect(lines).toContain('  CLAUDE.md')
+    expect(lines).toContain('  context/')
+    expect(lines).toContain('    MISSION.md')
+    expect(lines).toContain('    NOTEBOOK.md')
+    expect(lines).toContain('    RULES.md')
+    expect(lines.some((l) => l.startsWith('  .mcp.json'))).toBe(true)
   })
 
   it('mentions .venv only when creating one with uv', () => {

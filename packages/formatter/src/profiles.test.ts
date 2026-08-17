@@ -3,7 +3,13 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { PublisherProfileSchema, type PublisherProfile, type ArticleTypeRules } from '@suna/core';
-import { BUNDLED_PROFILE_IDS, loadProfile, type BundledProfileId } from './profiles';
+import {
+  BUNDLED_PROFILE_IDS,
+  HIDDEN_PROFILE_IDS,
+  PICKER_PROFILE_IDS,
+  loadProfile,
+  type BundledProfileId,
+} from './profiles';
 
 // Robust regardless of runtime: prefer import.meta.dirname (Node >= 20.11),
 // fall back to deriving it from import.meta.url.
@@ -86,9 +92,14 @@ describe('bundled publisher profiles', () => {
 
       it('id matches its filename and lastVerified is the extraction date', () => {
         expect(profile.id).toBe(id);
-        const expectedDate = (SECOND_PASS_IDS as readonly string[]).includes(id)
-          ? '2026-08-15'
-          : '2026-08-13';
+        // brain-stimulation was re-verified against the LIVE ScienceDirect
+        // guide on 2026-08-17 (the earlier pass was 403-blocked).
+        const expectedDate =
+          id === 'brain-stimulation'
+            ? '2026-08-17'
+            : (SECOND_PASS_IDS as readonly string[]).includes(id)
+              ? '2026-08-15'
+              : '2026-08-13';
         expect(profile.lastVerified).toBe(expectedDate);
       });
 
@@ -362,28 +373,88 @@ describe('pnas facts from the PNAS author center', () => {
   });
 });
 
-describe('brain-stimulation facts from the Elsevier guide for authors', () => {
+describe('picker visibility', () => {
+  it('hides exactly the astronomy journals from pickers, for now — they stay bundled and loadable', () => {
+    expect([...HIDDEN_PROFILE_IDS].sort()).toEqual(['apj-aas', 'mnras', 'nature-astronomy']);
+    expect(PICKER_PROFILE_IDS).not.toEqual(expect.arrayContaining(['nature-astronomy']));
+    // hidden ≠ removed: the profiles still load and validate
+    for (const id of HIDDEN_PROFILE_IDS) {
+      expect(profiles[id].id).toBe(id);
+    }
+    // the picker list is the bundled list minus the hidden set, order kept
+    expect(PICKER_PROFILE_IDS).toEqual(
+      BUNDLED_PROFILE_IDS.filter((id) => !(HIDDEN_PROFILE_IDS as readonly string[]).includes(id)),
+    );
+    expect(PICKER_PROFILE_IDS[0]).toBe('suna');
+  });
+});
+
+describe('brain-stimulation facts from the LIVE Elsevier guide for authors (2026-08-17)', () => {
   const brainStim = profiles['brain-stimulation'];
 
-  it('citations: Vancouver-numbered family; most fields left null (guide-for-authors page returned 403)', () => {
-    // findings-2.json Brain Stimulation.notes: sparsest profile in the batch.
-    expect(brainStim.citations.referenceList.authorTruncation.truncateWhenMoreThan).toBeNull();
+  it('citations: square-bracket Vancouver numbered, first 6 authors then et al., LTWA abbreviations', () => {
+    // "Indicate references by number(s) in square brackets in line in the
+    // text"; "for more than 6 authors the first 6 should be listed followed
+    // by 'et al.'"; "Abbreviate journal names according to the List of Title
+    // Word Abbreviations (LTWA)".
+    expect(brainStim.citations.mode).toBe('parenthetical-numeric');
+    expect(brainStim.citations.referenceList.sortOrder).toBe('appearance');
+    expect(brainStim.citations.referenceList.authorTruncation).toEqual({
+      etAlAllowed: true,
+      truncateWhenMoreThan: 6,
+      keepFirstN: 6,
+    });
+    expect(brainStim.citations.referenceList.journalAbbreviation).toBe('iso4');
   });
 
-  it('manuscript: 250-word structured abstract is the one confirmed limit', () => {
-    // findings-2.json Brain Stimulation.manuscriptLimits: "Abstracts must not
-    // exceed 250 words".
-    expect(articleType(brainStim, 'original-article').abstractWordLimit).toBe(250);
-    expect(articleType(brainStim, 'original-article').wordLimit).toBeNull();
+  it('manuscript: the article-type table — 4,000-word Original Research, 1,000-word strict Letters', () => {
+    // "4,000 word limit (not including abstract / references / title page)";
+    // "Structured abstract of up to 250 words"; Letters: "1,000 word body of
+    // the letter strict limit", "Maximum of 10 references", "Maximum 1 table
+    // or figure".
+    const original = articleType(brainStim, 'original-research');
+    expect(original.wordLimit?.max).toBe(4000);
+    expect(original.abstractWordLimit).toBe(250);
+    const letter = articleType(brainStim, 'letter-to-editor');
+    expect(letter.wordLimit).toEqual({
+      max: 1000,
+      scope: 'body of the letter — excludes figure legends and tables',
+      hard: true,
+    });
+    expect(letter.abstractWordLimit).toBeNull();
+    expect(letter.maxReferences).toBe(10);
+    expect(letter.maxDisplayItems).toBe(1);
+    expect(articleType(brainStim, 'editorial').wordLimit?.max).toBe(3000);
   });
 
-  it('figures: 300 dpi TIFF/JPG/PNG for photographs is the one confirmed figure rule', () => {
-    // findings-2.json Brain Stimulation.figureRules.
+  it('manuscript: required Highlights, 1-7 keywords, CRediT contributions', () => {
+    // "You are required to provide article highlights at submission … 3 to 5
+    // bullet points, each a maximum of 85 characters"; "You are required to
+    // provide 1 to 7 keywords"; "Corresponding authors are required to
+    // acknowledge co-author contributions using CRediT".
+    const ids = brainStim.manuscript.requiredSections.filter((s) => s.required).map((s) => s.id);
+    expect(ids).toEqual(
+      expect.arrayContaining(['highlights', 'keywords', 'credit-contributions', 'competing-interests']),
+    );
+  });
+
+  it('figures: EPS/PDF vector preferred, 300 dpi halftone floor, widths derived from stated pixel minimums', () => {
+    // "Vector drawings: Save as EPS or PDF files"; "minimum of 300 dpi (for
+    // single column width: min. 1063 pixels, full page width: 2244 pixels)"
+    // -> 90 mm / 190 mm at 300 dpi.
+    expect(brainStim.figures.formats.vectorPreferred).toEqual(['eps', 'pdf']);
     expect(brainStim.figures.formats.minDpi).toBe(300);
     expect(brainStim.figures.formats.rasterAccepted).toEqual(
       expect.arrayContaining(['tiff', 'jpg', 'png']),
     );
-    expect(brainStim.figures.widthPresetsMm.single).toBeNull();
+    expect(brainStim.figures.widthPresetsMm.single).toBe(90);
+    expect(brainStim.figures.widthPresetsMm.double).toBe(190);
+    expect(brainStim.figures.palette.requirement).toBe('colorblind-safe-recommended');
+  });
+
+  it('submission format: double spacing and line numbers are genuinely not stated', () => {
+    expect(brainStim.manuscript.submissionFormat.doubleSpacing).toBeNull();
+    expect(brainStim.manuscript.submissionFormat.lineNumbers).toBeNull();
   });
 });
 
@@ -656,21 +727,92 @@ describe('loadProfile', () => {
 describe('the SUNA house style', () => {
   const suna = profiles['suna'];
 
-  it('is the only bundled profile that carries a documentStyle', () => {
+  /**
+   * DocumentStyle became a partial DELTA over the always-on SUNA default
+   * (export-style.ts's resolveDocumentStyle): the house style still states
+   * its typography IN FULL — that completeness is what makes "SUNA style"
+   * reproducible — while a journal profile may carry only the small
+   * convention fields its guidelines actually state.
+   */
+  const TYPOGRAPHY_FIELDS = [
+    'name',
+    'page',
+    'fonts',
+    'sizesPt',
+    'lineSpacing',
+    'bodySpaceAfterPt',
+    'referenceHangingMm',
+    'figureWidthMm',
+    'figureCaptionPosition',
+    'tableCaptionPosition',
+    'pageBreakAfterFrontMatter',
+  ] as const;
+  const CONVENTION_FIELDS = [
+    'figureLabel',
+    'figurePlacement',
+    'tablePlacement',
+    'referencesStartNewPage',
+  ] as const;
+
+  it('states every typography field in full', () => {
     expect(suna.documentStyle).toBeDefined();
+    for (const field of TYPOGRAPHY_FIELDS) {
+      expect(suna.documentStyle?.[field], `suna documentStyle.${field}`).toBeDefined();
+    }
+    // The nested groups are complete too — a partial house style would let
+    // silent fallbacks hide behind the schema's optionality.
+    expect(Object.keys(suna.documentStyle?.page ?? {}).sort()).toEqual(
+      ['heightMm', 'marginMm', 'widthMm'].sort(),
+    );
+    expect(Object.keys(suna.documentStyle?.fonts ?? {}).sort()).toEqual(['body', 'mono'].sort());
+    expect(Object.keys(suna.documentStyle?.sizesPt ?? {})).toHaveLength(10);
+  });
+
+  it('journal profiles carry at most convention deltas, never typography', () => {
     for (const id of JOURNAL_PROFILE_IDS) {
-      expect(profiles[id].documentStyle, `${id} must not state typography`).toBeUndefined();
+      const style = profiles[id].documentStyle;
+      if (style === undefined) continue;
+      for (const key of Object.keys(style)) {
+        expect(
+          (CONVENTION_FIELDS as readonly string[]).includes(key),
+          `${id} documentStyle.${key} is typography — journals must not invent page setup (ADR-002)`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('sleep states exactly its guideline-documented conventions', () => {
+    expect(profiles['sleep'].documentStyle).toEqual({
+      figureLabel: 'Figure',
+      figurePlacement: 'captions-list',
+      tablePlacement: 'end',
+      referencesStartNewPage: true,
+    });
+  });
+
+  it("nature-astronomy, mnras and brain-stimulation state the 'Fig.' label their pages document; nobody else does", () => {
+    expect(profiles['nature-astronomy'].documentStyle).toEqual({ figureLabel: 'Fig.' });
+    expect(profiles['mnras'].documentStyle).toEqual({ figureLabel: 'Fig.' });
+    // Elsevier's appendix-numbering format ("Table A.1; Fig. A.1, etc.") is
+    // the guide's stated label form, generalized — see the profile's notes.
+    expect(profiles['brain-stimulation'].documentStyle).toEqual({ figureLabel: 'Fig.' });
+    for (const id of JOURNAL_PROFILE_IDS) {
+      if (id === 'nature-astronomy' || id === 'mnras' || id === 'brain-stimulation') continue;
+      expect(
+        profiles[id].documentStyle?.figureLabel,
+        `${id} must not state a figure label its guidelines never gave`,
+      ).not.toBe('Fig.');
     }
   });
 
   it('reproduces docx-tools geometry: US Letter, 0.5 in margins, TNR 11 pt at 1.15', () => {
     const style = suna.documentStyle;
     // US Letter in mm, and 0.5 in = 12.7 mm on all four sides.
-    expect(style?.page.widthMm).toBeCloseTo(215.9, 1);
-    expect(style?.page.heightMm).toBeCloseTo(279.4, 1);
-    expect(style?.page.marginMm).toBeCloseTo(12.7, 1);
-    expect(style?.fonts.body).toBe('Times New Roman');
-    expect(style?.sizesPt.body).toBe(11);
+    expect(style?.page?.widthMm).toBeCloseTo(215.9, 1);
+    expect(style?.page?.heightMm).toBeCloseTo(279.4, 1);
+    expect(style?.page?.marginMm).toBeCloseTo(12.7, 1);
+    expect(style?.fonts?.body).toBe('Times New Roman');
+    expect(style?.sizesPt?.body).toBe(11);
     expect(style?.lineSpacing).toBeCloseTo(1.15, 2);
   });
 

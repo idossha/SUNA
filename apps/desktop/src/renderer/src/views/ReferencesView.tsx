@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { assignNumbers, formatReference, parseBibtex, renderCluster, type BibEntry, type Run } from '@suna/bib'
-import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
+import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { orderedReferences } from '../manuscript/citations'
 import { openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
@@ -324,7 +324,11 @@ export function ReferencesView(): JSX.Element {
                   </button>
                 </div>
                 <div className="refs__styles">
-                  {BUNDLED_PROFILE_IDS.map((id) => (
+                  {/* hidden profiles stay selectable when they ARE the current choice */}
+                  {(PICKER_PROFILE_IDS.includes(previewProfileId)
+                    ? PICKER_PROFILE_IDS
+                    : [...PICKER_PROFILE_IDS, previewProfileId]
+                  ).map((id) => (
                     <button
                       key={id}
                       className="refs__style"

@@ -182,21 +182,11 @@ export function Step5Ai({ state, update }: StepProps): JSX.Element {
         </div>
       </label>
 
-      <label className="onboard__choice" style={{ marginTop: 8 }}>
-        <input
-          type="checkbox"
-          checked={state.writeMcpConfig}
-          onChange={(e) => update({ writeMcpConfig: e.target.checked })}
-        />
-        <div className="onboard__choice-body">
-          <div className="onboard__choice-title">Also write .mcp.json</div>
-          <div className="onboard__choice-hint">
-            Lets an agent CLI running in this project use SUNA&apos;s own tools (edit sections,
-            manage figures, search references) via MCP. Written on Create project, alongside the
-            rest of the project.
-          </div>
-        </div>
-      </label>
+      <p className="onboard__field-hint" style={{ marginTop: 8 }}>
+        Every SUNA project is agent-ready: <code>.mcp.json</code> (machine-local, not
+        committed), <code>AGENTS.md</code>/<code>CLAUDE.md</code>, and the <code>context/</code>{' '}
+        memory files are written automatically, whatever you choose above.
+      </p>
     </div>
   )
 }

@@ -34,14 +34,14 @@ describe('defaultsToGlobalPatch', () => {
   it('carries the other four values under their own dotted keys', () => {
     const patch = defaultsToGlobalPatch({
       defaultMode: 'source',
-      editorTheme: 'high-contrast',
+      editorTheme: 'jellybeans',
       fontSizePx: 18,
       lineHeight: 1.8,
       contentWidthCh: 80
     })
     expect(patch).toEqual({
       'editor.defaultMode': 'source',
-      'editor.theme': 'high-contrast',
+      'editor.theme': 'jellybeans',
       'editor.fontSizePx': 18,
       'editor.lineHeight': 1.8,
       'editor.contentWidthCh': 80
