@@ -241,76 +241,94 @@ describe('openalex', () => {
   })
 })
 
-/* ------------------------------------------------------------------- ads -- */
+/* --------------------------------------------------------------- biorxiv -- */
 
-const adsBody = {
-  response: {
-    docs: [
+const biorxivBody = {
+  status: 'ok',
+  message: {
+    'total-results': 2,
+    items: [
       {
-        bibcode: '1972ApJ...176....1G',
-        title: ['On the infall of matter into clusters of galaxies'],
-        author: ['Gunn, James E.', 'Gott, J. Richard'],
-        year: '1972',
-        pub: 'The Astrophysical Journal',
-        citation_count: 3021,
-        doi: ['10.1086/151605']
+        DOI: '10.1101/2024.01.15.575612',
+        title: ['Sleep spindles gate hippocampal replay'],
+        author: [
+          { given: 'Ada', family: 'Lovelace' },
+          { given: 'Grace', family: 'Hopper' }
+        ],
+        issued: { 'date-parts': [[2024, 1]] },
+        institution: [{ name: 'bioRxiv' }],
+        'group-title': 'Neuroscience',
+        'is-referenced-by-count': 12,
+        abstract: '<jats:p>We record replay.</jats:p>'
+      },
+      {
+        DOI: '10.1101/2024.02.20.24303099',
+        title: ['A clinical trial of slow-wave enhancement'],
+        author: [{ given: 'Rosalind', family: 'Franklin' }],
+        issued: { 'date-parts': [[2024]] },
+        // no institution array — the server name arrives as group-title
+        'group-title': 'medRxiv',
+        'is-referenced-by-count': 3
       }
     ]
   }
 }
 
-describe('ads', () => {
-  it('refuses without a key and never touches the network', async () => {
-    const { results, error } = await searchLiterature('ads', 'ram pressure', { limit: 5 })
-    expect(results).toEqual([])
-    expect(error).toBe('NASA ADS needs a free API key (Settings)')
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it('sends the bearer token and the documented field list', async () => {
-    respondWith(jsonResponse(adsBody))
-    await searchLiterature('ads', 'ram pressure', { limit: 7, apiKey: 'ads-secret' })
+describe('biorxiv', () => {
+  it('queries Crossref openRxiv (member 54368) posted-content, keyless, with the polite mailto', async () => {
+    respondWith(jsonResponse(biorxivBody))
+    await searchLiterature('biorxiv', 'sleep spindles', { limit: 7, mailto: 'ada@example.org' })
     const { url } = requestAt(0)
-    expect(url.origin + url.pathname).toBe('https://api.adsabs.harvard.edu/v1/search/query')
-    expect(url.searchParams.get('q')).toBe('ram pressure')
+    expect(url.origin + url.pathname).toBe('https://api.crossref.org/works')
+    expect(url.searchParams.get('query')).toBe('sleep spindles')
+    expect(url.searchParams.get('filter')).toBe('member:54368,type:posted-content')
     expect(url.searchParams.get('rows')).toBe('7')
-    expect(url.searchParams.get('fl')).toBe('bibcode,title,author,year,pub,citation_count,doi')
-    expect(headersAt(0)['Authorization']).toBe('Bearer ads-secret')
+    expect(url.searchParams.get('mailto')).toBe('ada@example.org')
+    expect(headersAt(0)['User-Agent']).toBe('SUNA/0.1 (mailto:ada@example.org)')
   })
 
-  it('maps response.response.docs onto LitResult', async () => {
-    respondWith(jsonResponse(adsBody))
-    const { results, error } = await searchLiterature('ads', 'ram pressure', {
-      limit: 1,
-      apiKey: 'ads-secret'
-    })
+  it('never sends a key, even when one is passed', async () => {
+    respondWith(jsonResponse(biorxivBody))
+    await searchLiterature('biorxiv', 'sleep spindles', { limit: 5, apiKey: 'stray-key' })
+    expect(headersAt(0)['Authorization']).toBeUndefined()
+    expect(requestAt(0).url.searchParams.get('api_key')).toBeNull()
+  })
+
+  it('maps items with source biorxiv and the server name (bioRxiv vs medRxiv) as venue', async () => {
+    respondWith(jsonResponse(biorxivBody))
+    const { results, error } = await searchLiterature('biorxiv', 'sleep spindles', { limit: 2 })
     expect(error).toBeNull()
     expect(results[0]).toEqual({
-      source: 'ads',
-      id: '1972ApJ...176....1G',
-      doi: '10.1086/151605',
-      title: 'On the infall of matter into clusters of galaxies',
-      authors: ['Gunn, James E.', 'Gott, J. Richard'],
-      year: 1972,
-      venue: 'The Astrophysical Journal',
-      citedByCount: 3021,
-      openAccessUrl:
-        'https://ui.adsabs.harvard.edu/abs/1972ApJ...176....1G/abstract',
-      abstract: null
+      source: 'biorxiv',
+      id: '10.1101/2024.01.15.575612',
+      doi: '10.1101/2024.01.15.575612',
+      title: 'Sleep spindles gate hippocampal replay',
+      authors: ['Ada Lovelace', 'Grace Hopper'],
+      year: 2024,
+      venue: 'bioRxiv',
+      citedByCount: 12,
+      openAccessUrl: null,
+      abstract: 'We record replay.'
     })
+    expect(results[1]?.source).toBe('biorxiv')
+    expect(results[1]?.venue).toBe('medRxiv')
   })
 
-  it('explains a rejected key', async () => {
-    respondWith({ status: 401, body: '{"error":"Unauthorized"}' })
-    const { error } = await searchLiterature('ads', 'x', { limit: 1, apiKey: 'stale' })
-    expect(error).toContain('HTTP 401')
-    expect(error).toContain('Settings')
+  it('reports an HTTP failure instead of an empty result list', async () => {
+    respondWith({ status: 500, body: 'upstream exploded' })
+    const { results, error } = await searchLiterature('biorxiv', 'x', { limit: 1 })
+    expect(results).toEqual([])
+    expect(error).toContain('HTTP 500')
+    expect(error).toContain('bioRxiv/medRxiv')
   })
 
-  it('quotes the DOI in the ADS query syntax', async () => {
-    respondWith(jsonResponse(adsBody))
-    await lookupByDoi('ads', '10.1086/151605', { apiKey: 'ads-secret' })
-    expect(requestAt(0).url.searchParams.get('q')).toBe('doi:"10.1086/151605"')
+  it('looks a preprint DOI up on the Crossref single-work endpoint, retagged biorxiv', async () => {
+    respondWith(jsonResponse({ message: biorxivBody.message.items[0] }))
+    const { result, error } = await lookupByDoi('biorxiv', '10.1101/2024.01.15.575612')
+    expect(error).toBeNull()
+    expect(result?.source).toBe('biorxiv')
+    expect(result?.venue).toBe('bioRxiv')
+    expect(requestAt(0).url.pathname).toBe('/works/10.1101%2F2024.01.15.575612')
   })
 })
 

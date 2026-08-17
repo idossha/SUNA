@@ -4,11 +4,12 @@ import { z } from 'zod';
  * Literature search — one normalized result shape across providers.
  * Ground truth probed 2026-08-14: Crossref works keyless with a polite
  * mailto; OpenAlex meters requests (HTTP 429 "Insufficient budget…") and is
- * only dependable with a key; NASA ADS needs a free key; arXiv is
- * best-effort. Errors are surfaced honestly, never as an empty result list.
+ * only dependable with a key; bioRxiv/medRxiv ride Crossref (openRxiv, member 54368,
+ * posted-content) keyless; arXiv is best-effort. Errors are surfaced
+ * honestly, never as an empty result list.
  */
 
-export const LIT_PROVIDER_IDS = ['crossref', 'openalex', 'ads', 'arxiv'] as const;
+export const LIT_PROVIDER_IDS = ['crossref', 'openalex', 'biorxiv', 'arxiv'] as const;
 
 export const LitProviderIdSchema = z.enum(LIT_PROVIDER_IDS);
 export type LitProviderId = z.infer<typeof LitProviderIdSchema>;
@@ -70,10 +71,10 @@ export const LIT_PROVIDER_META = {
     keyless: true,
     note: 'Metered — without budget or a key it answers HTTP 429.',
   },
-  ads: {
-    label: 'NASA ADS',
-    keyless: false,
-    note: 'Needs a free API key. Best source for astronomy.',
+  biorxiv: {
+    label: 'bioRxiv / medRxiv',
+    keyless: true,
+    note: 'Keyless. Preprints only, searched through Crossref.',
   },
   arxiv: {
     label: 'arXiv',
@@ -85,7 +86,7 @@ export const LIT_PROVIDER_META = {
 /** Normalized search hit. Every nullable field is null when unknown. */
 export const LitResultSchema = z.object({
   source: LitResultSourceSchema,
-  /** Provider-native id: DOI (crossref), work id (openalex), bibcode (ads), arXiv id. */
+  /** Provider-native id: DOI (crossref, biorxiv), work id (openalex), arXiv id. */
   id: z.string().min(1),
   doi: z.string().nullable(),
   title: z.string().min(1),

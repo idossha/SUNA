@@ -119,10 +119,17 @@ describe('lookupDoiTool', () => {
     expect(out).toContain('no record for DOI 10.9999/does-not-exist')
   })
 
-  it('surfaces the ADS keyless message with no network call', async () => {
-    const out = await lookupDoiTool({ doi: '10.1086/151605', provider: 'ads' })
-    expect(out).toContain('needs a free API key')
-    expect(fetchMock).not.toHaveBeenCalled()
+  it('routes a biorxiv lookup through Crossref and tags the source', async () => {
+    respondWith(
+      jsonResponse({
+        status: 'ok',
+        message: { ...crossrefHit.message.items[0], institution: [{ name: 'bioRxiv' }] }
+      })
+    )
+    const out = await lookupDoiTool({ doi: '10.1086/151605', provider: 'biorxiv' })
+    expect(out).toContain('biorxiv:10.1086/151605')
+    const call = fetchMock.mock.calls[0] as [string, unknown]
+    expect(new URL(call[0]).hostname).toBe('api.crossref.org')
   })
 })
 
@@ -156,8 +163,9 @@ describe('addReference', () => {
   })
 
   it('surfaces a provider error and writes nothing', async () => {
-    const out = await addReference(ctx, { doi: '10.1086/151605', provider: 'ads' })
-    expect(out).toContain('needs a free API key')
+    respondWith({ status: 500, body: 'upstream exploded' })
+    const out = await addReference(ctx, { doi: '10.1086/151605' })
+    expect(out).toContain('HTTP 500')
     expect(out).toContain('nothing added')
     await expect(readFile(join(dir, 'manuscript', 'references.bib'), 'utf8')).rejects.toThrow()
   })

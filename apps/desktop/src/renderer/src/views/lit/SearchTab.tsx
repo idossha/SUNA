@@ -66,8 +66,7 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
   const setStatusNote = useUiStore((s) => s.setStatusNote)
   const cliPreference = useSettingsStore((s) => s.settings['lit.cli'])
 
-  const [provider, setProviderState] = useState<UiLitProviderId>('crossref')
-  const providerTouched = useRef(false)
+  const [provider, setProviderState] = useState<UiLitProviderId>('openalex')
 
   const [providerStatus, setProviderStatus] = useState<ProviderStatus[]>([])
   const [availableClis, setAvailableClis] = useState<LitCliId[]>([])
@@ -99,7 +98,6 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
   // AND reset the loading state (nothing else will now clear it, since the
   // 'lit:done' listener that normally does that was just unsubscribed).
   function setProvider(id: UiLitProviderId): void {
-    providerTouched.current = true
     if (id !== 'ai-cli' && activeAiSearch.current !== null) {
       stopActiveAiSearch()
       setLoading(false)
@@ -120,13 +118,12 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
     void window.suna
       .invoke('lit:cli-status', {})
       .then((res) => {
+        // A detected CLI only lights up the ai-cli option — OpenAlex stays
+        // the selected default; the user opts into ai-cli by clicking it.
         setAvailableClis(res.available)
-        // ai-cli becomes the default only once, and only if the user hasn't
-        // already picked a provider (feature-plan-3 §2 BUILD step 4).
-        if (res.available.length > 0 && !providerTouched.current) setProviderState('ai-cli')
       })
       .catch(() => {
-        // No CLI status: the picker still shows ai-cli, it just won't be the default.
+        // No CLI status: the picker still shows ai-cli as an option.
       })
     // Cancel + clean up any in-flight ai-cli search when the tab unmounts.
     return () => stopActiveAiSearch()

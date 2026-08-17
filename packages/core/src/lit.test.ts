@@ -31,17 +31,18 @@ const crossrefHit: LitResult = {
 
 describe('LitProviderIdSchema', () => {
   it('accepts exactly the four probed providers', () => {
-    expect([...LIT_PROVIDER_IDS]).toEqual(['crossref', 'openalex', 'ads', 'arxiv']);
+    expect([...LIT_PROVIDER_IDS]).toEqual(['crossref', 'openalex', 'biorxiv', 'arxiv']);
     for (const id of LIT_PROVIDER_IDS) {
       expect(LitProviderIdSchema.parse(id)).toBe(id);
     }
     expect(LitProviderIdSchema.safeParse('semanticscholar').success).toBe(false);
+    expect(LitProviderIdSchema.safeParse('ads').success).toBe(false);
   });
 
-  it('marks ADS as the only provider that cannot be called without a key', () => {
+  it('marks every provider keyless (OpenAlex takes an optional key for budget)', () => {
     const keyless = LIT_PROVIDER_IDS.filter((id) => LIT_PROVIDER_META[id].keyless);
-    expect([...keyless]).toEqual(['crossref', 'openalex', 'arxiv']);
-    expect(LIT_PROVIDER_META.ads.keyless).toBe(false);
+    expect([...keyless]).toEqual([...LIT_PROVIDER_IDS]);
+    expect(LIT_PROVIDER_META.biorxiv.label).toBe('bioRxiv / medRxiv');
   });
 });
 
@@ -61,17 +62,17 @@ describe('LitCliIdSchema / LitCliPreferenceSchema', () => {
 
 describe('LitResultSourceSchema / UiLitProviderIdSchema', () => {
   it('LitResult.source widens LitProviderId with ai-cli, without widening LitProviderId itself', () => {
-    expect([...LIT_RESULT_SOURCE_IDS]).toEqual(['crossref', 'openalex', 'ads', 'arxiv', 'ai-cli']);
+    expect([...LIT_RESULT_SOURCE_IDS]).toEqual(['crossref', 'openalex', 'biorxiv', 'arxiv', 'ai-cli']);
     for (const id of LIT_RESULT_SOURCE_IDS) expect(LitResultSourceSchema.parse(id)).toBe(id);
     expect(LitResultSourceSchema.safeParse('scholar').success).toBe(false);
     // the four dispatchable HTTP providers are unchanged — MCP/searchLiterature
     // still switch exhaustively over exactly these, never 'ai-cli'.
-    expect([...LIT_PROVIDER_IDS]).toEqual(['crossref', 'openalex', 'ads', 'arxiv']);
+    expect([...LIT_PROVIDER_IDS]).toEqual(['crossref', 'openalex', 'biorxiv', 'arxiv']);
     expect(LitProviderIdSchema.safeParse('ai-cli').success).toBe(false);
   });
 
   it('the UI provider picker lists ai-cli first, then the four HTTP providers', () => {
-    expect([...UI_LIT_PROVIDER_IDS]).toEqual(['ai-cli', 'crossref', 'openalex', 'ads', 'arxiv']);
+    expect([...UI_LIT_PROVIDER_IDS]).toEqual(['ai-cli', 'crossref', 'openalex', 'biorxiv', 'arxiv']);
     for (const id of UI_LIT_PROVIDER_IDS) expect(UiLitProviderIdSchema.parse(id)).toBe(id);
   });
 });

@@ -25,7 +25,7 @@ const HINTS: Record<UiLitProviderId, string> = {
   'ai-cli': 'uses your Claude/Codex subscription · ~30–60s',
   crossref: 'free, no key',
   openalex: 'metered',
-  ads: 'needs free key',
+  biorxiv: 'free, preprints',
   arxiv: 'free, best-effort'
 }
 

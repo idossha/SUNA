@@ -15,8 +15,10 @@ import { LitResultSchema, type LitProviderId, type LitResult } from '@suna/core'
  * pretending nothing matched.
  *
  * Probed 2026-08-14: Crossref works keyless with a polite mailto; OpenAlex
- * answers HTTP 429 ("Insufficient budget…") without budget or a key; NASA ADS
- * needs a free key; arXiv's Atom feed can come back empty from some networks.
+ * answers HTTP 429 ("Insufficient budget…") without budget or a key; arXiv's
+ * Atom feed can come back empty from some networks. bioRxiv/medRxiv have no
+ * search API of their own — their preprints are searched through Crossref
+ * (openRxiv member 54368, posted-content), so that provider is keyless too.
  */
 
 const TIMEOUT_MS = 8_000
@@ -171,7 +173,7 @@ function crossrefHeaders(mailto: string | null): Record<string, string> {
   return { Accept: 'application/json', 'User-Agent': crossrefUserAgent(mailto) }
 }
 
-function mapCrossrefItem(item: Record<string, unknown>): unknown {
+function mapCrossrefItem(item: Record<string, unknown>): Record<string, unknown> {
   const doi = asString(item['DOI'])
   const title = firstString(item['title'])
   const authors: string[] = []
@@ -238,7 +240,11 @@ async function crossrefSearch(
   }
 }
 
-async function crossrefByDoi(doi: string, mailto: string | null): Promise<LitLookupOutcome> {
+async function crossrefByDoi(
+  doi: string,
+  mailto: string | null,
+  map: (item: Record<string, unknown>) => unknown = mapCrossrefItem
+): Promise<LitLookupOutcome> {
   const url = new URL(`${CROSSREF_BASE}/${encodeURIComponent(doi)}`)
   if (mailto !== null) url.searchParams.set('mailto', mailto)
   const response = await httpGetText(url.toString(), crossrefHeaders(mailto))
@@ -249,7 +255,7 @@ async function crossrefByDoi(doi: string, mailto: string | null): Promise<LitLoo
   }
   const message = asObject(asObject(parseJson(response.text))?.['message'])
   if (message === null) return { result: null, error: null }
-  return { result: collect([mapCrossrefItem(message)])[0] ?? null, error: null }
+  return { result: collect([map(message)])[0] ?? null, error: null }
 }
 
 /* -------------------------------------------------------------- openalex -- */
@@ -366,87 +372,70 @@ async function openAlexByDoi(
   return { result: collect([mapOpenAlexWork(work)])[0] ?? null, error: null }
 }
 
-/* ------------------------------------------------------------------- ads -- */
+/* --------------------------------------------------------------- biorxiv -- */
 
-const ADS_BASE = 'https://api.adsabs.harvard.edu/v1/search/query'
-const ADS_FIELDS = 'bibcode,title,author,year,pub,citation_count,doi'
-const ADS_NO_KEY = 'NASA ADS needs a free API key (Settings)'
+/**
+ * bioRxiv and medRxiv publish no text-search API of their own, but every
+ * preprint is registered in Crossref as `posted-content` under openRxiv —
+ * Crossref member 54368, the nonprofit that took both servers over from
+ * Cold Spring Harbor Laboratory (whose old member id 246 retains only a
+ * residual handful of works) — so this provider is a keyless Crossref query
+ * narrowed to that member, sharing Crossref's polite-pool handling.
+ * Verified 2026-08: member 54368 holds ~433k posted-content works and
+ * queries return both bioRxiv and medRxiv records.
+ */
+const BIORXIV_FILTER = 'member:54368,type:posted-content'
 
-function mapAdsDoc(doc: Record<string, unknown>): unknown {
-  const bibcode = asString(doc['bibcode'])
-  const title = firstString(doc['title'])
-  const authors: string[] = []
-  for (const entry of asArray(doc['author'])) {
-    const name = asString(entry)
-    if (name !== null) authors.push(name)
+/** The registering server name ("bioRxiv" / "medRxiv") — the venue to display. */
+function preprintServer(item: Record<string, unknown>): string | null {
+  for (const entry of asArray(item['institution'])) {
+    const name = asString(asObject(entry)?.['name'])
+    if (name !== null) return name
   }
-  return {
-    source: 'ads',
-    id: bibcode ?? title ?? 'ads-result',
-    doi: firstString(doc['doi']),
-    title: title === null ? '(untitled)' : plainText(title),
-    authors,
-    year: asInt(doc['year']),
-    venue: asString(doc['pub']),
-    citedByCount: asInt(doc['citation_count']),
-    openAccessUrl:
-      bibcode === null ? null : `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(bibcode)}/abstract`,
-    abstract: null
-  }
+  // Older deposits carry a single institution object or only a group-title.
+  return asString(asObject(item['institution'])?.['name']) ?? asString(item['group-title'])
 }
 
-function adsError(status: number, text: string): string {
+/** Same Crossref record shape; posted-content has no container-title, so the
+ * venue comes from the registering server name instead. */
+function mapBiorxivItem(item: Record<string, unknown>): unknown {
+  return { ...mapCrossrefItem(item), source: 'biorxiv', venue: preprintServer(item) }
+}
+
+function biorxivError(status: number, text: string): string {
   const detail = serverDetail(text)
   const suffix = detail === null ? '' : `: ${detail}`
-  if (status === 401 || status === 403) {
-    return `NASA ADS rejected the API key (HTTP ${status})${suffix} — check it in Settings.`
-  }
   if (status === 429) {
-    return `NASA ADS daily rate limit reached (HTTP 429)${suffix}.`
+    return `bioRxiv/medRxiv search is rate-limited (Crossref HTTP 429)${suffix} — add your email in Settings for the polite pool.`
   }
-  return `NASA ADS request failed (HTTP ${status})${suffix}.`
+  return `bioRxiv/medRxiv search failed (Crossref HTTP ${status})${suffix}.`
 }
 
-async function adsQuery(
-  q: string,
-  limit: number,
-  apiKey: string | null
-): Promise<{ docs: Record<string, unknown>[]; error: string | null }> {
-  if (apiKey === null) return { docs: [], error: ADS_NO_KEY }
-  const url = new URL(ADS_BASE)
-  url.searchParams.set('q', q)
-  url.searchParams.set('rows', String(limit))
-  url.searchParams.set('fl', ADS_FIELDS)
-
-  const response = await httpGetText(url.toString(), {
-    Accept: 'application/json',
-    Authorization: `Bearer ${apiKey}`
-  })
-  if (!response.ok) return { docs: [], error: `NASA ADS is unreachable — ${response.message}.` }
-  if (response.status !== 200) return { docs: [], error: adsError(response.status, response.text) }
-  const docs = asArray(asObject(asObject(parseJson(response.text))?.['response'])?.['docs'])
-  return {
-    docs: docs.map((doc) => asObject(doc)).filter((doc) => doc !== null),
-    error: null
-  }
-}
-
-async function adsSearch(
+async function biorxivSearch(
   query: string,
   limit: number,
-  apiKey: string | null
+  mailto: string | null
 ): Promise<LitSearchOutcome> {
-  const { docs, error } = await adsQuery(query, limit, apiKey)
-  if (error !== null) return { results: [], error }
-  return { results: collect(docs.map(mapAdsDoc)), error: null }
-}
+  const url = new URL(CROSSREF_BASE)
+  url.searchParams.set('query', query)
+  url.searchParams.set('filter', BIORXIV_FILTER)
+  url.searchParams.set('rows', String(limit))
+  if (mailto !== null) url.searchParams.set('mailto', mailto)
 
-async function adsByDoi(doi: string, apiKey: string | null): Promise<LitLookupOutcome> {
-  const { docs, error } = await adsQuery(`doi:"${doi}"`, 1, apiKey)
-  if (error !== null) return { result: null, error }
-  const first = docs[0]
-  if (first === undefined) return { result: null, error: null }
-  return { result: collect([mapAdsDoc(first)])[0] ?? null, error: null }
+  const response = await httpGetText(url.toString(), crossrefHeaders(mailto))
+  if (!response.ok) {
+    return { results: [], error: `bioRxiv/medRxiv (via Crossref) is unreachable — ${response.message}.` }
+  }
+  if (response.status !== 200) {
+    return { results: [], error: biorxivError(response.status, response.text) }
+  }
+  const body = asObject(parseJson(response.text))
+  if (body === null) return { results: [], error: 'Crossref returned a response SUNA could not read.' }
+  const items = asArray(asObject(body['message'])?.['items'])
+  return {
+    results: collect(items.map((item) => asObject(item)).filter((item) => item !== null).map(mapBiorxivItem)),
+    error: null
+  }
 }
 
 /* ----------------------------------------------------------------- arxiv -- */
@@ -729,8 +718,8 @@ export async function searchLiterature(
         return await crossrefSearch(query, limit, mailto)
       case 'openalex':
         return await openAlexSearch(query, limit, mailto, apiKey)
-      case 'ads':
-        return await adsSearch(query, limit, apiKey)
+      case 'biorxiv':
+        return await biorxivSearch(query, limit, mailto)
       case 'arxiv':
         return await arxivSearch(query, limit)
     }
@@ -752,8 +741,10 @@ export async function lookupByDoi(
         return await crossrefByDoi(doi, mailto)
       case 'openalex':
         return await openAlexByDoi(doi, mailto, apiKey)
-      case 'ads':
-        return await adsByDoi(doi, apiKey)
+      case 'biorxiv':
+        // A preprint DOI resolves on the same Crossref endpoint; only the
+        // mapping (source tag + server-name venue) differs.
+        return await crossrefByDoi(doi, mailto, mapBiorxivItem)
       case 'arxiv':
         return await arxivByDoi(doi)
     }
