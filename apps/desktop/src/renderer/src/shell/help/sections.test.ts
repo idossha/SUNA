@@ -53,7 +53,7 @@ describe('SECTIONS', () => {
     it('says out loud that ? is search-backward in a vim buffer, and names the way out', () => {
       const row = rowsOf('editor', 'Vim').find(([keys]) => keys === '?')
       expect(row).toBeDefined()
-      expect(row?.[1]).toContain('⌘?')
+      // :help is the ONLY door from a buffer — there is no chord to offer.
       expect(row?.[1]).toContain(':help')
     })
 
@@ -61,10 +61,13 @@ describe('SECTIONS', () => {
       expect(rowsOf('manuscript', 'Vim').length).toBeGreaterThan(0)
     })
 
-    it('names ⌘? in the Global tab as a way into this dialog', () => {
+    it('names "?" in the Global tab, and offers no chord beside it', () => {
       const global = SECTIONS.find((s) => s.id === 'global')
-      const keys = global?.groups.flatMap((g) => g.items.map(([k]) => k)) ?? []
-      expect(keys.some((k) => k.includes('⌘?'))).toBe(true)
+      const rows = global?.groups.flatMap((g) => g.items) ?? []
+      const help = rows.find(([keys]) => keys === '?')
+      expect(help).toBeDefined()
+      // A chord here would be a third door; the app deliberately has two.
+      expect(rows.some(([keys]) => keys.includes('⌘?'))).toBe(false)
     })
   })
 

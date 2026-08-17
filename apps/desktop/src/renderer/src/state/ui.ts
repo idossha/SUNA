@@ -171,11 +171,18 @@ interface UiState {
   toggleCommentsRail: () => void
   setCommentsRailWidth: (px: number) => void
   setHelpOpen: (open: boolean) => void
+  /** Put the persisted left-nav visibility back — called when a project opens. */
+  restoreChrome: () => void
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
   activeView: 'explorer',
-  ...loadChrome(),
+  // The app starts on the welcome screen with no project, where the left
+  // nav has nothing to show: an empty explorer beside a welcome page is
+  // just chrome. It stays collapsed until a project is adopted, which is
+  // when restoreChrome puts the user's own preference back.
+  sidebarVisible: false,
+  railVisible: false,
   sidebarWidth: loadSidebarWidth(),
   statusNote: null,
   toasts: [],
@@ -200,6 +207,9 @@ export const useUiStore = create<UiState>((set, get) => ({
       if (rootDir !== null) openManuscriptTab(rootDir)
     }
   },
+  // Reads the stored preference without writing it back: the collapsed
+  // welcome state is a startup default, never something the user chose.
+  restoreChrome: () => set(loadChrome()),
   setSidebarVisible: (visible) => set((s) => commitChrome(visible, s.railVisible)),
   setRailVisible: (visible) => set((s) => commitChrome(visible ? s.sidebarVisible : false, visible)),
   toggleSidebar: () => set((s) => commitChrome(!s.sidebarVisible, s.railVisible)),

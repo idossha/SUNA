@@ -9,10 +9,10 @@
  *   3. with a canvas tab active the overlay opens on the canvas section,
  *      and the section tabs switch it;
  *   4. with vim motions ON and the buffer in NORMAL mode (feature-plan-9 §1):
- *      ⌘⇧/ opens the overlay, `:help` opens it, and a bare '?' does NOT —
- *      it drives vim's own search-backward panel, which is what
- *      feature-plan-9's measurement 1 recorded and what the ⌘⇧/ binding
- *      exists to work around. Vim is always turned back off, failure or not.
+ *      `:help` is the ONLY door — a bare '?' drives vim's own
+ *      search-backward panel instead (measurement 1), and ⌘⇧/ does nothing
+ *      at all, since that chord was removed in favour of exactly two ways
+ *      in. Vim is always turned back off, failure or not.
  *
  * Run:  node scripts/e2e/drive.mjs --boot --example
  *       node scripts/e2e/drive.mjs scripts/e2e/probes/help-overlay.mjs
@@ -152,7 +152,7 @@ export default async (ctx) => {
   await ctx.sleep(300)
   assert((await overlay()) === null, 'Esc did not close the overlay (canvas pass)')
 
-  // ---- 4. vim NORMAL mode: ⌘⇧/ and :help reach it, a bare '?' does not ----
+  // ---- 4. vim NORMAL mode: :help is the only door in --------------------
   const manuscriptMd = `${rootDir}/manuscript/manuscript.md`
   const vimPanel = () =>
     ctx.evalJs(`(() => {
@@ -198,16 +198,13 @@ export default async (ctx) => {
       { timeoutMs: 8000, desc: 'the shared session for the manuscript buffer' }
     )
 
-    // (a) ⌘⇧/ — measurement 3: it arrives at the window listener unprevented.
+    // (a) ⌘⇧/ is NOT a binding: help has exactly two doors, '?' outside a
+    // buffer and ':help' inside one. The chord must therefore do nothing at
+    // all here — no overlay, and nothing typed into the document.
     await ctx.key('?', 'Slash', 12) // CDP modifiers: 4 = Meta, 8 = Shift
-    await ctx.waitFor(`!!document.querySelector('.help-overlay')`, {
-      timeoutMs: 4000,
-      desc: '⌘⇧/ opening the overlay from a vim buffer'
-    })
+    await ctx.sleep(500)
     byChord = await overlay()
-    await ctx.key('Escape', 'Escape')
-    await ctx.sleep(300)
-    assert((await overlay()) === null, 'Esc did not close the overlay opened by ⌘⇧/')
+    assert(byChord === null, '⌘⇧/ opened the overlay — that chord was removed')
 
     // (b) `:help` — the vim-native path through the ex registry.
     await focusBuffer()
@@ -275,7 +272,7 @@ export default async (ctx) => {
     canvasSection: onCanvas.section,
     vim: {
       mode: vimMode,
-      chordSection: byChord?.section ?? null,
+      chordOpensNothing: byChord === null,
       exSection: byExCommand?.section ?? null,
       searchPanel: byQuestionMark
     }

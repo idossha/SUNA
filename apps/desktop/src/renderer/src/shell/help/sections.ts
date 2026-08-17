@@ -58,8 +58,8 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
   },
   // feature-plan-9 §1. The `?` row is the honest one: in NORMAL mode vim
   // consumes Shift-Slash entirely (measured — the window listener records no
-  // event at all), so this dialog is unreachable from a buffer except by ⌘?
-  // or :help. Saying so beats letting the reader conclude help is broken.
+  // event at all), so :help is the ONLY way into this dialog from a vim
+  // buffer. Saying so beats letting the reader conclude help is broken.
   {
     title: 'Vim (when vim motions are on)',
     items: [
@@ -67,7 +67,7 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
       [':q / :q!', 'Close the tab / close it discarding unsaved changes'],
       [':wq', 'Write, then close (refuses to close if the write did not land)'],
       [':help / :h', 'This help'],
-      ['?', "vim's search-backward here, not this dialog — use ⌘? or :help"]
+      ['?', "vim's search-backward here, not this dialog — use :help"]
     ]
   }
 ]
@@ -98,7 +98,7 @@ export const SECTIONS: readonly HelpSection[] = [
       {
         title: 'App',
         items: [
-          ['? / ⌘?', 'This help — ⌘? also works while typing, and inside vim'],
+          ['?', 'This help (:help inside a vim buffer, where vim owns "?")'],
           ['Esc', 'Close overlays'],
           ['Title bar', 'Project switcher']
         ]

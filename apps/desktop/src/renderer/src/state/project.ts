@@ -56,6 +56,9 @@ function migrationStatusNote(name: string, migration: MigrationOutcome): string 
 async function adoptProject(dir: string, manifest: SunaProjectManifest): Promise<void> {
   const previousRoot = useProjectStore.getState().rootDir
   useProjectStore.setState({ rootDir: dir, manifest })
+  // A project is open now, so the left nav has something to show: put the
+  // user's stored visibility back over the welcome screen's collapsed default.
+  useUiStore.getState().restoreChrome()
   if (previousRoot !== null && previousRoot !== dir) closeProjectTabs(previousRoot)
   await useProjectStore.getState().refreshTree()
   void useCommentsStore.getState().load(dir)
