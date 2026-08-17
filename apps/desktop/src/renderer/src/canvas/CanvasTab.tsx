@@ -31,6 +31,7 @@ import {
   styleValue,
   targetForElement
 } from './canvas-util'
+import { captureRegionFor, type ClientRectLike } from './agent-section'
 import { registerCanvasToolsProvider } from './dev-seam'
 import { registerCanvasPaletteContext } from './palette-actions'
 import { ToolRail } from './ToolRail'
@@ -145,15 +146,23 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   const profileRef = useRef(profile)
   profileRef.current = profile
 
-  /** Compliance check against the project's active journal profile. */
-  const runCompliance = (): void => {
+  /**
+   * Compliance check against the project's active journal profile. Returns
+   * the fresh list as well as setting state — the Agent section builds its
+   * prompt from the return value at send time (feature-plan-8 §4), when the
+   * React-state copy may still be a render behind.
+   */
+  const runCompliance = (): Diagnostic[] => {
     const session = sessionRef.current
     const p = profileRef.current
-    if (!session || !p) return
+    if (!session || !p) return []
     try {
-      setDiagnostics(checkFigureSvg(session.doc.serialize(), p, { figureId: fileName }))
+      const fresh = checkFigureSvg(session.doc.serialize(), p, { figureId: fileName })
+      setDiagnostics(fresh)
+      return fresh
     } catch {
       // compliance is advisory; never let it break the canvas
+      return []
     }
   }
 
@@ -513,21 +522,37 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   }
 
   // ---- load & mount --------------------------------------------------------
+  // Liveness for BOTH loads of figure.svg from disk: the initial mount and
+  // the agent-edit reload (§4) can each resolve after the tab is gone, and
+  // neither may resurrect sessionRef past the cleanup that nulled it.
+  const aliveRef = useRef(true)
+
+  /**
+   * THE load path: read figure.svg from disk into a fresh engine session.
+   * Used at mount and re-used verbatim after a successful agent edit
+   * (feature-plan-8 §4) — deliberately not resetting pan/zoom, so a reload
+   * keeps the user's view. Returns null when the tab died mid-read.
+   */
+  const loadFromDisk = async (): Promise<CanvasDocument | null> => {
+    const { content } = await window.suna.invoke('fs:read-text', { path })
+    if (!aliveRef.current) return null
+    const doc = new CanvasDocument(content, createBrowserDomAdapter())
+    sessionRef.current = { doc, history: new CommandHistory(doc) }
+    syncMirror()
+    const ab = doc.artboard
+    if (ab.widthMm && ab.heightMm) {
+      setArtboardLabel(`${ab.widthMm.toFixed(1)} × ${ab.heightMm.toFixed(1)} mm`)
+    }
+    runCompliance()
+    return doc
+  }
+
   useEffect(() => {
-    let disposed = false
+    aliveRef.current = true
     void (async () => {
       try {
-        const { content } = await window.suna.invoke('fs:read-text', { path })
-        if (disposed) return
-        const doc = new CanvasDocument(content, createBrowserDomAdapter())
-        sessionRef.current = { doc, history: new CommandHistory(doc) }
-        syncMirror()
-
-        const ab = doc.artboard
-        if (ab.widthMm && ab.heightMm) {
-          setArtboardLabel(`${ab.widthMm.toFixed(1)} × ${ab.heightMm.toFixed(1)} mm`)
-        }
-        runCompliance()
+        const doc = await loadFromDisk()
+        if (doc === null) return
 
         const viewport = viewportRef.current
         const mirror = mirrorRef.current
@@ -547,11 +572,11 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           })
         }
       } catch (error) {
-        if (!disposed) setLoadError(error instanceof Error ? error.message : String(error))
+        if (aliveRef.current) setLoadError(error instanceof Error ? error.message : String(error))
       }
     })()
     return () => {
-      disposed = true
+      aliveRef.current = false
       flushTx()
       sessionRef.current = null
       mirrorRef.current = null
@@ -585,6 +610,65 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
       runCompliance()
     } catch (error) {
       note(`Could not save ${fileName}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  // ---- directed AI figure edits (feature-plan-8 §4) --------------------------
+  /**
+   * Union of the selected ids' MIRROR rects (the mirror is layout truth; the
+   * engine doc is off-DOM), or the artboard when nothing is selected, padded
+   * 12 px, through 'app:capture-rect'. The selection overlay stays visible
+   * in the shot ON PURPOSE — the gold boxes are how the agent knows what
+   * "the selection" means. Null (nothing measurable, capture failed) still
+   * sends the prompt, just without a screenshot.
+   */
+  const captureForAgent = async (): Promise<{ path: string; ids: string[] } | null> => {
+    const mirror = mirrorRef.current
+    if (!mirror) return null
+    const ids: string[] = []
+    const rects: ClientRectLike[] = []
+    for (const id of selectedIdsRef.current) {
+      const el = mirrorById(id)
+      if (!el || !(el instanceof SVGGraphicsElement)) continue
+      ids.push(id)
+      rects.push(el.getBoundingClientRect())
+    }
+    if (rects.length === 0) rects.push(mirror.getBoundingClientRect())
+    // client → page coordinates: the identity while the root document never
+    // scrolls, but 'app:capture-rect' is specified in page coordinates.
+    const rect = captureRegionFor(rects, 12, window.scrollX, window.scrollY)
+    if (rect === null) return null
+    try {
+      const res = await window.suna.invoke('app:capture-rect', { rect })
+      return { path: res.path, ids }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * §4 success hook: the agent edited figure.svg on disk. A clean tab
+   * reloads through THE load path (which also re-runs compliance); a dirty
+   * tab has genuinely diverged from disk, so never clobber the user's
+   * unsaved work — say so and let them resolve it.
+   */
+  const afterAgentEdit = async (): Promise<void> => {
+    if (!aliveRef.current || sessionRef.current === null) return
+    if (revRef.current !== savedRevRef.current) {
+      note('Agent edited figure.svg on disk — save or undo your local edits, then reopen')
+      return
+    }
+    try {
+      const doc = await loadFromDisk()
+      if (doc === null) return
+      // The fresh session is by definition in sync with disk.
+      revRef.current += 1
+      savedRevRef.current = revRef.current
+      setRev(revRef.current)
+      api.setTitle(fileName)
+      setSelection(selectedIdsRef.current.filter((id) => doc.getById(id) !== null))
+    } catch (error) {
+      note(`Could not reload ${fileName}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -1324,6 +1408,8 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
           diagnostics={diagnostics}
           note={note}
           save={save}
+          captureForAgent={captureForAgent}
+          afterAgentEdit={afterAgentEdit}
         />
       </div>
     </div>

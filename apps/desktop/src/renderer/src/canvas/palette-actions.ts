@@ -1,5 +1,6 @@
 import type { CanvasDocument } from '@suna/canvas'
 import type { PublisherProfile } from '@suna/core'
+import type { Diagnostic } from '@suna/formatter'
 
 /**
  * Lets the command palette's figure commands ("Run Compliance Check",
@@ -17,7 +18,12 @@ export interface CanvasPaletteContext {
   doc: CanvasDocument
   /** Flushes the editor's in-memory doc to figure.svg on disk (export reads the file, not the live doc). */
   save: () => Promise<void>
-  runCompliance: () => void
+  /**
+   * Re-checks compliance, updates the tab's diagnostics UI, and RETURNS the
+   * fresh list — the Agent section (feature-plan-8 §4) reads it at send
+   * time, when the tab's cached React state may be stale.
+   */
+  runCompliance: () => Diagnostic[]
   isVisible: () => boolean
 }
 
