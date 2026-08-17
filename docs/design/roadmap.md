@@ -70,6 +70,12 @@ running Electron process. See TESTING.md → *Flat-layout coverage*.
 
 ## In progress
 
+**feature-plan-9** — help from a vim buffer (⌘? / `:help`), explorer
+drag-and-drop whose moves retarget open tabs, and the two Finder actions
+— smoke steps 70–71 plus `probes/explorer-dnd.mjs` cover it as far as the
+IPC boundary; the OS effect of Reveal/Open is manual (TESTING.md →
+*Explorer drag-and-drop, and the OS actions*, last measured: PENDING).
+
 **feature-plan-8** — the `?` shortcut-help overlay plus directed AI
 actions (comment fix, canvas figure edit, dev-only UI repair) — is built
 with the unit gates green; smoke steps 67–69 and the two drive probes

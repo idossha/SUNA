@@ -104,6 +104,37 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
    just the app's own writes. Create/rename/delete a file in Finder or in
    the built-in terminal (`touch data/new.csv`), or run an export, and
    the row appears/disappears within ~150 ms without touching anything.
+
+   **Drag-and-drop** (feature-plan-9 §2) — drag a row onto a **folder**
+   to move it in, onto a **file** to move it into that file's folder, or
+   onto the empty area below the last row to move it to the project
+   root; the resolved target lights up while you hover. A multi-selection
+   drags whole: pressing on a row that is already part of one no longer
+   collapses the selection (the collapse still happens on a click that
+   never became a drag), so ⌘-click three files and drag any of them and
+   all three move. One drop is **one** `fs:move` and one status note —
+   *Moved 3 items to data/* — and a partial failure keeps that note but
+   appends a tail naming what stayed —
+   *Moved 2 items to data/; 1 could not move: fig.svg (already exists)*.
+   The cause in the parentheses is a short phrase, not main's own
+   sentence: that one carries the absolute destination path, which does
+   not belong in a status-bar line. An existing destination is refused, never
+   overwritten. Refused drops paint nothing: a folder onto itself or into
+   its own subfolder, and a drop into the folder the file is already in. **Open tabs follow the file** — move an open
+   `results/spectrum_fit.json` and its tab re-points at the new path
+   instead of going dead, which a rename does now too.
+
+   **Reveal in Finder / Open with Default App** (feature-plan-9 §3) —
+   the context menu's middle group, ⌥⌘R and ⌥⌘O on the focused row.
+   Both act on one row and are disabled with more than one selected,
+   like Rename…. The label follows the platform (*Show in Explorer* on
+   Windows, *Show in File Manager* elsewhere). *Open with Default App*
+   **refuses anything executable** — `.app .command .pkg .dmg .scpt
+   .workflow .term` or any file carrying the user-execute bit — and says
+   so naming the file, because an agent can write files into the project
+   and "open with the OS" must never become "run what the agent wrote".
+   Folders are allowed: opening one is a Finder window, which is what
+   was asked for.
 6. **Manuscript view** (activity bar): **clicking the activity-bar icon
    opens (or focuses) the manuscript tab directly** — the old *Open full
    manuscript* button is gone (feature-plan-7 §2). The sidebar still
@@ -382,6 +413,18 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     the code and this file — including the ✦ AI comment button and the
     canvas Agent section.
 
+    **From inside a vim buffer** (feature-plan-9 §1): turn vim motions on
+    (gear → Vim motions) and put the cursor in the prose. **⌘?** opens
+    this dialog without leaving the buffer — it is the one chord that
+    works while typing, so it is deliberately outside the isTyping guard
+    — and vim's own **`:help`** (or `:h`) opens it too. A bare **`?`**
+    does *not*: in NORMAL mode it is vim's search-backward and the keymap
+    consumes it before any window listener sees it. That is measured, not
+    assumed, and the overlay's Editor section says so in its *Vim (when
+    vim motions are on)* group beside `:w`, `:q` / `:q!` and `:wq`.
+    (`⌘⇧/` is what the keyboard sends; the overlay renders it **⌘?**,
+    since Shift+Slash *is* the `?` key.)
+
 ## Fast iteration: the hidden driver
 
 Two environment variables put the app into test mode. **`SUNA_HIDDEN=1`**
@@ -424,6 +467,20 @@ polls an `evalJs` expression string or an async function until truthy and
 throws with `desc` on timeout. A probe's return value, if not undefined,
 is JSON-printed.
 
+Two gotchas, both measured the hard way:
+
+- **Never `evalJs` an expression whose value is a store action's promise.**
+  `evalJs` awaits what it gets, and a promise the app drops the reference to
+  (`projectStore…refreshTree()` is one) gets collected before it settles —
+  CDP then fails the call with `Promise was collected`. Fire it and poll the
+  DOM instead: `evalJs('(() => { …refreshTree(); return true })()')` followed
+  by a `waitFor`.
+- **A synthetic `new DataTransfer()` cannot carry a drag *effect*.** Chromium
+  ignores assignment to `effectAllowed` and `dropEffect` on one (both read
+  back `none`), though `setData`/`getData` work normally. Drag probes assert
+  the payload and the drop-target highlight — what the app actually decides —
+  not the effect fields.
+
 Driver state lives in `scripts/e2e/.userdata-drive` (never wiped
 automatically): `drive.json` records `{ pid, port }`, and `dev.log` is the
 app's output — where `--boot` checks for the hidden-mode marker line and
@@ -435,7 +492,7 @@ The recommended order when testing a change:
    asserted there.
 2. **A drive.mjs probe** for the specific surface being changed.
 3. **`pnpm smoke`** as the regression gate, filtered with
-   `--only`/`--from`; the full 69-step run rarely.
+   `--only`/`--from`; the full 71-step run rarely.
 
 ### Directed AI actions (feature-plan-8)
 
@@ -537,6 +594,53 @@ here:
   "observed" and every id untouched, and the open canvas tab re-read the
   file and rendered the new label without a manual reload.
 
+### Explorer drag-and-drop, and the OS actions (feature-plan-9)
+
+**A test run must never call `shell:reveal` or `shell:open-path` for
+real** — that would pop Finder windows and launch applications onto the
+developer's screen, which is the exact thing the hidden driver exists to
+prevent. Everything automated therefore stops at the IPC boundary: the
+menu items' labels and enablement, the root confinement, and the
+executable refusal. Only the OS *effect* is checked by hand.
+
+```bash
+node scripts/e2e/drive.mjs --boot --example
+node scripts/e2e/drive.mjs scripts/e2e/probes/explorer-dnd.mjs
+node scripts/e2e/drive.mjs scripts/e2e/probes/help-overlay.mjs
+```
+
+`explorer-dnd.mjs` drives real synthetic `DragEvent`s carrying a real
+`DataTransfer` (the technique the canvas SVG-import step uses, so the
+handlers' `setData`/`getData` go through the platform object): it creates
+its own `dnd-probe.md`, drags the row onto `data/` and asserts the file
+moved **on disk**, that its open tab retargeted
+(`__sunaDev.dock.panelComponents()` — measurement 5's dead-tab bug), and
+that the row now renders under the folder; drags it back out to the
+project root through the tree's empty area; then drops `figures/` onto
+its own `fig-spectrum` child and requires that nothing highlighted and
+nothing moved. The probe removes the file and its tab whatever happens.
+`help-overlay.mjs` gained the vim leg: with `editor.vimMotions` on and
+the status bar reading `normal`, **⌘⇧/** opens the overlay and **`:help`**
+opens it, while a bare **`?`** opens vim's search panel and never the
+overlay — and the shared buffer is compared before and after, so a
+keystroke that leaked into `manuscript.md` fails the probe. Vim is turned
+back off in a `finally`, since the drive app stays booted between runs.
+
+**The OS effect is the one manual check** — one line, both actions on one
+row of the example copy:
+
+```bash
+pnpm dev   # explorer → right-click data/spectrum.csv → Reveal in Finder, then Open with Default App
+```
+
+Expect a Finder window opened at `data/` with `spectrum.csv` selected, and
+the CSV opening in whatever the OS considers its default app (Numbers /
+Preview / an editor). Then `chmod +x` a file in the project and try both
+on it: *Reveal* still works — showing a file cannot run it — while *Open
+with Default App* must launch nothing and leave
+`Could not open <name>: refusing to open an executable with the OS:
+<name>` in the status bar. Last measured: **PENDING**.
+
 ## Agent / CI smoke test
 
 ```bash
@@ -559,7 +663,7 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 
 Launches the app **hidden** (no window, no dock icon; pass `--show` or
 `SUNA_SMOKE_SHOW=1` for a visible window) with a DevTools-protocol
-endpoint (`SUNA_SMOKE_PORT`, default 9321) and drives 69 steps end to
+endpoint (`SUNA_SMOKE_PORT`, default 9321) and drives 71 steps end to
 end (`--list` prints their names). Reset strategy: the run's entire userData is the isolated
 `scripts/e2e/.userdata-smoke`, **wiped at run start** — every run
 exercises the pristine copy-on-open path (fresh git repo, exactly one
@@ -921,6 +1025,42 @@ Steps 48–54 are the acceptance criteria of
     As with step 47, the **billed** leg — a full answer coming back and
     landing in the Agent transcript — is not run on every `pnpm smoke`.
 
+Steps 70–71 are the acceptance criteria of
+`docs/design/feature-plan-9.md`, measured the same way:
+
+70. **explorer-drag-move** (§2/§3) — a `drag-probe.md` created at the
+    root through the real `fs:create-file` channel is dragged onto the
+    `data/` row with a synthetic `DragEvent` carrying a **real**
+    `DataTransfer`: the payload must be `application/x-suna-paths` (JSON
+    array) plus the same path as `text/plain`, and **exactly one** row may
+    light up `tree__row--droptarget`. The drag *effect* is deliberately
+    **not** asserted — Chromium ignores `effectAllowed`/`dropEffect`
+    assignment on a synthetic `DataTransfer` (both read back `none`), so
+    the payload and the highlight are all a synthetic drag can observe.
+    After the drop the file is on disk at `data/drag-probe.md` and gone
+    from the root, the row renders under the folder, and
+    `dock.panelComponents()` carries the new path and **no longer**
+    carries the old one (measurement 5's dead-tab bug). Dropping it on
+    the tree's empty area moves it back to the project root, painting
+    `tree--droptarget` on the container and no row. Then `figures/` is
+    dropped onto its own `fig-spectrum` child: nothing highlights and
+    nothing on disk moves. The §3 actions stop at the IPC boundary — the
+    menu must carry `[data-action="reveal-in-os"]` / `[data-action=
+    "open-with-os"]` with the platform's label, both enabled on one row
+    and both **disabled** at two selected (like Rename…) — and
+    `shell:open-path` is called **once**, against a `chmod 755` fixture
+    the step writes and deletes, which it must refuse by name. No reveal
+    and no successful open is ever invoked (§5).
+71. **help-in-vim-mode** (§1) — `editor.vimMotions` on, the status bar
+    reading `normal` over the manuscript buffer: **⌘⇧/** opens the
+    overlay, **`:help`** typed into vim's `:` command line opens it, and
+    a bare **`?`** opens vim's search panel (`.cm-vim-panel`) and never
+    the overlay. The shared doc session's text is compared before and
+    after, so a keystroke that leaked into `manuscript.md` fails the
+    step; vim is switched back off in a `finally`. (Enter into the vim
+    command line is dispatched with `windowsVirtualKeyCode: 13` — the
+    panel tests `e.keyCode`, which CDP leaves at 0 otherwise.)
+
 Exit code 0 = pass. Screenshots (each sidebar view as `views-*.png`,
 `reading-mode.png`, `manuscript-doc.png`, `manuscript-outline-active.png`,
 the canvas/editing shots, plus `fix-code-fullwidth.png`,
@@ -932,7 +1072,9 @@ and `23-lit-search.png` from steps 34–41, plus `text-context-menu.png`,
 steps 44–47, plus `split-view.png`, `pdf-viewer.png`,
 `image-viewer.png`, `reference-pdf-side.png` and `command-palette.png`
 from steps 48–53, plus `help-overlay.png` and `comment-ai-busy.png` from
-the feature-plan-8 steps 67–69) land in `scripts/e2e/.artifacts/`; failures add
+the feature-plan-8 steps 67–69, plus `explorer-drag-move.png` (taken
+mid-drag, with the drop target lit) and `help-in-vim-mode.png` from the
+feature-plan-9 steps 70–71) land in `scripts/e2e/.artifacts/`; failures add
 `FAIL-<step>.png`. `ai-lit-search.png` in the same directory is from the
 manual billed run described under step 47 — `pnpm smoke` never
 overwrites it.
@@ -1190,11 +1332,15 @@ manual check.
 | `apps/desktop/src/renderer/src/shell/explorer-rows.test.ts` | flattening the tree to the VISIBLE rows the keyboard steps through (collapsed subtrees hidden, per-row depth, ancestors of a pending create forced open, a name-prefix sibling *not* forced open), and the default two-level expansion |
 | `apps/desktop/src/renderer/src/state/explorer.test.ts` | selection semantics — plain/⌘/shift click, backwards ranges, re-shift replacing rather than growing a range, ⌘A, Esc — plus multi-target delete (deletes what it can, names what it could not) and right-click inside vs outside the selection |
 | `apps/desktop/src/main/services/projectTreeWatch.test.ts` | the live-refresh watcher: one notification per burst, ignored paths (`.git`, `node_modules`) not waking it, recursive→flat fallback, one project watched at a time, and no notification after being stopped mid-debounce |
-| `apps/desktop/src/renderer/src/state/dock.test.ts` | the dock fake now emits dockview's panel events, so the open-tab set the explorer's indicators read from is kept in sync by the real code path |
+| `apps/desktop/src/renderer/src/state/dock.test.ts` | the dock fake now emits dockview's panel events, so the open-tab set the explorer's indicators read from is kept in sync by the real code path; plus `retargetPanels` (a moved file, a moved directory's children by `sep` boundary, and the no-match case) |
+| `apps/desktop/src/renderer/src/shell/explorer-dnd.test.ts` | every drop guard (feature-plan-9 §2): folder row vs file row vs empty area, the no-op into a path's own parent, a folder into itself or a descendant — including that `/p/data2` is **not** inside `/p/data` — a row inside the dragged set, collisions named rather than overwritten, and paths outside the root |
+| `apps/desktop/src/renderer/src/shell/os-actions.test.ts`, `apps/desktop/src/main/services/shell-open.test.ts` | the §3 actions without ever asking the OS: platform labels and the ⌥⌘R/⌥⌘O specs, the file-naming refusal note, and main's refusal table (launchable extensions, the owner-execute bit, a plain directory allowed, root confinement, `openPath`'s `''` success sentinel mapped to `null`) |
 
 Not covered by unit tests: that the OS actually delivers `fs.watch` events
-for a given directory (platform behaviour), and the CSS that distinguishes
-selected / focused / open / active rows — both are manual checks in step 5.
+for a given directory (platform behaviour), the CSS that distinguishes
+selected / focused / open / active rows, and whether Finder actually opens
+— the first two are manual checks in step 5, the third is the one-line
+manual check recorded under *Explorer drag-and-drop, and the OS actions*.
 
 ### Verifying the shipped example and the migration by hand
 
@@ -1220,6 +1366,12 @@ byte-identical with `sections/` intact.
 
 ## Not yet covered
 
+- **The OS effect of the two Finder actions** (feature-plan-9 §3). Every
+  automated check stops at the IPC boundary on purpose — a real
+  `shell:reveal` / `shell:open-path` would open windows on the
+  developer's screen — so "Finder actually came up at the right folder"
+  is the one-line manual check under *Explorer drag-and-drop, and the OS
+  actions*. Last measured: **PENDING**.
 - **The smoke driver's flat-layout update** (feature-plan-7). See the
   warning at the top of *Agent / CI smoke test*: `scripts/e2e/smoke.mjs`
   still drives `.ms__open` and `manuscript/sections/*.md`. The milestone
