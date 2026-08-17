@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type EditorFontFamily = 'serif' | 'sans' | 'mono'
-export type EditorThemeName = 'suna-dark' | 'suna-light' | 'high-contrast'
+export type EditorThemeName = 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
 
 /**
  * Two surfaces on one editable CodeMirror instance: 'source' is plain
@@ -22,7 +22,7 @@ export interface EditorSettings {
   fontFamily: EditorFontFamily
   /** Line height for both modes. */
   lineHeight: number
-  /** Editor-surface theme; app chrome stays dark regardless. */
+  /** App-wide theme: editor surface plus chrome (App.tsx's data-suna-theme). */
   editorTheme: EditorThemeName
 }
 
@@ -56,7 +56,8 @@ export const FONT_FAMILY_STACKS: Record<EditorFontFamily, string> = {
 export const EDITOR_THEME_LABELS: Record<EditorThemeName, string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
-  'high-contrast': 'High Contrast'
+  gruvbox: 'Gruvbox',
+  jellybeans: 'Jellybeans'
 }
 
 /**
@@ -121,14 +122,20 @@ export const useEditorSettings = create<EditorSettingsState>()(
         return state
       },
       // Clamp persisted numeric values on rehydrate so stored settings from
-      // older builds (or hand-edited storage) always land inside the limits.
+      // older builds (or hand-edited storage) always land inside the limits;
+      // coerce a theme id that no longer exists (e.g. the removed
+      // 'high-contrast') back to the default.
       merge: (persisted, current) => {
         const merged = { ...current, ...((persisted ?? {}) as Partial<EditorSettings>) }
         return {
           ...merged,
           contentWidthCh: clampSetting('contentWidthCh', Number(merged.contentWidthCh)),
           fontSizePx: clampSetting('fontSizePx', Number(merged.fontSizePx)),
-          lineHeight: clampSetting('lineHeight', Number(merged.lineHeight))
+          lineHeight: clampSetting('lineHeight', Number(merged.lineHeight)),
+          editorTheme:
+            merged.editorTheme in EDITOR_THEME_LABELS
+              ? merged.editorTheme
+              : EDITOR_SETTINGS_DEFAULTS.editorTheme
         }
       },
       partialize: (state) => ({

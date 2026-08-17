@@ -1,9 +1,10 @@
-import { useCallback, type JSX } from 'react'
+import { useCallback, useEffect, type JSX } from 'react'
 import type { DockviewApi } from 'dockview'
 import { TitleBar } from './shell/TitleBar'
 import { ActivityBar } from './shell/ActivityBar'
 import { SideBar } from './shell/SideBar'
 import { StatusBar } from './shell/StatusBar'
+import { Toasts } from './shell/Toasts'
 import { DockHost, type DockPanelComponent } from './shell/dock/DockHost'
 import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
@@ -19,6 +20,7 @@ import { PdfTab } from './viewer/PdfTab'
 import { ImageTab } from './viewer/ImageTab'
 import { CommandPalette } from './palette/CommandPalette'
 import { useUiStore } from './state/ui'
+import { useEditorSettings } from './editor/settings'
 import { setDockApi } from './state/dock'
 // Registers the app's built-in commands as an import side effect (state/commands.ts).
 import './state/commands'
@@ -43,6 +45,18 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
 export function App(): JSX.Element {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible)
   const railVisible = useUiStore((s) => s.railVisible)
+  // Same store EditorTab renders its theme class from, so chrome and editor
+  // surface can never disagree. tokens.css keys its chrome palettes off this
+  // attribute; a theme without a block there (suna-dark) leaves the :root
+  // palette — i.e. today's look — untouched.
+  const editorTheme = useEditorSettings((s) => s.editorTheme)
+
+  // Mirrored onto <body> for body-portalled chrome (ProjectMenu) and the body
+  // background itself, both of which sit outside the .app subtree.
+  useEffect(() => {
+    document.body.setAttribute('data-suna-theme', editorTheme)
+    return () => document.body.removeAttribute('data-suna-theme')
+  }, [editorTheme])
 
   const handleDockReady = useCallback((api: DockviewApi) => {
     setDockApi(api)
@@ -73,7 +87,7 @@ export function App(): JSX.Element {
     .join(' ')
 
   return (
-    <div className="app">
+    <div className="app" data-suna-theme={editorTheme}>
       <TitleBar />
       <div className={workbenchClass}>
         {(railVisible || sidebarVisible) && <ActivityBar />}
@@ -85,6 +99,7 @@ export function App(): JSX.Element {
       </div>
       <StatusBar />
       <CommandPalette />
+      <Toasts />
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { tags } from '@lezer/highlight'
 import type { EditorThemeName } from './settings'
 
 /**
- * All three editor themes share one CM theme spec driven by `--ed-*` CSS
+ * All editor themes share one CM theme spec driven by `--ed-*` CSS
  * variables; the palette itself lives in editor.css, scoped by a
  * `.editor-tab--theme-*` class on the tab container. The only per-theme
  * difference at the CM level is the `dark` base flag.
@@ -86,5 +86,6 @@ export function editorTheme(name: EditorThemeName): Extension {
 export const EDITOR_THEME_CLASS: Record<EditorThemeName, string> = {
   'suna-dark': 'editor-tab--theme-suna-dark',
   'suna-light': 'editor-tab--theme-suna-light',
-  'high-contrast': 'editor-tab--theme-high-contrast'
+  gruvbox: 'editor-tab--theme-gruvbox',
+  jellybeans: 'editor-tab--theme-jellybeans'
 }
