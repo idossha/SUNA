@@ -224,6 +224,8 @@ export const CHANNELS = {
     response: z.object({
       manifest: SunaProjectManifestSchema,
       gitInitialized: z.boolean(),
+      /** Whether the agent layer (stubs, context/, .mcp.json) was fully written. */
+      agentLayerWritten: z.boolean(),
       /** Non-fatal issues (e.g. git unavailable, an import name collision). */
       warnings: z.array(z.string()),
     }),
@@ -673,11 +675,15 @@ export const CHANNELS = {
    * profile's width preset / minDpi) before calling this — every figure the
    * manuscript references must have an entry or the export throws naming the
    * missing one. Writes to `<dir>/output/<outputName>.docx`; never touches
-   * any source file. `useDocxTools` requests the OPTIONAL accelerator (spec
-   * §3's "build via docx-tools") when it is on PATH — detected via
-   * 'export:tools-available', never required; ignored (silently, since the
-   * caller already checked) when the tool is unavailable, falling back to
-   * the bundled-library path so export never fails for lacking it.
+   * any source file. Built entirely with the bundled 'docx' library — no
+   * external binary is ever consulted.
+   *
+   * `target` picks the document: 'manuscript' (the default) is the main
+   * manuscript; 'supplement' renders manuscript/supplementary.md as a
+   * Supplementary Information document (cover title + byline, a linked
+   * Contents list, S-numbered figures/tables, independently numbered
+   * Supplementary References). The supplement target throws a clear error
+   * naming the expected path when the file does not exist.
    */
   'export:docx': {
     request: z.object({
@@ -686,19 +692,40 @@ export const CHANNELS = {
       outputName: z.string().min(1),
       figurePngPaths: z.record(z.string(), z.string()),
       options: ExportOptionsSchema,
-      useDocxTools: z.boolean(),
+      target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
     response: z.object({
       path: z.string().min(1),
-      /** Whether the docx-tools accelerator actually built this file (false = the bundled 'docx' library did). */
-      usedDocxTools: z.boolean(),
     }),
+  },
+  /**
+   * Standalone web-page export: ONE self-contained .html file (figures and
+   * KaTeX assets inlined as data: URIs, no external requests) that mirrors
+   * the manuscript as the SUNA reading tab renders it — same title-page
+   * shape, SUNA reading typography and palette, in-text citations as
+   * hyperlinks to their reference-list entries, figure/table cross-refs as
+   * in-page links. `figurePngPaths` and `target` have the same contract as
+   * 'export:docx'; the print-only submission options (double spacing, line
+   * numbers, page numbers) do not apply to a web page and are ignored.
+   * Writes to `<dir>/output/<outputName>.html`.
+   */
+  'export:html': {
+    request: z.object({
+      dir: z.string().min(1),
+      profileId: z.string().min(1),
+      outputName: z.string().min(1),
+      figurePngPaths: z.record(z.string(), z.string()),
+      options: ExportOptionsSchema,
+      target: z.enum(['manuscript', 'supplement']).default('manuscript'),
+    }),
+    response: z.object({ path: z.string().min(1) }),
   },
   /**
    * PDF export (feature-plan-6 §4): the SAME profile-styled content model as
    * 'export:docx', rendered to HTML and printed via a hidden BrowserWindow's
-   * `printToPDF` — no LaTeX, no external binary. `figurePngPaths` has the
-   * same contract as 'export:docx'. Writes to `<dir>/output/<outputName>.pdf`.
+   * `printToPDF` — no LaTeX, no external binary. `figurePngPaths` and
+   * `target` have the same contract as 'export:docx'. Writes to
+   * `<dir>/output/<outputName>.pdf`.
    */
   'export:pdf': {
     request: z.object({
@@ -707,17 +734,9 @@ export const CHANNELS = {
       outputName: z.string().min(1),
       figurePngPaths: z.record(z.string(), z.string()),
       options: ExportOptionsSchema,
+      target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
     response: z.object({ path: z.string().min(1) }),
-  },
-  /**
-   * Is the `docx-tools` CLI on PATH (detected with `--version`, 5s timeout,
-   * cached per session by main)? Purely informational — the export dialog
-   * uses it to decide whether "Build via docx-tools" is offered at all.
-   */
-  'export:tools-available': {
-    request: z.object({}),
-    response: z.object({ docxTools: z.boolean() }),
   },
 } as const satisfies Record<string, ChannelContract>;
 

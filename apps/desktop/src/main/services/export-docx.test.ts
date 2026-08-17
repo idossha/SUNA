@@ -6,7 +6,7 @@ import { crc32, deflateSync } from 'node:zlib'
 import JSZip from 'jszip'
 import { buildExportContent } from './export-content'
 import { buildDocxDocument, exportDocx } from './export-docx'
-import { FIXTURE_MANUSCRIPT_MD, writeFixtureProject } from './export-fixture'
+import { FIXTURE_MANUSCRIPT, FIXTURE_MANUSCRIPT_MD, writeFixtureProject } from './export-fixture'
 import { allowRoot } from './roots'
 
 let dir = ''
@@ -69,7 +69,7 @@ async function appendProse(markdown: string): Promise<void> {
   await writeFile(join(dir, 'manuscript', 'manuscript.md'), `${FIXTURE_MANUSCRIPT_MD}\n${markdown}\n`, 'utf8')
 }
 
-async function documentXmlFor(profileId: string, options = OPTIONS): Promise<string> {
+async function zipFor(profileId: string, options = OPTIONS): Promise<JSZip> {
   const content = await buildExportContent({
     dir,
     profileId,
@@ -77,8 +77,24 @@ async function documentXmlFor(profileId: string, options = OPTIONS): Promise<str
   })
   const doc = await buildDocxDocument(content, options)
   const { Packer } = await import('docx')
-  const zip = await JSZip.loadAsync(await Packer.toBuffer(doc))
+  return JSZip.loadAsync(await Packer.toBuffer(doc))
+}
+
+async function documentXmlFor(profileId: string, options = OPTIONS): Promise<string> {
+  const zip = await zipFor(profileId, options)
   return (await zip.file('word/document.xml')?.async('string')) ?? ''
+}
+
+/** Strips XML tags so assertions match text that Word splits across <w:t> runs. */
+function visibleText(xml: string): string {
+  return xml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ')
+}
+
+/** Rewrites manuscript.json from a patched copy of the fixture manuscript. */
+async function patchManuscript(patch: (m: Record<string, unknown>) => void): Promise<void> {
+  const m = JSON.parse(JSON.stringify(FIXTURE_MANUSCRIPT)) as Record<string, unknown>
+  patch(m)
+  await writeFile(join(dir, 'manuscript', 'manuscript.json'), JSON.stringify(m, null, 2) + '\n', 'utf8')
 }
 
 /** The `w:jc` values of the cell paragraphs of the LAST table in the document, row by row. */
@@ -328,19 +344,18 @@ describe('markdown table alignment', () => {
     ])
   })
 
-  it('keeps the APA fallback for an unspecified column', async () => {
+  it('keeps the APA fallback for an unspecified column, under house and journal profiles alike', async () => {
     await writeFixtureProject(dir)
     await appendProse('| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |')
-    // House: header all centred, body first column left and the rest centred.
-    expect(cellAlignments(await documentXmlFor('suna'))).toEqual([
+    // SUNA's APA convention is the always-on default: header all centred,
+    // body first column left and the rest centred — journal profiles state
+    // no alignment of their own and inherit it.
+    const apa = [
       ['center', 'center', 'center'],
       ['left', 'center', 'center']
-    ])
-    // Journal: nothing stated at all.
-    expect(cellAlignments(await documentXmlFor('nature-astronomy'))).toEqual([
-      ['none', 'none', 'none'],
-      ['none', 'none', 'none']
-    ])
+    ]
+    expect(cellAlignments(await documentXmlFor('suna'))).toEqual(apa)
+    expect(cellAlignments(await documentXmlFor('nature-astronomy'))).toEqual(apa)
   })
 
   it('shrink-wraps and centres the table instead of stretching it to 100%', async () => {
@@ -364,12 +379,10 @@ describe('exportDocx', () => {
       profileId: 'nature-astronomy',
       outputName: 'fixture-paper',
       figurePngPaths,
-      options: OPTIONS,
-      useDocxTools: false
+      options: OPTIONS
     })
 
     expect(result.path).toBe(join(dir, 'output', 'fixture-paper.docx'))
-    expect(result.usedDocxTools).toBe(false)
     const bytes = await readFile(result.path)
     expect(bytes.byteLength).toBeGreaterThan(1000)
     // A .docx is a zip: PK magic bytes.
@@ -493,15 +506,354 @@ describe('SUNA style (the house style)', () => {
     expect(xml).toMatch(/w:val="(nil|none)"/)
   })
 
-  it('leaves a journal profile completely alone', async () => {
+  /**
+   * The always-on model: a journal profile inherits the FULL SUNA typography
+   * and shifts only the convention deltas its guidelines state. The old
+   * "journal profile left completely alone on A4/12pt" behavior is gone BY
+   * DESIGN — no journal states submitted-manuscript page geometry (ADR-002),
+   * so every export drafts in SUNA style.
+   */
+  it('a journal profile inherits the SUNA typography plus only its stated deltas', async () => {
     const xml = await buildXml('nature-astronomy')
-    // A4 with 1 in (1440 twip) margins, as before.
-    expect(xml).toContain('w:w="11905"')
-    expect(xml).toMatch(/w:top="1440"/)
-    // no page break before the first body heading
+    // US Letter with 0.5 in (720 twip) margins — the SUNA page, not A4/1in.
+    expect(xml).toContain('w:w="12240"')
+    expect(xml).toContain('w:h="15840"')
+    expect(xml).toMatch(/w:top="720"/)
+    expect(xml).not.toContain('w:w="11905"')
+    // SUNA's 1.15 line spacing and front-matter page break apply too.
+    expect(xml).toMatch(/w:line="276"/)
     const beforeIntro = xml.slice(0, xml.indexOf('Introduction'))
-    expect(beforeIntro).not.toContain('w:pageBreakBefore')
-    // and no forced-black heading override
-    expect(xml).not.toContain('* Corresponding author:')
+    expect(beforeIntro).toContain('w:pageBreakBefore')
+    // docx-tools' corresponding-author line, not the legacy "*e-mail:" one.
+    expect(xml).toContain('* Corresponding author:')
+    expect(xml).not.toContain('*e-mail:')
+    // The one delta nature-astronomy's guidelines state: "Fig. 1" labels.
+    expect(xml).toContain('Fig. 1')
+  })
+
+  it('a journal profile with no documentStyle at all still drafts in full SUNA style', async () => {
+    const xml = await buildXml('apj-aas')
+    expect(xml).toContain('w:w="12240"')
+    expect(xml).toMatch(/w:top="720"/)
+    expect(xml).toMatch(/w:line="276"/)
+    expect(xml).toContain('* Corresponding author:')
+    // No stated figure-label delta -> the SUNA "Figure 1" spelling.
+    expect(xml).toContain('Figure 1')
+    expect(xml).not.toContain('Fig. 1')
+  })
+})
+
+describe('back matter', () => {
+  it('renders the non-empty sections in the ground-truth order, before the references', async () => {
+    await writeFixtureProject(dir)
+    const text = visibleText(await documentXmlFor('suna'))
+    const order = [
+      'Acknowledgments',
+      'Funding',
+      'Competing Interests',
+      'Data Availability',
+      'Author Contributions',
+      'References'
+    ]
+    const positions = order.map((title) => text.indexOf(title))
+    for (const [i, at] of positions.entries()) {
+      expect(at, `"${order[i]}" missing`).toBeGreaterThan(-1)
+    }
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    // The bodies made it through, funding as one "Funder (grant)" paragraph.
+    expect(text).toContain('We thank the export test harness.')
+    expect(text).toContain('Fixture Science Foundation (FSF-0042); Open Testing Trust')
+    expect(text).toContain('Fixture data are available from the corresponding author.')
+  })
+
+  it('never renders an empty section: blank code stays out, empty back matter renders nothing', async () => {
+    await writeFixtureProject(dir)
+    // The fixture's availability.code is '' -> data-only heading, no code one.
+    const withData = visibleText(await documentXmlFor('suna'))
+    expect(withData).toContain('Data Availability')
+    expect(withData).not.toContain('Code Availability')
+    expect(withData).not.toContain('Data and Code Availability')
+
+    await patchManuscript((m) => {
+      m['availability'] = { data: '', code: '' }
+      m['backMatter'] = {
+        acknowledgements: null,
+        authorContributions: null,
+        funding: [],
+        competingInterests: null,
+        peerReview: null,
+        supplementaryInfo: null
+      }
+    })
+    const empty = visibleText(await documentXmlFor('suna'))
+    for (const title of ['Acknowledgments', 'Funding', 'Competing Interests', 'Availability', 'Author Contributions']) {
+      expect(empty).not.toContain(title)
+    }
+  })
+
+  it('merges data and code into one section when both statements exist', async () => {
+    await writeFixtureProject(dir)
+    await patchManuscript((m) => {
+      m['availability'] = { data: 'Data live in the archive.', code: 'Code lives in the repository.' }
+    })
+    const text = visibleText(await documentXmlFor('suna'))
+    expect(text).toContain('Data and Code Availability')
+    expect(text).toContain('Data live in the archive.')
+    expect(text).toContain('Code lives in the repository.')
+  })
+})
+
+describe('keywords', () => {
+  it('renders bold "Keywords: " plus the italic ;-joined list right after the abstract', async () => {
+    await writeFixtureProject(dir)
+    const xml = await documentXmlFor('suna')
+    const at = xml.indexOf('Keywords:')
+    expect(at).toBeGreaterThan(xml.indexOf('We test the export pipeline'))
+    expect(at).toBeLessThan(xml.indexOf('Introduction'))
+    const para = xml.slice(at - 300, at + 500)
+    expect(para).toContain('<w:b/>')
+    expect(para).toContain('export pipelines; fixtures; stripping')
+    expect(xml.slice(xml.indexOf('export pipelines') - 200, xml.indexOf('export pipelines'))).toContain('<w:i/>')
+  })
+
+  it('renders no keywords line when the manuscript has none', async () => {
+    await writeFixtureProject(dir)
+    await patchManuscript((m) => {
+      delete m['keywords']
+    })
+    expect(await documentXmlFor('suna')).not.toContain('Keywords:')
+  })
+})
+
+/**
+ * Markdown lists are REAL Word lists now: registered numbering definitions in
+ * word/numbering.xml, referenced through <w:numPr>, no literal "1. "/"• "
+ * text — so Word renumbers on edit.
+ */
+describe('real Word lists', () => {
+  it('renders an ordered list through numbering.xml, not literal number prefixes', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('1. First item\n2. Second item\n')
+    const zip = await zipFor('suna')
+    const numberingXml = (await zip.file('word/numbering.xml')?.async('string')) ?? ''
+    expect(numberingXml).toContain('<w:abstractNum')
+    expect(numberingXml).toContain('w:val="decimal"')
+    const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
+    expect(xml).toContain('<w:numPr>')
+    expect(xml).toContain('First item')
+    expect(visibleText(xml)).not.toContain('1. First item')
+  })
+
+  it('renders bullets through numbering.xml with no literal glyph in the body', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('- Alpha point\n- Beta point\n')
+    const zip = await zipFor('suna')
+    const numberingXml = (await zip.file('word/numbering.xml')?.async('string')) ?? ''
+    expect(numberingXml).toContain('w:val="bullet"')
+    const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
+    expect(xml).toContain('<w:numPr>')
+    expect(xml).toContain('Alpha point')
+    expect(xml).not.toContain('•')
+  })
+
+  it('nests levels natively: an inner list references a deeper ilvl', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('1. Top item\n   1. Inner item\n')
+    const xml = await documentXmlFor('suna')
+    expect(xml).toContain('<w:ilvl w:val="0"/>')
+    expect(xml).toContain('<w:ilvl w:val="1"/>')
+    expect(visibleText(xml)).not.toContain('1. Inner item')
+  })
+
+  it('restarts numbering per list: two ordered lists get two concrete instances', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('1. one\n2. two\n\nBetween the lists.\n\n1. uno\n2. dos\n')
+    const xml = await documentXmlFor('suna')
+    const numIds = new Set([...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1]))
+    expect(numIds.size).toBe(2)
+  })
+
+  it('keeps an author-stated start ("3.") through a startOverride-carrying reference', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('3. three\n4. four\n')
+    const zip = await zipFor('suna')
+    const numberingXml = (await zip.file('word/numbering.xml')?.async('string')) ?? ''
+    expect(numberingXml).toContain('<w:start w:val="3"/>')
+  })
+})
+
+describe('cross-reference bookmarks and hyperlinks', () => {
+  it('bookmarks the figure and table captions as _fig_N/_tbl_N', async () => {
+    await writeFixtureProject(dir)
+    const xml = await documentXmlFor('suna')
+    expect(xml).toContain('w:name="_fig_1"')
+    expect(xml).toContain('w:name="_tbl_1"')
+  })
+
+  it('renders @fig:/@tbl: cross-refs as styled internal hyperlinks, and citations as plain runs', async () => {
+    await writeFixtureProject(dir)
+    const xml = await documentXmlFor('suna')
+    const fig = /<w:hyperlink [^>]*w:anchor="_fig_1"[^>]*>([\s\S]*?)<\/w:hyperlink>/.exec(xml)
+    expect(fig).not.toBeNull()
+    expect(fig?.[1]).toContain('Figure 1')
+    expect(fig?.[1]).toContain('w:val="2B579A"')
+    expect(fig?.[1]).toContain('<w:u ')
+    expect(xml).toMatch(/<w:hyperlink [^>]*w:anchor="_tbl_1"/)
+    // Exactly the two cross-refs are internal links; citations stay plain.
+    expect([...xml.matchAll(/<w:hyperlink [^>]*w:anchor=/g)]).toHaveLength(2)
+  })
+})
+
+/**
+ * The SLEEP journal's stated shape (its documentStyle delta): figure captions
+ * in a list after the references instead of embedded images, tables at the
+ * end, references on a new page — on top of full SUNA typography.
+ */
+describe('figurePlacement captions-list + tablePlacement end (SLEEP)', () => {
+  it('embeds no figure image at all and emits a Figure Captions section after the references', async () => {
+    await writeFixtureProject(dir)
+    const zip = await zipFor('sleep')
+    const media = Object.keys(zip.files).filter((name) => name.startsWith('word/media/'))
+    expect(media).toHaveLength(0)
+    const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
+    expect(xml).not.toContain('<w:drawing>')
+
+    const refsAt = xml.indexOf('References')
+    const captionsAt = xml.indexOf('Figure Captions')
+    expect(captionsAt).toBeGreaterThan(refsAt)
+    // The caption itself lives in the list, bookmarked for the cross-ref.
+    expect(xml.indexOf('A fixture figure.')).toBeGreaterThan(captionsAt)
+    expect(xml.indexOf('w:name="_fig_1"')).toBeGreaterThan(captionsAt)
+    // SLEEP states "Figure 1", never "Fig."
+    expect(xml).toContain('Figure 1')
+    expect(xml).not.toContain('Fig. 1')
+  })
+
+  it('keeps the in-text mention as a working hyperlink to the caption list', async () => {
+    await writeFixtureProject(dir)
+    const xml = await documentXmlFor('sleep')
+    expect(xml).toMatch(/<w:hyperlink [^>]*w:anchor="_fig_1"/)
+  })
+
+  it('moves markdown tables and table captions into a Tables section after the captions list', async () => {
+    await writeFixtureProject(dir)
+    const xml = await documentXmlFor('sleep')
+    const captionsAt = xml.indexOf('Figure Captions')
+    const tablesAt = xml.indexOf('Tables')
+    expect(tablesAt).toBeGreaterThan(captionsAt)
+    // The GFM table left the body entirely and re-appears at the end.
+    expect(xml.indexOf('<w:tbl>')).toBeGreaterThan(tablesAt)
+    expect(xml.lastIndexOf('<w:tbl>')).toBe(xml.indexOf('<w:tbl>'))
+    // The manuscript.json table caption sits in the same trailing section.
+    expect(xml.indexOf('A fixture table')).toBeGreaterThan(tablesAt)
+  })
+
+  it('starts the references on a new page (SLEEP states it; SUNA defaults to it anyway)', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const xml = await documentXmlFor('sleep')
+    const refsAt = xml.indexOf('References')
+    expect(xml.slice(refsAt - 700, refsAt)).toContain('w:pageBreakBefore')
+
+    // And the override in the other direction works: a style that states
+    // referencesStartNewPage: false keeps the references in the flow.
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const patched = {
+      ...content,
+      profile: { ...content.profile, documentStyle: { referencesStartNewPage: false } }
+    }
+    const doc = await buildDocxDocument(patched, OPTIONS)
+    const { Packer } = await import('docx')
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(doc))
+    const flowXml = (await zip.file('word/document.xml')?.async('string')) ?? ''
+    const flowRefsAt = flowXml.indexOf('References')
+    expect(flowXml.slice(flowRefsAt - 700, flowRefsAt)).not.toContain('w:pageBreakBefore')
+  })
+})
+
+/**
+ * LaTeX math is typeset as real OMML (tex-omml.ts) when the strict subset
+ * covers the WHOLE equation, and falls back — whole, never partially — to the
+ * italic-literal rendering otherwise.
+ */
+describe('OMML math', () => {
+  it('typesets a supported display equation as a centred m:oMath paragraph', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('$$\nE = mc^2\n$$')
+    const xml = await documentXmlFor('suna')
+    expect(xml).toContain('<m:oMath>')
+    // No literal $$…$$ run remains for it.
+    expect(visibleText(xml)).not.toContain('$$')
+    const para = xml.slice(xml.lastIndexOf('<w:p>', xml.indexOf('<m:oMath>')))
+    expect(para.slice(0, para.indexOf('<m:oMath>'))).toContain('w:val="center"')
+  })
+
+  it('writes the real OOXML structure for a fraction with a subscript', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('$$\n\\frac{\\Sigma_\\mathrm{gas}}{v^2}\n$$')
+    const xml = await documentXmlFor('suna')
+    expect(xml).toContain('<m:f>')
+    expect(xml).toContain('<m:num>')
+    expect(xml).toContain('<m:den>')
+    expect(xml).toContain('<m:sSub>')
+    expect(xml).toContain('<m:sSup>')
+    // \mathrm content is an upright (m:nor) run carrying "gas".
+    expect(xml).toContain('<m:nor/>')
+    expect(visibleText(xml)).toContain('gas')
+  })
+
+  it('renders an UNSUPPORTED equation as the italic literal with no m:oMath', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('$$\n\\undefinedmacro{x} & y\n$$')
+    const xml = await documentXmlFor('suna')
+    expect(xml).not.toContain('<m:oMath>')
+    // visibleText strips tags, not entities — the & arrives XML-escaped.
+    expect(visibleText(xml)).toContain('$$\\undefinedmacro{x} &amp; y$$')
+    const at = xml.indexOf('undefinedmacro')
+    expect(xml.slice(at - 400, at)).toContain('<w:i/>')
+  })
+
+  it('typesets supported inline math and leaves unsupported inline math italic', async () => {
+    await writeFixtureProject(dir)
+    await appendProse('The line H$\\alpha$ shifts by $\\Delta v \\approx 40$ but $\\weird{x}$ stays.')
+    const xml = await documentXmlFor('suna')
+    expect((xml.match(/<m:oMath>/g) ?? []).length).toBe(2)
+    expect(visibleText(xml)).toContain('α')
+    expect(visibleText(xml)).toContain('\\weird{x}')
+  })
+
+  it('converts the demo paper stripping equation from the real project', async () => {
+    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
+    allowRoot(demoDir)
+    const scratch = await mkdtemp(join(tmpdir(), 'suna-demo-math-'))
+    allowRoot(scratch)
+    const specFig = join(scratch, 'fig-spectrum.png')
+    const velFig = join(scratch, 'fig-velocity-map.png')
+    await writeFile(specFig, ONE_PIXEL_PNG)
+    await writeFile(velFig, ONE_PIXEL_PNG)
+    const content = await buildExportContent({
+      dir: demoDir,
+      profileId: 'suna',
+      figurePngPaths: { 'fig-spectrum': specFig, 'fig-velocity-map': velFig }
+    })
+    const { Packer } = await import('docx')
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(await buildDocxDocument(content, OPTIONS)))
+    const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
+    // The display equation ($$ P_\mathrm{ram} = … $$) is real OMML now.
+    expect(xml).toContain('<m:oMath>')
+    expect(xml).toContain('<m:nor/>')
+    expect(visibleText(xml)).not.toContain('$$')
+    await rm(scratch, { recursive: true, force: true })
+  })
+})
+
+describe('document metadata', () => {
+  it('names SUNA as creator/lastModifiedBy and leaks no library name', async () => {
+    await writeFixtureProject(dir)
+    const zip = await zipFor('suna')
+    const core = (await zip.file('docProps/core.xml')?.async('string')) ?? ''
+    expect(core).toContain('<dc:creator>SUNA</dc:creator>')
+    expect(core).toContain('<cp:lastModifiedBy>SUNA</cp:lastModifiedBy>')
+    expect(core.toLowerCase()).not.toContain('easleyit')
+    expect(core).not.toMatch(/docx(?!-)/i)
   })
 })

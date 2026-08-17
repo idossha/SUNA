@@ -28,6 +28,7 @@ import {
 import { readManuscript } from './manuscript'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
+import { resolveDocumentStyle } from './export-style'
 
 /**
  * The shared export content model (feature-plan-6 §3/§4, updated for the
@@ -188,12 +189,13 @@ function collectEquationLabels(source: string): (string | undefined)[] {
   return out
 }
 
-const DEFAULT_LABEL_WORDS = { figure: 'Fig.', table: 'Table' } as const
+const DEFAULT_LABEL_WORDS = { figure: 'Figure', table: 'Table' } as const
 
 /**
- * How figures and tables are named in captions and cross-references. Journal
- * profiles keep the abbreviated "Fig." they have always used; the SUNA house
- * style spells it "Figure", which is what docx-tools writes.
+ * How figures and tables are named in captions and cross-references. The SUNA
+ * default spells out "Figure" (docx-tools' shape); a journal profile whose
+ * guidelines state the abbreviated form carries `figureLabel: 'Fig.'` in its
+ * documentStyle delta (export-style.ts's resolveDocumentStyle).
  */
 export interface ExportLabelWords {
   figure: string
@@ -438,6 +440,37 @@ export function collectTables(nodes: readonly RootChild[]): TableNode[] {
 }
 
 /**
+ * The same nodes with every markdown table removed — including tables nested
+ * in blockquotes and list items, matching exactly what `collectTables` finds.
+ * Used by the `tablePlacement: 'end'` convention: the collected tables render
+ * in a trailing "Tables" section, and this is what keeps them out of the body
+ * (the DOCX writer drops them per-block instead; the two must stay in sync).
+ */
+export function withoutTables(nodes: readonly RootChild[]): RootChild[] {
+  const out: RootChild[] = []
+  for (const node of nodes) {
+    if (node.type === 'table') continue
+    if (node.type === 'blockquote') {
+      out.push({
+        ...node,
+        children: withoutTables(node.children as readonly RootChild[])
+      } as unknown as RootChild)
+    } else if (node.type === 'list') {
+      out.push({
+        ...node,
+        children: node.children.map((item) => ({
+          ...item,
+          children: withoutTables(item.children as readonly RootChild[])
+        }))
+      } as unknown as RootChild)
+    } else {
+      out.push(node)
+    }
+  }
+  return out
+}
+
+/**
  * Absolute path a markdown image url points at, or null when it is not a local
  * file (a remote scheme, an empty url). Mirrors
  * renderer/src/editor/figureAssets.ts's `resolveImageUrl` — the renderer
@@ -538,6 +571,48 @@ export interface ExportContent {
   referenceCount: number
 }
 
+/** One rendered back-matter section: an H1 title plus its body paragraphs. */
+export interface BackMatterSection {
+  title: string
+  paragraphs: string[]
+}
+
+/**
+ * The back-matter sections that actually have content, in the ground-truth
+ * (docx-tools) order: Acknowledgments → Funding → Competing Interests →
+ * Data/Code Availability → Author Contributions. Shared by the DOCX and
+ * HTML/PDF writers so the two render the same sections in the same order.
+ * Funding entries join into one "Funder (grant)" paragraph; the availability
+ * statements merge into one section when both are present and keep their own
+ * heading when only one is. `peerReview` and `supplementaryInfo` are
+ * submission-system metadata with no stated place in the manuscript body —
+ * deliberately not exported.
+ */
+export function backMatterSections(content: ExportContent): BackMatterSection[] {
+  const m = content.manuscript
+  const bm = m.backMatter
+  const out: BackMatterSection[] = []
+  const hasText = (s: string | null): s is string => s !== null && s.trim() !== ''
+
+  if (hasText(bm.acknowledgements)) out.push({ title: 'Acknowledgments', paragraphs: [bm.acknowledgements] })
+  if (bm.funding.length > 0) {
+    out.push({
+      title: 'Funding',
+      paragraphs: [bm.funding.map((f) => (f.grant !== null ? `${f.funder} (${f.grant})` : f.funder)).join('; ')]
+    })
+  }
+  if (hasText(bm.competingInterests)) out.push({ title: 'Competing Interests', paragraphs: [bm.competingInterests] })
+
+  const data = m.availability.data.trim()
+  const code = m.availability.code.trim()
+  if (data !== '' && code !== '') out.push({ title: 'Data and Code Availability', paragraphs: [data, code] })
+  else if (data !== '') out.push({ title: 'Data Availability', paragraphs: [data] })
+  else if (code !== '') out.push({ title: 'Code Availability', paragraphs: [code] })
+
+  if (hasText(bm.authorContributions)) out.push({ title: 'Author Contributions', paragraphs: [bm.authorContributions] })
+  return out
+}
+
 export interface BuildExportContentOptions {
   dir: string
   profileId: string
@@ -600,7 +675,7 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
     manuscript.figures,
     manuscript.tables,
     sections.map((s) => ({ heading: s.heading, source: s.source })),
-    profile.documentStyle !== undefined ? { figure: 'Figure', table: 'Table' } : DEFAULT_LABEL_WORDS
+    { figure: resolveDocumentStyle(profile).figureLabel, table: 'Table' }
   )
 
   const figures: ExportFigureContent[] = manuscript.figures.map((figure) => {
@@ -637,6 +712,165 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
     labels,
     figures,
     tables,
+    referenceCount: referenceRows.length
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Supplementary Information                                            */
+/* ------------------------------------------------------------------ */
+
+/** The optional supplement source, by convention beside manuscript.md. */
+export const SUPPLEMENT_FILE = 'supplementary.md'
+
+interface FigureEmbedWalkNode {
+  type?: unknown
+  figureId?: unknown
+  children?: unknown
+}
+
+function walkFigureEmbeds(node: FigureEmbedWalkNode, out: string[]): void {
+  if (node.type === 'figureEmbed' && typeof node.figureId === 'string') out.push(node.figureId)
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) walkFigureEmbeds(child as FigureEmbedWalkNode, out)
+  }
+}
+
+/** Every `![[fig:id]]` embed in one section's AST, in document order. */
+export function collectFigureEmbeds(root: SciMarkRoot): string[] {
+  const out: string[] = []
+  walkFigureEmbeds(root as unknown as FigureEmbedWalkNode, out)
+  return out
+}
+
+/**
+ * The Supplementary Information content model — a SIBLING of
+ * `buildExportContent` rather than a mode flag on it, because almost every
+ * derived value is scoped differently: sections come from
+ * manuscript/supplementary.md, citations are numbered independently by first
+ * appearance IN the supplement (restarting at [1], resolved against the same
+ * references.bib), figures are only the ones the supplement embeds and are
+ * S-labelled by their order of appearance there, and no manuscript.json
+ * figure/table is required to exist in it. Threading all of that through the
+ * main builder as conditionals would obscure both paths; sharing the small
+ * pure helpers keeps the two in lockstep instead.
+ *
+ * The returned model is `ExportContent`-shaped so the writers' shared
+ * machinery (citation runs, cross-refs, reference formatting, list walking)
+ * works unchanged. Supplement-specific readings of it:
+ * - `labels.figures` maps embedded figure ids to "Figure S<n>".
+ * - `figures` lists only the embedded figures, in supplement order.
+ * - `tables` is EMPTY: a supplement table is a GFM table physically in the
+ *   prose, captioned "Table S<n>." positionally by the writers
+ *   (manuscript.json's captioned tables belong to the main manuscript, and
+ *   labelling them with main-numbering inside a supplement would mislead).
+ *
+ * Throws a clear error naming the expected path when supplementary.md does
+ * not exist — the caller surfaces it verbatim.
+ */
+export async function buildSupplementContent(opts: BuildExportContentOptions): Promise<ExportContent> {
+  const root = assertInsideAllowedRoot(opts.dir)
+  const profile = getBundledProfile(opts.profileId)
+  if (profile === null) {
+    throw new Error(`unknown publisher profile "${opts.profileId}"`)
+  }
+
+  const manuscript = ManuscriptSchema.parse(await readManuscript(root))
+  const manuscriptDir = await projectSubdir(root, 'manuscript')
+  const authors = await readAuthorsFile(manuscriptDir)
+
+  const suppPath = join(manuscriptDir, SUPPLEMENT_FILE)
+  let md: string
+  try {
+    md = await readFile(assertInsideAllowedRoot(suppPath), 'utf8')
+  } catch {
+    throw new Error(
+      `no supplementary manuscript found — expected ${suppPath}. ` +
+        `Create manuscript/${SUPPLEMENT_FILE} to export a Supplementary Information document.`
+    )
+  }
+
+  const outline = outlineFromMarkdown(md)
+  const sections: ExportSection[] = outline.map((entry) => {
+    const source = md.slice(entry.from, entry.to)
+    return {
+      heading: entry.level === 0 ? null : entry.title,
+      level: headingLevelForDepth(entry.level),
+      root: source.trim() === '' ? null : parseSciMark(source),
+      source
+    }
+  })
+
+  // Independent citation numbering: clusters collected from the SUPPLEMENT
+  // only, so its first citation is [1] whatever the main manuscript numbers.
+  const clusters = sections.flatMap((s) => collectClusters(s.source))
+  const numbers = assignNumbers(clusters.map((c) => [...c.keys]))
+
+  const bibPath = join(manuscriptDir, manuscript.bibliography)
+  let bibText = ''
+  try {
+    bibText = await readFile(assertInsideAllowedRoot(bibPath), 'utf8')
+  } catch {
+    // no references.bib yet — an empty bibliography is a valid (if unusual) state
+  }
+  const parsedBib = parseBibtex(bibText)
+  const entryMap = new Map(parsedBib.entries.map((e) => [e.key, e]))
+
+  const citeStyle = citeStyleOf(profile.citations)
+  const referenceRows = orderedReferences(numbers, entryMap, profile.citations.referenceList.sortOrder)
+
+  // S-labels: figures numbered by order of first appearance in the supplement.
+  const embeddedIds: string[] = []
+  for (const section of sections) {
+    if (section.root === null) continue
+    for (const id of collectFigureEmbeds(section.root)) {
+      if (!embeddedIds.includes(id)) embeddedIds.push(id)
+    }
+  }
+  const figures: ExportFigureContent[] = embeddedIds.map((id, i) => {
+    const figure = manuscript.figures.find((f) => f.id === id)
+    if (figure === undefined) {
+      throw new Error(`supplementary.md embeds unknown figure "${id}" — it is not in manuscript.json`)
+    }
+    const pngPath = opts.figurePngPaths[id]
+    if (pngPath === undefined) {
+      throw new Error(
+        `no rasterized PNG supplied for supplement figure "${id}" — rasterize every embedded figure ` +
+          `(figure:export 'png' + figure:write-binary) before calling export:docx/export:pdf`
+      )
+    }
+    return { figure, label: `Figure S${i + 1}`, pngPath: assertInsideAllowedRoot(pngPath) }
+  })
+
+  // Equation/section labels derive from the supplement's own prose; figure
+  // cross-refs resolve to the S-labels; @tbl: refs have no supplement target
+  // (GFM tables carry no ids) and keep the literal fallback.
+  const derived = buildLabelMap(
+    [],
+    [],
+    sections.map((s) => ({ heading: s.heading, source: s.source }))
+  )
+  const labels: LabelMap = {
+    figures: new Map(figures.map((f) => [f.figure.id, f.label])),
+    tables: new Map(),
+    equations: derived.equations,
+    sections: derived.sections
+  }
+
+  return {
+    manuscript,
+    manuscriptDir,
+    authors,
+    profile,
+    affiliations: numberAffiliations(authors.authors, authors.affiliations),
+    sections,
+    numbers,
+    entryMap,
+    citeStyle,
+    referenceRows,
+    labels,
+    figures,
+    tables: [],
     referenceCount: referenceRows.length
   }
 }

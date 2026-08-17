@@ -93,12 +93,21 @@ describe('buildManuscriptHtml', () => {
     expect(html).toContain('fixture figure')
   })
 
-  it('resolves the @fig: cross-reference to the same figure label', async () => {
+  it('resolves the @fig:/@tbl: cross-references to the same labels', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
     const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
-    // "(@fig:fig-a)" in the fixture's Results section resolves to "(Fig. 1)".
-    expect(html).toMatch(/\(Fig\. 1\)/)
+    // "(@fig:fig-a, @tbl:tbl-a)" in the fixture's Results section resolves to
+    // the profile's labels — "Fig." is nature-astronomy's stated delta.
+    expect(html).toMatch(/\(Fig\. 1, Table 1\)/)
+  })
+
+  it('spells figure labels "Figure" for a profile that states no Fig. delta', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+    expect(html).toMatch(/\(Figure 1, Table 1\)/)
+    expect(html).not.toContain('Fig. 1')
   })
 
   it('inlines a markdown image as a data: URI, since the PDF page is loaded from a temp directory', async () => {
@@ -142,9 +151,10 @@ describe('buildManuscriptHtml', () => {
     const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
-    // A4 with 1 in margins: 297 - 2*25.4 = 246.2 mm of text height.
+    // The SUNA page for every profile: US Letter with 0.5 in margins,
+    // 279.4 - 2*12.7 = 254 mm of text height.
     expect(html).toContain(
-      'img.md-image, .ms-body img, figure.figure img { display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: 246.2mm; }'
+      'img.md-image, .ms-body img, figure.figure img { display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: 254mm; }'
     )
   })
 
@@ -193,9 +203,12 @@ describe('buildManuscriptHtml', () => {
       expect(html).toMatch(/figure\.figure figcaption \{[^}]*text-align: center;/)
     }
     // The APA column convention only applies where the cell has no inline
-    // style, which is how a `:---:` delimiter row wins.
-    expect(house).toContain('th:not([style]), td:not([style]) { text-align: center; }')
-    expect(house).toContain('td:first-child:not([style]) { text-align: left; }')
+    // style, which is how a `:---:` delimiter row wins — and it is the
+    // always-on SUNA default, so a journal profile gets it too.
+    for (const html of [house, journal]) {
+      expect(html).toContain('th:not([style]), td:not([style]) { text-align: center; }')
+      expect(html).toContain('td:first-child:not([style]) { text-align: left; }')
+    }
   })
 
   it('applies the double-spacing and line-number CSS hooks when requested', async () => {
@@ -205,5 +218,198 @@ describe('buildManuscriptHtml', () => {
     expect(doubled).toContain('class="ms-body ms-double ms-line-numbers" id="ms-body"')
     const plain = await buildManuscriptHtml(content, { doubleSpacing: false, lineNumbers: false })
     expect(plain).toContain('class="ms-body" id="ms-body"')
+  })
+
+  it('writes the docx-tools corresponding-author line and the keywords line after the abstract', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+
+    expect(html).toContain('* Corresponding author: ada@example.edu')
+    expect(html).not.toContain('*e-mail:')
+    const keywordsAt = html.indexOf('<strong>Keywords: </strong><em>export pipelines; fixtures; stripping</em>')
+    expect(keywordsAt).toBeGreaterThan(html.indexOf('We test the export pipeline'))
+    expect(keywordsAt).toBeLessThan(html.indexOf('Introduction'))
+  })
+
+  it('renders the back matter sections in the ground-truth order, before the references', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+
+    const order = ['Acknowledgments', 'Funding', 'Competing Interests', 'Data Availability', 'Author Contributions']
+    const positions = order.map((title) => html.indexOf(`<h2 class="ms-h-a">${title}</h2>`))
+    for (const [i, at] of positions.entries()) expect(at, `"${order[i]}" missing`).toBeGreaterThan(-1)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    expect(positions[positions.length - 1]).toBeLessThan(html.indexOf('class="ms-references"'))
+    expect(html).toContain('Fixture Science Foundation (FSF-0042); Open Testing Trust')
+    // availability.code is '' -> no code heading of any kind
+    expect(html).not.toContain('Code Availability')
+  })
+
+  it('starts the references on a new page by default', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+    expect(html).toContain('.ms-references { page-break-before: always; }')
+  })
+
+  /** SLEEP's stated shape: captions list after the references, tables at the end, no embedded figures. */
+  it('renders the SLEEP captions-list/tables-end conventions', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'sleep', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+
+    // No figure image in the document at all — the PNG is never inlined.
+    expect(html).not.toContain('data:image/png')
+    const refsAt = html.indexOf('class="ms-references"')
+    const captionsAt = html.indexOf('<h2 class="ms-h-a">Figure Captions</h2>')
+    const tablesAt = html.indexOf('<h2 class="ms-h-a">Tables</h2>')
+    expect(captionsAt).toBeGreaterThan(refsAt)
+    expect(tablesAt).toBeGreaterThan(captionsAt)
+    // The caption text lives in the list; SLEEP spells it "Figure 1".
+    expect(html.indexOf('A fixture figure.')).toBeGreaterThan(captionsAt)
+    expect(html).toContain('<strong>Figure 1.</strong>')
+    expect(html).not.toContain('Fig. 1')
+    // The markdown table left the body and re-renders in the Tables section.
+    const tableAt = html.indexOf('<table')
+    expect(tableAt).toBeGreaterThan(tablesAt)
+    expect(html.lastIndexOf('<table')).toBe(tableAt)
+    // The manuscript.json caption block moved there too.
+    expect(html.indexOf('A fixture table')).toBeGreaterThan(tablesAt)
+    // In-text mention survives.
+    expect(html).toMatch(/\(Figure 1, Table 1\)/)
+  })
+
+  it('keeps inline placement for profiles that state nothing: table in body, figure embedded', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+
+    expect(html).toContain('data:image/png;base64,')
+    expect(html).not.toContain('Figure Captions')
+    const refsAt = html.indexOf('class="ms-references"')
+    // The pre-references Tables section (manuscript.json captions) stays put.
+    expect(html.indexOf('<h2 class="ms-h-a">Tables</h2>')).toBeLessThan(refsAt)
+    expect(html.indexOf('<table')).toBeLessThan(refsAt)
+  })
+})
+
+/**
+ * The standalone web-page export ('export:html'): one self-contained file
+ * mirroring the SUNA reading tab — linked citations, in-page cross-refs,
+ * inlined figures and KaTeX, the reading palette/typography.
+ */
+describe('buildReaderHtml + exportHtml', () => {
+  const READER_OPTIONS = { doubleSpacing: false, lineNumbers: false, pageNumbers: true }
+
+  async function readerHtml(profileId = 'suna'): Promise<string> {
+    const { buildReaderHtml } = await import('./export-html')
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId, figurePngPaths })
+    return buildReaderHtml(content)
+  }
+
+  it('links every in-text citation to its reference-list entry', async () => {
+    const html = await readerHtml('sleep') // parenthetical-numeric
+    expect(html).toContain('href="#ref-smith2020"')
+    expect(html).toContain('href="#ref-jones2019"')
+    expect(html).toContain('id="ref-smith2020"')
+    expect(html).toContain('id="ref-jones2019"')
+    // The unresolved key is flagged in the list, and still linked in text.
+    expect(html).toContain('href="#ref-missing2099"')
+    expect(html).toContain('id="ref-missing2099"')
+    expect(html).toContain('cited but not found')
+  })
+
+  it('links author-year citations too', async () => {
+    const html = await readerHtml('suna') // author-year
+    expect(html).toContain('class="ms-cite-link" href="#ref-smith2020"')
+    expect(html).toContain('Smith')
+  })
+
+  it('turns figure/table cross-refs into in-page links with matching anchors', async () => {
+    const html = await readerHtml('suna')
+    expect(html).toContain('href="#fig-fig-a"')
+    expect(html).toContain('id="fig-fig-a"')
+    expect(html).toContain('href="#tbl-tbl-a"')
+    expect(html).toContain('id="tbl-tbl-a"')
+  })
+
+  it('embeds the figure inline regardless of the profile placement convention', async () => {
+    // SLEEP states captions-list for SUBMISSION; the reading view always
+    // shows the figure, and the web page mirrors the reading view.
+    const html = await readerHtml('sleep')
+    expect(html).toContain('data:image/png;base64,')
+    expect(html).toContain('<strong>Figure 1.</strong>')
+  })
+
+  it('is fully self-contained: KaTeX css + fonts inlined, no external references', async () => {
+    const html = await readerHtml('suna')
+    expect(html).toContain('@font-face')
+    expect(html).toContain('data:font/woff2;base64,')
+    expect(html).not.toContain('<link rel="stylesheet"')
+    expect(html).not.toContain('src="http')
+  })
+
+  it('carries the SUNA reading design: palette tokens, serif stack, light scheme', async () => {
+    const html = await readerHtml('suna')
+    expect(html).toContain('#1e1e26') // night-sky editor surface
+    expect(html).toContain('Iowan Old Style')
+    expect(html).toContain('prefers-color-scheme: light')
+    expect(html).toContain('#f7f2e9') // suna-light warm paper
+    expect(html).toContain('class="ms-label"')
+  })
+
+  it('renders the title page in reading order with the byline', async () => {
+    const html = await readerHtml('suna')
+    expect(html).toContain('class="ms-title"')
+    expect(html).toContain('Ada Researcher')
+    expect(html).toContain('* Corresponding author: ada@example.edu')
+    const abstractAt = html.indexOf('>Abstract<')
+    expect(abstractAt).toBeGreaterThan(-1)
+    expect(html.indexOf('We test the export pipeline')).toBeGreaterThan(abstractAt)
+    expect(html).toContain('export pipelines; fixtures; stripping')
+  })
+
+  it('exportHtml writes <dir>/output/<name>.html and never mutates sources', async () => {
+    const { exportHtml } = await import('./export-html')
+    const { readFile: read } = await import('node:fs/promises')
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const manuscriptPath = join(dir, 'manuscript', 'manuscript.json')
+    const before = await read(manuscriptPath, 'utf8')
+
+    const result = await exportHtml({
+      dir,
+      profileId: 'suna',
+      outputName: 'fixture-web',
+      figurePngPaths,
+      options: READER_OPTIONS
+    })
+    expect(result.path).toBe(join(dir, 'output', 'fixture-web.html'))
+    const html = await read(result.path, 'utf8')
+    expect(html.startsWith('<!doctype html>')).toBe(true)
+    expect(html).toContain('data:image/png;base64,')
+    expect(await read(manuscriptPath, 'utf8')).toBe(before)
+  })
+
+  it('exportHtml supplement target writes the standalone supplement page', async () => {
+    const { exportHtml } = await import('./export-html')
+    const { readFile: read } = await import('node:fs/promises')
+    const { figurePngPaths } = await writeFixtureProject(dir, { supplement: true })
+    const result = await exportHtml({
+      dir,
+      profileId: 'suna',
+      outputName: 'fixture-supp-web',
+      figurePngPaths,
+      options: READER_OPTIONS,
+      target: 'supplement'
+    })
+    const html = await read(result.path, 'utf8')
+    expect(html).toContain('Supplementary Information:')
+    expect(html).toContain('Supplementary References')
+    // The relative katex link is replaced by the inlined stylesheet.
+    expect(html).not.toContain('<link rel="stylesheet" href="katex.min.css">')
+    expect(html).toContain('@font-face')
   })
 })

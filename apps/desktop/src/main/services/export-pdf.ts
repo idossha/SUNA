@@ -5,9 +5,9 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import type { ExportOptions } from '@suna/core'
 import { writeFileAtomic } from './atomic'
-import { buildExportContent } from './export-content'
-import { buildManuscriptHtml } from './export-html'
-import { documentStyleFor } from './export-style'
+import { buildExportContent, buildSupplementContent } from './export-content'
+import { buildManuscriptHtml, buildSupplementHtml } from './export-html'
+import { resolveDocumentStyle } from './export-style'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -17,11 +17,11 @@ import { assertInsideAllowedRoot } from './roots'
  * hidden BrowserWindow's `printToPDF` — no LaTeX, no Tectonic, no external
  * binary (mirrors figure-export.ts's own PDF path for one figure).
  *
- * Known, deliberate simplification (ADR-002, same as export-html.ts's
- * module doc): the profile schema has no page-geometry fields, so page
- * size/margins come from the profile's DocumentStyle (export-style.ts): a
- * journal profile states none and keeps the generic A4/1in defaults, while a
- * house style like SUNA style sets its own page.
+ * Page size/margins come from the resolved document style (export-style.ts):
+ * the always-on SUNA house default (US Letter, 0.5 in margins), which a
+ * profile's partial documentStyle may shift — though journal guidelines
+ * almost never state submitted-manuscript page geometry (ADR-002), so in
+ * practice every profile prints on the SUNA page.
  *
  * Line numbers are the one thing `printToPDF` has no native primitive for
  * (unlike page numbers, which are a real Chromium header/footer feature —
@@ -97,6 +97,8 @@ export interface ExportPdfRequest {
   outputName: string
   figurePngPaths: Readonly<Record<string, string>>
   options: ExportOptions
+  /** 'manuscript' (default) or the Supplementary Information document. */
+  target?: 'manuscript' | 'supplement'
 }
 
 export interface ExportPdfResult {
@@ -105,15 +107,18 @@ export interface ExportPdfResult {
 
 export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult> {
   const root = assertInsideAllowedRoot(req.dir)
-  const content = await buildExportContent({
-    dir: root,
-    profileId: req.profileId,
-    figurePngPaths: req.figurePngPaths
-  })
-  const html = await buildManuscriptHtml(content, {
+  const supplement = req.target === 'supplement'
+  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
+  // buildSupplementContent throws a clear error naming the expected
+  // manuscript/supplementary.md path when the project has none.
+  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+  const htmlOptions = {
     doubleSpacing: req.options.doubleSpacing,
     lineNumbers: req.options.lineNumbers
-  })
+  }
+  const html = supplement
+    ? await buildSupplementHtml(content, htmlOptions)
+    : await buildManuscriptHtml(content, htmlOptions)
 
   const assetsDir = await ensureKatexAssets()
   const hostPath = join(assetsDir, `suna-manuscript-${process.pid}-${Date.now()}.html`)
@@ -126,20 +131,26 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
   try {
     await win.loadFile(hostPath)
     if (req.options.lineNumbers) await injectLineNumbers(win)
-    const footerTemplate = req.options.pageNumbers
-      ? '<div style="font-size:9px;width:100%;text-align:center;color:#555;"><span class="pageNumber"></span></div>'
+    // Supplement ground truth: the page-number footer is ALWAYS on,
+    // right-aligned in the body face — whatever options.pageNumbers says.
+    const pageNumbers = supplement || req.options.pageNumbers
+    const footerTemplate = pageNumbers
+      ? supplement
+        ? `<div style="font-size:9px;font-family:'Times New Roman',serif;width:100%;text-align:right;padding-right:12mm;color:#000;"><span class="pageNumber"></span></div>`
+        : '<div style="font-size:9px;width:100%;text-align:center;color:#555;"><span class="pageNumber"></span></div>'
       : undefined
-    // Page geometry comes from the same DocumentStyle the DOCX writer uses
-    // (export-style.ts), so a manuscript exported as PDF and as DOCX has the
+    // Page geometry comes from the same resolved style the DOCX writer uses
+    // (export-style.ts) — the always-on SUNA default plus the profile's
+    // stated deltas — so a manuscript exported as PDF and as DOCX has the
     // same page and margins rather than only the same text.
-    const style = documentStyleFor(content.profile)
+    const style = resolveDocumentStyle(content.profile)
     const marginIn = style.page.marginMm / 25.4
     const pdf = await win.webContents.printToPDF({
       pageSize: { width: style.page.widthMm / 25.4, height: style.page.heightMm / 25.4 },
       margins: { top: marginIn, bottom: marginIn, left: marginIn, right: marginIn },
       printBackground: true,
-      displayHeaderFooter: req.options.pageNumbers,
-      headerTemplate: req.options.pageNumbers ? '<span></span>' : undefined,
+      displayHeaderFooter: pageNumbers,
+      headerTemplate: pageNumbers ? '<span></span>' : undefined,
       footerTemplate
     })
     await writeFileAtomic(target, pdf)
