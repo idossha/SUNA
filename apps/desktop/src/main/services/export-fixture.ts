@@ -7,7 +7,9 @@ import { join } from 'node:path'
  * authors/affiliations, two sections (an untitled leading section plus a
  * "Results" heading), a citation cluster that includes one key MISSING from
  * references.bib (exercises the "cited but not found" row), a figure embed,
- * and a GFM table — writes the FLAT layout (feature-plan-7 §1):
+ * a GFM table, a managed (caption-only) manuscript table, keywords, and a
+ * populated backMatter/availability block — writes the FLAT layout
+ * (feature-plan-7 §1):
  * manuscript.json, manuscript.md, authors.json, references.bib and
  * figures/fig-a/figure.png (a real, valid 1x1 PNG) under `dir`, which the
  * caller must have already `allowRoot`-ed.
@@ -25,6 +27,7 @@ export const FIXTURE_MANUSCRIPT = {
   openAccess: null,
   history: { received: null, accepted: null, publishedOnline: null },
   abstract: { content: 'We test the export pipeline with a small fixture manuscript.' },
+  keywords: ['export pipelines', 'fixtures', 'stripping'],
   significance: null,
   highlights: null,
   manuscriptFile: 'manuscript.md',
@@ -38,13 +41,26 @@ export const FIXTURE_MANUSCRIPT = {
       panels: []
     }
   ],
-  tables: [],
-  availability: { data: '', code: '' },
+  tables: [
+    {
+      id: 'tbl-a',
+      namespace: 'main',
+      source: 'native',
+      caption: { title: 'A fixture table of stripped quantities.' },
+      footnotes: []
+    }
+  ],
+  // `code` left empty on purpose: the back-matter renderer must emit a
+  // data-only availability section, never an empty "Code Availability" one.
+  availability: { data: 'Fixture data are available from the corresponding author.', code: '' },
   backMatter: {
-    acknowledgements: null,
-    authorContributions: null,
-    funding: [],
-    competingInterests: null,
+    acknowledgements: 'We thank the export test harness.',
+    authorContributions: 'A.R. designed the fixture. B.C. audited it.',
+    funding: [
+      { funder: 'Fixture Science Foundation', grant: 'FSF-0042' },
+      { funder: 'Open Testing Trust', grant: null }
+    ],
+    competingInterests: 'The authors declare no competing interests.',
     peerReview: null,
     supplementaryInfo: null
   },
@@ -93,13 +109,40 @@ Prior work established the baseline [@smith2020].
 # Results
 
 Our results extend this [@smith2020; @jones2019] and note an
-unresolved citation [@missing2099] (@fig:fig-a).
+unresolved citation [@missing2099] (@fig:fig-a, @tbl:tbl-a).
 
 ![[fig:fig-a]]
 
 | A | B |
 | --- | --- |
 | 1 | 2 |
+`
+
+/**
+ * Optional supplement source (feature: Supplementary Information export) —
+ * written only when writeFixtureProject is asked for it. Deliberately
+ * exercises: an H2 (0.45 in Contents indent), a citation whose key differs
+ * from the MAIN manuscript's first citation (so independent numbering is
+ * observable: jones2019 is [2] in the manuscript but [1] here), a GFM table
+ * (-> "Table S1." at 9 pt cells), and a re-embedded managed figure
+ * (-> "Figure S1", 165 mm).
+ */
+export const FIXTURE_SUPPLEMENT_MD = `# Supplementary Methods
+
+Extended detail on the fixture pipeline [@jones2019].
+
+## Parameter grid
+
+| Parameter | Value |
+| --- | --- |
+| Depth | 3 |
+
+# Supplementary Results
+
+The supplementary figure supports the main text [@smith2020; @jones2019]
+(@fig:fig-a).
+
+![[fig:fig-a]]
 `
 
 export const FIXTURE_BIB = `@article{smith2020,
@@ -129,7 +172,10 @@ export interface FixtureProject {
   figurePngPaths: Record<string, string>
 }
 
-export async function writeFixtureProject(dir: string): Promise<FixtureProject> {
+export async function writeFixtureProject(
+  dir: string,
+  opts: { supplement?: boolean } = {}
+): Promise<FixtureProject> {
   await mkdir(join(dir, 'manuscript'), { recursive: true })
   await writeFile(
     join(dir, 'manuscript', 'manuscript.json'),
@@ -139,6 +185,9 @@ export async function writeFixtureProject(dir: string): Promise<FixtureProject> 
   await writeFile(join(dir, 'manuscript', 'authors.json'), JSON.stringify(FIXTURE_AUTHORS, null, 2) + '\n', 'utf8')
   await writeFile(join(dir, 'manuscript', 'manuscript.md'), FIXTURE_MANUSCRIPT_MD, 'utf8')
   await writeFile(join(dir, 'manuscript', 'references.bib'), FIXTURE_BIB, 'utf8')
+  if (opts.supplement === true) {
+    await writeFile(join(dir, 'manuscript', 'supplementary.md'), FIXTURE_SUPPLEMENT_MD, 'utf8')
+  }
 
   const figurePngPath = join(dir, 'output', 'fig-a.png')
   await mkdir(join(dir, 'output'), { recursive: true })

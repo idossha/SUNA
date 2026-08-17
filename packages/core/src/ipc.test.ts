@@ -31,8 +31,8 @@ describe('CHANNELS', () => {
       'env:selected',
       'env:uv-available',
       'export:docx',
+      'export:html',
       'export:pdf',
-      'export:tools-available',
       'figure:create',
       'figure:duplicate',
       'figure:export',
@@ -263,6 +263,7 @@ describe('CHANNELS', () => {
         createdAt: '2026-08-15T10:00:00.000Z',
       },
       gitInitialized: true,
+      agentLayerWritten: true,
       warnings: [],
     };
     expect(CHANNELS['project:scaffold'].response.parse(res)).toEqual(res);
@@ -402,7 +403,7 @@ describe('CHANNELS', () => {
     const res: ResponseOf<'lit:providers'> = {
       providers: [
         { id: 'crossref', hasKey: false, keyless: true },
-        { id: 'ads', hasKey: true, keyless: false },
+        { id: 'biorxiv', hasKey: false, keyless: true },
       ],
     };
     expect(CHANNELS['lit:providers'].response.parse(res)).toEqual(res);
@@ -541,13 +542,12 @@ describe('CHANNELS', () => {
       outputName: 'my-paper',
       figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/fig-spectrum.png' },
       options: { doubleSpacing: true, lineNumbers: true, pageNumbers: true },
-      useDocxTools: false,
+      target: 'manuscript',
     };
     expect(CHANNELS['export:docx'].request.parse(req)).toEqual(req);
     expect(CHANNELS['export:docx'].request.safeParse({ ...req, dir: '' }).success).toBe(false);
     const res: ResponseOf<'export:docx'> = {
       path: '/work/my-paper/output/my-paper.docx',
-      usedDocxTools: false,
     };
     expect(CHANNELS['export:docx'].response.parse(res)).toEqual(res);
   });
@@ -559,18 +559,63 @@ describe('CHANNELS', () => {
       outputName: 'my-paper',
       figurePngPaths: {},
       options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
+      target: 'manuscript',
     };
     expect(CHANNELS['export:pdf'].request.parse(req)).toEqual(req);
     const res: ResponseOf<'export:pdf'> = { path: '/work/my-paper/output/my-paper.pdf' };
     expect(CHANNELS['export:pdf'].response.parse(res)).toEqual(res);
   });
 
-  it('validates export:tools-available shapes', () => {
-    const req: RequestOf<'export:tools-available'> = {};
-    expect(CHANNELS['export:tools-available'].request.parse(req)).toEqual(req);
-    const res: ResponseOf<'export:tools-available'> = { docxTools: true };
-    expect(CHANNELS['export:tools-available'].response.parse(res)).toEqual(res);
+  it('validates export:html request/response shapes', () => {
+    const req: RequestOf<'export:html'> = {
+      dir: '/work/my-paper',
+      profileId: 'suna',
+      outputName: 'my-paper',
+      figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/fig-spectrum.png' },
+      options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
+      target: 'manuscript',
+    };
+    expect(CHANNELS['export:html'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['export:html'].request.safeParse({ ...req, outputName: '' }).success).toBe(
+      false,
+    );
+    const res: ResponseOf<'export:html'> = { path: '/work/my-paper/output/my-paper.html' };
+    expect(CHANNELS['export:html'].response.parse(res)).toEqual(res);
   });
+
+  it('defaults the export target to manuscript so a target-less request stays valid (additive)', () => {
+    const legacy = {
+      dir: '/work/my-paper',
+      profileId: 'nature-astronomy',
+      outputName: 'my-paper',
+      figurePngPaths: {},
+      options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
+    };
+    expect(CHANNELS['export:docx'].request.parse(legacy).target).toBe('manuscript');
+    expect(CHANNELS['export:html'].request.parse(legacy).target).toBe('manuscript');
+    expect(CHANNELS['export:pdf'].request.parse(legacy).target).toBe('manuscript');
+  });
+
+  it('round-trips the supplement target and rejects an unknown one', () => {
+    const req: RequestOf<'export:docx'> = {
+      dir: '/work/my-paper',
+      profileId: 'sleep',
+      outputName: 'my-paper-supplement',
+      figurePngPaths: {},
+      options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
+      target: 'supplement',
+    };
+    expect(CHANNELS['export:docx'].request.parse(req).target).toBe('supplement');
+    expect(CHANNELS['export:html'].request.parse(req).target).toBe('supplement');
+    expect(CHANNELS['export:pdf'].request.parse(req).target).toBe('supplement');
+    expect(
+      CHANNELS['export:docx'].request.safeParse({ ...req, target: 'appendix' }).success,
+    ).toBe(false);
+    expect(
+      CHANNELS['export:pdf'].request.safeParse({ ...req, target: 'appendix' }).success,
+    ).toBe(false);
+  });
+
 });
 
 describe('EVENT_CHANNELS', () => {

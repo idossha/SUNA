@@ -1,5 +1,5 @@
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { access, cp, writeFile } from 'node:fs/promises'
+import { access, cp } from 'node:fs/promises'
 import { basename, join, relative, resolve, sep } from 'node:path'
 import {
   CHANNELS,
@@ -24,8 +24,8 @@ import {
 } from './services/agent-keys'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
 import { analyzeDocx, commitDocxAnalysis } from './services/docx-import'
-import { docxToolsAvailable } from './services/docx-tools-accelerator'
 import { exportDocx } from './services/export-docx'
+import { exportHtml } from './services/export-html'
 import { exportPdf } from './services/export-pdf'
 import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
@@ -49,6 +49,7 @@ import {
   lookupByDoi,
   searchLiterature
 } from './services/lit'
+import { appMcpInvocation, healProjectAgentLayer } from './services/agentLayer'
 import { updateManuscript } from './services/manuscript'
 import { migrateProject } from './services/migrate-manuscript'
 import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
@@ -78,16 +79,6 @@ import {
   resizeTerminal,
   writeTerminal
 } from './services/terminal'
-
-/**
- * Absolute path to the bundled MCP server script. Agent CLIs spawn it with
- * plain `node`, so it must resolve outside the Electron bundle.
- */
-function mcpServerPath(): string {
-  return app.isPackaged
-    ? join(process.resourcesPath, 'mcp', 'server.mjs')
-    : resolve(app.getAppPath(), '..', '..', 'packages', 'agent', 'dist-mcp', 'server.mjs')
-}
 
 const AGENT_PROVIDER_IDS = ['anthropic', 'openai', 'ollama'] as const
 
@@ -234,7 +225,7 @@ function handle<C extends ChannelName>(
 
 export function registerIpcHandlers(): void {
   handle('project:create', async ({ dir, name }) => {
-    const manifest = await createProject(dir, name)
+    const manifest = await createProject(dir, name, appMcpInvocation())
     await noteRecentProject(dir, manifest.name)
     followProjectManifest(dir)
     return manifest
@@ -242,6 +233,9 @@ export function registerIpcHandlers(): void {
   handle('project:open', async ({ dir }) => {
     const opened = await openProject(dir)
     const migration = await migrateOnOpen(dir)
+    // Fire-and-forget: the heal never throws, and a wedged ~/SunaConfig or
+    // slow home volume must not block a project from opening.
+    void healProjectAgentLayer(dir)
     await noteRecentProject(dir, opened.manifest.name)
     followProjectManifest(dir)
     return { ...opened, migration }
@@ -251,6 +245,7 @@ export function registerIpcHandlers(): void {
     const dir = await ensureExampleProjectCopy()
     const { manifest } = await openProject(dir)
     const migration = await migrateOnOpen(dir)
+    void healProjectAgentLayer(dir)
     await noteRecentProject(dir, manifest.name)
     followProjectManifest(dir)
     return { dir, manifest, migration }
@@ -262,7 +257,7 @@ export function registerIpcHandlers(): void {
   handle('project:check-target', ({ parentDir, name }) => checkScaffoldTarget(parentDir, name))
   handle('project:list-importable', async ({ dir }) => ({ files: await listImportableFiles(dir) }))
   handle('project:scaffold', async (req) => {
-    const result = await scaffoldProject(req)
+    const result = await scaffoldProject(req, appMcpInvocation())
     await noteRecentProject(req.dir, result.manifest.name)
     followProjectManifest(req.dir)
     return result
@@ -278,6 +273,7 @@ export function registerIpcHandlers(): void {
   handle('docx:analyze', async ({ path }) => ({ analysis: await analyzeDocx(path) }))
   handle('docx:commit', async ({ analysis, dir, force }) => {
     const result = await commitDocxAnalysis(analysis, dir, force)
+    void healProjectAgentLayer(result.dir)
     await noteRecentProject(result.dir, basename(result.dir))
     followProjectManifest(result.dir)
     return result
@@ -405,8 +401,8 @@ export function registerIpcHandlers(): void {
   handle('figure:create', ({ dir, name, widthMm }) => createFigure(dir, name, widthMm))
 
   handle('export:docx', (req) => exportDocx(req))
+  handle('export:html', (req) => exportHtml(req))
   handle('export:pdf', (req) => exportPdf(req))
-  handle('export:tools-available', async () => ({ docxTools: await docxToolsAvailable() }))
 
   handle('git:status', ({ dir }) => gitStatus(dir))
   handle('git:log', ({ dir, limit }) => gitLog(dir, limit))
@@ -465,17 +461,14 @@ export function registerIpcHandlers(): void {
 
   handle('agent:write-mcp-config', async ({ dir }) => {
     // Claude Code and Codex both auto-discover .mcp.json in the project root.
-    const path = join(dir, '.mcp.json')
-    const config = {
-      mcpServers: {
-        suna: {
-          command: 'node',
-          args: [mcpServerPath(), '--project', dir]
-        }
-      }
+    // Healing the whole layer (adr-004) writes it plus the stubs/context
+    // files, so "Open Claude Code here" always launches into a wired project.
+    // A failed heal must throw — launching a CLI that claims MCP wiring which
+    // was never written is worse than an error the view can show.
+    if (!(await healProjectAgentLayer(dir))) {
+      throw new Error('could not write the agent layer — check that the project folder is writable')
     }
-    await writeFile(path, JSON.stringify(config, null, 2) + '\n', 'utf8')
-    return { path }
+    return { path: join(dir, '.mcp.json') }
   })
 
   handle('dialog:pick-directory', async ({ title, allowCreate }) => {
