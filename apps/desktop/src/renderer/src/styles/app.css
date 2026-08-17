@@ -1633,6 +1633,67 @@ button {
   border-radius: 3px;
 }
 
+/* ---- agent section (feature-plan-8 §4) ---------------------------------------- */
+
+.canvas-agent__target {
+  margin-bottom: 6px;
+  font-size: var(--s-text-xs);
+  font-family: var(--s-font-mono);
+  color: var(--s-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-agent__prompt {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 4px 5px;
+  font-size: var(--s-text-xs);
+  font-family: var(--s-font-ui);
+  color: var(--s-ink);
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: 3px;
+  resize: vertical;
+  outline: none;
+}
+
+.canvas-agent__prompt:focus {
+  border-color: var(--s-accent);
+}
+
+.canvas-agent__prompt:disabled {
+  color: var(--s-ink-faint);
+}
+
+.canvas-agent__busy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.canvas-agent__note {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+}
+
+.canvas-agent__cancel {
+  flex-shrink: 0;
+  padding: 0 8px;
+}
+
+.canvas-agent__send {
+  width: 100%;
+}
+
 .canvas-props__divider {
   height: 1px;
   margin: 0 0 10px;
