@@ -36,6 +36,7 @@ import {
   createFile,
   listTree,
   makeDir,
+  moveEntries,
   readBinary,
   readText,
   renameEntry,
@@ -74,6 +75,7 @@ import {
   touchRecentProject,
   writeSettings
 } from './services/settings'
+import { openPathWithOs, revealPath } from './services/shell-open'
 import {
   createTerminal,
   killTerminal,
@@ -290,6 +292,9 @@ export function registerIpcHandlers(): void {
   handle('fs:rename', async ({ path, newName }) => ({
     path: await renameEntry(path, newName)
   }))
+  // One drop is one call: moveEntries collects per-path failures, so this
+  // resolves with a partial outcome rather than rejecting the whole batch.
+  handle('fs:move', ({ paths, targetDir }) => moveEntries(paths, targetDir))
   handle('fs:delete', async ({ path }) => {
     await trashEntry(path)
     return {}
@@ -302,6 +307,9 @@ export function registerIpcHandlers(): void {
     await createFile(path, content)
     return {}
   })
+
+  handle('shell:reveal', ({ path }) => revealPath(path))
+  handle('shell:open-path', ({ path }) => openPathWithOs(path))
 
   // manuscript.json / comments.json: read fresh, merge, validate, write atomically.
   handle('manuscript:update', async ({ dir, patch }) => ({

@@ -354,6 +354,48 @@ export const CHANNELS = {
     request: z.object({ path: z.string().min(1), content: z.string() }),
     response: z.object({}),
   },
+  /**
+   * Move entries into `targetDir`, keeping their basenames — the explorer's
+   * drag-and-drop drop (feature-plan-9 §2). Batched so one drop is one tree
+   * refresh, and PARTIAL by contract: every source that could not move is
+   * named in `failed` with a human reason instead of failing the whole batch.
+   * Sources and target are all root-confined, an existing destination is
+   * refused rather than clobbered, and a directory may not land inside itself.
+   * `moved` carries resolved paths on both sides so the caller can retarget the
+   * open tabs pointing at them. Distinct from 'fs:rename', whose `newName` may
+   * not contain a separator and so can never cross directories.
+   */
+  'fs:move': {
+    request: z.object({
+      paths: z.array(z.string().min(1)),
+      targetDir: z.string().min(1),
+    }),
+    response: z.object({
+      moved: z.array(z.object({ from: z.string().min(1), to: z.string().min(1) })),
+      failed: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1) })),
+    }),
+  },
+  /**
+   * Show `path` in the OS file manager (Finder / Explorer). Root-confined.
+   * `error` is a human message; null means the reveal was handed to the OS.
+   */
+  'shell:reveal': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({ error: z.string().nullable() }),
+  },
+  /**
+   * Open `path` with the OS's default application. Root-confined, and refuses
+   * anything executable — launchable bundles/extensions plus any file carrying
+   * a user-execute bit (feature-plan-9 §3): an agent can write files into the
+   * project, and "open with the OS" must never become "run what the agent just
+   * wrote". Directories are allowed (that is a Finder window). Electron's
+   * openPath returns '' on success; that is mapped to null here, so a non-null
+   * `error` always names something the user should see.
+   */
+  'shell:open-path': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({ error: z.string().nullable() }),
+  },
   'git:status': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({

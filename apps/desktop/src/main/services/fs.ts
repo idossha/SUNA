@@ -1,5 +1,5 @@
 import { shell } from 'electron'
-import type { Dirent } from 'node:fs'
+import type { Dirent, Stats } from 'node:fs'
 import { constants } from 'node:fs'
 import {
   copyFile,
@@ -10,7 +10,7 @@ import {
   mkdir,
   rename
 } from 'node:fs/promises'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 import { MAX_READ_BINARY_BYTES, type FsNode } from '@suna/core'
 import { writeFileAtomic } from './atomic'
 import { assertInsideAllowedRoot } from './roots'
@@ -89,7 +89,20 @@ export async function writeBinary(path: string, base64: string): Promise<string>
   return abs
 }
 
-/** Rename within the same directory; the new basename must not contain separators. */
+/** Same file on disk? Device + inode, so a case-only alias is not a collision. */
+function isSameEntry(a: Stats, b: Stats): boolean {
+  return a.dev === b.dev && a.ino === b.ino
+}
+
+/**
+ * Rename within the same directory; the new basename must not contain
+ * separators.
+ *
+ * Never overwrites, same as moveOne below: `fs.rename` silently clobbers on
+ * POSIX, so typing an existing sibling's name would destroy that sibling — and
+ * the explorer retargets the open tab onto the new path afterwards, so the loss
+ * would not even be visible. The destination is stat'd first and refused.
+ */
 export async function renameEntry(path: string, newName: string): Promise<string> {
   if (/[/\\]/.test(newName) || newName === '.' || newName === '..') {
     throw new Error(`invalid file name: ${newName}`)
@@ -97,8 +110,91 @@ export async function renameEntry(path: string, newName: string): Promise<string
   const abs = assertInsideAllowedRoot(path)
   const target = join(dirname(abs), newName)
   assertInsideAllowedRoot(target)
+  const existing = await stat(target).catch(() => null)
+  // Identity, not existence: on a case-insensitive volume (macOS, Windows)
+  // `notes.md` -> `Notes.md` stats the source itself, and refusing that would
+  // block the one rename users make most often on those platforms.
+  if (existing && !isSameEntry(existing, await stat(abs))) {
+    const kind = existing.isDirectory() ? 'directory' : 'file'
+    throw new Error(`refusing to overwrite an existing ${kind}: ${target}`)
+  }
   await rename(abs, target)
   return target
+}
+
+/**
+ * Would landing at `dest` put an entry inside `source` itself? Compared with a
+ * separator boundary on both resolved paths: a bare `startsWith` would call
+ * `/a/data2/data` a descendant of `/a/data` and refuse a perfectly good move.
+ */
+function landsInside(source: string, dest: string): boolean {
+  return dest.startsWith(source + sep)
+}
+
+/**
+ * Move entries INTO `targetDir`, keeping their basenames. Batched because one
+ * drag-and-drop drop is one gesture and must be one tree refresh.
+ *
+ * Per-path failures are collected rather than thrown: the batch moves what it
+ * can and names what it could not, the same convention multi-delete already
+ * uses. A bad `targetDir` is the one exception — nothing can be moved, so it
+ * throws instead of failing every path with the same sentence.
+ *
+ * Never overwrites. `fs.rename` silently clobbers on POSIX and drag-and-drop is
+ * precisely the gesture that produces name collisions, so the destination is
+ * stat'd first.
+ *
+ * No EXDEV copy+unlink fallback by design: a project lives in one tree, and a
+ * cross-device rename that fails is reported verbatim rather than silently
+ * doing something else.
+ */
+export async function moveEntries(
+  paths: string[],
+  targetDir: string
+): Promise<{ moved: { from: string; to: string }[]; failed: { path: string; reason: string }[] }> {
+  const target = assertInsideAllowedRoot(targetDir)
+  const moved: { from: string; to: string }[] = []
+  const failed: { path: string; reason: string }[] = []
+  for (const path of paths) {
+    try {
+      moved.push(await moveOne(path, target))
+    } catch (error) {
+      failed.push({ path, reason: describeFailure(error) })
+    }
+  }
+  return { moved, failed }
+}
+
+/**
+ * Never empty: the 'fs:move' response validates `reason` as a non-empty string,
+ * so an Error with a blank message (or a thrown '') would fail RESPONSE
+ * validation and reject the whole call — discarding the report of everything
+ * that DID move, which is the one thing the partial-outcome contract exists to
+ * preserve. A path that fails for an unnameable reason still fails out loud.
+ */
+function describeFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.trim() === '' ? 'move failed for an unknown reason' : message
+}
+
+async function moveOne(path: string, target: string): Promise<{ from: string; to: string }> {
+  const source = assertInsideAllowedRoot(path)
+  const dest = join(target, basename(source))
+  assertInsideAllowedRoot(dest)
+  // The renderer's resolveDrop rejects this too; main re-checks because an
+  // agent or a driver can call the channel without ever touching the tree.
+  if (landsInside(source, dest)) {
+    throw new Error(`cannot move a directory into itself or one of its own subfolders: ${path}`)
+  }
+  const existing = await stat(dest).catch(() => null)
+  if (existing) {
+    const kind = existing.isDirectory() ? 'directory' : 'file'
+    throw new Error(`refusing to overwrite an existing ${kind}: ${dest}`)
+  }
+  await rename(source, dest)
+  // Resolved on both sides: callers match `from` against open tab paths, which
+  // come from listTree and are resolved the same way.
+  return { from: source, to: dest }
 }
 
 /** Move to the OS trash — never a hard unlink, so users can recover. */
