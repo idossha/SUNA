@@ -38,7 +38,7 @@ describe('hintFor', () => {
   it('gives every HTTP provider its short cost/key hint', () => {
     expect(hintFor('crossref')).toBe('free, no key')
     expect(hintFor('openalex')).toBe('metered')
-    expect(hintFor('ads')).toBe('needs free key')
+    expect(hintFor('biorxiv')).toBe('free, preprints')
   })
 
   it('covers every UI provider id with a non-empty hint', () => {

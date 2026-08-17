@@ -90,7 +90,7 @@ export async function getKey(provider: AgentProviderId): Promise<string | null> 
   return getSlot(provider)
 }
 
-/** Literature-provider keys (OpenAlex, NASA ADS). Empty key clears the entry. */
+/** Literature-provider keys (OpenAlex). Empty key clears the entry. */
 export async function setLitKey(provider: LitProviderId, key: string): Promise<void> {
   await setSlot(litSlot(provider), key)
 }

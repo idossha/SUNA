@@ -12,9 +12,9 @@ import { resolveInside, type ProjectContext } from './project'
  *
  * No API keys here: the MCP server runs standalone, without the Electron app
  * and without access to its encrypted key store (safeStorage), so every call
- * is keyless — Crossref (the default) and arXiv work as normal, OpenAlex
- * runs metered, and ADS reports the same "needs a free API key" message the
- * app shows. `add_reference` reuses `appendLitResultToBib` from @suna/bib,
+ * is keyless — Crossref (the default), bioRxiv/medRxiv and arXiv work as
+ * normal, OpenAlex runs metered. `add_reference` reuses
+ * `appendLitResultToBib` from @suna/bib,
  * the same append logic the desktop UI's "Add to references.bib" button
  * uses, so both paths produce byte-identical entries for the same DOI.
  */
