@@ -11,7 +11,8 @@
  * Deliberately free of any CodeMirror import: the seam where `:w` was dead is
  * then testable in node, and apps/desktop has no jsdom to build a view in.
  * The same goes for the status channel — `notify` is injected by the app so
- * this module does not have to reach into a store.
+ * this module does not have to reach into a store — and for `:help`'s
+ * destination, which is a store away for exactly the same reason.
  */
 export interface ExHandlers {
   save: () => void | Promise<void>
@@ -35,12 +36,24 @@ export interface ExRegistry {
   unregister: (view: object) => void
   /** Where a refusal or an explanation is shown. Wired once, by the app. */
   setNotify: (notify: (message: string) => void) => void
+  /**
+   * What `:help` opens. Wired once, by the app, beside setNotify — the same
+   * module that calls `Vim.defineEx('help', …)`, so the command and its
+   * destination arrive together.
+   */
+  setShowHelp: (showHelp: () => void) => void
   /** `:w` — a no-op unless the calling view registered an onSave. */
   save: (cm: ExCaller) => void
   /** `:q` (force = false) and `:q!` (force = true). */
   close: (cm: ExCaller, force?: boolean) => void
   /** `:wq` / `:x` — write, then close once the write has settled. */
   saveAndClose: (cm: ExCaller) => void
+  /**
+   * `:help` / `:h`. Takes no caller: the shortcut overlay is one app-wide
+   * dialog, so unlike `:w` there is nothing to route per view — and a buffer
+   * that never registered handlers can still ask for help.
+   */
+  help: () => void
 }
 
 /** Vim's own wording, so the message means the same thing it does in vim. */
@@ -50,6 +63,7 @@ export const NOT_CLOSABLE_MESSAGE = ':q — this tab is not a file, so there is 
 export function createExRegistry(): ExRegistry {
   const byView = new WeakMap<object, ExHandlers>()
   let notify: (message: string) => void = () => undefined
+  let showHelp: () => void = () => undefined
   const lookup = (cm: ExCaller): ExHandlers | undefined => {
     const view = cm.cm6
     return typeof view === 'object' && view !== null ? byView.get(view) : undefined
@@ -70,6 +84,9 @@ export function createExRegistry(): ExRegistry {
     },
     setNotify: (next) => {
       notify = next
+    },
+    setShowHelp: (next) => {
+      showHelp = next
     },
     save: (cm) => {
       void lookup(cm)?.save()
@@ -95,6 +112,9 @@ export function createExRegistry(): ExRegistry {
           else handlers.close(false)
         })
         .catch(() => undefined)
+    },
+    help: () => {
+      showHelp()
     }
   }
 }

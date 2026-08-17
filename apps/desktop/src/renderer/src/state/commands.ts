@@ -254,14 +254,23 @@ registerCommand({
   }
 })
 
-// NO shortcut spec on purpose (feature-plan-8 §1): '?' is opened by
-// HelpOverlay's own window listener, which has the isTyping guard the
-// palette's dispatcher lacks — a Shift-Slash Command here would fire while
-// typing '?' into the explorer filter.
+// The shortcut is ⌘⇧/ (rendered ⌘?), NOT a bare Shift-Slash: '?' stays with
+// HelpOverlay's own window listener, which has the isTyping guard this
+// dispatcher lacks — a Shift-Slash Command here would fire while typing '?'
+// into the explorer filter (feature-plan-8 §1).
+//
+// ⌘⇧/ is what reaches help from inside a vim buffer (feature-plan-9 §1),
+// where NORMAL mode swallows '?' as search-backward before any listener sees
+// it. Both halves of that chord were measured in the running app: ⌘⇧/ arrives
+// at window level unprevented and changes nothing in the buffer, and
+// Electron 43's default menu has no Help submenu, so macOS never installs the
+// Help-search field that would otherwise own it. Re-run those checks before
+// moving this binding — a static reading of the code predicts the opposite.
 registerCommand({
   id: 'help.shortcuts',
   title: 'Keyboard Shortcuts…',
   category: 'View',
+  shortcut: 'Mod-Shift-Slash',
   run: () => useUiStore.getState().setHelpOpen(true)
 })
 

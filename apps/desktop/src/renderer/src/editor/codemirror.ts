@@ -58,6 +58,14 @@ Vim.defineEx('quit', 'q', (cm, params) => exRegistry.close(cm, FORCED(params)))
 Vim.defineEx('wq', 'wq', (cm) => exRegistry.saveAndClose(cm))
 Vim.defineEx('xit', 'x', (cm) => exRegistry.saveAndClose(cm))
 
+// `:help` / `:h` — the vim-native way to the shortcut overlay (feature-plan-9
+// §1), because in NORMAL mode a bare `?` is vim's search-backward and never
+// reaches the window listener that opens it. `:h` is vim's own abbreviation
+// and collides with nothing: defaultExCommandMap has no command whose name or
+// short name starts with `h`. No caller is passed on — the overlay is one
+// app-wide dialog, not a per-view surface.
+Vim.defineEx('help', 'h', () => exRegistry.help())
+
 // j/k step one document line even where a block widget (an image, a figure, a
 // display equation) stands in for the source — otherwise the covered line is
 // unreachable and its source can never be revealed for editing. See vimMotions.ts.
@@ -69,9 +77,11 @@ Vim.defineEx('xit', 'x', (cm) => exRegistry.saveAndClose(cm))
 // declared without a `this` — cannot express.
 Vim.defineMotion('moveByLines', moveByDocumentLines as unknown as Parameters<typeof Vim.defineMotion>[1])
 
-// Where a refusal ("no write since last change") is shown. Wired here because
-// defineEx is process-wide, so the registry is too.
+// Where a refusal ("no write since last change") is shown, and where `:help`
+// lands. Wired here because defineEx is process-wide, so the registry is too —
+// and so the ex commands above cannot exist without their destinations.
 exRegistry.setNotify((message) => useUiStore.getState().setStatusNote(message))
+exRegistry.setShowHelp(() => useUiStore.getState().setHelpOpen(true))
 
 /** Extension-based language pick. Anything unknown stays plain and falls
  *  back to the shared highlight style. */

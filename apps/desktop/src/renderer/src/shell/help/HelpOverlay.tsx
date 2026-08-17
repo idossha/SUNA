@@ -59,10 +59,27 @@ export function HelpOverlay(): JSX.Element | null {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  // On open: snapshot the pre-dialog focus BEFORE moving it, derive the
-  // initial tab from that snapshot (explorer focus wins; the dock's active
-  // panel answers for everything else), then pull focus into the dialog so
-  // Esc lands on its onKeyDown. On close: hand focus back where it was.
+  // The tab is decided in the SAME commit that opens the dialog, not in an
+  // effect: an effect runs after the first render, so the dialog would paint
+  // one frame carrying the section from the previous time it was open —
+  // visible as a flash of the wrong keys, and a driver reading that frame
+  // gets the wrong answer (measured: opening over the canvas reported
+  // 'manuscript', the surface of the previous open). This is React's
+  // adjust-state-when-a-prop-changes pattern: the re-render happens before
+  // the browser paints. Focus has not moved yet at this point, so
+  // document.activeElement is still the opener.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      const active = document.activeElement
+      const explorerFocused = active !== null && active.closest('[role="tree"]') !== null
+      setSectionId(sectionForSurface(activePanelComponent(), explorerFocused))
+    }
+  }
+
+  // Focus only: snapshot the opener before the dialog takes focus so Esc
+  // lands on its onKeyDown, and hand focus back on close (Flux pattern).
   useEffect(() => {
     if (!open) {
       const previous = restoreRef.current
@@ -72,8 +89,6 @@ export function HelpOverlay(): JSX.Element | null {
     }
     const active = document.activeElement
     restoreRef.current = active instanceof HTMLElement ? active : null
-    const explorerFocused = active !== null && active.closest('[role="tree"]') !== null
-    setSectionId(sectionForSurface(activePanelComponent(), explorerFocused))
     dialogRef.current?.focus()
   }, [open])
 

@@ -55,6 +55,20 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
       ['⌘⌥M', 'Toggle comments rail'],
       ['✦ AI', 'On a comment card: send the comment to the agent']
     ]
+  },
+  // feature-plan-9 §1. The `?` row is the honest one: in NORMAL mode vim
+  // consumes Shift-Slash entirely (measured — the window listener records no
+  // event at all), so this dialog is unreachable from a buffer except by ⌘?
+  // or :help. Saying so beats letting the reader conclude help is broken.
+  {
+    title: 'Vim (when vim motions are on)',
+    items: [
+      [':w', 'Write — save the file'],
+      [':q / :q!', 'Close the tab / close it discarding unsaved changes'],
+      [':wq', 'Write, then close (refuses to close if the write did not land)'],
+      [':help / :h', 'This help'],
+      ['?', "vim's search-backward here, not this dialog — use ⌘? or :help"]
+    ]
   }
 ]
 
@@ -84,7 +98,7 @@ export const SECTIONS: readonly HelpSection[] = [
       {
         title: 'App',
         items: [
-          ['?', 'This help'],
+          ['? / ⌘?', 'This help — ⌘? also works while typing, and inside vim'],
           ['Esc', 'Close overlays'],
           ['Title bar', 'Project switcher']
         ]
@@ -163,12 +177,19 @@ export const SECTIONS: readonly HelpSection[] = [
           ['Esc', 'Clear selection']
         ]
       },
+      // feature-plan-9 §3: ExplorerView renders both context-menu items and
+      // binds both chords on the focused row, so they belong here. The menu's
+      // label follows the platform (Reveal in Finder / Show in Explorer / Show
+      // in File Manager); this overlay is static, so it names the neutral pair
+      // rather than pretending to know which OS is reading it.
       {
         title: 'Manage',
         items: [
           ['F2', 'Rename'],
           ['⌘A', 'Select all'],
           ['Delete', 'Delete (two-step confirm)'],
+          ['⌘⌥R', 'Reveal in Finder / file manager (focused row)'],
+          ['⌘⌥O', 'Open with the default app (focused row)'],
           ['Right-click', 'Context menu']
         ]
       },

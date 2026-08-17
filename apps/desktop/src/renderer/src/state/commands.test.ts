@@ -74,7 +74,8 @@ describe('registerCommand / listCommands / getCommand', () => {
         'manuscript.open',
         'profile.switch',
         'view.sidebar.toggle',
-        'view.leftnav.toggle'
+        'view.leftnav.toggle',
+        'help.shortcuts'
       ])
     )
   })
@@ -84,6 +85,13 @@ describe('registerCommand / listCommands / getCommand', () => {
     expect(getCommand('split.down')?.shortcut).toBe('Mod-Shift-Backslash')
     // terminal.toggle deliberately has none — TerminalPanel owns Ctrl-` itself
     expect(getCommand('terminal.toggle')?.shortcut).toBeUndefined()
+  })
+
+  it('keeps ⌘? on help.shortcuts — the only way into help from a vim buffer', () => {
+    // feature-plan-9 §1: in NORMAL mode vim swallows Shift-Slash whole (the
+    // window listener records no event at all), so this one stamp IS the ⌘?
+    // path — drop it and help is reachable from a buffer only via :help.
+    expect(getCommand('help.shortcuts')?.shortcut).toBe('Mod-Shift-Slash')
   })
 
   it('makes both left-nav toggles reachable with no project open', () => {

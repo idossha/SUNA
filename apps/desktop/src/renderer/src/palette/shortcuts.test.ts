@@ -86,4 +86,39 @@ describe('formatShortcut', () => {
   it('falls back to the bare code for anything unrecognized', () => {
     expect(formatShortcut('Mod-F1')).toBe('⌘F1')
   })
+
+  // feature-plan-9 §1: the help chord is ⌘? to a reader, whatever the spec
+  // says. The ⇧ is folded into the character, not printed beside it.
+  it('renders shifted punctuation as the character it produces', () => {
+    expect(formatShortcut('Mod-Shift-Slash')).toBe('⌘?')
+    expect(formatShortcut('Shift-Slash')).toBe('?')
+  })
+
+  it('still names the unshifted key when Shift is not in the spec', () => {
+    expect(formatShortcut('Mod-Slash')).toBe('⌘/')
+    expect(formatShortcut('Slash')).toBe('/')
+  })
+
+  it('leaves the other punctuation chords under their unshifted names', () => {
+    // ⌘⇧\ is what the app calls split-down; "⌘|" would name nothing.
+    expect(formatShortcut('Mod-Shift-Backslash')).toBe('⌘⇧\\')
+    expect(formatShortcut('Mod-Shift-Minus')).toBe('⌘⇧-')
+  })
+})
+
+describe('the ⌘? help chord end to end', () => {
+  it('matches on .code with the exact modifiers, and reads as ⌘?', () => {
+    const spec = 'Mod-Shift-Slash'
+    // On a US layout this event's `.key` is '?', but matching never looks at
+    // `.key` — the physical Slash plus Shift is the whole signal.
+    expect(matchesShortcut(event({ code: 'Slash', metaKey: true, shiftKey: true }), spec)).toBe(true)
+    expect(matchesShortcut(event({ code: 'Slash', ctrlKey: true, shiftKey: true }), spec)).toBe(true)
+    // ⌘/ is CodeMirror's toggleComment (measured, feature-plan-9) — it must
+    // not fall through to help.
+    expect(matchesShortcut(event({ code: 'Slash', metaKey: true }), spec)).toBe(false)
+    // and a bare '?' on a non-typing surface belongs to HelpOverlay's own
+    // listener, not to the palette's command dispatcher
+    expect(matchesShortcut(event({ code: 'Slash', shiftKey: true }), spec)).toBe(false)
+    expect(formatShortcut(spec)).toBe('⌘?')
+  })
 })
