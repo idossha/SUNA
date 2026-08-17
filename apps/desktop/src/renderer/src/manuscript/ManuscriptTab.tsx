@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { EditorView } from '@codemirror/view'
-import type { Comment } from '@suna/core'
 import type { OutlineSection } from '@suna/markdown'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openExportTab } from '../state/dock'
@@ -8,15 +7,17 @@ import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useCommentsStore } from '../state/comments'
+import { useDocSessionMeta } from '../state/docSessions'
+import { useUiStore } from '../state/ui'
 import { useEditorSettings } from '../editor/settings'
+import { DivergenceBanner } from '../editor/DivergenceBanner'
 import type { EditorViewMode } from '../editor/EditorTab'
 import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
 import '../editor/editor.css'
-import { CommentGutter } from '../comments/CommentGutter'
-import { anchorTopIn } from '../comments/anchorExtension'
-import { useNarrowGutter } from '../comments/narrow'
+import { CommentsRail } from '../comments/CommentsRail'
+import { RailToggleButton } from '../comments/RailToggleButton'
 import '../comments/comments.css'
 import { manuscriptStyleVars } from './msdocStyle'
 import { TitlePage } from './TitlePage'
@@ -84,10 +85,23 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const lineHeight = useEditorSettings((s) => s.lineHeight)
   const editorTheme = useEditorSettings((s) => s.editorTheme)
 
+  const wrapRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const [dirty, setDirty] = useState(false)
   const [settled, setSettled] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // The shared doc session's dirty flag (state/docSessions) — one source of
+  // truth with the Explorer's raw editor tab on the same file.
+  const manuscriptFile = manuscript?.manuscriptFile ?? 'manuscript.md'
+  const absPath = `${rootDir}/manuscript/${manuscriptFile}`
+  const dirty = useDocSessionMeta(absPath)?.dirty ?? false
+  useEffect(() => {
+    try {
+      api.setTitle(dirty ? `${TAB_TITLE} •` : TAB_TITLE)
+    } catch {
+      // panel already disposed (dock unmount is deferred) — nothing to retitle
+    }
+  }, [dirty, api])
 
   // Same contract as EditorTab: open in the resolved default mode, and once
   // the user has picked one with ⌘E or the button, stop following the setting.
@@ -95,24 +109,28 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const [mode, setMode] = useState<EditorViewMode>(() => getResolved('editor.defaultMode').value)
   const userPickedModeRef = useRef(false)
 
-  // ---- margin comment gutter (comments/CommentGutter) ----------------------
-  const gutterTrackRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<ManuscriptEditorHandle>(null)
-  const [anchorTops, setAnchorTops] = useState<ReadonlyMap<string, number>>(new Map())
-  const [gutterHeight, setGutterHeight] = useState(0)
-  const narrowGutter = useNarrowGutter()
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  /** Stable identity: the rail's effects key on it (a fresh inline arrow per
+   *  render would re-fire them all). The ref makes the empty deps safe. */
+  const getEditorView = useCallback((): EditorView | null => editorRef.current?.getView() ?? null, [])
+  /** The document's scroll element — the rail's aligned track syncs to it. */
+  const getScrollElement = useCallback((): HTMLElement | null => rootRef.current, [])
   const comments = useCommentsStore((s) => s.comments)
 
   const outline = useManuscriptDocStore((s) => s.outline)
 
-  const handlePositionsChange = useCallback((positions: ReadonlyMap<string, number>): void => {
-    setAnchorTops(positions)
-  }, [])
-
   const handleOutlineChange = useCallback((next: OutlineSection[]): void => {
     useManuscriptDocStore.getState().setOutline(next)
   }, [])
+
+  /** Viewport-relative top of a document position, diffed against the scroll
+   *  container's rect — the scroll-spy's only geometry read (the old
+   *  comment-positioning machinery that shared this helper is gone). */
+  const headingTopIn = (view: EditorView, pos: number, container: Element): number | null => {
+    const coords = view.coordsAtPos(pos)
+    if (coords === null) return null
+    return coords.top - container.getBoundingClientRect().top
+  }
 
   // scroll-spy: which outline heading is currently at (or just above) the
   // active band, via coordsAtPos on the single editor. A heading whose
@@ -128,16 +146,12 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
     if (containerRect.height === 0) return
     let active: number | null = null
     outline.forEach((section, i) => {
-      const top = anchorTopIn(view, section.headingFrom, container)
+      const top = headingTopIn(view, section.headingFrom, container)
       if (top !== null && top <= ACTIVE_BAND_PX) active = i
     })
     if (active !== null) useManuscriptDocStore.getState().setActiveSectionIndex(active)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outline])
-
-  const recomputeAll = useCallback((): void => {
-    editorRef.current?.recomputePositions()
-    recalcActive()
-  }, [recalcActive])
 
   const toggleMode = useCallback((): void => {
     userPickedModeRef.current = true
@@ -156,48 +170,49 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   }, [defaultMode])
 
   // Swapping the live compartment changes every block widget's height, so the
-  // comment anchors and the scroll-spy have to be re-measured against the new
-  // geometry — the same recompute a resize triggers.
+  // scroll-spy has to be re-measured against the new geometry.
   useEffect(() => {
     editorRef.current?.getView()?.requestMeasure()
-    recomputeAll()
-  }, [mode, recomputeAll])
+    recalcActive()
+  }, [mode, recalcActive])
 
-  // ⌘E toggles reading ⇄ source, matching EditorTab
+  // ⌘E toggles reading ⇄ source (matching EditorTab); ⌘⌥M toggles the rail.
+  // Listens on the OUTER wrapper so the shortcuts fire with focus in the rail.
   useEffect(() => {
-    const node = rootRef.current
+    const node = wrapRef.current
     if (!node) return
     const onKey = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.key !== 'e') return
-      event.preventDefault()
-      toggleMode()
+      if (!(event.metaKey || event.ctrlKey)) return
+      if (event.key === 'e') {
+        event.preventDefault()
+        toggleMode()
+      }
+      if (event.altKey && (event.key === 'm' || event.code === 'KeyM')) {
+        event.preventDefault()
+        useUiStore.getState().toggleCommentsRail()
+      }
     }
     node.addEventListener('keydown', onKey)
     return () => node.removeEventListener('keydown', onKey)
   }, [toggleMode])
 
-  // container geometry drives both the gutter's edge-badge math and the
-  // narrow-mode breakpoint; scroll is rAF-throttled since it fires on every
-  // frame of a drag-scroll, resize via ResizeObserver (layout-driven, cheap).
+  // The scroll-spy tracks the scroll container; rAF-throttled since scroll
+  // fires every frame of a drag. This was never the comments' lag source —
+  // the per-frame CARD layout is gone; only the active-heading check remains.
   useEffect(() => {
     const container = rootRef.current
     if (!container) return
     let scheduled = false
-    const measure = (): void => {
-      setGutterHeight(Math.max(0, container.clientHeight - TOOLBAR_HEIGHT_PX))
-    }
     const onScroll = (): void => {
       if (scheduled) return
       scheduled = true
       requestAnimationFrame(() => {
         scheduled = false
-        recomputeAll()
+        recalcActive()
       })
     }
-    measure()
     const resizeObserver = new ResizeObserver(() => {
-      measure()
-      recomputeAll()
+      recalcActive()
     })
     resizeObserver.observe(container)
     container.addEventListener('scroll', onScroll, { passive: true })
@@ -205,17 +220,13 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
       resizeObserver.disconnect()
       container.removeEventListener('scroll', onScroll)
     }
-  }, [recomputeAll])
+  }, [recalcActive])
 
   // the outline shifts on every edit (debounced) — re-run the scroll-spy
   // against the new heading positions.
   useEffect(() => {
     recalcActive()
   }, [recalcActive])
-
-  const handleActivateComment = useCallback((id: string): void => {
-    setActiveCommentId(id)
-  }, [])
 
   useEffect(() => {
     void refresh()
@@ -241,32 +252,12 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   // This document's comments: whole-manuscript comments plus every
   // section-target comment targeting the manuscript file (figure-target
   // comments belong to the canvas, not this gutter).
-  const manuscriptFile = manuscript?.manuscriptFile ?? 'manuscript.md'
   const documentComments = useMemo(
     () =>
       comments.filter(
         (c) => c.target.kind === 'manuscript' || (c.target.kind === 'section' && c.target.path === manuscriptFile)
       ),
     [comments, manuscriptFile]
-  )
-
-  // A margin card was clicked: flash (and, via CodeMirror's own
-  // scrollIntoView, scroll to) its anchor — there is only one editor now, so
-  // no separate "scroll to the right section first" step is needed.
-  const handleAnchorActivate = useCallback((comment: Comment): void => {
-    useCommentsStore.getState().requestFlash(comment.id)
-  }, [])
-
-  const handleDirtyChange = useCallback(
-    (nextDirty: boolean): void => {
-      setDirty(nextDirty)
-      try {
-        api.setTitle(nextDirty ? `${TAB_TITLE} •` : TAB_TITLE)
-      } catch {
-        // panel already disposed (dock unmount is deferred) — nothing to retitle
-      }
-    },
-    [api]
   )
 
   const handleSettled = useCallback((next: boolean): void => {
@@ -304,98 +295,93 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const stale = projectRoot !== null && projectRoot !== rootDir
 
   return (
-    <div
-      ref={rootRef}
-      className={`msdoc msdoc--${mode} editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
-      style={settingsStyle}
-    >
-      <div className="msdoc__toolbar">
-        {dirty && <span className="msdoc__dirty" aria-hidden="true" />}
-        <button
-          className="editor-tab__mode"
-          onClick={toggleMode}
-          title="Toggle reading / source (⌘E)"
-        >
-          {MODE_LABEL[mode]}
-        </button>
-        <button
-          className="msdoc__export-btn"
-          onClick={() => !stale && openExportTab(rootDir)}
-          disabled={stale}
-          title="Export as Word or PDF"
-        >
-          Export…
-        </button>
-        <button
-          className="editor-tab__gear"
-          onClick={() => setSettingsOpen((open) => !open)}
-          title="Manuscript appearance"
-          aria-label="Manuscript appearance settings"
-        >
-          <GearIcon />
-        </button>
-        {settingsOpen && <SettingsPopover onClose={() => setSettingsOpen(false)} />}
-      </div>
-      <div className="msdoc__body">
-        <div className="msdoc__page">
-          {stale && (
-            <p className="msdoc__hint">
-              This manuscript belongs to a project that is no longer open.
-            </p>
-          )}
-          {!stale && manuscriptError !== null && (
-            <div className="msdoc__error">{manuscriptError}</div>
-          )}
-          {!stale && manuscriptError === null && manuscript === null && (
-            <p className="msdoc__hint">This project has no manuscript/manuscript.json yet.</p>
-          )}
-          {!stale && manuscript !== null && (
-            <>
-              <TitlePage
-                manuscript={manuscript}
-                authors={authors.authors}
-                affiliations={authors.affiliations}
-                editable
-                rootDir={rootDir}
-              />
-              <div className="msdoc__rule" />
-              <ManuscriptEditor
-                ref={editorRef}
-                rootDir={rootDir}
-                contentPath={manuscriptFile}
-                live={mode === 'reading'}
-                onDirtyChange={handleDirtyChange}
-                onSettled={handleSettled}
-                onOutlineChange={handleOutlineChange}
-                gutterRef={gutterTrackRef}
-                onPositionsChange={handlePositionsChange}
-                onActivateComment={handleActivateComment}
-              />
-              <div className="msdoc__rule" />
-              <ReferencesBlock
-                rootDir={rootDir}
-                manuscriptFile={manuscriptFile}
-                figures={manuscript.figures}
-                tables={manuscript.tables}
-                bibliography={manuscript.bibliography}
-              />
-            </>
-          )}
+    <div ref={wrapRef} className="mstab">
+      <div
+        ref={rootRef}
+        className={`msdoc msdoc--${mode} editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
+        style={settingsStyle}
+      >
+        <div className="msdoc__toolbar">
+          {dirty && <span className="msdoc__dirty" aria-hidden="true" />}
+          <button
+            className="editor-tab__mode"
+            onClick={toggleMode}
+            title="Toggle reading / source (⌘E)"
+          >
+            {MODE_LABEL[mode]}
+          </button>
+          <RailToggleButton />
+          <button
+            className="msdoc__export-btn"
+            onClick={() => !stale && openExportTab(rootDir)}
+            disabled={stale}
+            title="Export as Word or PDF"
+          >
+            Export…
+          </button>
+          <button
+            className="editor-tab__gear"
+            onClick={() => setSettingsOpen((open) => !open)}
+            title="Manuscript appearance"
+            aria-label="Manuscript appearance settings"
+          >
+            <GearIcon />
+          </button>
+          {settingsOpen && <SettingsPopover onClose={() => setSettingsOpen(false)} />}
         </div>
-        {!stale && manuscript !== null && (
-          <CommentGutter
-            ref={gutterTrackRef}
-            comments={documentComments}
-            anchorTops={anchorTops}
-            containerHeight={gutterHeight}
-            narrow={narrowGutter}
-            activeId={activeCommentId}
-            onActiveIdChange={setActiveCommentId}
-            onAnchorActivate={handleAnchorActivate}
-            onTrackMoved={recomputeAll}
-          />
-        )}
+        <DivergenceBanner path={absPath} />
+        <div className="msdoc__body">
+          <div className="msdoc__page">
+            {stale && (
+              <p className="msdoc__hint">
+                This manuscript belongs to a project that is no longer open.
+              </p>
+            )}
+            {!stale && manuscriptError !== null && (
+              <div className="msdoc__error">{manuscriptError}</div>
+            )}
+            {!stale && manuscriptError === null && manuscript === null && (
+              <p className="msdoc__hint">This project has no manuscript/manuscript.json yet.</p>
+            )}
+            {!stale && manuscript !== null && (
+              <>
+                <TitlePage
+                  manuscript={manuscript}
+                  authors={authors.authors}
+                  affiliations={authors.affiliations}
+                  editable
+                  rootDir={rootDir}
+                />
+                <div className="msdoc__rule" />
+                <ManuscriptEditor
+                  ref={editorRef}
+                  rootDir={rootDir}
+                  contentPath={manuscriptFile}
+                  live={mode === 'reading'}
+                  onSettled={handleSettled}
+                  onOutlineChange={handleOutlineChange}
+                />
+                <div className="msdoc__rule" />
+                <ReferencesBlock
+                  rootDir={rootDir}
+                  manuscriptFile={manuscriptFile}
+                  figures={manuscript.figures}
+                  tables={manuscript.tables}
+                  bibliography={manuscript.bibliography}
+                />
+              </>
+            )}
+          </div>
+        </div>
       </div>
+      {!stale && manuscript !== null && (
+        <CommentsRail
+          comments={documentComments}
+          docPath={manuscriptFile}
+          getView={getEditorView}
+          getScrollElement={getScrollElement}
+        />
+      )}
     </div>
   )
 }

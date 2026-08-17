@@ -24,8 +24,9 @@ export async function readText(path: string): Promise<string> {
 
 export async function writeText(path: string, content: string): Promise<number> {
   const abs = assertInsideAllowedRoot(path)
-  await mkdir(dirname(abs), { recursive: true })
-  await writeFile(abs, content, 'utf8')
+  // Atomic (tmp + rename, mkdir included), same as manuscript.json/
+  // comments.json: a crash mid-write must never truncate a prose file.
+  await writeFileAtomic(abs, content)
   return Buffer.byteLength(content, 'utf8')
 }
 

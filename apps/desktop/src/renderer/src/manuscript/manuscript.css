@@ -9,6 +9,21 @@
    order must never be relied on).
    --------------------------------------------------------------------------- */
 
+/* Outer flex row: [the scrolling document][the comments rail]. The rail sits
+   OUTSIDE the scroller (comments/CommentsRail owns its own list scroller), so
+   scrolling the document does zero work in the comments layer. */
+.mstab {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-width: 0;
+}
+
+.mstab > .msdoc.editor-tab {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .msdoc.editor-tab {
   display: block;
   height: 100%;
@@ -76,42 +91,28 @@
   cursor: default;
 }
 
-/* Row for the page + its margin comment gutter (comments/CommentGutter),
-   both normal-flow children of the SAME scrolling element (.msdoc) — the
-   gutter never gets its own scroller, it rides .msdoc__page's scroll one-
-   for-one. The gutter is `position: sticky`, so while its own box is a
-   normal flow sibling (contributing ~0 height itself — see comments.css's
-   .cmt-gutter__track), it stays pinned within the visible viewport for the
-   whole height of this row, i.e. the whole scrollable document. */
+/* The divergence banner rides the scroller like the toolbar does: sticky
+   just below it, so the keepMine/reloadDisk choice stays visible however
+   deep in the document the user is. */
+.msdoc > .editor-diverged {
+  position: sticky;
+  top: 40px; /* .msdoc__toolbar's height */
+  z-index: 9;
+}
+
+/* The page row. The comments rail is NOT here any more — it lives outside
+   the scroller as .mstab's second column (see the .mstab comment above), so
+   this row holds only the centered page. The old sticky in-scroller gutter —
+   including the dead `:has(.cmt, …)` width-0 collapse that hid the whole
+   comments UI in wide mode — is gone. */
 .msdoc__body {
   display: flex;
   align-items: flex-start;
 }
 
-/* NO leading counterweight for the comment gutter. Mirroring the gutter's
-   260px on the leading side does center the page against the tab, but it
-   puts the prose in a different place than the single-file editor tab puts
-   the same file — which is the whole complaint this rule used to cause. The
-   page centers in the space left over after the gutter instead, matching
-   .editor-tab__source--reading.
-   (A rule here did reserve that 260px, but only briefly: for most of its life
-   a stray comment terminator above it made the selector invalid, so browsers
-   dropped it and nobody saw the spacer. Repairing the comment switched it on
-   for the first time and immediately shifted the document right.) */
-
-/* No cards and no dots -> nothing to hold space for. The gutter stays mounted
-   (ManuscriptTab measures anchor positions through its track ref); it just
-   stops occupying a column. */
-.msdoc__body > .cmt-gutter:not(:has(.cmt, .cmt-dot)) {
-  width: 0;
-  padding-inline: 0; /* comments.css gives it 8px each side, content-box */
-}
-
 /* flex-basis is the measure (not `auto`): as a flex item the page would
    otherwise size to max-content and a short title page would sit in a
-   narrower column than the body. Positive free space is absorbed by the auto
-   margins, which — with the spacer mirroring the gutter — centers the page in
-   the tab; negative free space is taken from the spacer first (above). */
+   narrower column than the body. */
 .msdoc__page {
   flex: 0 1 var(--ed-content-width, 140ch);
   min-width: 0;
@@ -121,21 +122,6 @@
   font-family: var(--ed-body-font, var(--s-font-serif));
   font-size: var(--ed-font-size, 16px);
   line-height: var(--ed-line-height, 1.7);
-}
-
-/* Scoped to .msdoc__body — editor/editor.css's own .editor-tab__source gives
-   .cmt-gutter different (non-sticky, stretch-to-height) rules for the
-   single-file prose tab case, where CodeMirror's own .cm-scroller is the
-   scrolling element instead of this whole row. */
-.msdoc__body .cmt-gutter {
-  position: sticky;
-  top: 40px; /* .msdoc__toolbar's height — sticks just below it, not under it */
-  align-self: flex-start;
-  margin-top: 56px; /* aligns the gutter's own top with .msdoc__page's first content, not its top padding */
-}
-
-.msdoc__body .cmt-gutter--narrow {
-  margin-top: 56px;
 }
 
 /* text blocks align with the CM line padding (16px) */

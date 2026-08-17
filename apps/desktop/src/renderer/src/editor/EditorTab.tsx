@@ -3,18 +3,24 @@ import { StateEffect } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import type { Comment } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
-import { devSeam } from '../state/devSeam'
+import { acquireDocSession, useDocSessionMeta, type DocSession } from '../state/docSessions'
 import { getResolved, useResolved, useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
 import { useVimModeStore } from '../state/vimMode'
 import { useProjectStore } from '../state/project'
 import { commentsByPath, useCommentsStore } from '../state/comments'
-import { locate, makeAnchor } from '../comments/anchor'
-import { anchorTopsFor, applySectionComments, commentAnchorExtension, flashAnchor } from '../comments/anchorExtension'
-import { CommentGutter } from '../comments/CommentGutter'
-import { useNarrowGutter } from '../comments/narrow'
+import { makeAnchor } from '../comments/anchor'
+import {
+  applySectionComments,
+  commentHighlightExtension,
+  liveAnchors,
+  registerLiveAnchorSource
+} from '../comments/anchorExtension'
+import { CommentsRail } from '../comments/CommentsRail'
+import { RailToggleButton } from '../comments/RailToggleButton'
 import '../comments/comments.css'
 import { createEditor, type EditorHandle } from './codemirror'
+import { DivergenceBanner } from './DivergenceBanner'
 import { openCitationPicker } from './CitationPicker'
 import { editorSurfaceStyle, useEditorSettings } from './settings'
 import { EDITOR_THEME_CLASS } from './themes'
@@ -61,7 +67,14 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<EditorHandle | null>(null)
-  const dirtyRef = useRef(false)
+  const sessionRef = useRef<DocSession | null>(null)
+  /** Stable identity for the rail's effects (the ref makes empty deps safe). */
+  const getEditorView = useCallback((): EditorView | null => handleRef.current?.view ?? null, [])
+  /** CM's own scroller is the document's scroll element in this host. */
+  const getScrollElement = useCallback(
+    (): HTMLElement | null => handleRef.current?.view.scrollDOM ?? null,
+    []
+  )
 
   // Resolved through the two-level hierarchy (project ?? global ?? default),
   // NOT the global-only `settings` slice — a suna.json override the Settings
@@ -108,15 +121,6 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   )
   const commentsForPathRef = useRef(commentsForPath)
   commentsForPathRef.current = commentsForPath
-  const flashRequest = useCommentsStore((s) => s.flashRequest)
-
-  const gutterTrackRef = useRef<HTMLDivElement>(null)
-  const [anchorTops, setAnchorTops] = useState<ReadonlyMap<string, number>>(new Map())
-  const [gutterHeight, setGutterHeight] = useState(0)
-  const narrowGutter = useNarrowGutter()
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
-  const recomputePositionsRef = useRef<() => void>(() => {})
-  const geometryCleanupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (sectionPath === null || projectRootDir === null) return
@@ -126,44 +130,30 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     }
   }, [sectionPath, projectRootDir])
 
-  const handleAnchorActivate = useCallback((comment: Comment): void => {
-    useCommentsStore.getState().requestFlash(comment.id)
-  }, [])
-
-  const markDirty = (dirty: boolean): void => {
-    if (dirtyRef.current === dirty) return
-    dirtyRef.current = dirty
-    api.setTitle(dirty ? `${fileName} •` : fileName)
-  }
-
-  const save = async (): Promise<void> => {
-    const view = handleRef.current?.view
-    if (!view) return
+  // The shared session's dirty flag drives the tab-title dot — a save (or an
+  // edit) from ANY surface on this file updates every title.
+  const meta = useDocSessionMeta(path)
+  const metaDirty = meta?.dirty ?? false
+  useEffect(() => {
     try {
-      await window.suna.invoke('fs:write-text', {
-        path,
-        content: view.state.doc.toString()
-      })
-      markDirty(false)
-      devSeam.noteFileSaved(path)
-      useUiStore.getState().setStatusNote(`Saved ${fileName}`)
-    } catch (error) {
-      useUiStore
-        .getState()
-        .setStatusNote(
-          `Could not save ${fileName}: ${error instanceof Error ? error.message : String(error)}`
-        )
+      api.setTitle(metaDirty ? `${fileName} •` : fileName)
+    } catch {
+      // panel already disposed — nothing to retitle
     }
-  }
+  }, [metaDirty, api, fileName])
 
   useEffect(() => {
     let disposed = false
+    let detach: (() => void) | null = null
+    let unregisterAnchors: (() => void) | null = null
+    const { session, release } = acquireDocSession(path)
+    sessionRef.current = session
     // idempotent; guarantees the default mode is known even if a tab mounts
     // before the status bar's load
     void useSettingsStore.getState().load()
     void (async () => {
       try {
-        const { content } = await window.suna.invoke('fs:read-text', { path })
+        const content = await session.ready()
         if (disposed || !hostRef.current) return
         handleRef.current = createEditor({
           parent: hostRef.current,
@@ -175,14 +165,21 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           live: isMarkdown && modeRef.current === 'reading',
           vim: vimRef.current,
           onVimMode: useVimModeStore.getState().setMode,
-          onDocChanged: () => markDirty(true),
-          onSave: () => save(),
+          // dirty tracking lives in the shared session (its sync extension
+          // sees every local edit); nothing to do per keystroke here
+          onDocChanged: () => {},
+          onSave: () => session.save().then(() => undefined),
           // `:q` must not destroy an unwritten buffer — real vim answers "E37:
           // No write since last change" and stays put. Returning false is what
           // surfaces that; `:q!` (force) and `:wq` (which writes first) are the
-          // two ways through.
+          // two ways through. With the shared buffer, only the LAST view of a
+          // dirty document refuses — another surface still holds the work.
+          // `:q!` on that last view DISCARDS the buffer (revert to disk), so
+          // the forcibly-abandoned edits cannot resurrect on the next open.
           onClose: (force) => {
-            if (dirtyRef.current && !force) return false
+            const lastView = session.viewCount() <= 1
+            if (session.isDirty() && lastView && !force) return false
+            if (force && lastView && session.isDirty()) session.discard()
             api.close()
             return true
           },
@@ -204,70 +201,23 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           // wide via the project root + manuscript.json's bibliography).
           onInsertCitation: (view) => openCitationPicker(view)
         })
+        detach = session.attach(handleRef.current.view)
 
         if (isMarkdown) {
           const view = handleRef.current.view
-
-          let recomputeScheduled = false
-          const recompute = (): void => {
-            const gutterEl = gutterTrackRef.current
-            if (gutterEl === null) return
-            setAnchorTops(anchorTopsFor(view, commentsForPathRef.current, gutterEl))
-          }
-          const scheduleRecompute = (): void => {
-            if (recomputeScheduled) return
-            recomputeScheduled = true
-            requestAnimationFrame(() => {
-              recomputeScheduled = false
-              recompute()
-            })
-          }
-          recomputePositionsRef.current = recompute
-
           view.dispatch({
             effects: StateEffect.appendConfig.of([
-              commentAnchorExtension(
-                (from, to) => {
-                  const sp = sectionPathRef.current
-                  if (sp === null) return
-                  const anchor = makeAnchor(view.state.doc.toString(), from, to)
-                  useCommentsStore
-                    .getState()
-                    .startDraft({ kind: 'section', path: sp, anchor }, anchor.quote)
-                },
-                (commentId) => setActiveCommentId(commentId)
-              ),
-              EditorView.updateListener.of((u) => {
-                if (u.docChanged || u.viewportChanged || u.geometryChanged) scheduleRecompute()
-              })
+              // highlight decorations + click-to-activate; the rail owns the
+              // reverse direction (card click -> flash) and the flash watcher
+              commentHighlightExtension((commentId: string) =>
+                useCommentsStore.getState().setActive(commentId)
+              )
             ])
           })
           applySectionComments(view, commentsForPathRef.current)
-          scheduleRecompute()
-
-          // CodeMirror owns the actual scrolling element here (.cm-scroller,
-          // exposed as view.scrollDOM — unlike the combined manuscript tab,
-          // .editor-tab__source itself does not scroll), so position
-          // recompute is driven off it directly.
-          let scrollScheduled = false
-          const onScroll = (): void => {
-            if (scrollScheduled) return
-            scrollScheduled = true
-            requestAnimationFrame(() => {
-              scrollScheduled = false
-              recompute()
-            })
-          }
-          view.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
-          const resizeObserver = new ResizeObserver((entries) => {
-            const entry = entries[0]
-            if (entry !== undefined) setGutterHeight(entry.contentRect.height)
-            recompute()
-          })
-          resizeObserver.observe(view.scrollDOM)
-          geometryCleanupRef.current = () => {
-            view.scrollDOM.removeEventListener('scroll', onScroll)
-            resizeObserver.disconnect()
+          const sp = sectionPathRef.current
+          if (sp !== null) {
+            unregisterAnchors = registerLiveAnchorSource(sp, () => liveAnchors(view.state))
           }
         }
       } catch (error) {
@@ -278,11 +228,12 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     })()
     return () => {
       disposed = true
-      geometryCleanupRef.current?.()
-      geometryCleanupRef.current = null
+      unregisterAnchors?.()
+      detach?.()
       handleRef.current?.destroy()
       handleRef.current = null
-      recomputePositionsRef.current = () => {}
+      sessionRef.current = null
+      release()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path])
@@ -324,39 +275,29 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     const node = rootRef.current
     if (!node || !isMarkdown) return
     const onKey = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.key !== 'e') return
-      event.preventDefault()
-      toggleMode()
+      if (!(event.metaKey || event.ctrlKey)) return
+      if (event.key === 'e') {
+        event.preventDefault()
+        toggleMode()
+      }
+      // ⌘⌥M toggles the comments rail (matching the manuscript tab)
+      if (event.altKey && (event.key === 'm' || event.code === 'KeyM')) {
+        event.preventDefault()
+        useUiStore.getState().toggleCommentsRail()
+      }
     }
     node.addEventListener('keydown', onKey)
     return () => node.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, isMarkdown])
 
-  /** Stable callback for the gutter's onTrackMoved (see CommentGutter). */
-  const recomputePositions = useCallback((): void => recomputePositionsRef.current(), [])
-
-  // push comment-list changes into this editor's live anchor decorations and
-  // re-diff their positions — resolving/adding/removing a comment changes
-  // the set the gutter tracks even when the document itself hasn't changed.
+  // push comment-list changes into this editor's live anchor decorations —
+  // resolving/adding/removing a comment changes the set even when the
+  // document itself hasn't changed. (The rail owns flash + active mirror.)
   useEffect(() => {
     const view = handleRef.current?.view
     if (view) applySectionComments(view, commentsForPath)
-    recomputePositionsRef.current()
   }, [commentsForPath])
-
-  // "scroll to and flash the anchor" requests from the margin gutter
-  // (comments/CommentGutter.tsx); a no-op unless the flashed comment targets
-  // this file and its quote still resolves in the live document.
-  useEffect(() => {
-    if (flashRequest === null || sectionPath === null) return
-    const view = handleRef.current?.view
-    const comment = commentsForPathRef.current.find((c) => c.id === flashRequest.commentId)
-    if (!view || comment === undefined || comment.target.kind !== 'section') return
-    const range = locate(view.state.doc.toString(), comment.target.anchor)
-    if (range === null) return
-    flashAnchor(view, range.from, range.to)
-  }, [flashRequest, sectionPath])
 
   if (loadError) {
     return (
@@ -382,6 +323,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
             {MODE_LABEL[mode]}
           </button>
         )}
+        {sectionPath !== null && <RailToggleButton />}
         <button
           className="editor-tab__gear"
           onClick={() => setSettingsOpen((open) => !open)}
@@ -394,19 +336,15 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           <SettingsPopover contentKind={contentKind} onClose={() => setSettingsOpen(false)} />
         )}
       </div>
+      <DivergenceBanner path={path} />
       <div className={`editor-tab__source${mode === 'reading' ? ' editor-tab__source--reading' : ''}`}>
         <div ref={hostRef} className="editor-tab__cm" />
         {sectionPath !== null && (
-          <CommentGutter
-            ref={gutterTrackRef}
+          <CommentsRail
             comments={commentsForPath}
-            anchorTops={anchorTops}
-            containerHeight={gutterHeight}
-            narrow={narrowGutter}
-            activeId={activeCommentId}
-            onActiveIdChange={setActiveCommentId}
-            onAnchorActivate={handleAnchorActivate}
-            onTrackMoved={recomputePositions}
+            docPath={sectionPath}
+            getView={getEditorView}
+            getScrollElement={getScrollElement}
           />
         )}
       </div>

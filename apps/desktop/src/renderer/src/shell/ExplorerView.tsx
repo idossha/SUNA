@@ -8,6 +8,7 @@ import {
 } from 'react'
 import type { ProjectDirKey } from '@suna/core'
 import { useProjectStore } from '../state/project'
+import { useManuscriptStore } from '../state/manuscript'
 import { useExplorerStore, type ExplorerEditing, type ExplorerRow } from '../state/explorer'
 import { useOpenTabsStore } from '../state/openTabs'
 import { openFileTab, openInSplit } from '../state/dock'
@@ -270,7 +271,21 @@ export function ExplorerView(): JSX.Element {
   const seedExpansion = useExplorerStore((s) => s.seedExpansion)
   const openPaths = useOpenTabsStore((s) => s.paths)
   const activePath = useOpenTabsStore((s) => s.activePath)
+  const manuscriptRoots = useOpenTabsStore((s) => s.manuscriptRoots)
+  const activeManuscriptRoot = useOpenTabsStore((s) => s.activeManuscriptRoot)
   const listRef = useRef<HTMLDivElement>(null)
+
+  // The combined Manuscript tab is a window onto the prose file (shared doc
+  // session), so its row shows the open/active marker too — without this,
+  // clicking manuscript.md looked like opening a fresh, unrelated buffer.
+  const manuscriptFileName = useManuscriptStore(
+    (s) => s.manuscript?.manuscriptFile ?? 'manuscript.md'
+  )
+  const manuscriptProsePath = useMemo(() => {
+    if (rootDir === null || !manuscriptRoots.has(rootDir)) return null
+    const manuscriptDir = manifest?.directories.manuscript ?? 'manuscript'
+    return `${rootDir}/${manuscriptDir}/${manuscriptFileName}`
+  }, [rootDir, manuscriptRoots, manifest, manuscriptFileName])
 
   // Seed the default expansion once per project, so switching projects does
   // not inherit the previous one's collapsed folders.
@@ -416,8 +431,11 @@ export function ExplorerView(): JSX.Element {
               editing={editing}
               selected={selectionSet.has(path)}
               focused={focusPath === path}
-              isOpen={openPaths.has(path)}
-              isActive={activePath === path}
+              isOpen={openPaths.has(path) || path === manuscriptProsePath}
+              isActive={
+                activePath === path ||
+                (path === manuscriptProsePath && activeManuscriptRoot === rootDir)
+              }
               expanded={expanded.has(path) || forcesOpen(editing, path)}
               semantic={semantic.get(path)}
             />

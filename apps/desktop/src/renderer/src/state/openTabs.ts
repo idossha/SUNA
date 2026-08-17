@@ -18,13 +18,30 @@ interface OpenTabsState {
   paths: ReadonlySet<string>
   /** Path of the frontmost file tab, or null when a non-file tab is active. */
   activePath: string | null
-  setOpenTabs: (paths: ReadonlySet<string>, activePath: string | null) => void
+  /**
+   * rootDirs with an open combined Manuscript tab (`manuscript:<rootDir>`).
+   * The Explorer ORs these into the manuscript.md row's open/active marker —
+   * that tab IS a window onto the same file (shared doc session), and
+   * without this the row gave no hint a second surface already holds it.
+   */
+  manuscriptRoots: ReadonlySet<string>
+  /** rootDir of the frontmost Manuscript tab, or null. */
+  activeManuscriptRoot: string | null
+  setOpenTabs: (
+    paths: ReadonlySet<string>,
+    activePath: string | null,
+    manuscriptRoots: ReadonlySet<string>,
+    activeManuscriptRoot: string | null
+  ) => void
 }
 
 export const useOpenTabsStore = create<OpenTabsState>((set) => ({
   paths: new Set<string>(),
   activePath: null,
-  setOpenTabs: (paths, activePath) => set({ paths, activePath })
+  manuscriptRoots: new Set<string>(),
+  activeManuscriptRoot: null,
+  setOpenTabs: (paths, activePath, manuscriptRoots, activeManuscriptRoot) =>
+    set({ paths, activePath, manuscriptRoots, activeManuscriptRoot })
 }))
 
 /** A panel id is a file tab when it is an absolute path (see the note above). */

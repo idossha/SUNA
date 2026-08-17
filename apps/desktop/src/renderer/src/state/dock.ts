@@ -12,12 +12,22 @@ let dockApi: DockviewApi | null = null
 function syncOpenTabs(): void {
   if (!dockApi) return
   const paths = new Set<string>()
+  const manuscriptRoots = new Set<string>()
   for (const panel of dockApi.panels) {
     if (isFilePanelId(panel.id)) paths.add(panel.id)
+    if (panel.view.contentComponent === 'manuscript') {
+      const rootDir = panel.params?.['rootDir']
+      if (typeof rootDir === 'string') manuscriptRoots.add(rootDir)
+    }
   }
-  const activeId = dockApi.activePanel?.id ?? null
+  const active = dockApi.activePanel ?? null
+  const activeId = active?.id ?? null
   const activePath = activeId !== null && isFilePanelId(activeId) ? activeId : null
-  useOpenTabsStore.getState().setOpenTabs(paths, activePath)
+  const activeRoot =
+    active !== null && active.view.contentComponent === 'manuscript'
+      ? ((active.params?.['rootDir'] as string | undefined) ?? null)
+      : null
+  useOpenTabsStore.getState().setOpenTabs(paths, activePath, manuscriptRoots, activeRoot)
 }
 
 export function setDockApi(api: DockviewApi): void {
