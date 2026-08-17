@@ -31,6 +31,7 @@
  */
 import { execSync, execFileSync } from 'node:child_process'
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -39,6 +40,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync
 } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -5868,6 +5870,371 @@ try {
     assert(after.aiButton, 'the ✦ AI button did not come back after Cancel')
     const note = await evalJs(`window.__sunaDev.uiStore.getState().statusNote`)
     assert(note !== null && /cancel/i.test(note), `the cancelled run was not reported honestly: ${note}`)
+  })
+
+  await step('explorer-drag-move', async () => {
+    // feature-plan-9 §2 in the running app: a real synthetic drag moves a file
+    // on disk, the open tab follows it, and a folder dropped into its own
+    // child is refused. The Finder/OS actions at the end stop at the IPC
+    // boundary on purpose (§5): a real `shell:reveal` would pop a Finder
+    // window onto the screen the hidden-driver work exists to keep clear, so
+    // what is asserted here is the wiring — labels, enablement, and the
+    // executable refusal.
+    //
+    // The recents/onboarding steps switch projects, so re-point at the copy
+    // first (comment-ai-cancel does the same, but returns early with no CLI).
+    await evalJs(`window.__sunaDev.openProjectAt(${JSON.stringify(COPY_DIR)})`)
+    await sleep(2000)
+    const rootDir = await evalJs(`window.__sunaDev.projectStore.getState().rootDir`)
+    assert(rootDir === COPY_DIR, `reopening the example landed on ${rootDir}`)
+    await showView('explorer')
+    await sleep(400)
+
+    const dataDir = join(COPY_DIR, 'data')
+    const figuresDir = join(COPY_DIR, 'figures')
+    const spectrumDir = join(figuresDir, 'fig-spectrum')
+    const atRoot = join(COPY_DIR, 'drag-probe.md')
+    const inData = join(dataDir, 'drag-probe.md')
+
+    /**
+     * One synthetic drag up to the hover: dragstart on the source row, then
+     * dragenter/dragover on the target. The DataTransfer is a REAL one — the
+     * same technique the SVG-import step above uses — so the handlers'
+     * setData/getData go through the platform object and the payload read
+     * back here is the payload a real drag would carry. It is stashed on
+     * `window` because each evaluate has its own scope and the drop must
+     * carry the SAME transfer the dragstart filled. `overPath: null` targets
+     * the tree container below the last row: the project-root drop.
+     */
+    const hover = (fromPath, overPath) =>
+      evalJs(`(() => {
+        const rows = [...document.querySelectorAll('.tree__row')];
+        const row = (p) => rows.find((r) => r.dataset.path === p) ?? null;
+        const src = row(${JSON.stringify(fromPath)});
+        if (src === null) throw new Error('no tree row for ' + ${JSON.stringify(fromPath)});
+        const target = ${overPath === null ? `document.querySelector('.tree')` : `row(${JSON.stringify(overPath)})`};
+        if (target === null) throw new Error('no drop target for ' + ${JSON.stringify(overPath ?? '(tree empty area)')});
+        if (!src.draggable) throw new Error('.tree__row is not draggable');
+        const box = target.getBoundingClientRect();
+        const at = {
+          clientX: box.left + 24,
+          clientY: ${overPath === null ? 'box.bottom - 4' : 'box.top + box.height / 2'}
+        };
+        const dt = new DataTransfer();
+        const fire = (el, type) =>
+          el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, ...at }));
+        fire(src, 'dragstart');
+        fire(target, 'dragenter');
+        fire(target, 'dragover');
+        window.__sunaDragProbe = { src, target, dt, at };
+        return {
+          paths: dt.getData('application/x-suna-paths'),
+          text: dt.getData('text/plain'),
+          effectAllowed: dt.effectAllowed,
+          rowHighlights: [...document.querySelectorAll('.tree__row--droptarget')].map((r) => r.dataset.path),
+          rootHighlighted: !!document.querySelector('.tree--droptarget')
+        };
+      })()`)
+
+    const drop = () =>
+      evalJs(`(() => {
+        const probe = window.__sunaDragProbe;
+        if (!probe) throw new Error('drop without a drag in flight');
+        const opts = { bubbles: true, cancelable: true, dataTransfer: probe.dt, ...probe.at };
+        probe.target.dispatchEvent(new DragEvent('drop', opts));
+        probe.src.dispatchEvent(new DragEvent('dragend', opts));
+        delete window.__sunaDragProbe;
+        return true;
+      })()`)
+
+    const rowExists = (path) =>
+      evalJs(
+        `[...document.querySelectorAll('.tree__row')].some((r) => r.dataset.path === ${JSON.stringify(path)})`
+      )
+    const panelIds = () => evalJs(`Object.keys(window.__sunaDev.dock.panelComponents())`)
+    /** Poll a node-side or page-side predicate; the drop is one IPC round trip
+     *  plus a tree refresh away from being visible. */
+    const until = async (predicate, what, tries = 24) => {
+      for (let i = 0; i < tries; i++) {
+        if (await predicate()) return
+        await sleep(250)
+      }
+      throw new Error(`timed out waiting for ${what}`)
+    }
+
+    try {
+      // a leftover from an aborted run would make "the file moved" pass vacuously
+      rmSync(atRoot, { force: true })
+      rmSync(inData, { force: true })
+      await evalJs(
+        `window.suna.invoke('fs:create-file', { path: ${JSON.stringify(atRoot)}, content: '# drag probe\\n' })`
+      )
+      await evalJs(
+        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(dataDir)}, true)`
+      )
+      await evalJs(
+        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(figuresDir)}, true)`
+      )
+      await evalJs(`window.__sunaDev.projectStore.getState().refreshTree()`)
+      await until(() => rowExists(atRoot), 'the probe file appearing in the tree')
+      await evalJs(`window.__sunaDev.dock.openFileTab(${JSON.stringify(atRoot)})`)
+      await until(async () => (await panelIds()).includes(atRoot), 'a tab open on the probe file')
+
+      // --- a file row onto a folder row -----------------------------------
+      const ontoFolder = await hover(atRoot, dataDir)
+      assert(
+        ontoFolder.paths === JSON.stringify([atRoot]),
+        `application/x-suna-paths carried ${ontoFolder.paths || '(nothing)'}`
+      )
+      assert(ontoFolder.text === atRoot, `the text/plain fallback carried '${ontoFolder.text}'`)
+      // NOT asserted: Chromium ignores effectAllowed/dropEffect assignment on a
+      // synthetic `new DataTransfer()` (measured — both read back 'none'),
+      // though setData works. The payload and the highlight below are what a
+      // synthetic drag can actually observe.
+      assert(
+        ontoFolder.rowHighlights.length === 1 && ontoFolder.rowHighlights[0] === dataDir,
+        `hovering data/ highlighted ${JSON.stringify(ontoFolder.rowHighlights)}`
+      )
+      await screenshot('explorer-drag-move.png') // the droptarget highlight, mid-drag
+      await drop()
+      await until(() => existsSync(inData) && !existsSync(atRoot), 'the file moving into data/ on disk')
+      await until(() => rowExists(inData), 'the row rendering under data/')
+      assert(!(await rowExists(atRoot)), 'the row is still listed at the project root after the move')
+      // measurement 5's dead-tab bug: the open tab must follow the file
+      await until(async () => (await panelIds()).includes(inData), 'the open tab retargeting to data/')
+      assert(!(await panelIds()).includes(atRoot), 'a panel is still open on the pre-move path')
+
+      // --- and back out to the project root --------------------------------
+      const ontoRoot = await hover(inData, null)
+      assert(ontoRoot.rootHighlighted, '.tree--droptarget missing on a hover over the tree empty area')
+      assert(
+        ontoRoot.rowHighlights.length === 0,
+        `a root drop also highlighted rows: ${JSON.stringify(ontoRoot.rowHighlights)}`
+      )
+      await drop()
+      await until(() => existsSync(atRoot) && !existsSync(inData), 'the file moving back to the root')
+      await until(async () => (await panelIds()).includes(atRoot), 'the tab retargeting back to the root path')
+
+      // --- refused: a folder onto its own child ----------------------------
+      const refused = await hover(figuresDir, spectrumDir)
+      assert(
+        refused.rowHighlights.length === 0 && !refused.rootHighlighted,
+        `figures/ onto its own child painted a target: ${JSON.stringify(refused.rowHighlights)}`
+      )
+      await drop()
+      await sleep(800)
+      assert(existsSync(spectrumDir), `${spectrumDir} disappeared — the refused drop moved something`)
+      assert(
+        !existsSync(join(spectrumDir, 'figures')),
+        'figures/ moved into its own child — the descendant guard did not hold'
+      )
+      assert(readdirSync(COPY_DIR).includes('figures'), 'figures/ is no longer at the project root')
+    } finally {
+      await evalJs(`delete window.__sunaDragProbe`)
+      for (const path of [atRoot, inData]) {
+        await evalJs(`window.__sunaDev.dock.closePanel(${JSON.stringify(path)})`)
+        rmSync(path, { force: true })
+      }
+      await evalJs(`window.__sunaDev.projectStore.getState().refreshTree()`)
+    }
+
+    // --- §3: the OS actions, asserted at the IPC boundary only -------------
+    const revealLabel =
+      process.platform === 'darwin'
+        ? 'Reveal in Finder'
+        : process.platform === 'win32'
+          ? 'Show in Explorer'
+          : 'Show in File Manager'
+    const osItems = () =>
+      evalJs(`(() => {
+        const read = (action) => {
+          const item = document.querySelector('.ctxmenu__item[data-action="' + action + '"]');
+          return item ? { text: item.textContent.trim(), disabled: item.disabled } : null;
+        };
+        const rename = [...document.querySelectorAll('.ctxmenu__item')]
+          .find((b) => b.textContent.startsWith('Rename'));
+        return {
+          reveal: read('reveal-in-os'),
+          open: read('open-with-os'),
+          renameDisabled: rename ? rename.disabled : null
+        };
+      })()`)
+
+    await evalJs(`window.__sunaDev.explorerStore.getState().selectRow(${JSON.stringify(join(COPY_DIR, 'suna.json'))}, [], {})`)
+    await openTreeMenu('suna.json')
+    await sleep(200)
+    const single = await osItems()
+    assert(single.reveal !== null, `no .ctxmenu__item[data-action="reveal-in-os"] in the explorer menu`)
+    assert(single.open !== null, `no .ctxmenu__item[data-action="open-with-os"] in the explorer menu`)
+    assert(
+      single.reveal.text.includes(revealLabel),
+      `the reveal item reads '${single.reveal.text}', expected '${revealLabel}' on ${process.platform}`
+    )
+    assert(
+      single.open.text.includes('Open with Default App'),
+      `the open-with item reads '${single.open.text}'`
+    )
+    assert(!single.reveal.disabled && !single.open.disabled, 'both OS actions are disabled on a single row')
+    await evalJs(`window.__sunaDev.explorerStore.getState().closeMenu()`)
+
+    // >1 selected: both disable, exactly as Rename… does (§3's precedent)
+    await evalJs(`(() => {
+      const store = window.__sunaDev.explorerStore.getState();
+      store.selectRow(${JSON.stringify(join(COPY_DIR, 'suna.json'))}, [], {});
+      store.selectRow(${JSON.stringify(join(COPY_DIR, 'README.md'))}, [], { additive: true });
+      return true;
+    })()`)
+    await openTreeMenu('suna.json')
+    await sleep(200)
+    const multi = await osItems()
+    assert(multi.renameDisabled === true, 'Rename… is not disabled at 2 selected — the precedent moved')
+    assert(
+      multi.reveal.disabled === true && multi.open.disabled === true,
+      `with 2 rows selected the OS actions must disable: ${JSON.stringify(multi)}`
+    )
+    await evalJs(`window.__sunaDev.explorerStore.getState().closeMenu()`)
+
+    // The one channel this suite may call: it must REFUSE. The fixture keeps
+    // a .txt extension on purpose — the guard under test is the user-execute
+    // MODE bit, and if it ever regresses, a .txt is the least harmful thing
+    // LaunchServices could be handed.
+    const execProbe = join(COPY_DIR, 'exec-probe.txt')
+    writeFileSync(execProbe, 'not a program\n')
+    chmodSync(execProbe, 0o755)
+    assert((statSync(execProbe).mode & 0o100) !== 0, 'the fixture is not user-executable — nothing was tested')
+    const refusal = await evalJs(
+      `window.suna.invoke('shell:open-path', { path: ${JSON.stringify(execProbe)} })`
+    )
+    rmSync(execProbe, { force: true })
+    assert(
+      refusal && typeof refusal.error === 'string' && refusal.error.length > 0,
+      `shell:open-path did not refuse an executable file: ${JSON.stringify(refusal)}`
+    )
+    assert(
+      /refus/i.test(refusal.error) && refusal.error.includes('exec-probe.txt'),
+      `the refusal is not an honest, file-naming one: ${refusal.error}`
+    )
+  })
+
+  await step('help-in-vim-mode', async () => {
+    // feature-plan-9 §1. Measured, not assumed: in NORMAL mode a bare '?' is
+    // vim's search-backward and never reaches the window listener, so the
+    // overlay needs ⌘⇧/ (which arrives unprevented) or vim's own :help.
+    //
+    // The dock is emptied first (step 48's move): by now the split-view steps
+    // have left editors in two groups, and "the visible editor" below must be
+    // the manuscript buffer this step then compares before and after. Safe
+    // because this is the last step — nothing after it needs a tab.
+    await evalJs(`window.__sunaDev.dock.clearDock()`)
+    await sleep(400)
+    await evalJs(`window.__sunaDev.dock.openFileTab(${JSON.stringify(MANUSCRIPT_MD)})`)
+    await sleep(1500)
+    const visibleContent = `(() => {
+      const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
+      return host ? host.querySelector('.cm-content') : null;
+    })()`
+    const focusBuffer = () =>
+      evalJs(`(() => {
+        const content = ${visibleContent};
+        if (!content) throw new Error('no visible editor tab to focus');
+        content.focus();
+        return true;
+      })()`)
+    const overlayOpen = () => evalJs(`!!document.querySelector('.help-overlay')`)
+    const vimPanel = () =>
+      evalJs(`(() => {
+        const panel = document.querySelector('.cm-vim-panel');
+        return panel ? panel.textContent : null;
+      })()`)
+
+    await evalJs(`window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', true)`)
+    try {
+      await focusBuffer()
+      // The status-bar chip is the only signal that the keymap is installed on
+      // THIS editor; the setting alone says nothing about which view took it.
+      let mode = null
+      for (let i = 0; i < 20 && mode !== 'normal'; i++) {
+        mode = await evalJs(
+          `(() => { const chip = document.querySelector('.statusbar__vim'); return chip ? chip.textContent.trim() : null; })()`
+        )
+        if (mode !== 'normal') await sleep(250)
+      }
+      assert(mode === 'normal', `the buffer is in '${mode}' mode, not normal`)
+      // Polled: the shared session reads the file asynchronously, and `peek`
+      // answers null until it has.
+      let bufferBefore = null
+      for (let i = 0; i < 20 && typeof bufferBefore !== 'string'; i++) {
+        bufferBefore = await evalJs(
+          `window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})`
+        )
+        if (typeof bufferBefore !== 'string') await sleep(250)
+      }
+      assert(typeof bufferBefore === 'string', 'no shared doc session for the manuscript buffer')
+      assert(!(await overlayOpen()), 'the help overlay is already open before the vim pass')
+
+      // ⌘⇧/ — measurement 3: it reaches the window dispatcher unprevented
+      await key('?', 'Slash', 12) // CDP modifiers: 4 = Meta, 8 = Shift
+      await sleep(500)
+      assert(await overlayOpen(), '⌘⇧/ did not open the overlay from a vim buffer')
+      await screenshot('help-in-vim-mode.png')
+      await key('Escape', 'Escape')
+      await sleep(300)
+      assert(!(await overlayOpen()), 'Esc did not close the overlay opened by ⌘⇧/')
+
+      // :help — the vim-native path through the ex registry
+      await focusBuffer()
+      await key(':', 'Semicolon', 8)
+      await sleep(400)
+      assert(
+        await evalJs(`!!document.querySelector('.cm-vim-panel input')`),
+        `':' did not open vim's command line`
+      )
+      await insertText('help')
+      const typed = await evalJs(`document.querySelector('.cm-vim-panel input').value`)
+      assert(typed === 'help', `the ':' command line reads '${typed}' after typing help`)
+      // windowsVirtualKeyCode is NOT optional: vim's command line tests
+      // `e.keyCode == 13`, and CDP leaves keyCode 0 without it, so a plain
+      // Enter would be swallowed and :help would never run.
+      for (const type of ['keyDown', 'keyUp']) {
+        await send('Input.dispatchKeyEvent', {
+          type,
+          key: 'Enter',
+          code: 'Enter',
+          windowsVirtualKeyCode: 13,
+          nativeVirtualKeyCode: 13
+        })
+      }
+      await sleep(600)
+      assert(await overlayOpen(), `':help' did not open the overlay`)
+      await key('Escape', 'Escape')
+      await sleep(300)
+      assert(!(await overlayOpen()), `Esc did not close the overlay opened by ':help'`)
+
+      // a bare '?' — vim's search-backward panel, never the overlay. Sent
+      // without text: in normal mode the keymap consumes the keydown, so a
+      // text-carrying event would only matter if the keymap broke — and then
+      // it would write into manuscript.md instead of failing an assertion.
+      await focusBuffer()
+      await key('?', 'Slash', 8)
+      await sleep(500)
+      assert(!(await overlayOpen()), `a bare '?' in a vim buffer opened the overlay`)
+      const panel = await vimPanel()
+      assert(
+        panel !== null && panel.includes('?'),
+        `'?' did not open vim's search panel: ${JSON.stringify(panel)}`
+      )
+      await key('Escape', 'Escape')
+      await sleep(300)
+      assert((await vimPanel()) === null, `Esc did not close vim's search panel`)
+
+      const bufferAfter = await evalJs(
+        `window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})`
+      )
+      assert(bufferAfter === bufferBefore, 'the vim pass changed the manuscript buffer')
+    } finally {
+      // Vim off however this ended: every later step's keyboard depends on it.
+      await evalJs(`window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', false)`)
+    }
   })
 
   // Under KEEP_GOING a failed step did not throw, so the summary is decided

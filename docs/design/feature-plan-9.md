@@ -133,7 +133,10 @@ request `{ paths: string[], targetDir: string }` → response
 - per-path failures are collected, never thrown: the batch moves what it
   can and names what it could not, mirroring the existing multi-delete
   convention. Status note: `Moved 3 items to data/` or
-  `Moved 2 items to data/; 1 could not move: fig.svg already exists`.
+  `Moved 2 items to data/; 1 could not move: fig.svg (already exists)`.
+  The renderer shortens main's reason for that tail — main names the
+  absolute destination (it is a service error, and precise), which is
+  more than one status-bar line should carry.
 - **Non-goal**: no `EXDEV` copy+unlink fallback. A project lives in one
   tree; if a cross-device rename ever fails, the raw error is reported
   verbatim rather than silently doing something else.
