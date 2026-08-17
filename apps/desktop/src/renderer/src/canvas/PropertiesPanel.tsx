@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { interact, type CanvasDocument } from '@suna/canvas'
 import type { CanvasCommand, PublisherProfile } from '@suna/core'
+import { AgentSection } from './AgentSection'
 import { AlignSection } from './AlignSection'
 import { firstNumber, fmt, styleValue, toHexColor, type WorldRect } from './canvas-util'
 import { ExportSection } from './ExportSection'
@@ -33,6 +34,10 @@ interface PropertiesPanelProps {
   note: (text: string) => void
   /** Ensures figure.svg on disk matches the editor before an export reads it. */
   save: () => Promise<void>
+  /** §4 Agent capture: selection union (or artboard) → PNG; null = no screenshot. */
+  captureForAgent: () => Promise<{ path: string; ids: string[] } | null>
+  /** §4 Agent success hook: reload figure.svg from disk, or warn when dirty. */
+  afterAgentEdit: () => Promise<void>
 }
 
 /** Color control: swatch + hex field + none toggle (+ optional palette row). */
@@ -413,6 +418,12 @@ export function PropertiesPanel(props: PropertiesPanelProps): JSX.Element {
           selectedIds={selectedIds}
           apply={apply}
           note={props.note}
+        />
+        <AgentSection
+          figureId={props.figureId}
+          selectedIds={selectedIds}
+          captureForAgent={props.captureForAgent}
+          afterAgentEdit={props.afterAgentEdit}
         />
         <ExportSection
           doc={doc}

@@ -150,6 +150,45 @@
   color: var(--s-err);
 }
 
+/* ---- directed AI action (feature-plan-8 §3) ---------------------------------
+   `.cmt__btn--ai` and `.cmt-card--ai-busy` are probe selectors (§7) — renaming
+   them breaks scripts/e2e. Gold accent throughout: agent things are gold here
+   (badge, anchors), and the disabled state keeps the honest `title` reason. */
+
+.cmt__btn--ai {
+  border-color: color-mix(in srgb, var(--s-accent) 50%, transparent);
+  color: var(--s-accent);
+}
+
+.cmt__btn--ai:hover {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+.cmt__btn--ai:disabled {
+  opacity: 0.45;
+}
+
+.cmt__btn--ai:disabled:hover {
+  border-color: color-mix(in srgb, var(--s-accent) 50%, transparent);
+}
+
+/* a run in flight: the whole card signals gold until finish/cancel */
+.cmt-card--ai-busy {
+  border-color: color-mix(in srgb, var(--s-accent) 60%, var(--s-border));
+}
+
+.cmt__ai-note {
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  /* progress lines can be long — never push Cancel off the card */
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cmt__replybox {
   display: flex;
   flex-direction: column;

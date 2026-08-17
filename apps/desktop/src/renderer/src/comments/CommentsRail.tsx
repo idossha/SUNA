@@ -9,12 +9,16 @@ import {
 } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { Comment } from '@suna/core'
+import { cliGate, runCommentFix, type CliGateResult } from '../ai/directedActions'
+import type { CommentThreadEntry } from '../ai/templates'
+import { commentRunKey, useAiActionsStore } from '../state/aiActions'
 import {
   COMMENTS_RAIL_WIDTH_MIN,
   clampCommentsRailWidth,
   useUiStore
 } from '../state/ui'
 import { useCommentsStore } from '../state/comments'
+import { useProjectStore } from '../state/project'
 import { locate, makeAnchor } from './anchor'
 import {
   flashAnchorById,
@@ -59,6 +63,37 @@ export interface CommentsRailProps {
 const HOST_MIN_DOCUMENT_PX = 420
 /** Assumed height for a card not measured yet. */
 const DEFAULT_CARD_HEIGHT = 72
+/** Prose sent to the agent around a comment's anchor (feature-plan-8 §3). */
+const SURROUND_RADIUS = 400
+/** Shown on the AI buttons until the one cliGate round trip resolves. */
+const GATE_PENDING: CliGateResult = { ok: false, reason: 'Checking for an AI CLI…' }
+
+/** Clamped `[from - radius, to + radius)` slice — the agent's local context. */
+export function surroundingText(
+  text: string,
+  from: number,
+  to: number,
+  radius: number = SURROUND_RADIUS
+): string {
+  return text.slice(Math.max(0, from - radius), Math.min(text.length, to + radius))
+}
+
+/**
+ * The thread as the comment-fix template wants it: the comment first, then
+ * its replies in order, agent authors named by model like AuthorBadge.
+ */
+export function commentThreadEntries(comment: Comment): CommentThreadEntry[] {
+  const label = (author: Comment['author']): string =>
+    author.kind === 'agent' ? (author.model ?? author.name) : author.name
+  return [
+    { author: label(comment.author), when: comment.createdAt, body: comment.body },
+    ...comment.replies.map((reply) => ({
+      author: label(reply.author),
+      when: reply.createdAt,
+      body: reply.body
+    }))
+  ]
+}
 
 function AuthorBadge({ author }: { author: Comment['author'] }): JSX.Element {
   return (
@@ -124,11 +159,18 @@ interface ThreadCardProps {
   active: boolean
   onActivate: () => void
   getView: () => EditorView | null
+  /** Shared verdict from the rail's single cliGate round trip (§2a). */
+  aiGate: CliGateResult
 }
 
-function ThreadCard({ comment, active, onActivate, getView }: ThreadCardProps): JSX.Element {
+function ThreadCard({ comment, active, onActivate, getView, aiGate }: ThreadCardProps): JSX.Element {
   const [replying, setReplying] = useState(false)
   const [replyBody, setReplyBody] = useState('')
+
+  // The run lives in the aiActions store, not here: this card unmounts on
+  // deactivate while the CLI child keeps going, and must find its progress
+  // and cancel handle again on remount.
+  const aiRun = useAiActionsStore((s) => s.runs[commentRunKey(comment.id)])
 
   // The composing guard is tied to the reply box's MOUNTED LIFETIME, not to
   // imperative open/close calls: hiding the rail, closing the tab, or an
@@ -170,9 +212,51 @@ function ThreadCard({ comment, active, onActivate, getView }: ThreadCardProps): 
     void useCommentsStore.getState().resolve(comment.id, nextResolved, refreshed)
   }
 
+  const sendToAi = (): void => {
+    if (comment.target.kind !== 'section') return
+    const rootDir = useProjectStore.getState().rootDir
+    if (rootDir === null) return
+    // Snapshot the LIVE anchor exactly like toggleResolved (flux PAP-9): the
+    // agent's find/replace must aim at where the text is NOW, not at where
+    // it was when the comment was written.
+    const view = getView()
+    let anchor: { quote: string; prefix: string; suffix: string } = comment.target.anchor
+    // no live buffer (editor unmounted): the stored anchor context stands in
+    let surrounding = `${anchor.prefix}${anchor.quote}${anchor.suffix}`
+    let detached = comment.detached
+    if (view !== null) {
+      const text = view.state.doc.toString()
+      const live = liveAnchors(view.state).find((a) => a.id === comment.id)
+      if (live !== undefined) {
+        anchor = makeAnchor(text, live.from, live.to)
+        surrounding = surroundingText(text, live.from, live.to)
+        detached = false
+      } else {
+        // detached: the quote may still fuzzily locate in the buffer
+        const range = locate(text, comment.target.anchor)
+        if (range !== null) surrounding = surroundingText(text, range.from, range.to)
+        detached = true
+      }
+    }
+    // Fire-and-forget: progress/cancel live under 'comment:<id>' in the
+    // aiActions store; the reply/resolve land back through the comments.json
+    // watcher. `composing` stays untouched — setting it would defer exactly
+    // the reload that delivers the agent's reply.
+    void runCommentFix({
+      rootDir,
+      // absolute, composed the way state/comments.ts reads the file
+      manuscriptPath: `${rootDir}/manuscript/${comment.target.path}`,
+      commentId: comment.id,
+      anchor,
+      thread: commentThreadEntries(comment),
+      surrounding,
+      detached
+    })
+  }
+
   return (
     <div
-      className={`cmt-card${active ? ' cmt-card--active' : ' cmt-card--compact'}${comment.resolved ? ' cmt-card--resolved' : ''}`}
+      className={`cmt-card${active ? ' cmt-card--active' : ' cmt-card--compact'}${comment.resolved ? ' cmt-card--resolved' : ''}${aiRun !== undefined ? ' cmt-card--ai-busy' : ''}`}
       data-comment-id={comment.id}
     >
       <button className="cmt-card__main" onClick={onActivate}>
@@ -235,11 +319,28 @@ function ThreadCard({ comment, active, onActivate, getView }: ThreadCardProps): 
                 </button>
               </div>
             </div>
+          ) : aiRun !== undefined ? (
+            <div className="cmt__actions">
+              <span className="cmt__ai-note">✦ {aiRun.note}</span>
+              <button className="cmt__btn" onClick={() => aiRun.cancel()}>
+                Cancel
+              </button>
+            </div>
           ) : (
             <div className="cmt__actions">
               <button className="cmt__btn" onClick={openReply}>
                 Reply
               </button>
+              {comment.target.kind === 'section' && (
+                <button
+                  className="cmt__btn cmt__btn--ai"
+                  disabled={!aiGate.ok}
+                  title={aiGate.ok ? 'Send this comment to the AI agent' : aiGate.reason}
+                  onClick={sendToAi}
+                >
+                  ✦ AI
+                </button>
+              )}
               <button className="cmt__btn" onClick={toggleResolved}>
                 {comment.resolved ? 'Reopen' : 'Resolve'}
               </button>
@@ -283,6 +384,20 @@ export function CommentsRail({
   const trackRef = useRef<HTMLDivElement>(null)
 
   const openCount = useMemo(() => comments.filter((c) => !c.resolved).length, [comments])
+
+  // One cliGate round trip per rail-show, shared by every card — a per-card
+  // gate would be N identical 'lit:cli-status' IPC calls for one answer.
+  const [aiGate, setAiGate] = useState<CliGateResult>(GATE_PENDING)
+  useEffect(() => {
+    if (!visible) return
+    let stale = false
+    void cliGate().then((gate) => {
+      if (!stale) setAiGate(gate)
+    })
+    return () => {
+      stale = true
+    }
+  }, [visible])
 
   // Bumped on doc changes and comment-list applications in the editor — the
   // signal that anchor positions may have moved.
@@ -556,7 +671,17 @@ export function CommentsRail({
       </div>
       {unanchored.length > 0 && (
         <details className="cmt-rail__pinned">
-          <summary>Detached / unanchored ({unanchored.length})</summary>
+          {/* Alarm-count only the UNRESOLVED ones: an AI comment fix that
+              rewrites its own quoted text detaches the (now resolved)
+              comment, and finished business must not read as a problem. */}
+          <summary>
+            {(() => {
+              const open = unanchored.filter((c) => !c.resolved).length
+              return open > 0
+                ? `Detached / unanchored (${open})`
+                : `Resolved, no anchor (${unanchored.length})`
+            })()}
+          </summary>
           <div className="cmt-rail__pinned-list">
             {unanchored.map((comment) => (
               <ThreadCard
@@ -567,6 +692,7 @@ export function CommentsRail({
                   useCommentsStore.getState().setActive(comment.id === activeId ? null : comment.id)
                 }
                 getView={getView}
+                aiGate={aiGate}
               />
             ))}
           </div>
@@ -604,6 +730,7 @@ export function CommentsRail({
                 active={comment.id === activeId}
                 onActivate={() => activate(comment)}
                 getView={getView}
+                aiGate={aiGate}
               />
             </div>
           ))}
