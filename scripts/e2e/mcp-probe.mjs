@@ -124,9 +124,14 @@ function assert(cond, message) {
 
 const EXPECTED_TOOLS = [
   'list_project',
+  'read_manuscript',
+  'write_manuscript',
+  'edit_manuscript',
   'read_section',
   'write_section',
+  'list_outline',
   'read_manuscript_meta',
+  'check_manuscript',
   'list_figures',
   'read_figure_svg',
   'read_bib',

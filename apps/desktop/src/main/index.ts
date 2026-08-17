@@ -1,6 +1,8 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
+import { ensureSunaConfig } from '@suna/agent'
 import { registerIpcHandlers } from './ipc'
+import { appMcpInvocation } from './services/agentLayer'
 import { cancelAllAiAsks } from './services/ai-ask'
 import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
@@ -49,6 +51,13 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerIpcHandlers()
   createWindow()
+
+  // Sync the machine-level agent context (~/SunaConfig — adr-004) so agents
+  // launched outside any project still find current docs. Fire-and-forget:
+  // startup never waits on it, and a failure only logs.
+  void ensureSunaConfig(appMcpInvocation()).catch((error: unknown) => {
+    console.warn('SunaConfig sync failed (continuing):', error)
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

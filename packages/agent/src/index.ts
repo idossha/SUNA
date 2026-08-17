@@ -20,6 +20,14 @@ export function getProvider(id: ProviderId): Provider {
 export { anthropicProvider } from './anthropic'
 export { ollamaProvider } from './ollama'
 export { openaiProvider } from './openai'
+export {
+  ensureProjectAgentLayer,
+  ensureSunaConfig,
+  type EnsureResult,
+  type McpInvocation
+} from './context/ensure'
+export { sunaConfigDir } from './context/paths'
+export { PROJECT_CONTEXT_DIR, PROJECT_CONTEXT_FILES } from './context/templates'
 export type {
   ChatMessage,
   ChatRequest,

@@ -15,6 +15,7 @@ import {
   type ProjectSettings,
   type SunaProjectManifest
 } from '@suna/core'
+import { ensureProjectAgentLayer, type McpInvocation } from '@suna/agent'
 import { writeFileAtomic } from './atomic'
 import { allowRoot, assertInsideAllowedRoot } from './roots'
 
@@ -82,6 +83,7 @@ const PROJECT_GITIGNORE = `output/
 .DS_Store
 __pycache__/
 .venv/
+.mcp.json
 `
 
 /**
@@ -179,7 +181,8 @@ async function writeManuscriptDir(
 
 export async function createProject(
   dir: string,
-  name: string
+  name: string,
+  agent?: McpInvocation
 ): Promise<SunaProjectManifest> {
   if (await exists(join(dir, 'suna.json'))) {
     throw new Error(`already a SUNA project: ${dir}`)
@@ -205,6 +208,17 @@ export async function createProject(
   await writeFile(join(dir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
   await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
+
+  // Agent layer before git init so the stubs + context/ land in the initial
+  // commit (.mcp.json stays out — it is in PROJECT_GITIGNORE). Best-effort:
+  // the project must exist even when the layer cannot be written.
+  if (agent !== undefined) {
+    try {
+      await ensureProjectAgentLayer(dir, agent, { projectName: name })
+    } catch (error) {
+      console.warn('agent layer write failed (continuing):', error)
+    }
+  }
 
   // Version control from birth; best-effort if git is unavailable.
   try {
@@ -394,6 +408,8 @@ export interface ScaffoldRequest {
 export interface ScaffoldResult {
   manifest: SunaProjectManifest
   gitInitialized: boolean
+  /** Whether the agent layer (stubs, context/, .mcp.json) was fully written. */
+  agentLayerWritten: boolean
   warnings: string[]
 }
 
@@ -405,7 +421,10 @@ export interface ScaffoldResult {
  * an optional settings patch (feature-plan-5 §4/§5). A git failure is
  * reported as a warning, never thrown — the project still exists on success.
  */
-export async function scaffoldProject(req: ScaffoldRequest): Promise<ScaffoldResult> {
+export async function scaffoldProject(
+  req: ScaffoldRequest,
+  agent?: McpInvocation
+): Promise<ScaffoldResult> {
   const { dir, name, activeProfileId, scaffold, importDir, settings } = req
   if (await exists(join(dir, 'suna.json'))) {
     throw new Error(`already a SUNA project: ${dir}`)
@@ -456,6 +475,20 @@ export async function scaffoldProject(req: ScaffoldRequest): Promise<ScaffoldRes
 
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
 
+  // Agent layer before git init so the stubs + context/ land in the initial
+  // commit (.mcp.json stays out — it is in PROJECT_GITIGNORE).
+  let agentLayerWritten = false
+  if (agent !== undefined) {
+    try {
+      await ensureProjectAgentLayer(dir, agent, { projectName: name })
+      agentLayerWritten = true
+    } catch (error) {
+      warnings.push(
+        `agent layer could not be written (open the project to retry): ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
   let gitInitialized = false
   try {
     await run('git', ['init', '-b', 'main'], { cwd: dir })
@@ -469,5 +502,5 @@ export async function scaffoldProject(req: ScaffoldRequest): Promise<ScaffoldRes
   }
 
   allowRoot(dir)
-  return { manifest, gitInitialized, warnings }
+  return { manifest, gitInitialized, agentLayerWritten, warnings }
 }

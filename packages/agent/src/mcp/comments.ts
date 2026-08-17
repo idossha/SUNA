@@ -25,7 +25,21 @@ import { resolveInside, type ProjectContext } from './project'
  * identically.
  */
 
-const AGENT_AUTHOR: CommentAuthor = { kind: 'agent', name: 'Claude Code' }
+/**
+ * Comment authorship is read from the environment at call time so different
+ * agent CLIs sharing one .mcp.json identify themselves distinctly (set the
+ * variables in .mcp.json's env block or the launching shell). Exported for
+ * tests.
+ */
+export function agentAuthor(env: NodeJS.ProcessEnv = process.env): CommentAuthor {
+  const name = env['SUNA_AGENT_NAME']?.trim()
+  const model = env['SUNA_AGENT_MODEL']?.trim()
+  return {
+    kind: 'agent',
+    name: name !== undefined && name !== '' ? name : 'Agent',
+    ...(model !== undefined && model !== '' ? { model } : {})
+  }
+}
 
 function makeId(prefix: 'c' | 'r'): string {
   const date = new Date().toISOString().slice(0, 10)
@@ -118,7 +132,7 @@ export async function listComments(
 }
 
 export const addCommentInput = z.object({
-  /** Section path relative to manuscript/, e.g. "sections/02-results.md". */
+  /** Prose file path relative to manuscript/ — normally "manuscript.md". */
   path: z.string().min(1),
   /** Exact substring to anchor on; the first occurrence is used. */
   quote: z.string().min(1),
@@ -141,7 +155,7 @@ export async function addComment(
     id: makeId('c'),
     target: { kind: 'section', path: input.path, anchor },
     body: input.body,
-    author: AGENT_AUTHOR,
+    author: agentAuthor(),
     createdAt: new Date().toISOString(),
     resolved: false,
     detached: false,
@@ -167,7 +181,7 @@ export async function replyComment(
   const reply: Reply = {
     id: makeId('r'),
     body: input.body,
-    author: AGENT_AUTHOR,
+    author: agentAuthor(),
     createdAt: new Date().toISOString()
   }
   const comments = file.comments.map((comment) =>
