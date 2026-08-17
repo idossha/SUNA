@@ -1,0 +1,116 @@
+/* ---------------------------------------------------------------------------
+   "?" keyboard-shortcut overlay (feature-plan-8 §1). Palette-convention
+   backdrop/dialog — same z-index 200 layer and raised surface as
+   palette/palette.css. `.help-overlay` and `.help-overlay__tab` are probe
+   selectors (§7); rename them only with the probes.
+   --------------------------------------------------------------------------- */
+
+.help-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.help-overlay {
+  width: min(640px, 92vw);
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  font-family: var(--s-font-ui);
+  overflow: hidden;
+  outline: none;
+}
+
+.help-overlay__tabs {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.help-overlay__tab {
+  padding: 6px 10px;
+  border-radius: var(--s-radius) var(--s-radius) 0 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-faint);
+}
+
+.help-overlay__tab:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.help-overlay__tab--active {
+  color: var(--s-accent);
+  box-shadow: inset 0 -2px 0 var(--s-accent);
+}
+
+.help-overlay__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+}
+
+.help-overlay__group {
+  margin-top: 12px;
+}
+
+.help-overlay__group:first-child {
+  margin-top: 0;
+}
+
+.help-overlay__group-title {
+  margin: 0 0 4px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+}
+
+.help-overlay__row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.help-overlay__keys {
+  flex: none;
+  min-width: 128px;
+  padding: 1px 6px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-editor);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.help-overlay__desc {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.help-overlay__footer {
+  flex: none;
+  padding: 7px 14px;
+  border-top: 1px solid var(--s-border);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}

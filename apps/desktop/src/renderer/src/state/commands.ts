@@ -12,6 +12,7 @@ import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { createNewFigure } from '../canvas/new-figure'
 import { activeCanvasPaletteContext } from '../canvas/palette-actions'
 import { exportActiveFigurePdf, exportActiveFigurePng } from '../canvas/palette-export'
+import { startRepairPick } from '../shell/repair/RepairPicker'
 import { scanFigures } from '../views/figures-scan'
 import { activePanelPath, openExportTab, openInSplit, openManuscriptTab, openSettingsTab } from './dock'
 import { useProjectStore } from './project'
@@ -251,6 +252,27 @@ registerCommand({
     const rootDir = currentRootDir()
     if (rootDir !== null) openExportTab(rootDir)
   }
+})
+
+// NO shortcut spec on purpose (feature-plan-8 §1): '?' is opened by
+// HelpOverlay's own window listener, which has the isTyping guard the
+// palette's dispatcher lacks — a Shift-Slash Command here would fire while
+// typing '?' into the explorer filter.
+registerCommand({
+  id: 'help.shortcuts',
+  title: 'Keyboard Shortcuts…',
+  category: 'View',
+  run: () => useUiStore.getState().setHelpOpen(true)
+})
+
+// Dev-only (feature-plan-8 §5): 'ai:repair-bundle' rejects when packaged,
+// and a packaged app has no source repo to repair.
+registerCommand({
+  id: 'ai.repairUi',
+  title: 'AI: Report / repair this UI…',
+  category: 'App',
+  enabled: () => import.meta.env.DEV,
+  run: () => startRepairPick()
 })
 
 registerCommand({

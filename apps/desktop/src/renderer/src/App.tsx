@@ -19,6 +19,8 @@ import { TerminalPanel } from './terminal/TerminalPanel'
 import { PdfTab } from './viewer/PdfTab'
 import { ImageTab } from './viewer/ImageTab'
 import { CommandPalette } from './palette/CommandPalette'
+import { HelpOverlay } from './shell/help/HelpOverlay'
+import { RepairPicker } from './shell/repair/RepairPicker'
 import { useUiStore } from './state/ui'
 import { useEditorSettings } from './editor/settings'
 import { setDockApi } from './state/dock'
@@ -99,6 +101,12 @@ export function App(): JSX.Element {
       </div>
       <StatusBar />
       <CommandPalette />
+      {/* Same z-200 layer as the palette; only one of the two is ever open
+          (the palette's input is a typing surface, so '?' can't open help
+          over it). RepairPicker sits above both at z-210 — a repair report
+          may be about those overlays themselves. */}
+      <HelpOverlay />
+      <RepairPicker />
       <Toasts />
     </div>
   )

@@ -244,6 +244,16 @@ export function activePanelPath(): string | null {
   return typeof value === 'string' ? value : null
 }
 
+/**
+ * The active panel's dock component kind ('editor', 'canvas', 'manuscript',
+ * 'pdf', …), or null when nothing is active. The help overlay feeds this to
+ * sectionForSurface for its initial tab (feature-plan-8 §1); the repair
+ * picker records it in context.json (§5).
+ */
+export function activePanelComponent(): string | null {
+  return dockApi?.activePanel?.view.contentComponent ?? null
+}
+
 /** A panel in `group` already showing `path`, if there is one. */
 function panelForPath(group: DockviewGroupPanel, path: string): IDockviewPanel | null {
   for (const panel of group.panels) {
@@ -351,6 +361,12 @@ export const dockDevSeam = {
   openDocxImportTab,
   /** feature-plan-6 §3/§4: open the export dialog for a project. */
   openExportTab,
+  /**
+   * feature-plan-8 probes: open-or-focus the combined manuscript tab
+   * directly. The UI route (activity-bar click) TOGGLES when the view is
+   * already active, so a driver cannot use it idempotently.
+   */
+  openManuscriptTab,
   /** feature-plan-7 §3: close every tab scoped to a project directory. */
   closeProjectTabs,
   sideGroupId,

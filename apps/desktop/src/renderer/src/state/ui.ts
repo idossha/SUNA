@@ -154,6 +154,8 @@ interface UiState {
   /** Comments rail (both editing surfaces share one visibility + width). */
   commentsRailVisible: boolean
   commentsRailWidth: number
+  /** "?" keyboard-shortcut overlay (feature-plan-8 §1). Not persisted. */
+  helpOpen: boolean
   setActiveView: (view: SidebarView) => void
   setSidebarVisible: (visible: boolean) => void
   setRailVisible: (visible: boolean) => void
@@ -168,6 +170,7 @@ interface UiState {
   setCommentsRailVisible: (visible: boolean) => void
   toggleCommentsRail: () => void
   setCommentsRailWidth: (px: number) => void
+  setHelpOpen: (open: boolean) => void
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -178,6 +181,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   toasts: [],
   commentsRailVisible: loadFlag(COMMENTS_RAIL_VISIBLE_KEY, true),
   commentsRailWidth: loadCommentsRailWidth(),
+  helpOpen: false,
   setActiveView: (view) => {
     const wasActive = get().activeView === view
     // clicking the active view toggles the sidebar, like VS Code
@@ -240,5 +244,6 @@ export const useUiStore = create<UiState>((set, get) => ({
       // persistence is best-effort; the in-memory width still applies
     }
     set({ commentsRailWidth: width })
-  }
+  },
+  setHelpOpen: (open) => set({ helpOpen: open })
 }))

@@ -166,6 +166,14 @@ export function StatusBar(): JSX.Element {
       <div className="statusbar__group">
         <button
           className="statusbar__btn"
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+          onClick={() => useUiStore.getState().setHelpOpen(true)}
+        >
+          ?
+        </button>
+        <button
+          className="statusbar__btn"
           aria-pressed={termOpen}
           title="Toggle terminal (⌃`)"
           onClick={toggleTerm}

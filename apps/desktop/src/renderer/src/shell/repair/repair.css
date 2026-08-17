@@ -1,0 +1,123 @@
+/* ---------------------------------------------------------------------------
+   "Repair this UI" picker (feature-plan-8 §5, dev-only). `.repair-picker` is
+   a §7 probe selector. Sits ABOVE the palette/toasts layer (z 200) — a
+   repair report may be about those overlays themselves.
+   --------------------------------------------------------------------------- */
+
+.repair-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+}
+
+.repair-picker--pick {
+  cursor: crosshair;
+}
+
+/* The gold box + tag label track the pointer; pointer-events none so they
+   never occlude elementsFromPoint's view of the app underneath. */
+.repair-picker__outline {
+  position: fixed;
+  border: 2px solid var(--s-accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.repair-picker__tag {
+  position: fixed;
+  padding: 1px 6px;
+  border-radius: var(--s-radius);
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.repair-picker__hint {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 999px;
+  background: var(--s-bg-raised);
+  color: var(--s-ink-muted);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  pointer-events: none;
+}
+
+.repair-picker__dialog {
+  position: fixed;
+  left: 50%;
+  top: 16vh;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(440px, 92vw);
+  padding: 12px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  font-family: var(--s-font-ui);
+}
+
+.repair-picker__identity {
+  overflow: hidden;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repair-picker__prompt {
+  width: 100%;
+  padding: 8px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  color: var(--s-ink);
+  font-family: inherit;
+  font-size: var(--s-text-sm);
+  resize: vertical;
+  outline: none;
+}
+
+.repair-picker__prompt:focus {
+  border-color: var(--s-accent);
+}
+
+.repair-picker__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.repair-picker__actions button {
+  padding: 4px 12px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.repair-picker__actions button:hover:not(:disabled):not(.repair-picker__send) {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.repair-picker__send:not(:disabled) {
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.repair-picker__send:disabled {
+  opacity: 0.5;
+}
