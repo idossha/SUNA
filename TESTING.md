@@ -414,16 +414,13 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     canvas Agent section.
 
     **From inside a vim buffer** (feature-plan-9 §1): turn vim motions on
-    (gear → Vim motions) and put the cursor in the prose. **⌘?** opens
-    this dialog without leaving the buffer — it is the one chord that
-    works while typing, so it is deliberately outside the isTyping guard
-    — and vim's own **`:help`** (or `:h`) opens it too. A bare **`?`**
-    does *not*: in NORMAL mode it is vim's search-backward and the keymap
-    consumes it before any window listener sees it. That is measured, not
-    assumed, and the overlay's Editor section says so in its *Vim (when
-    vim motions are on)* group beside `:w`, `:q` / `:q!` and `:wq`.
-    (`⌘⇧/` is what the keyboard sends; the overlay renders it **⌘?**,
-    since Shift+Slash *is* the `?` key.)
+    (gear → Vim motions) and put the cursor in the prose. Vim's own
+    **`:help`** (or `:h`) is the ONLY way in from there. A bare **`?`**
+    does not work: in NORMAL mode it is vim's search-backward and the
+    keymap consumes it before any window listener sees it — measured, not
+    assumed — and there is deliberately no chord as a third door. The
+    overlay's Editor section says so in its *Vim (when vim motions are
+    on)* group, beside `:w`, `:q` / `:q!` and `:wq`.
 
 ## Fast iteration: the hidden driver
 
@@ -620,7 +617,7 @@ project root through the tree's empty area; then drops `figures/` onto
 its own `fig-spectrum` child and requires that nothing highlighted and
 nothing moved. The probe removes the file and its tab whatever happens.
 `help-overlay.mjs` gained the vim leg: with `editor.vimMotions` on and
-the status bar reading `normal`, **⌘⇧/** opens the overlay and **`:help`**
+the status bar reading `normal`, **`:help`**
 opens it, while a bare **`?`** opens vim's search panel and never the
 overlay — and the shared buffer is compared before and after, so a
 keystroke that leaked into `manuscript.md` fails the probe. Vim is turned
@@ -1052,8 +1049,8 @@ Steps 70–71 are the acceptance criteria of
     the step writes and deletes, which it must refuse by name. No reveal
     and no successful open is ever invoked (§5).
 71. **help-in-vim-mode** (§1) — `editor.vimMotions` on, the status bar
-    reading `normal` over the manuscript buffer: **⌘⇧/** opens the
-    overlay, **`:help`** typed into vim's `:` command line opens it, and
+    reading `normal` over the manuscript buffer: **`:help`** typed into
+    vim's `:` command line opens the overlay, ⌘⇧/ does nothing, and
     a bare **`?`** opens vim's search panel (`.cm-vim-panel`) and never
     the overlay. The shared doc session's text is compared before and
     after, so a keystroke that leaked into `manuscript.md` fails the

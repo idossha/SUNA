@@ -87,11 +87,12 @@ describe('registerCommand / listCommands / getCommand', () => {
     expect(getCommand('terminal.toggle')?.shortcut).toBeUndefined()
   })
 
-  it('keeps ⌘? on help.shortcuts — the only way into help from a vim buffer', () => {
-    // feature-plan-9 §1: in NORMAL mode vim swallows Shift-Slash whole (the
-    // window listener records no event at all), so this one stamp IS the ⌘?
-    // path — drop it and help is reachable from a buffer only via :help.
-    expect(getCommand('help.shortcuts')?.shortcut).toBe('Mod-Shift-Slash')
+  it('leaves help.shortcuts without a chord — help is "?" or :help, nothing else', () => {
+    // The two doors are HelpOverlay's own '?' listener (guarded so typing a
+    // '?' types one) and vim's :help. A shortcut spec here would add a third
+    // that fires while typing, since this dispatcher has no isTyping guard.
+    expect(getCommand('help.shortcuts')).toBeDefined()
+    expect(getCommand('help.shortcuts')?.shortcut).toBeUndefined()
   })
 
   it('makes both left-nav toggles reachable with no project open', () => {

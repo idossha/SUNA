@@ -6119,7 +6119,7 @@ try {
   await step('help-in-vim-mode', async () => {
     // feature-plan-9 §1. Measured, not assumed: in NORMAL mode a bare '?' is
     // vim's search-backward and never reaches the window listener, so the
-    // overlay needs ⌘⇧/ (which arrives unprevented) or vim's own :help.
+    // overlay is reachable only through vim's own :help.
     //
     // The dock is emptied first (step 48's move): by now the split-view steps
     // have left editors in two groups, and "the visible editor" below must be
@@ -6172,14 +6172,11 @@ try {
       assert(typeof bufferBefore === 'string', 'no shared doc session for the manuscript buffer')
       assert(!(await overlayOpen()), 'the help overlay is already open before the vim pass')
 
-      // ⌘⇧/ — measurement 3: it reaches the window dispatcher unprevented
+      // ⌘⇧/ is not a binding: the two doors are '?' outside a buffer and
+      // ':help' inside one, so the chord must do nothing here.
       await key('?', 'Slash', 12) // CDP modifiers: 4 = Meta, 8 = Shift
       await sleep(500)
-      assert(await overlayOpen(), '⌘⇧/ did not open the overlay from a vim buffer')
-      await screenshot('help-in-vim-mode.png')
-      await key('Escape', 'Escape')
-      await sleep(300)
-      assert(!(await overlayOpen()), 'Esc did not close the overlay opened by ⌘⇧/')
+      assert(!(await overlayOpen()), '⌘⇧/ opened the overlay — that chord was removed')
 
       // :help — the vim-native path through the ex registry
       await focusBuffer()
@@ -6206,6 +6203,7 @@ try {
       }
       await sleep(600)
       assert(await overlayOpen(), `':help' did not open the overlay`)
+      await screenshot('help-in-vim-mode.png')
       await key('Escape', 'Escape')
       await sleep(300)
       assert(!(await overlayOpen()), `Esc did not close the overlay opened by ':help'`)

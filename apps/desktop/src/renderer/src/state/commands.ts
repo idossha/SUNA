@@ -259,18 +259,14 @@ registerCommand({
 // dispatcher lacks — a Shift-Slash Command here would fire while typing '?'
 // into the explorer filter (feature-plan-8 §1).
 //
-// ⌘⇧/ is what reaches help from inside a vim buffer (feature-plan-9 §1),
-// where NORMAL mode swallows '?' as search-backward before any listener sees
-// it. Both halves of that chord were measured in the running app: ⌘⇧/ arrives
-// at window level unprevented and changes nothing in the buffer, and
-// Electron 43's default menu has no Help submenu, so macOS never installs the
-// Help-search field that would otherwise own it. Re-run those checks before
-// moving this binding — a static reading of the code predicts the opposite.
+// There is deliberately no chord here either. Help has exactly two doors:
+// '?' everywhere it is not being typed, and ':help' inside a vim buffer,
+// where NORMAL mode swallows '?' as search-backward before any listener
+// sees it (feature-plan-9 §1). The palette still lists this command.
 registerCommand({
   id: 'help.shortcuts',
   title: 'Keyboard Shortcuts…',
   category: 'View',
-  shortcut: 'Mod-Shift-Slash',
   run: () => useUiStore.getState().setHelpOpen(true)
 })
 

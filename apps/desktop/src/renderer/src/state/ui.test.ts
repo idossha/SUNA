@@ -144,10 +144,17 @@ describe('persistence', () => {
   it('degrades a malformed flag to the fallback, not to hidden', async () => {
     // The trap: `raw === 'true'` sends anything unparseable to FALSE, and the
     // app comes up with no rail, no panel, and one 15px button as the way back.
+    // Storage is read when a project is adopted (restoreChrome), not at boot:
+    // the welcome screen starts collapsed because it has nothing to show.
     stored.set('suna.sidebarVisible', 'True')
     stored.set('suna.activityBarVisible', '1')
     vi.resetModules()
     const fresh = await import('./ui')
+    expect(fresh.useUiStore.getState()).toMatchObject({
+      sidebarVisible: false,
+      railVisible: false
+    })
+    fresh.useUiStore.getState().restoreChrome()
     expect(fresh.useUiStore.getState()).toMatchObject({
       sidebarVisible: true,
       railVisible: true
@@ -159,7 +166,21 @@ describe('persistence', () => {
     stored.set('suna.activityBarVisible', 'false')
     vi.resetModules()
     const fresh = await import('./ui')
+    fresh.useUiStore.getState().restoreChrome()
     expect(fresh.useUiStore.getState().railVisible).toBe(true)
+  })
+
+  it('starts the welcome screen collapsed, without overwriting the preference', async () => {
+    stored.set('suna.sidebarVisible', 'true')
+    stored.set('suna.activityBarVisible', 'true')
+    vi.resetModules()
+    const fresh = await import('./ui')
+    expect(fresh.useUiStore.getState().sidebarVisible).toBe(false)
+    // The collapsed start is a default, never a choice: storage is untouched,
+    // so opening a project restores what the user actually set.
+    expect(stored.get('suna.sidebarVisible')).toBe('true')
+    fresh.useUiStore.getState().restoreChrome()
+    expect(fresh.useUiStore.getState().sidebarVisible).toBe(true)
   })
 })
 

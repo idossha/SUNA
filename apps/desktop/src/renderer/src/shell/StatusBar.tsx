@@ -167,9 +167,9 @@ export function StatusBar(): JSX.Element {
         <button
           className="statusbar__btn"
           aria-label="Keyboard shortcuts"
-          // ⌘? is named beside '?' because it is the only one of the two that
-          // works while typing — in a vim buffer '?' is search-backward.
-          title="Keyboard shortcuts (? or ⌘?)"
+          // '?' is the only chord-free door; inside a vim buffer it is vim's
+          // search-backward, and :help is the way in (feature-plan-9 §1).
+          title="Keyboard shortcuts (?)"
           onClick={() => useUiStore.getState().setHelpOpen(true)}
         >
           ?
