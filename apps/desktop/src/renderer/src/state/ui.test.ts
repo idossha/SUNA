@@ -162,3 +162,46 @@ describe('persistence', () => {
     expect(fresh.useUiStore.getState().railVisible).toBe(true)
   })
 })
+
+describe('toasts', () => {
+  it('pushes with the default ttl and dismisses by id', async () => {
+    const { useUiStore, TOAST_TTL_DEFAULT_MS } = await import('./ui')
+    const id = useUiStore.getState().pushToast('Comment deleted')
+    const toast = useUiStore.getState().toasts.find((t) => t.id === id)
+    expect(toast).toMatchObject({ message: 'Comment deleted', ttlMs: TOAST_TTL_DEFAULT_MS })
+    useUiStore.getState().dismissToast(id)
+    expect(useUiStore.getState().toasts.some((t) => t.id === id)).toBe(false)
+  })
+
+  it('carries an action and distinct ids', async () => {
+    const { useUiStore } = await import('./ui')
+    let ran = 0
+    const a = useUiStore.getState().pushToast('a', { action: { label: 'Undo', run: () => { ran += 1 } } })
+    const b = useUiStore.getState().pushToast('b')
+    expect(a).not.toBe(b)
+    useUiStore.getState().toasts.find((t) => t.id === a)?.action?.run()
+    expect(ran).toBe(1)
+    useUiStore.getState().dismissToast(a)
+    useUiStore.getState().dismissToast(b)
+  })
+})
+
+describe('comments rail state', () => {
+  it('clamps the width to its bounds and persists it', async () => {
+    const { useUiStore, clampCommentsRailWidth } = await import('./ui')
+    expect(clampCommentsRailWidth(100)).toBe(260)
+    expect(clampCommentsRailWidth(9999)).toBe(520)
+    expect(clampCommentsRailWidth(Number.NaN)).toBe(300)
+    useUiStore.getState().setCommentsRailWidth(333)
+    expect(useUiStore.getState().commentsRailWidth).toBe(333)
+  })
+
+  it('toggles visibility and round-trips through storage', async () => {
+    const { useUiStore } = await import('./ui')
+    const before = useUiStore.getState().commentsRailVisible
+    useUiStore.getState().toggleCommentsRail()
+    expect(useUiStore.getState().commentsRailVisible).toBe(!before)
+    useUiStore.getState().setCommentsRailVisible(true)
+    expect(useUiStore.getState().commentsRailVisible).toBe(true)
+  })
+})

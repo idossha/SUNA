@@ -1,0 +1,64 @@
+/* App-shell toasts (shell/Toasts.tsx) — bottom center, above everything. */
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  padding: 8px 12px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color: var(--s-ink);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  pointer-events: auto;
+}
+
+.toast__message {
+  min-width: 0;
+}
+
+.toast__action {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border: 1px solid var(--s-accent);
+  border-radius: var(--s-radius);
+  color: var(--s-accent);
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+}
+
+.toast__action:hover {
+  background: var(--s-bg-active);
+}
+
+.toast__close {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--s-ink-faint);
+  font-size: 14px;
+}
+
+.toast__close:hover {
+  color: var(--s-ink);
+}

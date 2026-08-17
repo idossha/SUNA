@@ -1,106 +1,109 @@
-import { RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state'
-import { Decoration, EditorView, keymap, type DecorationSet } from '@codemirror/view'
+import { StateEffect, StateField, type EditorState, type Extension } from '@codemirror/state'
+import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
 import type { Comment } from '@suna/core'
 import { locate } from './anchor'
 
 /**
- * CodeMirror extension powering the manuscript editor's comment-anchor UI:
- * a subtle highlight on every anchored range, a small dot at the start of
- * each anchored line, and Cmd/Ctrl-Shift-M to start a comment on the
- * current selection.
+ * In-editor comment highlights, the mapped-StateField model: anchors are
+ * re-located with `locate()` ONLY when the comment list itself changes
+ * (load, add/resolve/delete, external reload) and are MAPPED through every
+ * edit in between (`mapPos`), so they stay glued to their text with zero
+ * in-session drift and zero per-keystroke re-location cost. External disk
+ * reloads arrive as a minimal mapped change (state/docSessions), so the
+ * same mapping carries anchors through agent edits.
  *
- * Appended to an already-created EditorView via `StateEffect.appendConfig`
- * (see manuscript/SectionEditor.tsx) rather than threaded through
- * editor/codemirror.ts's CreateEditorOptions — that keeps this feature's
- * footprint inside comments/** plus one small SectionEditor.tsx hook, per
- * the "gutter dot ONLY, keep the diff small" instruction.
- *
- * Note on the "gutter" wording: the combined manuscript tab hides
- * CodeMirror's real `.cm-gutters` column in reading mode (manuscript.css:
- * `.msdoc .msdoc__editor .cm-gutters { display: none }`, since section
- * editors there render as document prose, not code). Re-enabling that
- * container for one custom gutter would also have to fight the container's
- * own default padding/border for every section editor, which is a bigger
- * footprint than this feature needs. Instead the "dot" is a `Decoration.line`
- * class (`cmt-line-dot`) whose `::before` sits just left of the text — same
- * visual result, zero changes outside comments/** and this file's one hook.
+ * The vertical-positioning helpers that used to live here (anchorTopsFor /
+ * per-scroll coordsAtPos) are gone with the old absolutely-positioned
+ * gutter — the aligned rail (comments/CommentsRail) reads positions from
+ * CodeMirror's height map itself and re-derives them on this module's
+ * geometry channel below, never per scroll frame.
  */
 
-function resolvedRanges(
-  text: string,
-  comments: readonly Comment[]
-): Array<{ comment: Comment; from: number; to: number }> {
-  const out: Array<{ comment: Comment; from: number; to: number }> = []
-  for (const comment of comments) {
-    if (comment.target.kind !== 'section') continue
-    const range = locate(text, comment.target.anchor)
-    if (range === null || range.from >= range.to) continue
-    out.push({ comment, from: range.from, to: range.to })
-  }
-  return out.sort((a, b) => a.from - b.from || a.to - b.to)
+export interface LiveAnchor {
+  id: string
+  from: number
+  to: number
 }
 
 /** Effect: replace the set of comments this editor's decorations track. */
 export const setSectionComments = StateEffect.define<readonly Comment[]>()
 
-const commentsField = StateField.define<readonly Comment[]>({
+/** Effect: mark one comment's highlight as the active one (or none). */
+export const setActiveComment = StateEffect.define<string | null>()
+
+function locateAll(text: string, comments: readonly Comment[]): readonly LiveAnchor[] {
+  const out: LiveAnchor[] = []
+  for (const comment of comments) {
+    if (comment.target.kind !== 'section') continue
+    const range = locate(text, comment.target.anchor)
+    if (range === null || range.from >= range.to) continue
+    out.push({ id: comment.id, from: range.from, to: range.to })
+  }
+  return out.sort((a, b) => a.from - b.from || a.to - b.to)
+}
+
+const anchorsField = StateField.define<readonly LiveAnchor[]>({
   create: () => [],
+  update: (anchors, tr) => {
+    for (const effect of tr.effects) {
+      if (effect.is(setSectionComments)) {
+        return locateAll(tr.state.doc.toString(), effect.value)
+      }
+    }
+    if (!tr.docChanged) return anchors
+    const mapped: LiveAnchor[] = []
+    for (const anchor of anchors) {
+      // assoc 1 / -1 reproduces exactly how a non-inclusive mark decoration
+      // maps: an insertion at either boundary stays OUTSIDE the range, so
+      // the live anchor and the visible highlight never disagree.
+      const from = tr.changes.mapPos(anchor.from, 1)
+      const to = tr.changes.mapPos(anchor.to, -1)
+      // a collapsed range (quote fully deleted) drops out of the live set —
+      // the comment itself is untouched; the rail shows it as detached
+      if (from < to) mapped.push({ id: anchor.id, from, to })
+    }
+    return mapped
+  }
+})
+
+const activeField = StateField.define<string | null>({
+  create: () => null,
   update: (value, tr) => {
     for (const effect of tr.effects) {
-      if (effect.is(setSectionComments)) value = effect.value
+      if (effect.is(setActiveComment)) value = effect.value
     }
     return value
   }
 })
 
-const lineDotMark = Decoration.line({ class: 'cmt-line-dot' })
-
-/** One mark per comment so the highlight carries its comment id — the margin
- *  card renders the same id in `data-comment-id`, which is what lets an e2e
- *  driver measure card-vs-anchor alignment per comment (feature-plan-3 §3). */
-function anchorMarkFor(commentId: string): Decoration {
-  return Decoration.mark({ class: 'cmt-anchor', attributes: { 'data-comment-id': commentId } })
-}
-
-function rebuild(text: string, comments: readonly Comment[]): DecorationSet {
-  const entries = resolvedRanges(text, comments)
-  const builder = new RangeSetBuilder<Decoration>()
-  for (const entry of entries) builder.add(entry.from, entry.to, anchorMarkFor(entry.comment.id))
-  return builder.finish()
+/** One mark per comment; the id rides in `data-comment-id`, which is both
+ *  the click target's identity and what e2e drivers correlate cards by. */
+function anchorMark(commentId: string, active: boolean): Decoration {
+  return Decoration.mark({
+    class: active ? 'cmt-anchor cmt-anchor--active' : 'cmt-anchor',
+    attributes: { 'data-comment-id': commentId }
+  })
 }
 
 const decorationsField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update: (deco, tr) => {
-    const wasSet = tr.effects.some((effect) => effect.is(setSectionComments))
-    if (!tr.docChanged && !wasSet) return deco
-    return rebuild(tr.state.doc.toString(), tr.state.field(commentsField))
+    const listChanged = tr.effects.some(
+      (e) => e.is(setSectionComments) || e.is(setActiveComment)
+    )
+    if (!listChanged && !tr.docChanged) return deco
+    if (!listChanged && tr.docChanged) return deco.map(tr.changes)
+    const active = tr.state.field(activeField)
+    const anchors = tr.state.field(anchorsField)
+    return Decoration.set(
+      anchors.map((a) => anchorMark(a.id, a.id === active).range(a.from, a.to)),
+      true
+    )
   },
   provide: (field) => EditorView.decorations.from(field)
 })
 
-function rebuildLineDots(state: { doc: { toString(): string; lineAt(pos: number): { from: number } } }, comments: readonly Comment[]): DecorationSet {
-  const text = state.doc.toString()
-  const entries = resolvedRanges(text, comments)
-  const lineStarts = [...new Set(entries.map((entry) => state.doc.lineAt(entry.from).from))].sort(
-    (a, b) => a - b
-  )
-  const builder = new RangeSetBuilder<Decoration>()
-  for (const from of lineStarts) builder.add(from, from, lineDotMark)
-  return builder.finish()
-}
-
-const lineDotsField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update: (deco, tr) => {
-    const wasSet = tr.effects.some((effect) => effect.is(setSectionComments))
-    if (!tr.docChanged && !wasSet) return deco.map(tr.changes)
-    return rebuildLineDots(tr.state, tr.state.field(commentsField))
-  },
-  provide: (field) => EditorView.decorations.from(field)
-})
-
-/** Effect: briefly highlight one range (comment-panel "scroll to and flash"). */
+/** Effect: briefly highlight one range (rail "scroll to and flash"). */
 export const setFlashRange = StateEffect.define<{ from: number; to: number } | null>()
 
 const flashField = StateField.define<{ from: number; to: number } | null>({
@@ -125,89 +128,129 @@ const flashDecorationField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field)
 })
 
+/* ---- live-anchor registry + change epoch ----------------------------------
+   The save-time re-anchoring in state/comments needs the EDITOR's mapped
+   ranges (locate() against saved text would wrongly detach a comment whose
+   quote was edited but whose mark tracked it), and the rail needs to know
+   when anchors moved so its document-order sort stays fresh. Both are module
+   registries fed by the extension below. */
+
+type LiveAnchorSource = () => readonly LiveAnchor[]
+const anchorSources = new Map<string, Set<LiveAnchorSource>>()
+
+/** Register a view's live anchors under its manuscript-relative path. */
+export function registerLiveAnchorSource(path: string, source: LiveAnchorSource): () => void {
+  let set = anchorSources.get(path)
+  if (set === undefined) {
+    set = new Set()
+    anchorSources.set(path, set)
+  }
+  set.add(source)
+  return () => {
+    set.delete(source)
+    if (set.size === 0) anchorSources.delete(path)
+  }
+}
+
+/** A registered view's live anchors for `path`, or null when none is attached. */
+export function liveAnchorsForPath(path: string): readonly LiveAnchor[] | null {
+  const set = anchorSources.get(path)
+  if (set === undefined) return null
+  for (const source of set) return source()
+  return null
+}
+
+let anchorsEpoch = 0
+const epochListeners = new Set<() => void>()
+
+/** Bumped on every doc change in a view carrying the extension. */
+export function getAnchorsEpoch(): number {
+  return anchorsEpoch
+}
+
+export function subscribeAnchorsEpoch(listener: () => void): () => void {
+  epochListeners.add(listener)
+  return () => epochListeners.delete(listener)
+}
+
+function bumpAnchorsEpoch(): void {
+  anchorsEpoch += 1
+  for (const listener of epochListeners) listener()
+}
+
+/* ---- geometry channel ------------------------------------------------------
+   CodeMirror's height map is an ESTIMATE for lines it has not rendered yet;
+   as the user scrolls (or images load, or the pane resizes), measured heights
+   replace estimates and every block's document-space `top` can shift. The
+   aligned rail must re-derive card positions then — but this is a layout
+   concern only, so it gets its own listener channel instead of riding
+   anchorsEpoch: no React re-render of the card list on a pure re-measure. */
+
+const geometryListeners = new Set<() => void>()
+
+/** Fires when a view carrying the extension re-measures (geometryChanged). */
+export function subscribeAnchorGeometry(listener: () => void): () => void {
+  geometryListeners.add(listener)
+  return () => geometryListeners.delete(listener)
+}
+
+function notifyGeometry(): void {
+  for (const listener of geometryListeners) listener()
+}
+
 /**
- * Builds the extension. `onRequestComment` fires with the live selection's
- * [from, to) when Mod-Shift-M is pressed over a non-empty selection.
- * `onActivateComment`, if given, fires with a comment's id when the user
- * clicks directly on its anchored highlight — the reverse of clicking its
- * margin card, which scrolls/flashes the anchor via flashAnchor below.
+ * The highlight extension. Clicking an anchored highlight fires
+ * `onActivate(commentId)` — the reverse of clicking its rail card. No keymap
+ * here: ⌘⇧M is owned solely by editor/keymap.ts's formatting keymap (the
+ * duplicate registration is gone).
  */
-export function commentAnchorExtension(
-  onRequestComment: (from: number, to: number) => void,
-  onActivateComment?: (commentId: string) => void
-): Extension {
+export function commentHighlightExtension(onActivate: (commentId: string) => void): Extension {
   return [
-    commentsField,
+    anchorsField,
+    activeField,
     decorationsField,
-    lineDotsField,
     flashField,
     flashDecorationField,
-    keymap.of([
-      {
-        key: 'Mod-Shift-m',
-        run: (view) => {
-          const { from, to } = view.state.selection.main
-          if (from === to) return false
-          onRequestComment(from, to)
-          return true
-        }
+    EditorView.updateListener.of((update) => {
+      // anchors move on doc changes AND get rebuilt by setSectionComments
+      // (a pure-effect transaction) — the rail's document-order sort must
+      // re-run for both, or a card computed before the first anchor
+      // application stays stuck in the unanchored bucket
+      const listSet = update.transactions.some((tr) =>
+        tr.effects.some((e) => e.is(setSectionComments))
+      )
+      if (update.docChanged || listSet) bumpAnchorsEpoch()
+      // estimates -> measurements: block tops moved without any doc change
+      else if (update.geometryChanged) notifyGeometry()
+    }),
+    EditorView.domEventHandlers({
+      mousedown(event) {
+        if (event.button !== 0) return false
+        const target = event.target as Element | null
+        const el = target?.closest?.('[data-comment-id]')
+        const id = el?.getAttribute('data-comment-id')
+        if (id === null || id === undefined || id === '') return false
+        onActivate(id)
+        return false
       }
-    ]),
-    onActivateComment
-      ? EditorView.domEventHandlers({
-          mousedown(event, view) {
-            if (event.button !== 0) return false
-            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
-            if (pos === null) return false
-            const comments = view.state.field(commentsField)
-            const text = view.state.doc.toString()
-            const hit = resolvedRanges(text, comments).find((r) => pos >= r.from && pos <= r.to)
-            if (hit === undefined) return false
-            onActivateComment(hit.comment.id)
-            return false
-          }
-        })
-      : []
+    })
   ]
 }
 
-/**
- * Content-space-free, viewport-relative top for a document position, diffed
- * against a reference element's current bounding rect (typically the
- * comment gutter's own track — see comments/CommentGutter.tsx). Recompute on
- * scroll/resize/doc-or-viewport changes; the return value is only valid for
- * the instant it was measured. Null when the position has no visible
- * coordinates (e.g. folded away).
- */
-export function anchorTopIn(view: EditorView, pos: number, reference: Element): number | null {
-  const coords = view.coordsAtPos(pos)
-  if (coords === null) return null
-  return coords.top - reference.getBoundingClientRect().top
-}
-
-/**
- * Every section-target comment's anchor position, viewport-diffed against
- * `reference` (see anchorTopIn). Comments that don't resolve in this view's
- * current text (deleted quote, or simply not this section) are omitted —
- * callers treat a missing id as "unpositioned" (unanchored/detached group).
- */
-export function anchorTopsFor(
-  view: EditorView,
-  comments: readonly Comment[],
-  reference: Element
-): Map<string, number> {
-  const text = view.state.doc.toString()
-  const out = new Map<string, number>()
-  for (const { comment, from } of resolvedRanges(text, comments)) {
-    const top = anchorTopIn(view, from, reference)
-    if (top !== null) out.set(comment.id, top)
-  }
-  return out
-}
-
-/** Push a fresh comments list into a view that already has the extension appended. */
+/** Push a fresh comments list into a view that has the extension appended. */
 export function applySectionComments(view: EditorView, comments: readonly Comment[]): void {
   view.dispatch({ effects: setSectionComments.of(comments) })
+}
+
+/** Reflect the rail's active thread in the editor's highlight styling. */
+export function setActiveInView(view: EditorView, commentId: string | null): void {
+  if (view.state.field(activeField, false) === commentId) return
+  view.dispatch({ effects: setActiveComment.of(commentId) })
+}
+
+/** The live (mapped) anchor ranges — rail sorting, resolve snapshots. */
+export function liveAnchors(state: EditorState): readonly LiveAnchor[] {
+  return state.field(anchorsField, false) ?? []
 }
 
 /** Select, scroll to, and briefly highlight an anchored range. */
@@ -219,4 +262,12 @@ export function flashAnchor(view: EditorView, from: number, to: number): void {
   window.setTimeout(() => {
     view.dispatch({ effects: setFlashRange.of(null) })
   }, 1200)
+}
+
+/** Flash a comment's CURRENT live range; false when it has none (detached). */
+export function flashAnchorById(view: EditorView, commentId: string): boolean {
+  const anchor = liveAnchors(view.state).find((a) => a.id === commentId)
+  if (anchor === undefined) return false
+  flashAnchor(view, anchor.from, anchor.to)
+  return true
 }
