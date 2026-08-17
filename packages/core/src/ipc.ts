@@ -96,6 +96,20 @@ export const MigrationOutcomeSchema = z.object({
 });
 export type MigrationOutcome = z.infer<typeof MigrationOutcomeSchema>;
 
+/**
+ * A capture region for 'app:capture-rect' / 'ai:repair-bundle': CSS px in the
+ * sender window's page coordinates (capturePage takes DIP, which equals CSS
+ * px here). Fractional values are expected — getBoundingClientRect() produces
+ * them — and main rounds after clamping to the window's content bounds.
+ */
+export const CaptureRectSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+export type CaptureRect = z.infer<typeof CaptureRectSchema>;
+
 export const CHANNELS = {
   'project:create': {
     request: z.object({
@@ -591,6 +605,18 @@ export const CHANNELS = {
     request: z.object({
       prompt: z.string().min(1),
       dir: z.string().min(1),
+      /**
+       * Directed-action extensions (feature-plan-8 §2a). All three shape the
+       * CLAUDE spawn only; the codex path ignores them (codex asks run
+       * --sandbox read-only, so directed EDIT actions never target it).
+       * `allowedTools` joins into ONE `--allowed-tools` argv element,
+       * comma-separated.
+       */
+      allowedTools: z.array(z.string().min(1)).optional(),
+      /** Append `--mcp-config <dir>/.mcp.json` — only when that file exists on disk. */
+      useMcp: z.boolean().optional(),
+      /** Deliver the prompt over stdin: no argv length limit, and it never shows in `ps`. */
+      viaStdin: z.boolean().optional(),
     }),
     response: z.object({ askId: z.string().min(1) }),
   },
@@ -598,6 +624,59 @@ export const CHANNELS = {
   'ai:cancel': {
     request: z.object({ askId: z.string().min(1) }),
     response: z.object({}),
+  },
+  /**
+   * Screenshot a region of the SENDER's window (feature-plan-8 §2b). Main
+   * clamps `rect` to the window's content bounds, captures, and writes a PNG
+   * to `targetPath` (root-confined like every renderer-directed write) or to
+   * <temp>/suna-captures/cap-<ts>.png when omitted. `width`/`height` are the
+   * DECODED pixel size of the written PNG — on a HiDPI display that is the
+   * CSS rect times the device pixel ratio, not the rect itself.
+   */
+  'app:capture-rect': {
+    request: z.object({
+      rect: CaptureRectSchema,
+      targetPath: z.string().min(1).optional(),
+    }),
+    response: z.object({
+      path: z.string().min(1),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    }),
+  },
+  /**
+   * Whether this is a dev (unpackaged) run, and where the SUNA source
+   * checkout is. `repoRoot` is non-null exactly when `isDev` — a packaged app
+   * has no source repo, which is what gates "Repair this UI"
+   * (feature-plan-8 §5).
+   */
+  'app:dev-info': {
+    request: z.object({}),
+    response: z.object({
+      isDev: z.boolean(),
+      repoRoot: z.string().min(1).nullable(),
+    }),
+  },
+  /**
+   * Write a "Repair this UI" report bundle under <repoRoot>/bug-reports/
+   * (feature-plan-8 §5): context.json (the renderer's serialized report,
+   * written verbatim) plus shot.png when `rect` is given. Dev-only — throws
+   * when packaged. Main also allow-lists repoRoot so the renderer's follow-up
+   * 'ai:ask' with dir = repoRoot passes root confinement; main writes the
+   * bundle and nothing else — the renderer composes the prompt. `shotPath` is
+   * null when no rect was sent or the capture failed; the bundle is on disk
+   * either way (the bundle IS the fallback when no CLI is installed).
+   */
+  'ai:repair-bundle': {
+    request: z.object({
+      slug: z.string().min(1),
+      contextJson: z.string().min(1),
+      rect: CaptureRectSchema.optional(),
+    }),
+    response: z.object({
+      bundleDir: z.string().min(1),
+      shotPath: z.string().min(1).nullable(),
+    }),
   },
 
   /**
