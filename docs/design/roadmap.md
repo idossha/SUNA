@@ -70,7 +70,12 @@ running Electron process. See TESTING.md → *Flat-layout coverage*.
 
 ## In progress
 
-Nothing — the last batch landed. **The `pnpm smoke` account below is from
+**feature-plan-8** — the `?` shortcut-help overlay plus directed AI
+actions (comment fix, canvas figure edit, dev-only UI repair) — is built
+with the unit gates green; smoke steps 67–69 and the two drive probes
+(`scripts/e2e/probes/`) cover the unbilled halves, and both billed legs
+are unmeasured (TESTING.md → *Directed AI actions*, last measured:
+PENDING). **The `pnpm smoke` account below is from
 before feature-plan-7 and the driver has not been updated since** (see the
 feature-plan-7 exception at the top): the steps that touch the manuscript
 tab, its per-section saves and its comment targets — 17, 18, 29, 31,

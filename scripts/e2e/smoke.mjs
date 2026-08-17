@@ -1,26 +1,35 @@
 #!/usr/bin/env node
 /**
- * SUNA end-to-end smoke test. Launches the app with a CDP endpoint and
- * drives the full loop: open example project (a fresh COPY under userData)
- * → sidebar resize → reading mode (editable live preview; two-state toggle)
- * → canvas editing suite → sidebar views (explorer CRUD, manuscript outline
- * + the combined manuscript document with title page/section editors/
- * references/scroll-spy, figures, references, git commit, agent) —
- * asserting on real files inside the copy — then the layout and citation
- * rendering contract of docs/design/ui-fix-plan.md, *measured* off real
- * boxes (content-kind widths/wrapping, one manuscript measure, cross-ref
- * resolution, the "Rendered as" round trip, the references panel).
+ * SUNA end-to-end smoke test. Launches the app HIDDEN by default (no window,
+ * no dock icon) with a CDP endpoint and drives the full loop: open example
+ * project (a fresh COPY under an isolated userData) → sidebar resize →
+ * reading mode (editable live preview; two-state toggle) → canvas editing
+ * suite → sidebar views (explorer CRUD, manuscript outline + the combined
+ * manuscript document with title page/section editors/references/scroll-spy,
+ * figures, references, git commit, agent) — asserting on real files inside
+ * the copy — then the layout and citation rendering contract of
+ * docs/design/ui-fix-plan.md, *measured* off real boxes (content-kind
+ * widths/wrapping, one manuscript measure, cross-ref resolution, the
+ * "Rendered as" round trip, the references panel).
  *
- * Reset strategy: the userData example copy is deleted before launch, so
- * every run starts from the pristine examples/demo-paper and the git repo
- * created on open has exactly one "Initial commit". localStorage survives
- * that, so the two persisted view preferences (editor appearance, per-project
- * "Rendered as") are reset in the open step — see the note there.
+ * Isolation/reset strategy: the app runs against a scratch userData at
+ * scripts/e2e/.userdata-smoke, wiped at the start of every run — the
+ * developer's real profile (settings.json, recents, localStorage) is never
+ * touched, and every run starts from the pristine examples/demo-paper with
+ * a git repo holding exactly one "Initial commit".
  *
- * Usage:  node scripts/e2e/smoke.mjs        (or: pnpm smoke)
+ * Usage:  node scripts/e2e/smoke.mjs [flags]   (or: pnpm smoke)
+ *   --show          show the window (SUNA_SMOKE_SHOW=1 works too)
+ *   --list          print all step names and exit — nothing is launched
+ *   --only a,b,c    run only the named steps (include their prerequisites)
+ *   --from X        start execution at step X (earlier steps are skipped)
+ *   --until Y       stop after step Y (later steps are skipped)
+ *   --keep          leave the app running at exit; prints how to stop it
+ * Env: SUNA_SMOKE_PORT (CDP port, default 9321), SUNA_SMOKE_KEEP_GOING=1
+ * (keep running past a failed step — diagnostics only, see below).
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
  */
-import { spawn, execSync, execFileSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import {
   copyFileSync,
   existsSync,
@@ -33,72 +42,60 @@ import {
   writeFileSync
 } from 'node:fs'
 import { createRequire } from 'node:module'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
+import { connect, launchApp, sleep } from './cdp.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const ARTIFACTS = join(ROOT, 'scripts', 'e2e', '.artifacts')
 const PORT = Number(process.env.SUNA_SMOKE_PORT ?? 9321)
 
-// Electron userData for @suna/desktop (package.json name → nested dir).
-const USER_DATA =
-  process.platform === 'darwin'
-    ? join(homedir(), 'Library', 'Application Support', '@suna', 'desktop')
-    : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), '@suna', 'desktop')
+// ---------------------------------------------------------------- CLI flags
+const argv = process.argv.slice(2)
+const flagValue = (name) => {
+  const i = argv.indexOf(name)
+  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null
+}
+const SHOW = argv.includes('--show') || process.env.SUNA_SMOKE_SHOW === '1'
+const KEEP = argv.includes('--keep')
+const ONLY = flagValue('--only')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null
+const FROM = flagValue('--from')
+const UNTIL = flagValue('--until')
+
+// --list: print every step name and exit — read statically out of this
+// file's own source, nothing is launched.
+const stepNames = () => {
+  const source = readFileSync(fileURLToPath(import.meta.url), 'utf8')
+  return [...source.matchAll(/await step\('([^']+)'/g)].map((m) => m[1])
+}
+if (argv.includes('--list')) {
+  for (const name of stepNames()) console.log(name)
+  process.exit(0)
+}
+
+// A typo'd filter name would match nothing, skip all steps and exit green —
+// a false-green regression gate. Validate against the canonical list first.
+if (ONLY || FROM || UNTIL) {
+  const known = new Set(stepNames())
+  const bad = [...(ONLY ?? []), FROM, UNTIL].filter((n) => n && !known.has(n))
+  if (bad.length > 0) {
+    console.error(`unknown step name(s): ${bad.join(', ')} — see --list`)
+    process.exit(1)
+  }
+}
+
+// Isolated Electron userData for this suite, wiped at the start of every run
+// — the developer's real @suna/desktop profile is never touched.
+const USER_DATA = join(ROOT, 'scripts', 'e2e', '.userdata-smoke')
 const COPY_DIR = join(USER_DATA, 'example-project')
 
 mkdirSync(ARTIFACTS, { recursive: true })
 
-// ---------------------------------------------------------------- CDP client
-let ws
-let msgId = 0
-const pending = new Map()
-
-function send(method, params = {}) {
-  return new Promise((res, rej) => {
-    const id = ++msgId
-    pending.set(id, { res, rej })
-    ws.send(JSON.stringify({ id, method, params }))
-  })
-}
-
-async function evalJs(expression) {
-  const r = await send('Runtime.evaluate', {
-    expression,
-    awaitPromise: true,
-    returnByValue: true
-  })
-  if (r.exceptionDetails) {
-    throw new Error(`page exception: ${JSON.stringify(r.exceptionDetails.exception ?? {}).slice(0, 400)}`)
-  }
-  return r.result.value
-}
-
-async function screenshot(name) {
-  const shot = await send('Page.captureScreenshot', { format: 'png' })
-  writeFileSync(join(ARTIFACTS, name), Buffer.from(shot.data, 'base64'))
-}
-
-const mouse = (type, x, y) =>
-  send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
-const click = async (x, y) => {
-  await mouse('mousePressed', x, y)
-  await mouse('mouseReleased', x, y)
-}
-const key = (keyName, code, modifiers = 0) =>
-  send('Input.dispatchKeyEvent', { type: 'keyDown', key: keyName, code, modifiers })
-    .then(() => send('Input.dispatchKeyEvent', { type: 'keyUp', key: keyName, code, modifiers }))
-const insertText = (text) => send('Input.insertText', { text })
-/** Real right-click — Chromium synthesizes the `contextmenu` event from it,
- *  which is what editor/codemirror.ts's domEventHandler listens for. */
-const rclick = async (x, y) => {
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'right', clickCount: 1 })
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'right', clickCount: 1 })
-}
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+// The CDP plumbing (launch, connect, send/evalJs/screenshot/click/…) lives in
+// cdp.mjs, shared with drive.mjs; the client is connected in the run section
+// below and destructured into the same names the step bodies always used.
 
 // ---------------------------------------------------------------- harness
 const results = []
@@ -111,7 +108,23 @@ const results = []
  * leaves state the next one did not ask for.
  */
 const KEEP_GOING = process.env.SUNA_SMOKE_KEEP_GOING === '1'
+/**
+ * Step filtering (--only / --from / --until). Filtered runs are best-effort:
+ * some steps consume state earlier steps create (open-example-project is the
+ * near-universal prerequisite; canvas steps also need canvas-opens-figure),
+ * so include the prerequisites in --only lists.
+ */
+let fromReached = FROM === null
+let untilDone = false
 async function step(name, fn) {
+  if (name === FROM) fromReached = true
+  const skip = !fromReached || untilDone || (ONLY !== null && !ONLY.includes(name))
+  if (name === UNTIL) untilDone = true
+  if (skip) {
+    console.log(`  ↷ ${name}`)
+    results.push({ name, ok: true, skipped: true })
+    return
+  }
   try {
     await fn()
     results.push({ name, ok: true })
@@ -121,7 +134,7 @@ async function step(name, fn) {
     console.error(`  ✗ ${name}: ${error.message ?? error}`)
     // surface renderer/main errors piped through electron-vite dev — a React
     // unmount-on-error is invisible to DOM assertions otherwise
-    const errLines = devLog.join('').split('\n').filter((l) => /error|Error|unhandled|Warning/.test(l))
+    const errLines = devLogText().split('\n').filter((l) => /error|Error|unhandled|Warning/.test(l))
     if (errLines.length > 0) console.error('    dev log errors:\n      ' + errLines.slice(-8).join('\n      '))
     await screenshot(`FAIL-${name}.png`).catch(() => {})
     if (!KEEP_GOING) throw error
@@ -462,42 +475,39 @@ function mcpCall(projectDir, name, args) {
 
 // ---------------------------------------------------------------- run
 console.log('SUNA smoke test')
-try {
-  execSync('pkill -f "electron-vite dev" ; pkill -f "Electron.app/Contents/MacOS/Electron"', {
-    stdio: 'ignore', shell: '/bin/bash'
-  })
-} catch { /* nothing to kill */ }
-await sleep(500)
 
-// Fresh example copy every run (see header).
-rmSync(COPY_DIR, { recursive: true, force: true })
+// Fresh scratch userData every run (see header): example copy, settings.json,
+// localStorage and recents all start from zero, so no stash/restore of the
+// developer's preferences is needed anywhere.
+rmSync(USER_DATA, { recursive: true, force: true })
+mkdirSync(USER_DATA, { recursive: true })
 
-// The app's global settings.json survives between runs, so a step that flips a
-// preference (vim, autosave, autoOpenPdf) poisons the NEXT run's defaults —
-// which is how a passing suite starts failing on assertions about defaults.
-// Stash the developer's real file, run against a clean slate, restore in the
-// finally block. Never delete it outright: it holds their actual preferences.
-const SETTINGS_FILE = join(USER_DATA, 'settings.json')
-const savedSettings = existsSync(SETTINGS_FILE) ? readFileSync(SETTINGS_FILE, 'utf8') : null
-rmSync(SETTINGS_FILE, { force: true })
-
-const child = spawn('pnpm', ['dev'], {
-  cwd: join(ROOT, 'apps', 'desktop'),
-  env: { ...process.env, SUNA_DEBUG_PORT: String(PORT) },
-  stdio: ['ignore', 'pipe', 'pipe'],
-  detached: true
+// launchApp frees the CDP port first (scoped lsof kill, no global pkill),
+// then spawns `pnpm dev` — hidden unless --show — against the scratch
+// userData. Under --keep the app must outlive this process, so its stdio
+// goes to a log file (dead pipes would EPIPE a chatty electron-vite dev)
+// and the child is unref()ed by launchApp.
+const LOG_FILE = join(USER_DATA, 'dev.log')
+const appHandle = await launchApp({
+  root: ROOT,
+  port: PORT,
+  hidden: !SHOW,
+  userData: USER_DATA,
+  ...(KEEP ? { logFile: LOG_FILE } : {})
 })
-const devLog = []
-child.stdout.on('data', (d) => devLog.push(String(d)))
-child.stderr.on('data', (d) => devLog.push(String(d)))
+const { devLog } = appHandle
+const devLogText = () => (KEEP && existsSync(LOG_FILE) ? readFileSync(LOG_FILE, 'utf8') : devLog.join(''))
 
+let cleanedUp = false
 function cleanup() {
-  try {
-    process.kill(-child.pid, 'SIGTERM')
-  } catch { /* already gone */ }
-  try {
-    execSync('pkill -f "Electron.app/Contents/MacOS/Electron"', { stdio: 'ignore' })
-  } catch { /* already gone */ }
+  if (cleanedUp) return
+  cleanedUp = true
+  if (KEEP) {
+    console.log(`--keep: app left running (CDP port ${PORT})`)
+    console.log(`stop with: node scripts/e2e/drive.mjs --stop --port ${PORT}`)
+    return
+  }
+  appHandle.stop()
 }
 process.on('exit', cleanup)
 
@@ -507,86 +517,54 @@ let originalSvg = null
  *  example copy; removed in the finally block however the run ends. */
 const TEMP_PROJECT_DIRS = []
 
+// Connect over CDP and take the client's verbs under the exact names the
+// step bodies have always used. screenshot() keeps its artifacts-relative
+// signature as a local wrapper (the client's wants an absolute path).
+// A connect timeout must still report like a failed run (summary line +
+// artifacts pointer) rather than dying as a bare top-level rejection.
+let cdp
+try {
+  cdp = await connect({ port: PORT, diagnostics: () => devLogText().slice(-2000) })
+} catch (error) {
+  console.error(`\nFAILED: ${error.message ?? error}`)
+  console.error(`artifacts: ${ARTIFACTS}`)
+  process.exit(1)
+}
+const { send, evalJs, click, rclick, mouse, key, insertText } = cdp
+const screenshot = (name) => cdp.screenshot(join(ARTIFACTS, name))
+await sleep(1500) // let the renderer finish booting before anything measures
+
 let exitCode = 0
 try {
-  // wait for CDP
-  let target = null
-  const deadline = Date.now() + 60_000
-  while (Date.now() < deadline && !target) {
-    try {
-      const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()
-      target = list.find((t) => t.type === 'page')
-    } catch { /* not up yet */ }
-    if (!target) await sleep(500)
-  }
-  assert(target, `no CDP page target on :${PORT} after 60s\n${devLog.join('').slice(-2000)}`)
-
-  ws = new WebSocket(target.webSocketDebuggerUrl)
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data)
-    const p = msg.id && pending.get(msg.id)
-    if (p) {
-      pending.delete(msg.id)
-      msg.error ? p.rej(new Error(msg.error.message)) : p.res(msg.result)
-    }
-  }
-  await new Promise((res, rej) => {
-    ws.onopen = res
-    ws.onerror = () => rej(new Error('CDP websocket failed'))
-  })
-  await sleep(1500)
-
   /**
    * Pin the viewport before anything measures geometry.
    *
-   * The app asks for a 1520×960 window, but macOS window tiling remembers a
-   * per-app state across launches and hands it back whatever it likes: runs
-   * of this suite have come up at 1265×1334 AND at 900×1334 (the `minWidth`)
-   * on the same machine, same commit. Anything width-dependent then turns
-   * into a coin flip — the margin comment gutter's 1100 px card/dot
-   * breakpoint, the properties panel's 1200 px auto-open, and the canvas
-   * click targets (the text-tool step failed exactly this way at 900 px).
-   *
-   * Electron does not implement CDP's Browser domain, so the OS window
-   * cannot be resized from here; Emulation.setDeviceMetricsOverride pins the
-   * *renderer's* viewport instead, which is what every assertion actually
-   * reads. Input events are delivered in the same coordinate space, so real
-   * mouse/drag steps keep working (verified), and screenshots come out at a
-   * fixed size instead of varying run to run.
-   *
-   * The override's width/height are in Chromium's *device-independent*
-   * pixels, which equal CSS pixels only when the page zoom is 1. On a display
-   * whose macOS scale factor is not an integer (a MacBook running a "More
-   * Space" scaled mode reports devicePixelRatio 2.629, say), Chromium keeps
-   * an integral device scale factor and folds the remainder into a page zoom
-   * — `Page.getLayoutMetrics().cssVisualViewport.zoom` — so a raw
-   * `width: 1600` lands at `window.innerWidth === 1600 / zoom` (measured:
-   * 1217) and every width assertion below it reads a viewport nobody asked
-   * for. Scaling the request by that zoom pins the CSS viewport itself; on
-   * an integral-scale display zoom is 1 and this is a no-op.
+   * macOS window tiling remembers a per-app state across launches and hands
+   * the window back at whatever size it likes (observed 1265×1334 AND
+   * 900×1334 on the same machine, same commit), so anything width-dependent
+   * — the comment gutter's 1100 px card/dot breakpoint, the properties
+   * panel's 1200 px auto-open, the canvas click targets — turns into a coin
+   * flip. Electron does not implement CDP's Browser domain, so the OS window
+   * cannot be resized from here; the *renderer's* viewport is emulated
+   * instead, which is what every assertion actually reads, and input events
+   * arrive in the same coordinate space so real mouse/drag steps keep
+   * working. The mechanics (Emulation override in device-independent pixels,
+   * zoom-corrected for displays with a non-integral scale factor) now live
+   * in cdp.mjs's pinViewport.
    */
   const VIEWPORT = { width: 1600, height: 1100 }
-  const metrics = await send('Page.getLayoutMetrics')
-  const pageZoom = metrics.cssVisualViewport?.zoom ?? 1
-  await send('Emulation.setDeviceMetricsOverride', {
-    width: Math.round(VIEWPORT.width * pageZoom),
-    height: Math.round(VIEWPORT.height * pageZoom),
-    deviceScaleFactor: 2,
-    mobile: false
-  })
-  await sleep(800)
+  const pinned = await cdp.pinViewport(VIEWPORT)
 
   await step('viewport-is-pinned', async () => {
-    const got = await evalJs(`({ w: window.innerWidth, h: window.innerHeight })`)
     // ±1 px: the override is applied in device-independent pixels, so a
     // non-integral page zoom can round the CSS width by a pixel.
     assert(
-      Math.abs(got.w - VIEWPORT.width) <= 1 && Math.abs(got.h - VIEWPORT.height) <= 1,
-      `viewport override did not take: ${got.w}×${got.h} (want ${VIEWPORT.width}×${VIEWPORT.height}, page zoom ${pageZoom})`
+      Math.abs(pinned.w - VIEWPORT.width) <= 1 && Math.abs(pinned.h - VIEWPORT.height) <= 1,
+      `viewport override did not take: ${pinned.w}×${pinned.h} (want ${VIEWPORT.width}×${VIEWPORT.height})`
     )
     // Above the gutter's 1100px breakpoint, so the margin-comment steps
     // measure the card layout rather than the narrow dot fallback.
-    assert(got.w >= 1100, `viewport ${got.w}px is below the comment gutter's card/dot breakpoint`)
+    assert(pinned.w >= 1100, `viewport ${pinned.w}px is below the comment gutter's card/dot breakpoint`)
   })
 
   await step('app-loads-welcome', async () => {
@@ -619,11 +597,12 @@ try {
     originalSvg = readFileSync(FIGURE, 'utf8')
     // Normalize the persisted view preferences before anything asserts on
     // them: the editor appearance store (localStorage), the per-project
-    // 'Rendered as' override, and the left nav's two visibility flags. The
-    // example COPY is recreated every run but localStorage is not, so without
-    // this a run that ended on MNRAS would decide the *next* run's citation
-    // numbering — and a run that ended with the nav hidden would start the
-    // next one with no explorer tree and no activity bar to click.
+    // 'Rendered as' override, and the left nav's two visibility flags.
+    // The scratch-userData wipe already resets localStorage each run, so
+    // this is now a belt-and-braces guard — it keeps the run deterministic
+    // even if the wipe is ever skipped or the suite is pointed at a live
+    // instance, where a run that ended on MNRAS would otherwise decide the
+    // next run's citation numbering.
     await evalJs(`(() => {
       window.__sunaDev.editorSettings.getState().reset();
       window.__sunaDev.renderProfileStore.setState({ byProject: {} });
@@ -1519,7 +1498,7 @@ try {
   })
 
   await step('vim-motions', async () => {
-    // The suite deletes the developer's settings.json before launch, so vim is
+    // The scratch userData starts every run with no settings.json, so vim is
     // off for every other step and this one has to turn it on itself — and
     // turn it back off, or every later step's typing lands in normal mode.
     const VIM_FILE = join(COPY_DIR, 'vim-probe.md')
@@ -5647,48 +5626,275 @@ try {
     rmSync(CANCEL_PARENT, { recursive: true, force: true })
   })
 
+  /* =======================================================================
+     docs/design/feature-plan-8.md §7 — the '?' help overlay and the
+     directed AI actions, unbilled halves only. The billed legs (a comment
+     fix landing edit + reply + resolve; a figure edit surviving
+     compliance) are manual, like steps 47/54 — see TESTING.md →
+     "Directed AI actions".
+     ======================================================================= */
+
+  await step('help-overlay', async () => {
+    // The isTyping guard and focus restore are probed in
+    // probes/help-overlay.mjs; here: '?' opens, the section tabs are real,
+    // Esc closes. '?' must come from a non-typing target, so park focus
+    // on nothing first — the previous step may have left it in an input.
+    await evalJs(`(() => {
+      const el = document.activeElement;
+      if (el && el !== document.body) el.blur();
+      return true;
+    })()`)
+    assert(
+      !(await evalJs(`!!document.querySelector('.help-overlay')`)),
+      'the help overlay is already open before the step'
+    )
+    await key('?', 'Slash', 8) // CDP modifiers: 8 = Shift — '?' is Shift-Slash
+    await sleep(500)
+    const opened = await evalJs(`(() => {
+      const root = document.querySelector('.help-overlay');
+      if (!root) return null;
+      return {
+        section: root.dataset.helpSection ?? null,
+        tabs: [...root.querySelectorAll('.help-overlay__tab')].map((t) => t.textContent.trim()),
+        kbd: root.querySelectorAll('kbd').length
+      };
+    })()`)
+    assert(opened !== null, `'?' did not open the help overlay`)
+    const sectionIds = ['global', 'editor', 'manuscript', 'canvas', 'explorer', 'viewers']
+    assert(sectionIds.includes(opened.section), `data-help-section: ${opened.section}`)
+    assert(
+      opened.tabs.length === sectionIds.length,
+      `${opened.tabs.length} section tabs: ${opened.tabs.join(' | ')}`
+    )
+    // Count rows on a PINNED section: the initial section follows whatever
+    // panel is active (viewers has only 7 rows), so a filtered run reaching
+    // this step with a PDF tab frontmost must not fail the count.
+    const globalKbd = await evalJs(`(() => {
+      const root = document.querySelector('.help-overlay');
+      const tab = [...root.querySelectorAll('.help-overlay__tab')].find((t) => /global/i.test(t.textContent));
+      tab.click();
+      return root.querySelectorAll('kbd').length;
+    })()`)
+    assert(globalKbd > 10, `only ${globalKbd} <kbd> elements — the shortcut inventory did not render`)
+
+    // a tab click switches the section (the §7 data-help-section contract)
+    await evalJs(`(() => {
+      const tab = [...document.querySelectorAll('.help-overlay__tab')].find((t) => /canvas/i.test(t.textContent));
+      if (!tab) throw new Error('no Canvas tab');
+      tab.click();
+    })()`)
+    await sleep(300)
+    const canvas = await evalJs(`({
+      section: document.querySelector('.help-overlay')?.dataset.helpSection ?? null,
+      text: document.querySelector('.help-overlay')?.textContent ?? ''
+    })`)
+    assert(canvas.section === 'canvas', `clicking the Canvas tab landed on '${canvas.section}'`)
+    assert(/duplicate/i.test(canvas.text), 'the canvas section is missing its ⌘D duplicate row')
+    await screenshot('help-overlay.png')
+
+    await key('Escape', 'Escape')
+    await sleep(300)
+    assert(!(await evalJs(`!!document.querySelector('.help-overlay')`)), 'Esc did not close the overlay')
+  })
+
+  await step('ai-capture-rect', async () => {
+    // 'app:capture-rect' (§2b) is the canvas Agent section's screenshot
+    // channel: a CSS-px page rect in, a PNG on disk out, the response
+    // reporting the size decoded from the written bytes.
+    const rect = { x: 24, y: 24, width: 400, height: 260 }
+    const res = await evalJs(`window.suna.invoke('app:capture-rect', { rect: ${JSON.stringify(rect)} })`)
+    assert(res && typeof res.path === 'string', `capture-rect response: ${JSON.stringify(res)}`)
+    assert(
+      res.path.includes('suna-captures'),
+      `a capture without targetPath belongs under <temp>/suna-captures: ${res.path}`
+    )
+    assert(existsSync(res.path), `no PNG on disk at ${res.path}`)
+    const ihdr = pngIhdr(res.path)
+    assert(
+      ihdr.width === res.width && ihdr.height === res.height,
+      `response says ${res.width}×${res.height}, the file's IHDR says ${ihdr.width}×${ihdr.height}`
+    )
+    // The PNG is rect × devicePixelRatio, within ±10% + rounding: on a
+    // non-integral display scale Chromium folds the remainder into a page
+    // zoom (see pinViewport), so the DIP mapping is not exactly ×dpr.
+    const dpr = await evalJs(`window.devicePixelRatio`)
+    const near = (got, want) => Math.abs(got - want) <= Math.max(4, want * 0.1)
+    assert(
+      near(ihdr.width, rect.width * dpr) && near(ihdr.height, rect.height * dpr),
+      `IHDR ${ihdr.width}×${ihdr.height} for a ${rect.width}×${rect.height} request @ dpr ${dpr}`
+    )
+    rmSync(res.path, { force: true })
+  })
+
+  await step('comment-ai-cancel', async () => {
+    const cli = await evalJs(`window.suna.invoke('lit:cli-status', {})`)
+    if (!Array.isArray(cli.available) || cli.available.length === 0) {
+      console.log('    (no agent CLI installed — the directed comment fix cannot be exercised here)')
+      return
+    }
+    if (!cli.available.includes('claude')) {
+      console.log('    (codex only — directed AI edits are claude-only, the ✦ AI button stays disabled)')
+      return
+    }
+
+    // The recents/onboarding steps may have switched projects — re-point at
+    // the example copy, whose .mcp.json the spawn's --mcp-config will name.
+    await evalJs(`window.__sunaDev.openProjectAt(${JSON.stringify(COPY_DIR)})`)
+    await sleep(2000)
+    const rootDir = await evalJs(`window.__sunaDev.projectStore.getState().rootDir`)
+    assert(rootDir === COPY_DIR, `reopening the example landed on ${rootDir}`)
+    assert(
+      existsSync(join(COPY_DIR, '.mcp.json')),
+      'the example copy has no .mcp.json — the agent-layer heal did not run'
+    )
+
+    // Locate the child by ITS OWN argv: the '--mcp-config <copy>/.mcp.json'
+    // pair only a directed run against this project carries. Never by the
+    // string "claude" (whoever runs this suite may be inside an agent CLI
+    // session — step 47's rule) and never by prompt text: stdin delivery
+    // keeps the prompt out of ps by design (feature-plan-8 §2a).
+    const mcpArg = join(COPY_DIR, '.mcp.json')
+    const running = () =>
+      execSync('ps -eo pid,command', { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+        .split('\n')
+        .filter((line) => line.includes('--mcp-config') && line.includes(mcpArg) && !line.includes('ps -eo'))
+        .map((line) => line.trim())
+    assert(running().length === 0, `a directed-AI child was already running:\n${running().join('\n')}`)
+
+    await openManuscriptDoc()
+    await evalJs(`window.__sunaDev.uiStore.getState().setCommentsRailVisible(true)`)
+    await sleep(600)
+
+    // A section comment to send — the earlier comment steps normally left
+    // some; a filtered run creates its own from real prose so the anchor
+    // resolves (the comment body IS the instruction, per §3).
+    let commentId = await evalJs(`(() => {
+      const c = window.__sunaDev.commentsStore.getState().comments.find((c) => c.target.kind === 'section');
+      return c ? c.id : null;
+    })()`)
+    if (commentId === null) {
+      const text = readFileSync(MANUSCRIPT_MD, 'utf8')
+      const line = text.split('\n').find((l) => !l.startsWith('#') && l.trim().length >= 48)
+      assert(line !== undefined, 'no prose line long enough to anchor a comment on')
+      const quote = line.trim().slice(0, 32)
+      const at = text.indexOf(quote)
+      const target = {
+        kind: 'section',
+        path: 'manuscript.md',
+        anchor: {
+          prefix: text.slice(Math.max(0, at - 32), at),
+          quote,
+          suffix: text.slice(at + quote.length, at + quote.length + 32)
+        }
+      }
+      const created = await evalJs(
+        `window.__sunaDev.commentsStore.getState().add(${JSON.stringify(target)}, 'Smoke probe: tighten this sentence.')`
+      )
+      assert(created !== null, 'could not create a fallback comment')
+      commentId = created.id
+    }
+    await evalJs(`window.__sunaDev.commentsStore.getState().setActive(${JSON.stringify(commentId)})`)
+    const cardSel = `.cmt-rail .cmt-card[data-comment-id="${commentId}"]`
+
+    // The button starts disabled behind the rail's one 'lit:cli-status'
+    // round trip — wait for the gate to open before clicking.
+    let button = null
+    for (let i = 0; i < 20; i++) {
+      button = await evalJs(`(() => {
+        const btn = document.querySelector(${JSON.stringify(`${cardSel} .cmt__btn--ai`)});
+        return btn ? { disabled: btn.disabled, title: btn.title } : null;
+      })()`)
+      if (button !== null && !button.disabled) break
+      await sleep(300)
+    }
+    assert(button !== null, 'the active comment card renders no ✦ AI button')
+    assert(!button.disabled, `the ✦ AI button never enabled: '${button.title}'`)
+
+    // --- start the fix, then cancel ~3 s in (unbilled) ---------------------
+    await evalJs(`document.querySelector(${JSON.stringify(`${cardSel} .cmt__btn--ai`)}).click()`)
+    let spawned = []
+    for (let i = 0; i < 16 && spawned.length === 0; i++) {
+      await sleep(500)
+      spawned = running()
+    }
+    assert(spawned.length > 0, 'the ✦ AI click spawned no CLI child carrying the project --mcp-config')
+    const pids = spawned.map((line) => line.split(/\s+/)[0])
+    const busy = await evalJs(`(() => {
+      const card = document.querySelector(${JSON.stringify(cardSel)});
+      return {
+        busyClass: card?.classList.contains('cmt-card--ai-busy') ?? false,
+        cancel: !![...(card?.querySelectorAll('.cmt__actions .cmt__btn') ?? [])]
+          .find((b) => b.textContent.trim() === 'Cancel')
+      };
+    })()`)
+    assert(busy.busyClass, 'the card did not enter its ai-busy state')
+    assert(busy.cancel, 'no Cancel button on the card while the fix runs')
+    await screenshot('comment-ai-busy.png')
+    await sleep(1000)
+
+    await evalJs(`[...document.querySelector(${JSON.stringify(cardSel)}).querySelectorAll('.cmt__actions .cmt__btn')]
+      .find((b) => b.textContent.trim() === 'Cancel').click()`)
+    let left = null
+    for (let i = 0; i < 24; i++) {
+      await sleep(500)
+      left = running()
+      if (left.length === 0) break
+    }
+    assert(left.length === 0, `Cancel left a CLI child alive:\n${left.join('\n')}`)
+    for (const pid of pids) {
+      let alive = true
+      try {
+        execSync(`ps -p ${pid} > /dev/null 2>&1`, { shell: '/bin/bash' })
+      } catch {
+        alive = false
+      }
+      assert(!alive, `spawned pid ${pid} is still alive after Cancel`)
+    }
+
+    // the card must leave its busy state and offer the button again
+    let after = null
+    for (let i = 0; i < 20; i++) {
+      after = await evalJs(`(() => {
+        const card = document.querySelector(${JSON.stringify(cardSel)});
+        return {
+          busyClass: card?.classList.contains('cmt-card--ai-busy') ?? false,
+          aiButton: !!card?.querySelector('.cmt__btn--ai')
+        };
+      })()`)
+      if (!after.busyClass) break
+      await sleep(500)
+    }
+    assert(!after.busyClass, 'the card is still in its ai-busy state after Cancel')
+    assert(after.aiButton, 'the ✦ AI button did not come back after Cancel')
+    const note = await evalJs(`window.__sunaDev.uiStore.getState().statusNote`)
+    assert(note !== null && /cancel/i.test(note), `the cancelled run was not reported honestly: ${note}`)
+  })
+
   // Under KEEP_GOING a failed step did not throw, so the summary is decided
-  // here rather than by having reached this line.
+  // here rather than by having reached this line. Skipped steps (--only/
+  // --from/--until) count as passed and can never turn a run red.
   if (results.some((r) => !r.ok)) throw new Error('one or more steps failed')
-  console.log(`\nALL ${results.length} STEPS PASSED`)
+  const skipped = results.filter((r) => r.skipped).length
+  console.log(
+    `\nALL ${results.length - skipped} STEPS PASSED${skipped > 0 ? ` (${skipped} skipped)` : ''}`
+  )
 } catch {
   exitCode = 1
   const failed = results.filter((r) => !r.ok)
   console.error(`\nFAILED: ${failed.map((f) => f.name).join(', ')}`)
   console.error(`artifacts: ${ARTIFACTS}`)
 } finally {
-  // hand the developer back the settings this run replaced
-  if (savedSettings !== null) {
-    mkdirSync(USER_DATA, { recursive: true })
-    writeFileSync(SETTINGS_FILE, savedSettings)
-  } else {
-    rmSync(SETTINGS_FILE, { force: true })
-  }
   // leave the example copy's figure pristine for whoever opens it next
   if (FIGURE && originalSvg !== null && existsSync(FIGURE)) {
     writeFileSync(FIGURE, originalSvg)
   }
-  // Scratch projects the feature-plan-5 steps created, and the recents rows
-  // pointing at them — otherwise every run leaves a dead "Missing" entry on
-  // the next run's welcome screen (userData/settings.json is NOT reset).
-  // The app is stopped FIRST: the main process holds settings.json in a cache
-  // it rewrites wholesale, so editing the file under a live app can be undone.
+  // Scratch projects the feature-plan-5 steps created outside the example
+  // copy. The app is stopped FIRST (unless --keep) so nothing rewrites files
+  // while they are removed; stale recents rows need no scrubbing — they live
+  // in the scratch userData, which the next run wipes.
   cleanup()
   for (const dir of TEMP_PROJECT_DIRS) {
     rmSync(dir, { recursive: true, force: true })
   }
-  try {
-    const settingsFile = join(USER_DATA, 'settings.json')
-    if (existsSync(settingsFile)) {
-      const settings = JSON.parse(readFileSync(settingsFile, 'utf8'))
-      const recents = settings['recentProjects']
-      if (Array.isArray(recents)) {
-        settings['recentProjects'] = recents.filter(
-          (entry) => !TEMP_PROJECT_DIRS.some((dir) => String(entry?.path ?? '').startsWith(dir))
-        )
-        writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + '\n')
-      }
-    }
-  } catch { /* a settings file we cannot parse is not this suite's problem */ }
 }
 process.exit(exitCode)
