@@ -3,6 +3,7 @@ import { resetCliDetectionCache, type CliProbe } from './lit'
 import { allowRoot } from './roots'
 import {
   cancelAiAsk,
+  claudeAskArgs,
   parseClaudeAskOutput,
   parseCodexAskOutput,
   runAiAsk
@@ -77,6 +78,70 @@ describe('parseClaudeAskOutput', () => {
 
   it('empty stdout on a zero exit is an honest "(empty output)" error, never a silent blank answer', () => {
     expect(parseClaudeAskOutput('', '', 0)).toEqual({ text: null, error: '(empty output)' })
+  })
+})
+
+describe('claudeAskArgs (feature-plan-8 §2a)', () => {
+  it('keeps the plain palette ask byte-identical to the original argv', () => {
+    expect(claudeAskArgs('why is the sky blue', {})).toEqual([
+      '-p',
+      'why is the sky blue',
+      '--output-format',
+      'json'
+    ])
+  })
+
+  it('viaStdin drops the positional prompt — the prompt must never reach `ps`', () => {
+    expect(claudeAskArgs('secret prompt', { viaStdin: true })).toEqual([
+      '-p',
+      '--output-format',
+      'json'
+    ])
+  })
+
+  it('appends --mcp-config only when the caller resolved an existing file', () => {
+    expect(claudeAskArgs('q', { mcpConfigPath: '/proj/.mcp.json' })).toEqual([
+      '-p',
+      'q',
+      '--output-format',
+      'json',
+      '--mcp-config',
+      '/proj/.mcp.json'
+    ])
+    expect(claudeAskArgs('q', { mcpConfigPath: null })).toEqual(['-p', 'q', '--output-format', 'json'])
+  })
+
+  it('joins allowedTools into ONE comma-separated argv element', () => {
+    expect(claudeAskArgs('q', { allowedTools: ['Read', 'Grep', 'mcp__suna__edit_manuscript'] })).toEqual([
+      '-p',
+      'q',
+      '--output-format',
+      'json',
+      '--allowed-tools',
+      'Read,Grep,mcp__suna__edit_manuscript'
+    ])
+  })
+
+  it('an empty allowlist appends no flag — a bare --allowed-tools would eat the next argv', () => {
+    expect(claudeAskArgs('q', { allowedTools: [] })).toEqual(['-p', 'q', '--output-format', 'json'])
+  })
+
+  it('a full directed action carries all three extensions (--mcp-config is how smoke steps find the child in ps)', () => {
+    expect(
+      claudeAskArgs('edit the figure', {
+        viaStdin: true,
+        mcpConfigPath: '/proj/.mcp.json',
+        allowedTools: ['mcp__suna__*']
+      })
+    ).toEqual([
+      '-p',
+      '--output-format',
+      'json',
+      '--mcp-config',
+      '/proj/.mcp.json',
+      '--allowed-tools',
+      'mcp__suna__*'
+    ])
   })
 })
 

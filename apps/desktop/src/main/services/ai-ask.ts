@@ -12,7 +12,7 @@
  * one probe cache, one PATH-repair fix, not two.
  */
 import { type ChildProcess, spawn } from 'node:child_process'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LitCliId, LitCliPreference } from '@suna/core'
@@ -29,6 +29,15 @@ export interface AiAskOptions {
   onProgress: (status: string) => void
   /** Test seam: override CLI detection without spawning a real process. */
   probe?: CliProbe
+  // Directed-action extensions (feature-plan-8 §2a). All three shape the
+  // CLAUDE spawn only; the codex path ignores them — codex asks run
+  // `--sandbox read-only`, so directed EDIT actions never target codex.
+  /** Values for ONE `--allowed-tools` argv element, comma-joined. */
+  allowedTools?: string[]
+  /** Append `--mcp-config <dir>/.mcp.json` — only when that file exists. */
+  useMcp?: boolean
+  /** Deliver the prompt over stdin: no argv length limit, absent from `ps`. */
+  viaStdin?: boolean
 }
 
 export interface AiAskResult {
@@ -149,13 +158,61 @@ function manageChild(
   }
 }
 
-function runClaudeAsk(askId: string, prompt: string, options: AiAskOptions): Promise<AiAskResult> {
+/**
+ * Argv for one `claude -p` run (feature-plan-8 §2a) — pure so tests can pin
+ * the flag contract without spawning. With `viaStdin` the positional prompt
+ * is dropped (`claude -p` reads stdin when none is given — measured live);
+ * `allowedTools` joins into ONE argv element (the CLI accepts comma-separated
+ * values); `mcpConfigPath` is appended only when the caller has verified the
+ * file exists — claude errors out on a missing `--mcp-config` path.
+ */
+export function claudeAskArgs(
+  prompt: string,
+  options: { viaStdin?: boolean; allowedTools?: string[]; mcpConfigPath?: string | null }
+): string[] {
+  const args =
+    options.viaStdin === true
+      ? ['-p', '--output-format', 'json']
+      : ['-p', prompt, '--output-format', 'json']
+  if (options.mcpConfigPath !== undefined && options.mcpConfigPath !== null) {
+    args.push('--mcp-config', options.mcpConfigPath)
+  }
+  if (options.allowedTools !== undefined && options.allowedTools.length > 0) {
+    args.push('--allowed-tools', options.allowedTools.join(','))
+  }
+  return args
+}
+
+async function runClaudeAsk(askId: string, prompt: string, options: AiAskOptions): Promise<AiAskResult> {
+  // Resolve the MCP config before spawning: a project without an agent layer
+  // must still answer plain asks rather than die on a missing --mcp-config.
+  let mcpConfigPath: string | null = null
+  if (options.useMcp === true) {
+    const candidate = join(options.dir, '.mcp.json')
+    mcpConfigPath = await access(candidate).then(
+      () => candidate,
+      () => null
+    )
+  }
+  const args = claudeAskArgs(prompt, {
+    viaStdin: options.viaStdin,
+    allowedTools: options.allowedTools,
+    mcpConfigPath
+  })
+
   return new Promise((resolvePromise) => {
-    const child = spawn('claude', ['-p', prompt, '--output-format', 'json'], {
+    const child = spawn('claude', args, {
       cwd: options.dir,
       env: cliEnv(),
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: [options.viaStdin === true ? 'pipe' : 'ignore', 'pipe', 'pipe']
     })
+
+    if (options.viaStdin === true && child.stdin !== null) {
+      // A failed spawn (CLI missing) surfaces via the child's 'error' event;
+      // the mirrored stdin EPIPE must not crash the main process.
+      child.stdin.on('error', () => {})
+      child.stdin.end(prompt)
+    }
 
     let stdout = ''
     let stderr = ''

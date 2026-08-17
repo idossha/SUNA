@@ -22,6 +22,7 @@ import {
   setKey,
   setLitKey
 } from './services/agent-keys'
+import { captureRect, devInfo, repairBundle } from './services/capture'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
 import { analyzeDocx, commitDocxAnalysis } from './services/docx-import'
 import { exportDocx } from './services/export-docx'
@@ -365,7 +366,7 @@ export function registerIpcHandlers(): void {
     return {}
   })
 
-  handle('ai:ask', async ({ prompt, dir }, event) => {
+  handle('ai:ask', async ({ prompt, dir, allowedTools, useMcp, viaStdin }, event) => {
     const askId = `ai-ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const webContents = event.sender
     const cliPreference = await litCliPreference()
@@ -375,6 +376,9 @@ export function registerIpcHandlers(): void {
     void runAiAsk(askId, prompt, {
       dir,
       cliPreference,
+      allowedTools,
+      useMcp,
+      viaStdin,
       onProgress: (status) => {
         if (!webContents.isDestroyed()) webContents.send(EVENT_CHANNELS.aiAskProgress(askId), status)
       }
@@ -390,6 +394,10 @@ export function registerIpcHandlers(): void {
     cancelAiAsk(askId)
     return {}
   })
+  handle('ai:repair-bundle', (req, event) => repairBundle(event, req))
+
+  handle('app:capture-rect', (req, event) => captureRect(event, req))
+  handle('app:dev-info', async () => devInfo())
 
   handle('figure:export', ({ dir, figureId, format, widthMm, dpi, transparent }) =>
     exportFigure({ dir, figureId, format, widthMm, dpi, transparent })
