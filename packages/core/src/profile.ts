@@ -203,16 +203,20 @@ export const ManuscriptRulesSchema = z.object({
 export type ManuscriptRules = z.infer<typeof ManuscriptRulesSchema>;
 
 /**
- * Document TYPOGRAPHY — how the exported manuscript is set on the page, as
- * opposed to the rules a journal states (which is what every other block in
- * this schema carries).
+ * Document TYPOGRAPHY and export CONVENTIONS — how the exported manuscript is
+ * set on the page, as opposed to the rules a journal states (which is what
+ * every other block in this schema carries).
  *
- * Deliberately optional and deliberately separate. Journal profiles leave it
- * absent, because the published author guidelines this project is built from
- * (ADR-002) do not state page geometry or point sizes for the *submitted
- * manuscript* — inventing them per journal would be exactly the kind of guess
- * this codebase refuses to make. It exists so a HOUSE style can state them:
- * `suna.json` sets every field, which is what makes "SUNA style" a real,
+ * Every field is OPTIONAL, and that is the whole model: the SUNA house style
+ * is the ALWAYS-ON base for every export (see the exporters'
+ * `resolveDocumentStyle`), and a profile's `documentStyle` is a DELTA merged
+ * on top of it. A journal profile states ONLY what its published author
+ * guidelines actually say — a figure-label word, a captions-list placement, a
+ * references-on-a-new-page rule — and inherits the SUNA default for
+ * everything else. Published guidelines almost never state page geometry or
+ * point sizes for the *submitted manuscript* (ADR-002), so a journal profile
+ * carrying typography here would be inventing a rule; `suna.json` itself sets
+ * every typography field, which is what makes "SUNA style" a real,
  * reproducible layout rather than a set of magic numbers buried in the DOCX
  * writer.
  *
@@ -220,46 +224,72 @@ export type ManuscriptRules = z.infer<typeof ManuscriptRulesSchema>;
  * already think in — and are converted at the edge (half-points/twips for
  * OOXML, CSS units for HTML) so the two renderers cannot drift apart.
  */
-export const DocumentStyleSchema = z.object({
-  /** Human-readable name shown in the export dialog, e.g. "SUNA style". */
-  name: z.string().min(1),
-  page: z.object({
-    widthMm: z.number().positive(),
-    heightMm: z.number().positive(),
-    marginMm: z.number().nonnegative(),
-  }),
-  fonts: z.object({
-    body: z.string().min(1),
-    mono: z.string().min(1),
-  }),
-  /** Point sizes for each role. */
-  sizesPt: z.object({
-    body: z.number().positive(),
-    title: z.number().positive(),
-    author: z.number().positive(),
-    affiliation: z.number().positive(),
-    heading1: z.number().positive(),
-    heading2: z.number().positive(),
-    caption: z.number().positive(),
-    reference: z.number().positive(),
-    tableCell: z.number().positive(),
-    footer: z.number().positive(),
-  }),
-  /** Multiple of single spacing applied to every paragraph, e.g. 1.15. */
-  lineSpacing: z.number().positive(),
-  /** Space after a body paragraph, in points. */
-  bodySpaceAfterPt: z.number().nonnegative(),
-  /** Reference-list hanging indent, in millimetres. */
-  referenceHangingMm: z.number().nonnegative(),
-  /** Default figure width when the profile states no preset width, in millimetres. */
-  figureWidthMm: z.number().positive(),
-  /** Where a figure caption sits relative to its image. */
-  figureCaptionPosition: z.enum(['above', 'below']),
-  /** Where a table caption sits relative to its table. */
-  tableCaptionPosition: z.enum(['above', 'below']),
-  /** Start the body on a fresh page after the front matter. */
-  pageBreakAfterFrontMatter: z.boolean(),
-});
+export const DocumentStyleSchema = z
+  .object({
+    /** Human-readable name shown in the export dialog, e.g. "SUNA style". */
+    name: z.string().min(1),
+    page: z
+      .object({
+        widthMm: z.number().positive(),
+        heightMm: z.number().positive(),
+        marginMm: z.number().nonnegative(),
+      })
+      .partial(),
+    fonts: z
+      .object({
+        body: z.string().min(1),
+        mono: z.string().min(1),
+      })
+      .partial(),
+    /** Point sizes for each role. */
+    sizesPt: z
+      .object({
+        body: z.number().positive(),
+        title: z.number().positive(),
+        author: z.number().positive(),
+        affiliation: z.number().positive(),
+        heading1: z.number().positive(),
+        heading2: z.number().positive(),
+        caption: z.number().positive(),
+        reference: z.number().positive(),
+        tableCell: z.number().positive(),
+        footer: z.number().positive(),
+      })
+      .partial(),
+    /** Multiple of single spacing applied to every paragraph, e.g. 1.15. */
+    lineSpacing: z.number().positive(),
+    /** Space after a body paragraph, in points. */
+    bodySpaceAfterPt: z.number().nonnegative(),
+    /** Reference-list hanging indent, in millimetres. */
+    referenceHangingMm: z.number().nonnegative(),
+    /** Default figure width when the profile states no preset width, in millimetres. */
+    figureWidthMm: z.number().positive(),
+    /** Where a figure caption sits relative to its image. */
+    figureCaptionPosition: z.enum(['above', 'below']),
+    /** Where a table caption sits relative to its table. */
+    tableCaptionPosition: z.enum(['above', 'below']),
+    /** Start the body on a fresh page after the front matter. */
+    pageBreakAfterFrontMatter: z.boolean(),
+    /**
+     * How figures are named in captions and cross-references: "Figure 1"
+     * (the SUNA default) or the abbreviated "Fig. 1" some journals state.
+     */
+    figureLabel: z.enum(['Figure', 'Fig.']),
+    /**
+     * Where figures land in the export: embedded 'inline' at first mention
+     * (the SUNA default), or images omitted with a "Figure Captions" list
+     * after the references — the shape journals like SLEEP require.
+     */
+    figurePlacement: z.enum(['inline', 'captions-list']),
+    /**
+     * Where tables land: 'inline' where they are written (the SUNA default),
+     * or gathered into a section at the end of the document.
+     */
+    tablePlacement: z.enum(['inline', 'end']),
+    /** Start the reference list on a fresh page (the SUNA default is true). */
+    referencesStartNewPage: z.boolean(),
+  })
+  .partial();
 export type DocumentStyle = z.infer<typeof DocumentStyleSchema>;
 
 export const PublisherProfileSchema = z.object({
@@ -273,7 +303,10 @@ export const PublisherProfileSchema = z.object({
   citations: CitationRulesSchema,
   figures: FigureRulesSchema,
   manuscript: ManuscriptRulesSchema,
-  /** Present only on house styles; see DocumentStyleSchema. */
+  /**
+   * Partial delta over the always-on SUNA default style; see
+   * DocumentStyleSchema. Absent means "inherit the SUNA default in full".
+   */
   documentStyle: DocumentStyleSchema.optional(),
   notes: z.array(z.string()),
 });

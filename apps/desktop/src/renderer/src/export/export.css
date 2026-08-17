@@ -1,10 +1,54 @@
+/* ------------------------------------------------------------------ */
+/* Two-column layout: form on the left, journal requirements on the    */
+/* right. The dialog is a container-query root so the split collapses  */
+/* on the PANEL's width, not the window's (dock panels can be split).  */
+/* ------------------------------------------------------------------ */
+
 .export-dialog {
   height: 100%;
+  container-type: inline-size;
+  color: var(--s-ink);
+  font-size: var(--s-text-md);
+}
+
+.export-dialog__columns {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.export-dialog__form {
+  flex: 0 1 520px;
+  max-width: 520px;
+  min-width: 0;
   overflow-y: auto;
   padding: 20px 24px 40px;
-  color: var(--ed-fg, #ddd);
-  font-size: 13px;
-  max-width: 520px;
+}
+
+.export-dialog__requirements {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--s-border);
+  background: var(--s-bg-panel);
+}
+
+@container (max-width: 899px) {
+  .export-dialog__columns {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .export-dialog__form {
+    max-width: none;
+    overflow-y: visible;
+  }
+
+  .export-dialog__requirements {
+    overflow-y: visible;
+    border-left: none;
+    border-top: 1px solid var(--s-border);
+  }
 }
 
 .export-dialog__header {
@@ -75,10 +119,16 @@
   margin-bottom: 8px;
 }
 
-.export-dialog__forced {
-  opacity: 0.55;
-  font-size: 11px;
+/* The journal's stated stance next to a checkbox — information, not a lock:
+   the checkbox stays enabled and the user can override. */
+.export-dialog__stance {
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
   margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .export-dialog__hint {
@@ -155,4 +205,214 @@
   margin-top: 12px;
   color: #e5484d;
   word-break: break-all;
+}
+
+/* ------------------------------------------------------------------ */
+/* Requirements panel (RequirementsPanel.tsx): the journal's own stated */
+/* rules, rendered informationally — "not stated" is always shown as    */
+/* such, never invented (ADR-002's null rule).                          */
+/* ------------------------------------------------------------------ */
+
+.req-panel {
+  padding: 20px 24px 40px;
+  max-width: 640px;
+  font-size: var(--s-text-md);
+  color: var(--s-ink);
+}
+
+.req-panel__journal {
+  font-size: var(--s-text-lg);
+  font-weight: 600;
+}
+
+.req-panel__publisher {
+  margin-top: 2px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.req-panel__explainer {
+  margin: 10px 0 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  line-height: 1.5;
+}
+
+.req-panel__section {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  background: var(--s-bg-raised);
+}
+
+.req-panel__section-title {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--s-ink-muted);
+  margin-bottom: 8px;
+}
+
+/* -- submission-format status rows ---------------------------------- */
+
+.req-panel__status-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.req-panel__status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.req-panel__badge {
+  font-size: var(--s-text-xs);
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--s-border);
+  white-space: nowrap;
+}
+
+.req-panel__badge--required {
+  color: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.req-panel__badge--do-not-use {
+  color: var(--s-warn);
+  border-color: var(--s-warn);
+}
+
+.req-panel__badge--not-stated {
+  color: var(--s-ink-faint);
+}
+
+/* -- chips ----------------------------------------------------------- */
+
+.req-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.req-panel__chips:first-child,
+.req-panel__section-title + .req-panel__chips {
+  margin-top: 0;
+}
+
+.req-panel__chips-label {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  margin-right: 2px;
+}
+
+.req-panel__chip {
+  font-size: var(--s-text-xs);
+  padding: 2px 8px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 999px;
+  background: var(--s-bg-panel);
+  white-space: nowrap;
+}
+
+/* required-section labels can be long — let those chips wrap */
+.req-panel__chips--wrap .req-panel__chip {
+  white-space: normal;
+}
+
+.req-panel__chip--optional {
+  color: var(--s-ink-faint);
+  border-color: var(--s-border);
+}
+
+.req-panel__optional {
+  color: var(--s-ink-faint);
+}
+
+.req-panel__chip--vector {
+  border-color: var(--s-accent);
+}
+
+.req-panel__chip--limit {
+  color: var(--s-ink-muted);
+}
+
+/* -- article types ---------------------------------------------------- */
+
+.req-panel__article-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.req-panel__article-name {
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.req-panel__none {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+/* -- fact rows -------------------------------------------------------- */
+
+.req-panel__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.req-panel__section-title + .req-panel__facts {
+  margin-top: 0;
+}
+
+.req-panel__fact {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.req-panel__fact-label {
+  flex: 0 0 130px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.req-panel__fact-value {
+  min-width: 0;
+}
+
+/* -- notes & sources --------------------------------------------------- */
+
+.req-panel__notes {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  line-height: 1.5;
+}
+
+.req-panel__notes li + li {
+  margin-top: 6px;
+}
+
+.req-panel__sources {
+  margin-top: 16px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.req-panel__sources a {
+  color: var(--s-ink-muted);
 }

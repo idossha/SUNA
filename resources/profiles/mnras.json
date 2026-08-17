@@ -170,6 +170,9 @@
       }
     ]
   },
+  "documentStyle": {
+    "figureLabel": "Fig."
+  },
   "notes": [
     "In-text citation examples on the current official page include first initials — '(J. Brown 1999)', 'J. Brown & P. Jones (1991)' — which differs from the traditional mnras.bst BibTeX output (no initials); verified verbatim on the Instructions to Authors page.",
     "Three authors: give all three names at first mention, then first author et al. (roman, not italic); four or more: first author et al. always.",

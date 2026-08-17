@@ -203,6 +203,96 @@ describe('v3 extends', () => {
   });
 });
 
+describe('v3 documentStyle (partial delta over the SUNA default)', () => {
+  function withStyle(documentStyle: unknown): Record<string, unknown> {
+    const doc = JSON.parse(JSON.stringify(apj)) as Record<string, unknown>;
+    doc['documentStyle'] = documentStyle;
+    return doc;
+  }
+
+  it('accepts a conventions-only delta (what a journal profile states)', () => {
+    const parsed = PublisherProfileSchema.parse(
+      withStyle({
+        figureLabel: 'Fig.',
+        figurePlacement: 'captions-list',
+        tablePlacement: 'end',
+        referencesStartNewPage: true,
+      }),
+    );
+    expect(parsed.documentStyle?.figureLabel).toBe('Fig.');
+    expect(parsed.documentStyle?.figurePlacement).toBe('captions-list');
+    // Unstated fields stay absent — inheritance is the resolver's job.
+    expect(parsed.documentStyle?.page).toBeUndefined();
+    expect(parsed.documentStyle?.lineSpacing).toBeUndefined();
+  });
+
+  it('accepts a nested partial: one page field, one size, nothing else', () => {
+    const parsed = PublisherProfileSchema.parse(
+      withStyle({ page: { marginMm: 25.4 }, sizesPt: { body: 12 } }),
+    );
+    expect(parsed.documentStyle?.page?.marginMm).toBe(25.4);
+    expect(parsed.documentStyle?.page?.widthMm).toBeUndefined();
+    expect(parsed.documentStyle?.sizesPt?.body).toBe(12);
+    expect(parsed.documentStyle?.sizesPt?.title).toBeUndefined();
+  });
+
+  it('accepts a complete house style (every field stated)', () => {
+    const parsed = PublisherProfileSchema.parse(
+      withStyle({
+        name: 'House',
+        page: { widthMm: 215.9, heightMm: 279.4, marginMm: 12.7 },
+        fonts: { body: 'Times New Roman', mono: 'Courier New' },
+        sizesPt: {
+          body: 11,
+          title: 14,
+          author: 8,
+          affiliation: 9,
+          heading1: 13,
+          heading2: 11,
+          caption: 10,
+          reference: 10,
+          tableCell: 10,
+          footer: 9,
+        },
+        lineSpacing: 1.15,
+        bodySpaceAfterPt: 6,
+        referenceHangingMm: 12.7,
+        figureWidthMm: 127,
+        figureCaptionPosition: 'below',
+        tableCaptionPosition: 'above',
+        pageBreakAfterFrontMatter: true,
+        figureLabel: 'Figure',
+        figurePlacement: 'inline',
+        tablePlacement: 'inline',
+        referencesStartNewPage: true,
+      }),
+    );
+    expect(parsed.documentStyle?.sizesPt?.footer).toBe(9);
+    expect(parsed.documentStyle?.tablePlacement).toBe('inline');
+  });
+
+  it('rejects values outside the stated enums and non-positive dimensions', () => {
+    expect(PublisherProfileSchema.safeParse(withStyle({ figureLabel: 'Figure.' })).success).toBe(
+      false,
+    );
+    expect(
+      PublisherProfileSchema.safeParse(withStyle({ figurePlacement: 'floating' })).success,
+    ).toBe(false);
+    expect(PublisherProfileSchema.safeParse(withStyle({ tablePlacement: 'appendix' })).success).toBe(
+      false,
+    );
+    expect(
+      PublisherProfileSchema.safeParse(withStyle({ page: { widthMm: -1 } })).success,
+    ).toBe(false);
+    expect(PublisherProfileSchema.safeParse(withStyle({ lineSpacing: 0 })).success).toBe(false);
+  });
+
+  it('remains optional: a profile with no documentStyle still parses', () => {
+    const parsed = PublisherProfileSchema.parse(apj);
+    expect(parsed.documentStyle).toBeUndefined();
+  });
+});
+
 describe('v3 manuscript stageSeverity', () => {
   it('accepts a partial stage → severity mapping', () => {
     const doc = JSON.parse(JSON.stringify(apj));

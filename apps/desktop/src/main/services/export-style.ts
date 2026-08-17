@@ -2,61 +2,112 @@ import type { DocumentStyle, PublisherProfile } from '@suna/core'
 
 /**
  * The one place a document's typography is decided, shared by the DOCX writer
- * (export-docx.ts) and the HTML/PDF writer (export-html.ts) so the two can
- * never drift.
+ * (export-docx.ts), the HTML writer (export-html.ts) and the PDF printer
+ * (export-pdf.ts) so the three can never drift.
  *
- * A profile that states a `documentStyle` (currently only the SUNA house
- * style) gets exactly that. Every journal profile leaves it absent and gets
- * LEGACY_STYLE below — the generic A4/12 pt manuscript geometry the exporters
- * used before house styles existed. That is deliberate: the published author
- * guidelines say nothing about the submitted manuscript's page setup
- * (ADR-002), so changing a journal export's typography would be inventing a
- * rule, and would silently change output people may already have submitted.
+ * SUNA_DEFAULT_STYLE — the house drafting style, extracted from the real
+ * docx-tools output the user has published with — is the ALWAYS-ON base for
+ * EVERY export profile. A profile's `documentStyle` is a PARTIAL delta merged
+ * on top of it by `resolveDocumentStyle`: a journal profile states only what
+ * its published author guidelines actually say (a figure-label word, a
+ * captions-list requirement), because guidelines almost never state page
+ * geometry or point sizes for the submitted manuscript (ADR-002), and
+ * inventing per-journal typography would be exactly the kind of guess this
+ * codebase refuses to make. Everything a profile leaves unstated inherits the
+ * SUNA default below.
  */
+
+/** A DocumentStyle with every field resolved — what the writers consume. */
+export interface ResolvedDocumentStyle {
+  name: string
+  page: { widthMm: number; heightMm: number; marginMm: number }
+  fonts: { body: string; mono: string }
+  sizesPt: {
+    body: number
+    title: number
+    author: number
+    affiliation: number
+    heading1: number
+    heading2: number
+    caption: number
+    reference: number
+    tableCell: number
+    footer: number
+  }
+  lineSpacing: number
+  bodySpaceAfterPt: number
+  referenceHangingMm: number
+  figureWidthMm: number
+  figureCaptionPosition: 'above' | 'below'
+  tableCaptionPosition: 'above' | 'below'
+  pageBreakAfterFrontMatter: boolean
+  figureLabel: 'Figure' | 'Fig.'
+  figurePlacement: 'inline' | 'captions-list'
+  tablePlacement: 'inline' | 'end'
+  referencesStartNewPage: boolean
+}
 
 /**
- * Generic submission-manuscript geometry: A4, 1 in margins, 12 pt Times New
- * Roman, single-spaced. Used for every profile that states no style of its
- * own. Values match what export-docx.ts and export-html.ts hardcoded before
- * this module existed, so journal exports are byte-comparable across the
- * change.
+ * The SUNA house style: US Letter, 0.5 in margins, Times New Roman 11 pt at
+ * 1.15 line spacing, 14 pt bold centred title, 8 pt author line, 9 pt
+ * affiliations, 13/11 pt black headings, 10 pt captions/references/table
+ * cells with a 0.5 in reference hanging indent, figure captions below and
+ * table captions above, a page break after the front matter and before the
+ * references. Values match resources/profiles/suna.json's documentStyle,
+ * which is where their provenance (docx-tools' output shape) is recorded.
  */
-export const LEGACY_STYLE: DocumentStyle = {
-  name: 'Generic manuscript',
-  page: { widthMm: 210, heightMm: 297, marginMm: 25.4 },
+export const SUNA_DEFAULT_STYLE: ResolvedDocumentStyle = {
+  name: 'SUNA style',
+  page: { widthMm: 215.9, heightMm: 279.4, marginMm: 12.7 },
   fonts: { body: 'Times New Roman', mono: 'Courier New' },
   sizesPt: {
-    body: 12,
-    title: 16,
-    author: 12,
+    body: 11,
+    title: 14,
+    author: 8,
     affiliation: 9,
-    heading1: 14,
-    heading2: 12,
-    caption: 12,
-    reference: 12,
-    tableCell: 12,
-    footer: 12
+    heading1: 13,
+    heading2: 11,
+    caption: 10,
+    reference: 10,
+    tableCell: 10,
+    footer: 9
   },
-  lineSpacing: 1,
+  lineSpacing: 1.15,
   bodySpaceAfterPt: 6,
-  referenceHangingMm: 8,
-  figureWidthMm: 160,
+  referenceHangingMm: 12.7,
+  figureWidthMm: 127,
   figureCaptionPosition: 'below',
   tableCaptionPosition: 'above',
-  pageBreakAfterFrontMatter: false
+  pageBreakAfterFrontMatter: true,
+  figureLabel: 'Figure',
+  figurePlacement: 'inline',
+  tablePlacement: 'inline',
+  referencesStartNewPage: true
 }
 
-/** The typography to set a manuscript in under `profile`. */
-export function documentStyleFor(profile: PublisherProfile): DocumentStyle {
-  return profile.documentStyle ?? LEGACY_STYLE
+/** The entries of a partial object that are actually present (guards a handwritten `undefined`). */
+function defined<T extends object>(part: T | undefined): Partial<T> {
+  if (part === undefined) return {}
+  return Object.fromEntries(Object.entries(part).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
-/** True when this profile brings its own typography (a house style, not a journal). */
-export function isHouseStyle(profile: PublisherProfile): boolean {
-  return profile.documentStyle !== undefined
+/**
+ * The typography to set a manuscript in under `profile`: the SUNA default
+ * with the profile's partial `documentStyle` deep-merged over it. A field the
+ * profile states wins; everything else inherits the house default.
+ */
+export function resolveDocumentStyle(profile: PublisherProfile): ResolvedDocumentStyle {
+  const delta: DocumentStyle = profile.documentStyle ?? {}
+  return {
+    ...SUNA_DEFAULT_STYLE,
+    ...defined(delta),
+    page: { ...SUNA_DEFAULT_STYLE.page, ...defined(delta.page) },
+    fonts: { ...SUNA_DEFAULT_STYLE.fonts, ...defined(delta.fonts) },
+    sizesPt: { ...SUNA_DEFAULT_STYLE.sizesPt, ...defined(delta.sizesPt) }
+  }
 }
 
-// ---- unit conversions, done once so the two writers agree ----------------
+// ---- unit conversions, done once so the writers agree --------------------
 
 /** Points → OOXML half-points (docx `size`). */
 export function halfPoints(pt: number): number {

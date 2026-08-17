@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parseSciMark } from '@suna/markdown'
 import {
+  backMatterSections,
   blockImageOf,
   blockImagesOf,
   buildExportContent,
@@ -15,7 +16,9 @@ import {
   numberAffiliations,
   pngDimensions,
   splitTexSpans,
-  widthMmForPreset
+  widthMmForPreset,
+  withoutTables,
+  type ExportContent
 } from './export-content'
 import { writeFixtureProject } from './export-fixture'
 import { allowRoot } from './roots'
@@ -140,6 +143,22 @@ describe('markdown images', () => {
     expect(collectTables(root.children)).toHaveLength(3)
   })
 
+  it('withoutTables strips exactly what collectTables finds, leaving everything else intact', () => {
+    const root = parseSciMark(
+      'Before.\n\n| a |\n| :-- |\n| 1 |\n\n> quoted\n>\n> | b |\n> | --- |\n> | 2 |\n\n- item\n- | c |\n  | --- |\n  | 3 |\n\nAfter.\n'
+    )
+    const stripped = withoutTables(root.children)
+    expect(collectTables(stripped)).toHaveLength(0)
+    // Non-table content survives, including inside the pruned containers.
+    const kinds = stripped.map((n) => n.type)
+    expect(kinds).toContain('paragraph')
+    expect(kinds).toContain('blockquote')
+    expect(kinds).toContain('list')
+    expect(kinds).not.toContain('table')
+    // The original AST is untouched: collectTables still sees all three.
+    expect(collectTables(root.children)).toHaveLength(3)
+  })
+
   it('resolves a relative url against the manuscript directory and refuses a remote one', () => {
     expect(markdownImagePath('../figures/x.png', '/p/manuscript')).toBe('/p/figures/x.png')
     expect(markdownImagePath('figures/x.png#panel-a', '/p/manuscript')).toBe('/p/manuscript/figures/x.png')
@@ -217,6 +236,79 @@ describe('buildExportContent', () => {
     await expect(
       buildExportContent({ dir, profileId: 'not-a-real-profile', figurePngPaths })
     ).rejects.toThrow(/unknown publisher profile/)
+  })
+
+  it('routes the figure label word through the resolved style, defaulting to "Figure"', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    // SUNA and any profile stating no figureLabel delta: "Figure 1".
+    for (const profileId of ['suna', 'nature', 'apj-aas']) {
+      const content = await buildExportContent({ dir, profileId, figurePngPaths })
+      expect(content.labels.figures.get('fig-a'), profileId).toBe('Figure 1')
+    }
+    // Profiles whose guidelines state the abbreviated form: "Fig. 1".
+    for (const profileId of ['nature-astronomy', 'mnras']) {
+      const content = await buildExportContent({ dir, profileId, figurePngPaths })
+      expect(content.labels.figures.get('fig-a'), profileId).toBe('Fig. 1')
+    }
+  })
+})
+
+describe('backMatterSections', () => {
+  function contentWith(
+    backMatter: Record<string, unknown>,
+    availability: { data: string; code: string }
+  ): ExportContent {
+    return { manuscript: { backMatter, availability } } as unknown as ExportContent
+  }
+
+  const FULL = {
+    acknowledgements: 'Thanks.',
+    authorContributions: 'A did it.',
+    funding: [
+      { funder: 'Fund A', grant: 'G-1' },
+      { funder: 'Fund B', grant: null }
+    ],
+    competingInterests: 'None.',
+    peerReview: { statement: 'Reviewed.', reviewers: ['R1'] },
+    supplementaryInfo: { doi: '10.1/supp' }
+  }
+
+  it('orders the full set the ground-truth way and joins funding into one paragraph', () => {
+    const sections = backMatterSections(contentWith(FULL, { data: 'Data here.', code: 'Code there.' }))
+    expect(sections.map((s) => s.title)).toEqual([
+      'Acknowledgments',
+      'Funding',
+      'Competing Interests',
+      'Data and Code Availability',
+      'Author Contributions'
+    ])
+    expect(sections[1]?.paragraphs).toEqual(['Fund A (G-1); Fund B'])
+    expect(sections[3]?.paragraphs).toEqual(['Data here.', 'Code there.'])
+  })
+
+  it('keeps a single availability statement under its own heading', () => {
+    const dataOnly = backMatterSections(contentWith(FULL, { data: 'Data here.', code: '' }))
+    expect(dataOnly.map((s) => s.title)).toContain('Data Availability')
+    expect(dataOnly.map((s) => s.title)).not.toContain('Data and Code Availability')
+    const codeOnly = backMatterSections(contentWith(FULL, { data: '', code: 'Code there.' }))
+    expect(codeOnly.map((s) => s.title)).toContain('Code Availability')
+  })
+
+  it('renders nothing for an empty back matter, and never exports peerReview/supplementaryInfo', () => {
+    const empty = backMatterSections(
+      contentWith(
+        {
+          acknowledgements: null,
+          authorContributions: '   ',
+          funding: [],
+          competingInterests: null,
+          peerReview: { statement: 'Reviewed.', reviewers: [] },
+          supplementaryInfo: { doi: '10.1/supp' }
+        },
+        { data: '', code: '' }
+      )
+    )
+    expect(empty).toEqual([])
   })
 })
 
