@@ -7,7 +7,7 @@
    specificity, never rely on order.
    --------------------------------------------------------------------------- */
 
-/* ---- theme palettes (editor surface only; chrome stays night-sky) -------- */
+/* ---- theme palettes (chrome counterparts live in styles/tokens.css) ------ */
 
 .editor-tab {
   /* Horizontal padding themes.ts puts on .cm-line. Declared here so the
@@ -59,28 +59,50 @@
   --ed-syn-keyword: #6a4a8a;
 }
 
-.editor-tab--theme-high-contrast {
-  --ed-bg: #000000;
-  --ed-ink: #ffffff;
-  --ed-ink-muted: #d0d0d0;
-  --ed-ink-faint: #9a9a9a;
-  --ed-accent: #ffd166;
-  --ed-border: #6a6a6a;
-  --ed-selection: rgba(255, 209, 102, 0.35);
-  --ed-active-line: rgba(255, 255, 255, 0.08);
-  --ed-syn-heading: #ffd166;
-  --ed-syn-em: #c8c8ff;
-  --ed-syn-strong: #ffffff;
-  --ed-syn-link: #6ab0ff;
-  --ed-syn-code: #7fe0a0;
-  --ed-syn-label: #ff9ad5;
-  --ed-syn-number: #ffb86c;
-  --ed-syn-keyword: #d0a0ff;
+/* Gruvbox Dark (morhetz/gruvbox): warm retro groove over bg0 #282828 */
+.editor-tab--theme-gruvbox {
+  --ed-bg: #282828;
+  --ed-ink: #ebdbb2;
+  --ed-ink-muted: #bdae93;
+  --ed-ink-faint: #928374;
+  --ed-accent: #fabd2f;
+  --ed-border: #504945;
+  --ed-selection: rgba(80, 73, 69, 0.6);
+  --ed-active-line: rgba(60, 56, 54, 0.5);
+  --ed-syn-heading: #fabd2f;
+  --ed-syn-em: #d3869b;
+  --ed-syn-strong: #fbf1c7;
+  --ed-syn-link: #83a598;
+  --ed-syn-code: #b8bb26;
+  --ed-syn-label: #8ec07c;
+  --ed-syn-number: #d3869b;
+  --ed-syn-keyword: #fb4934;
+}
+
+/* Jellybeans (nanotech/jellybeans.vim): near-black bg, muted candy hues */
+.editor-tab--theme-jellybeans {
+  --ed-bg: #151515;
+  --ed-ink: #e8e8d3;
+  --ed-ink-muted: #a8a89a;
+  --ed-ink-faint: #888888;
+  --ed-accent: #fad07a;
+  --ed-border: #404040;
+  --ed-selection: rgba(143, 191, 220, 0.2);
+  --ed-active-line: #1c1c1c;
+  --ed-syn-heading: #fad07a;
+  --ed-syn-em: #c6b6ee;
+  --ed-syn-strong: #f4f4df;
+  --ed-syn-link: #8fbfdc;
+  --ed-syn-code: #99ad6a;
+  --ed-syn-label: #ffb964;
+  --ed-syn-number: #cf6a4c;
+  --ed-syn-keyword: #8197bf;
 }
 
 /* the tab surface itself follows the editor theme, not the chrome */
 .editor-tab.editor-tab--theme-suna-light,
-.editor-tab.editor-tab--theme-high-contrast {
+.editor-tab.editor-tab--theme-gruvbox,
+.editor-tab.editor-tab--theme-jellybeans {
   background: var(--ed-bg);
 }
 
@@ -110,15 +132,48 @@
   border-color: var(--s-border-strong);
 }
 
-/* ---- margin comment gutter (comments/CommentGutter, prose tabs only) ------
-   Unlike the combined manuscript tab (manuscript/manuscript.css's
-   .msdoc__body, where the WHOLE page scrolls and the gutter needs
-   `position: sticky` to stay viewport-pinned), here CodeMirror's own
-   .cm-scroller is the actual scrolling element and .editor-tab__source
-   itself never scrolls — so a plain flex row with the default `align-items:
-   stretch` already keeps .cmt-gutter's box viewport-stable for free; no
-   sticky positioning needed or wanted (position: sticky requires a
-   scrolling ancestor to stick against, which .editor-tab__source isn't). */
+/* ---- divergence banner (editor/DivergenceBanner, state/docSessions) -------
+   Shown only when the file changed on disk under a DIRTY shared buffer. */
+.editor-diverged {
+  /* above EditorTab's absolutely-positioned toolbar (z-index 5) — a
+     transient alert whose buttons must stay clickable */
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--s-bg-raised);
+  border-bottom: 1px solid var(--s-warn);
+  color: var(--s-warn);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+}
+
+.editor-diverged__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-diverged__btn {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  color: var(--s-ink);
+  font-size: var(--s-text-xs);
+}
+
+.editor-diverged__btn:hover {
+  border-color: var(--s-warn);
+  color: var(--s-warn);
+}
+
+/* ---- comments rail (comments/CommentsRail, prose tabs only) ---------------
+   CodeMirror's own .cm-scroller is the scrolling element here and
+   .editor-tab__source itself never scrolls, so a plain flex row with the
+   default `align-items: stretch` keeps the rail's box viewport-stable for
+   free — the rail's aligned track syncs to .cm-scroller (comments.css). */
 .editor-tab__source {
   display: flex;
   align-items: stretch;
@@ -130,8 +185,9 @@
   min-height: 0;
 }
 
-.editor-tab__source .cmt-gutter {
-  height: 100%;
+.editor-tab__source .cmt-rail {
+  height: auto;
+  align-self: stretch;
 }
 
 /* ---- content measure (prose only) ------------------------------------------ */

@@ -27,8 +27,9 @@ import { useProjectStore } from './project'
  *   'editor.defaultMode'  'reading' | 'source'  initial view mode for newly
  *                         opened markdown tabs; READING is the default.
  *   'editor.vimMotions'   boolean               vim keymap in the source view.
- *   'editor.theme'        'suna-dark' | 'suna-light' | 'high-contrast'
- *                         default editor-surface theme.
+ *   'editor.theme'        'suna-dark' | 'suna-light' | 'gruvbox' |
+ *                         'jellybeans'
+ *                         default app theme (editor surface + chrome).
  *   'editor.autosave'     boolean               reserved; no consumer yet.
  * The editor zone should read these once on startup via
  * `window.suna.invoke('settings:get', {})` and seed its own store's defaults.
@@ -66,7 +67,7 @@ import { useProjectStore } from './project'
  * hand-edit of suna.json in the editor re-resolves without a restart).
  */
 export type EditorModeSetting = 'reading' | 'source'
-export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'high-contrast'
+export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
 
 export interface GlobalSettings {
   'editor.defaultMode': EditorModeSetting
@@ -102,7 +103,8 @@ export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
 const EDITOR_THEMES: readonly EditorThemeSetting[] = [
   'suna-dark',
   'suna-light',
-  'high-contrast'
+  'gruvbox',
+  'jellybeans'
 ]
 
 /** Coerce the untyped persisted record into a fully-populated settings object. */

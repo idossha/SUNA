@@ -44,7 +44,12 @@ export const EDITOR_FONT_FAMILIES = ['serif', 'sans', 'mono'] as const;
 export const EditorFontFamilySchema = z.enum(EDITOR_FONT_FAMILIES);
 export type EditorFontFamily = z.infer<typeof EditorFontFamilySchema>;
 
-export const EDITOR_THEME_IDS = ['suna-dark', 'suna-light', 'high-contrast'] as const;
+export const EDITOR_THEME_IDS = [
+  'suna-dark',
+  'suna-light',
+  'gruvbox',
+  'jellybeans',
+] as const;
 export const EditorThemeIdSchema = z.enum(EDITOR_THEME_IDS);
 export type EditorThemeId = z.infer<typeof EditorThemeIdSchema>;
 

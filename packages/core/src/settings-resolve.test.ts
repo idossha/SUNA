@@ -113,9 +113,9 @@ describe('resolveSettings validation', () => {
   it('lets a project editorTheme win over the legacy global key', () => {
     const out = resolveSettings(
       { 'editor.theme': 'suna-light' },
-      project({ editor: { editorTheme: 'high-contrast' } }),
+      project({ editor: { editorTheme: 'gruvbox' } }),
     );
-    expect(out.value['editor.editorTheme']).toBe('high-contrast');
+    expect(out.value['editor.editorTheme']).toBe('gruvbox');
     expect(out.sources['editor.editorTheme']).toBe('project');
   });
 

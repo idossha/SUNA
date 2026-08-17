@@ -54,3 +54,94 @@
 
   color-scheme: dark;
 }
+
+/* ---------------------------------------------------------------------------
+   Chrome themes. App.tsx stamps data-suna-theme (the resolved editor theme)
+   on the .app root and mirrors it to <body> so body-portalled chrome (the
+   project menu) and the body background itself follow along. 'suna-dark'
+   has no block: the :root palette above IS the default look.
+   Each block overrides the full color set; fonts and metrics never change.
+   --------------------------------------------------------------------------- */
+
+/* suna-light: warm paper chrome matching the suna-light editor surface */
+.app[data-suna-theme='suna-light'],
+body[data-suna-theme='suna-light'] {
+  --s-bg-chrome: #ece7dd;
+  --s-bg-shell: #f2ede3;
+  --s-bg-panel: #f5f0e6;
+  --s-bg-editor: #f7f2e9;
+  --s-bg-raised: #fffdf8;
+  --s-bg-hover: rgba(43, 38, 32, 0.06);
+  --s-bg-active: rgba(138, 106, 47, 0.14);
+  --s-bg-selected: rgba(138, 106, 47, 0.2);
+
+  --s-ink: #2b2620;
+  --s-ink-muted: #6b6257;
+  --s-ink-faint: #9a9184;
+
+  --s-accent: #8a6a2f;
+  --s-accent-ink: #fbf7ee;
+
+  --s-ok: #3f6b4f;
+  --s-warn: #a05c22;
+  --s-err: #b0503f;
+
+  --s-border: #d8cfbf;
+  --s-border-strong: #c2b8a5;
+
+  color-scheme: light;
+}
+
+/* gruvbox: Gruvbox Dark's bg0_h → bg1 ramp, yellow as the one accent */
+.app[data-suna-theme='gruvbox'],
+body[data-suna-theme='gruvbox'] {
+  --s-bg-chrome: #1d2021;
+  --s-bg-shell: #282828;
+  --s-bg-panel: #32302f;
+  --s-bg-editor: #282828;
+  --s-bg-raised: #3c3836;
+  --s-bg-hover: rgba(235, 219, 178, 0.07);
+  --s-bg-active: rgba(250, 189, 47, 0.15);
+  --s-bg-selected: rgba(250, 189, 47, 0.22);
+
+  --s-ink: #ebdbb2;
+  --s-ink-muted: #bdae93;
+  --s-ink-faint: #928374;
+
+  --s-accent: #fabd2f;
+  --s-accent-ink: #282828;
+
+  --s-ok: #b8bb26;
+  --s-warn: #fe8019;
+  --s-err: #fb4934;
+
+  --s-border: #3c3836;
+  --s-border-strong: #504945;
+}
+
+/* jellybeans: near-black surfaces, the theme's function-yellow as accent */
+.app[data-suna-theme='jellybeans'],
+body[data-suna-theme='jellybeans'] {
+  --s-bg-chrome: #101010;
+  --s-bg-shell: #151515;
+  --s-bg-panel: #191919;
+  --s-bg-editor: #151515;
+  --s-bg-raised: #1c1c1c;
+  --s-bg-hover: rgba(232, 232, 211, 0.06);
+  --s-bg-active: rgba(250, 208, 122, 0.12);
+  --s-bg-selected: rgba(250, 208, 122, 0.18);
+
+  --s-ink: #e8e8d3;
+  --s-ink-muted: #a8a89a;
+  --s-ink-faint: #888888;
+
+  --s-accent: #fad07a;
+  --s-accent-ink: #151515;
+
+  --s-ok: #99ad6a;
+  --s-warn: #ffb964;
+  --s-err: #cf6a4c;
+
+  --s-border: #252525;
+  --s-border-strong: #404040;
+}
