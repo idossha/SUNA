@@ -45,6 +45,7 @@ describe('CHANNELS', () => {
       'fs:delete',
       'fs:list',
       'fs:mkdir',
+      'fs:move',
       'fs:read-binary',
       'fs:read-text',
       'fs:rename',
@@ -76,6 +77,8 @@ describe('CHANNELS', () => {
       'project:update-settings',
       'settings:get',
       'settings:set',
+      'shell:open-path',
+      'shell:reveal',
       'term:create',
       'term:kill',
       'term:resize',
@@ -322,6 +325,48 @@ describe('CHANNELS', () => {
     expect(CHANNELS['fs:copy-file'].request.safeParse({ ...req, to: '' }).success).toBe(false);
     const res: ResponseOf<'fs:copy-file'> = { path: req.to };
     expect(CHANNELS['fs:copy-file'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates fs:move batch shapes and keeps the partial-outcome halves separate', () => {
+    const req: RequestOf<'fs:move'> = {
+      paths: ['/work/my-paper/fig.svg', '/work/my-paper/notes.md'],
+      targetDir: '/work/my-paper/data',
+    };
+    expect(CHANNELS['fs:move'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['fs:move'].request.safeParse({ ...req, targetDir: '' }).success).toBe(false);
+    expect(CHANNELS['fs:move'].request.safeParse({ paths: [''], targetDir: '/x' }).success).toBe(
+      false,
+    );
+    const res: ResponseOf<'fs:move'> = {
+      moved: [{ from: '/work/my-paper/notes.md', to: '/work/my-paper/data/notes.md' }],
+      failed: [
+        {
+          path: '/work/my-paper/fig.svg',
+          reason: 'refusing to overwrite an existing file: /work/my-paper/data/fig.svg',
+        },
+      ],
+    };
+    expect(CHANNELS['fs:move'].response.parse(res)).toEqual(res);
+    // Both halves are always present — "nothing failed" is an empty array, not
+    // an absent key, so a caller can loop over both without a guard.
+    expect(CHANNELS['fs:move'].response.safeParse({ moved: [] }).success).toBe(false);
+    expect(
+      CHANNELS['fs:move'].response.safeParse({ moved: [], failed: [{ path: '/x' }] }).success,
+    ).toBe(false);
+  });
+
+  it('models a successful shell action as a null error on both shell channels', () => {
+    const req: RequestOf<'shell:reveal'> = { path: '/work/my-paper/fig.svg' };
+    expect(CHANNELS['shell:reveal'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['shell:open-path'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['shell:reveal'].request.safeParse({ path: '' }).success).toBe(false);
+    expect(CHANNELS['shell:reveal'].response.parse({ error: null })).toEqual({ error: null });
+    const refused: ResponseOf<'shell:open-path'> = {
+      error: 'refusing to open an executable with the OS: setup.command',
+    };
+    expect(CHANNELS['shell:open-path'].response.parse(refused)).toEqual(refused);
+    // Electron's '' success sentinel must be mapped to null before it gets here.
+    expect(CHANNELS['shell:open-path'].response.safeParse({}).success).toBe(false);
   });
 
   it('allows a cancelled dialog:pick-file but never an empty path', () => {
