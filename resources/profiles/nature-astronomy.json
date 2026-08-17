@@ -221,6 +221,9 @@
       }
     ]
   },
+  "documentStyle": {
+    "figureLabel": "Fig."
+  },
   "notes": [
     "The superscript form of in-text numbers and the >5-author 'et al.' truncation are stated on the flagship Nature formatting guide; Nature Astronomy's own AIP page mandates numerical references and gives the same reference-style examples.",
     "Collation/range formatting for in-text citation numbers is NOT stated on official pages; collapseRanges: true (a non-nullable schema field) follows standard Nature-family typeset practice rather than a stated rule.",

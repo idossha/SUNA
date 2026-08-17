@@ -147,6 +147,28 @@ describe('ManuscriptSchema', () => {
     expect(ManuscriptSchema.safeParse({ ...fixture, highlights: [42] }).success).toBe(false);
   });
 
+  it('leaves keywords absent when not provided (backward compatible)', () => {
+    const parsed = ManuscriptSchema.parse(fixture);
+    expect(parsed.keywords).toBeUndefined();
+  });
+
+  it('accepts author-ordered keywords and preserves their order', () => {
+    const parsed = ManuscriptSchema.parse({
+      ...fixture,
+      keywords: ['protoclusters', 'ram-pressure stripping', 'high-redshift galaxies'],
+    });
+    expect(parsed.keywords).toEqual([
+      'protoclusters',
+      'ram-pressure stripping',
+      'high-redshift galaxies',
+    ]);
+  });
+
+  it('rejects empty-string and non-string keywords', () => {
+    expect(ManuscriptSchema.safeParse({ ...fixture, keywords: [''] }).success).toBe(false);
+    expect(ManuscriptSchema.safeParse({ ...fixture, keywords: [42] }).success).toBe(false);
+  });
+
   it('keeps the shipped demo-paper example schema-valid', () => {
     const parsed = ManuscriptSchema.parse(demoManuscript);
     expect(parsed.significance).toBeTypeOf('string');

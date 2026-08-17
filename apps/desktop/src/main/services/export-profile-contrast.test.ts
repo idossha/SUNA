@@ -7,6 +7,11 @@
  * the HTML the PDF path prints, which is everything about export:pdf that is
  * reachable without an Electron runtime (printToPDF itself needs one).
  *
+ * Since the SUNA house style became the always-on default, the contrast is
+ * conventions-only: both profiles now SHARE the full SUNA typography (page,
+ * fonts, sizes, back matter) and still genuinely differ in citation mode,
+ * reference ordering and any stated documentStyle deltas.
+ *
  * The repo's demo-paper is copied to a temp dir first: `exportDocx` writes
  * into `<dir>/output/`, and the shipped example must stay pristine.
  */
@@ -39,6 +44,7 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
   let work: string
   let figurePngPaths: Record<string, string>
   const docxText: Record<string, string> = {}
+  const docxXml: Record<string, string> = {}
 
   beforeAll(async () => {
     const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
@@ -62,11 +68,12 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
         profileId,
         outputName: `demo-${profileId}`,
         figurePngPaths,
-        options: OPTIONS,
-        useDocxTools: false
+        options: OPTIONS
       })
       const zip = await JSZip.loadAsync(await readFile(res.path))
-      docxText[profileId] = visibleText((await zip.file('word/document.xml')?.async('string')) ?? '')
+      const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
+      docxXml[profileId] = xml
+      docxText[profileId] = visibleText(xml)
     }
   }, 120_000)
 
@@ -107,6 +114,39 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
 
   it('produces different bytes for the two profiles', () => {
     expect(docxText['nature']).not.toBe(docxText['jneurosci'])
+  })
+
+  it('both profiles now share the full SUNA typography (the always-on house default)', () => {
+    for (const profileId of ['nature', 'jneurosci']) {
+      const xml = docxXml[profileId] as string
+      // US Letter with 0.5 in margins, docx-tools front matter shape.
+      expect(xml).toContain('w:w="12240"')
+      expect(xml).toContain('w:h="15840"')
+      expect(xml).toMatch(/w:top="720"/)
+      expect(xml).toContain('* Corresponding author:')
+      // Neither profile states a documentStyle, so both spell out "Figure".
+      expect(xml).not.toContain('Fig. 1')
+    }
+  })
+
+  it('both exports carry the demo back matter in the ground-truth order, before the references', () => {
+    for (const profileId of ['nature', 'jneurosci']) {
+      const text = docxText[profileId] as string
+      const order = [
+        'Acknowledgments',
+        'Funding',
+        'Competing Interests',
+        'Data and Code Availability',
+        'Author Contributions',
+        'References'
+      ]
+      const positions = order.map((title) => text.indexOf(title))
+      for (const [i, at] of positions.entries()) {
+        expect(at, `${profileId}: "${order[i]}" missing`).toBeGreaterThan(-1)
+      }
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+      expect(text).toContain('Example Science Foundation (ESF-2026-0042); Cosmic Discovery Trust')
+    }
   })
 
   /**

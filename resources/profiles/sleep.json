@@ -284,7 +284,14 @@
       }
     ]
   },
+  "documentStyle": {
+    "figureLabel": "Figure",
+    "figurePlacement": "captions-list",
+    "tablePlacement": "end",
+    "referencesStartNewPage": true
+  },
   "notes": [
+    "documentStyle is a DELTA over the always-on SUNA house style and states ONLY what the SLEEP author guidelines (https://academic.oup.com/sleep/pages/author-guidelines) actually say: figures are cited as 'Figure 1' (Arabic numerals, not 'Fig.'); figure captions go in a LIST placed after the manuscript text (figures are not embedded in the submitted Word file), encoded as figurePlacement: 'captions-list'; tables are placed after the References/Figure Captions List, encoded as tablePlacement: 'end'; and 'References (begins new page)', encoded as referencesStartNewPage: true. Everything the guidelines do not state (fonts, sizes, margins, spacing) inherits the SUNA default.",
     "Directly fetched in full from academic.oup.com (not blocked, unlike the Elsevier/Cell/PNAS/HighWire domains researched for Neuron/PNAS/Brain Stimulation/JNeurosci in this batch) — high confidence, verbatim quotes throughout.",
     "citations.mode is encoded as 'parenthetical-numeric' as the closest fit in the schema's three-way enum, but the ACTUAL delimiter SLEEP states is square brackets, not round parentheses — the schema has no distinct 'bracket-numeric' option, so this is a deliberate best-fit mapping (matching how the same tradeoff is handled for jne.json, whose reference style is also bracket-numeric).",
     "SLEEP explicitly says 'Do not number the lines' — the opposite of Nature's/JNeurosci's line-number requirement. A compliance checker must treat lineNumbers as genuinely per-journal, not a universal default.",

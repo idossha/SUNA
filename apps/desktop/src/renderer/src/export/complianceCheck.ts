@@ -12,16 +12,22 @@ import { collectClusters } from '../manuscript/citations'
  * `sectionTexts` keys are never inspected, only `Object.values()`'d for word
  * counts and figure-reference scanning, so a single-entry record is exactly
  * as sound as the old per-section map.
+ *
+ * `manuscriptDir` is the manifest's manuscript directory (suna.json's
+ * `directories` block can remap it away from the default 'manuscript/') —
+ * the caller resolves it from the project manifest, falling back to
+ * DEFAULT_PROJECT_DIRS.manuscript.
  */
 export async function runComplianceCheck(
   rootDir: string,
+  manuscriptDir: string,
   manuscript: Manuscript,
   profile: PublisherProfile
 ): Promise<Diagnostic[]> {
   let prose = ''
   try {
     const { content } = await window.suna.invoke('fs:read-text', {
-      path: `${rootDir}/manuscript/${manuscript.manuscriptFile}`
+      path: `${rootDir}/${manuscriptDir}/${manuscript.manuscriptFile}`
     })
     prose = content
   } catch {

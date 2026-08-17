@@ -126,6 +126,12 @@ export const ManuscriptSchema = z.object({
   openAccess: OpenAccessSchema.nullable(),
   history: HistorySchema,
   abstract: z.object({ content: z.string().min(1) }),
+  /**
+   * Author-chosen keywords, exported as a "Keywords:" line right after the
+   * abstract when present. Order is the author's; separators/typography are
+   * the exporters' business, never stored.
+   */
+  keywords: z.array(z.string().min(1)).optional(),
   /** Title-page extras; present or not depending on the user's needs. */
   significance: z.string().min(1).nullable().optional(),
   highlights: z.array(z.string().min(1)).nullable().optional(),
