@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell } from 'electron'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { ensureSunaConfig } from '@suna/agent'
 import { registerIpcHandlers } from './ipc'
 import { appMcpInvocation } from './services/agentLayer'
@@ -13,6 +13,22 @@ const isDev = !!process.env['ELECTRON_RENDERER_URL']
 const debugPort = process.env['SUNA_DEBUG_PORT']
 if (debugPort) {
   app.commandLine.appendSwitch('remote-debugging-port', debugPort)
+}
+
+// Opt-in test mode so e2e drivers and agent screenshot probes can run without
+// a window appearing or the developer's real userData being touched.
+// SUNA_USER_DATA redirects userData to an isolated dir; SUNA_HIDDEN=1 never
+// shows the window (and hides the macOS dock icon) while backgroundThrottling
+// false keeps the hidden renderer painting — visibilityState stays 'visible'
+// and rAF keeps firing — so CDP input and screenshots still work.
+const userDataDir = process.env['SUNA_USER_DATA']
+if (userDataDir) {
+  app.setPath('userData', resolve(userDataDir))
+}
+
+const hidden = process.env['SUNA_HIDDEN'] === '1'
+if (hidden && process.platform === 'darwin') {
+  app.dock?.hide()
 }
 
 function createWindow(): void {
@@ -29,11 +45,18 @@ function createWindow(): void {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      ...(hidden ? { backgroundThrottling: false } : {})
     }
   })
 
-  win.on('ready-to-show', () => win.show())
+  win.on('ready-to-show', () => {
+    if (hidden) {
+      console.log('[suna] hidden test mode: window hidden, dock hidden')
+    } else {
+      win.show()
+    }
+  })
 
   // External links open in the system browser, never inside the app shell.
   win.webContents.setWindowOpenHandler(({ url }) => {
