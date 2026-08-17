@@ -222,6 +222,15 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     The rail appears in the combined manuscript tab and in single-file
     prose editor tabs. Agents reach the same file over MCP
     (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`).
+    **✦ AI** sits between Reply and Resolve on a card (feature-plan-8 §3;
+    Claude Code only — codex runs read-only here, and the disabled
+    button's title says so): it snapshots the LIVE anchor at click time,
+    packs the thread plus ±400 characters of surrounding prose, and
+    starts a headless CLI run — the comment body IS the instruction.
+    While it runs the card shows the progress note and a Cancel that
+    really kills the child; the agent's reply/resolve arrive through the
+    comments.json watcher and the prose edit live-reloads the editor, so
+    nothing needs a manual refresh. See *Directed AI actions* below.
 20. **Canvas parity rail** (right panel of a figure tab): **Align**
     (6 buttons + Distribute H/V, disabled with a hint under 2/3 selected),
     **Figure** (artboard W/H mm with a live `= W × H mm` readout,
@@ -229,7 +238,14 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     batch, so one ⌘Z reverts the whole lettering pass, at the active
     profile's case/weight/wrapper), **Palette** (Fill/Stroke toggle, a
     *No fill* chip, ramps seeded from the profile's suggested palette,
-    *Import palette…*), and **Export** (SVG — a byte-identical copy of
+    *Import palette…*), **Agent** (feature-plan-8 §4: the selection
+    readout — *Selection: `ax0.title` (+2 more)*, or *Whole figure* with
+    nothing selected — over a prompt box whose Send captures the selected
+    region with the gold overlay deliberately kept in shot and hands it,
+    with the figure's paths and compliance state, to a headless Claude
+    Code run; a clean canvas re-reads `figure.svg` from disk on success
+    and re-runs compliance, a dirty one says so instead of clobbering),
+    and **Export** (SVG — a byte-identical copy of
     the source — plus PDF, and a journal-spec raster block whose width
     presets come from the *active profile*: for Nature Astronomy
     *Single column (88 mm) / 1.5 column (120 mm) / Double column
@@ -352,6 +368,174 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
     switch to is in the old `sections/` layout, the status note tells you
     it was migrated — or, if migration was abandoned, says so and leaves
     the project untouched.
+26. **"?" — the keyboard-shortcut overlay** (feature-plan-8 §1). Press
+    **?** anywhere you are not typing: a dialog opens on the section for
+    the surface you are on — global / editor / manuscript / canvas /
+    explorer / viewers — with `<kbd>` rows and the ⌘/⌃/⌥/⇧ legend in the
+    footer; Esc closes it and puts focus back exactly where it was. The
+    guard is real: a `?` typed into any INPUT, TEXTAREA or contenteditable
+    (CodeMirror included, so prose and vim's `?` search) inserts the
+    character and never opens the overlay — which is also why `?` is a
+    window listener, not a palette `Command.shortcut`. The status bar's
+    **?** chip and the palette command *Keyboard Shortcuts…* open the same
+    overlay. The inventory lives in `shell/help/sections.ts`, taken from
+    the code and this file — including the ✦ AI comment button and the
+    canvas Agent section.
+
+## Fast iteration: the hidden driver
+
+Two environment variables put the app into test mode. **`SUNA_HIDDEN=1`**
+creates the main window but never shows it — nothing on screen, dock icon
+hidden on macOS — and disables `backgroundThrottling`, which is what keeps
+the hidden renderer painting (`document.visibilityState` stays `visible`,
+rAF keeps running) so CDP input and `Page.captureScreenshot` still work
+against a window nobody can see; when active, the main process prints
+`[suna] hidden test mode: window hidden, dock hidden` to stdout.
+**`SUNA_USER_DATA=<dir>`** re-points Electron's userData before the app is
+ready, so drivers run against isolated app state and the developer's real
+`~/Library/Application Support/@suna/desktop` is never touched.
+
+`scripts/e2e/drive.mjs` is the fast inner loop built on both (the shared
+CDP plumbing lives in `scripts/e2e/cdp.mjs`, which `smoke.mjs` uses too):
+
+```bash
+node scripts/e2e/drive.mjs --boot --example        # boot hidden + open the example
+node scripts/e2e/drive.mjs --boot --project <dir>  # …or a specific project
+node scripts/e2e/drive.mjs --shot out.png          # screenshot the hidden window
+node scripts/e2e/drive.mjs --eval "expr"           # evaluate JS in the page
+node scripts/e2e/drive.mjs run probe.mjs           # run a probe script (below)
+node scripts/e2e/drive.mjs --status
+node scripts/e2e/drive.mjs --stop
+```
+
+`--boot` (default port 9310; `--show` for a visible window; an instance
+already answering on the port is reused) launches once and exits with the
+app left running, so every later `--shot`/`--eval`/`run` merely attaches
+and an iteration costs seconds, not a relaunch. Attach commands never
+auto-boot — with nothing running they fail and tell you to boot first —
+and they re-pin the 1600×1100 viewport by default (`--no-pin` skips it),
+because emulation overrides are cleared when a CDP session detaches.
+
+A probe is a plain `.mjs` file whose default export is called as
+`await mod.default(ctx)`, where `ctx` is the CDP client plus helpers:
+`{ send, evalJs, screenshot, click, rclick, key, insertText, pinViewport,
+sleep, waitFor }`. `waitFor(exprOrFn, { timeoutMs, intervalMs, desc })`
+polls an `evalJs` expression string or an async function until truthy and
+throws with `desc` on timeout. A probe's return value, if not undefined,
+is JSON-printed.
+
+Driver state lives in `scripts/e2e/.userdata-drive` (never wiped
+automatically): `drive.json` records `{ pid, port }`, and `dev.log` is the
+app's output — where `--boot` checks for the hidden-mode marker line and
+warns if it is missing.
+
+The recommended order when testing a change:
+
+1. **Unit gates first**: `pnpm typecheck && pnpm test` — most behaviour is
+   asserted there.
+2. **A drive.mjs probe** for the specific surface being changed.
+3. **`pnpm smoke`** as the regression gate, filtered with
+   `--only`/`--from`; the full 69-step run rarely.
+
+### Directed AI actions (feature-plan-8)
+
+Three surfaces hand targeted work to a headless agent CLI run. All share
+one runner (`renderer/src/ai/directedActions.ts` over the extended
+`ai:ask`): the prompt travels over **stdin** — no argv length limit, and
+it never appears in `ps` — `--mcp-config <project>/.mcp.json` is appended
+when that file exists, and each action's tool allowlist goes out as ONE
+comma-joined `--allowed-tools` argv element. Directed edits are **Claude
+Code only** (codex asks run `--sandbox read-only`), so with codex or
+nothing installed the buttons disable with an honest title. Progress and
+Cancel live in `state/aiActions.ts` keyed `comment:<id>` /
+`figure:<figureId>` / `repair`, so the launching card or panel can
+unmount mid-run; on success the CLI's summary lands in the Agent
+transcript, on error the status bar shows the CLI's message verbatim.
+
+What each action sends (`renderer/src/ai/templates.ts`; every prompt is
+role line → TASK → CONTEXT → RULES → "reply with a concise summary"):
+
+- **Comment fix** (✦ AI on a comment card, §3) — the live anchor
+  re-snapshotted at click time (or the stored quote re-located when
+  detached), ±400 chars of surrounding buffer text, the thread as
+  "author (when): body" lines, and the absolute manuscript path. RULES
+  pin `edit_manuscript` (exact find/replace — never `write_manuscript`),
+  then `reply_comment`, then `resolve_comment` only if fully addressed.
+  Allowlist: `Read, Grep, mcp__suna__read_manuscript,
+  mcp__suna__list_outline, mcp__suna__list_comments,
+  mcp__suna__edit_manuscript, mcp__suna__reply_comment,
+  mcp__suna__resolve_comment`.
+- **Figure edit** (canvas → Agent section, §4) — the instruction, the
+  figure id and absolute `figure.svg` path, artboard mm, the selected
+  ids, the current compliance issues, and a region screenshot taken over
+  `'app:capture-rect'` with the gold selection overlay kept in shot on
+  purpose (it is how the agent learns what "the selection" means). RULES:
+  edit `figure.svg` only, preserve every element id, never regenerate
+  from `source/plot.py`, verify with `check_figure_compliance`.
+  Allowlist: `Read, Grep, Glob, Edit, Write, mcp__suna__read_figure_svg,
+  mcp__suna__list_figures, mcp__suna__check_figure_compliance`.
+- **UI repair** (dev-only palette command *AI: Report / repair this
+  UI…*, §5) — pick an element on screen; `'ai:repair-bundle'` writes
+  `bug-reports/<yyyymmdd-hhmmss>-<slug>/` in the SUNA checkout with
+  `context.json` (DOM path up to 6 ancestors, classes, data attributes,
+  rect, active panel/view, app version, platform) and `shot.png`; the
+  prompt targets the repo root (allow-listed by the bundle handler):
+  minimal fix, `pnpm typecheck` plus the nearest unit tests, never
+  commit. Allowlist: `Read, Grep, Glob, Edit, Write, Bash(pnpm:*),
+  Bash(node:*)`. The bundle reaches disk whether or not a CLI ever runs —
+  the bundle IS the fallback.
+
+Unbilled coverage: smoke steps 67–69 — `help-overlay` (open / section
+tab / close), `ai-capture-rect` (the IPC writes a real PNG whose IHDR
+size matches the requested rect × devicePixelRatio), and
+`comment-ai-cancel` (a real comment fix started and cancelled ~3 s in;
+the child is located in `ps` by its own `--mcp-config <copy>/.mcp.json`
+argv — never by the string "claude", per step 47's rule, and never by
+prompt text, which stdin delivery keeps out of `ps` by design) — plus two
+probes for the fast loop:
+
+```bash
+node scripts/e2e/drive.mjs --boot --example
+node scripts/e2e/drive.mjs scripts/e2e/probes/help-overlay.mjs
+node scripts/e2e/drive.mjs scripts/e2e/probes/ai-surfaces.mjs
+```
+
+`help-overlay.mjs` carries the isTyping-negative case (a `?` typed into
+CodeMirror inserts the character and never opens the overlay, undone
+afterwards), focus save/restore, and the canvas-section initial tab;
+`ai-surfaces.mjs` creates — and removes — its own comment to assert the
+✦ AI button and its honest disabled state, checks the canvas Agent
+section's readout and empty-prompt Send gating, and round-trips
+`'app:capture-rect'` against the file's own IHDR bytes.
+
+**The billed legs are manual**, like steps 47/54 — each spends real
+tokens and edits real files, so they are measured by hand and recorded
+here:
+
+- **Comment fix, full round trip** — on a scratch copy of the example:
+  ✦ AI on a comment with an unambiguous ask; expect the minimal
+  `manuscript.md` edit, an agent reply on the thread, and the thread
+  resolved — all arriving through the watcher with no manual refresh —
+  plus the summary in the Agent panel. Last measured **2026-08-17**
+  (Claude Code 2.1.233, hidden app, drive example copy): asked to change
+  "best-fit centroid" → "best-fitting centroid" at one of two
+  occurrences; the agent edited exactly the anchored occurrence via
+  `edit_manuscript` (the other survived byte-identical), replied
+  "Changed … Only this one occurrence was touched." and resolved the
+  thread; rail + transcript updated through the watcher. Note the edit
+  rewrites the quoted text, so the (resolved) comment detaches — which is
+  why the rail's pinned group now alarm-counts only UNRESOLVED detached
+  comments.
+- **Figure edit surviving compliance** — canvas → Agent with a concrete
+  instruction against the selection (a title resize, say); expect
+  `figure.svg` edited in place (ids preserved, no regeneration), the
+  clean canvas re-reading it from disk, and `check_figure_compliance`
+  reporting no new issues. Last measured **2026-08-17** (same setup,
+  driven through the real `.canvas-agent__prompt` textarea + Send):
+  asked to rename the legend label "model fit" → "best-fit model" on
+  fig-spectrum; `figure.svg` on disk carried exactly that text change,
+  "observed" and every id untouched, and the open canvas tab re-read the
+  file and rendered the new label without a manual reload.
 
 ## Agent / CI smoke test
 
@@ -373,14 +557,27 @@ pnpm smoke        # = node scripts/e2e/smoke.mjs
 > 31, 35–37 and 43. Everything each of them measures is still a real
 > requirement — only the selectors and file paths changed.
 
-Launches the app with a DevTools-protocol endpoint (`SUNA_SMOKE_PORT`,
-default 9321) and drives 55 steps end to end. The userData example copy
-is **deleted before launch**, so every run exercises the pristine
-copy-on-open path (fresh git repo, exactly one initial commit); the two
-*persisted view preferences* — the editor appearance store and the
-per-project *Rendered as* override, both in localStorage, which the copy
-deletion does not touch — are reset on open so no run can decide the
-next one's measurements.
+Launches the app **hidden** (no window, no dock icon; pass `--show` or
+`SUNA_SMOKE_SHOW=1` for a visible window) with a DevTools-protocol
+endpoint (`SUNA_SMOKE_PORT`, default 9321) and drives 69 steps end to
+end (`--list` prints their names). Reset strategy: the run's entire userData is the isolated
+`scripts/e2e/.userdata-smoke`, **wiped at run start** — every run
+exercises the pristine copy-on-open path (fresh git repo, exactly one
+initial commit) and starts with empty localStorage, and the developer's
+real `~/Library/Application Support/@suna/desktop` is never touched, so
+there is no settings stash/restore and no recents scrub: nothing of the
+developer's is ever at stake. Teardown kills only the process bound to
+the smoke port — no global `pkill` of Electron, so a `pnpm dev` running
+beside the suite survives it.
+
+Steps can be selected. `--list` prints the step names without launching
+anything (a static scan of the driver's own source). `--only a,b,c`,
+`--from X` and `--until Y` run a subset: skipped steps log `↷ <name>`
+and the summary reads `ALL n STEPS PASSED (m skipped)`. Steps are **not
+independent** — `open-example-project` is the near-universal
+prerequisite, and the canvas steps need `canvas-opens-figure` — so a
+filter usually has to include those. `--keep` skips teardown at exit and
+prints the port and how to stop, leaving the app up for further poking.
 
 **The viewport is pinned to 1600×1100 before any step runs**
 (step 1, *viewport-is-pinned*). The app asks for a 1520×960 window, but
@@ -734,7 +931,8 @@ and `23-lit-search.png` from steps 34–41, plus `text-context-menu.png`,
 `margin-comments.png`, `new-figure.png` and `ai-cli-cancel.png` from
 steps 44–47, plus `split-view.png`, `pdf-viewer.png`,
 `image-viewer.png`, `reference-pdf-side.png` and `command-palette.png`
-from steps 48–53) land in `scripts/e2e/.artifacts/`; failures add
+from steps 48–53, plus `help-overlay.png` and `comment-ai-busy.png` from
+the feature-plan-8 steps 67–69) land in `scripts/e2e/.artifacts/`; failures add
 `FAIL-<step>.png`. `ai-lit-search.png` in the same directory is from the
 manual billed run described under step 47 — `pnpm smoke` never
 overwrites it.
@@ -780,8 +978,13 @@ does: `--tools-only` checks the verb list and schemas, `--call` runs one
 tool and prints exactly its text (what the smoke test uses), `--json`
 makes the output machine-readable.
 
-Ad-hoc driving during development: run `SUNA_DEBUG_PORT=9310 pnpm dev`,
-then evaluate JS in the page — dev builds expose `window.__sunaDev` with
+Ad-hoc driving during development: the entry point is
+`node scripts/e2e/drive.mjs --boot --example` (hidden window, isolated
+userData — see *Fast iteration: the hidden driver* above), then
+`--eval`/`--shot`/`run` against the running instance.
+`SUNA_DEBUG_PORT=9310 pnpm dev` still works but pops a visible window.
+Either way you evaluate JS in the page — dev builds expose
+`window.__sunaDev` with
 `openFileTab`, `projectStore`, `uiStore`, `canvasTools`,
 `editorSettings`, `editorViewModes`, `editorBibDiagnostics`,
 `editorContentKindFor`, `editorContentKindClass`, `dataGrid`,
@@ -1058,6 +1261,11 @@ byte-identical with `sections/` intact.
   `import/DocxImportTab.tsx`.
 - The billed `ai-cli` search leg (see step 47) — verified by hand, not by
   `pnpm smoke`.
+- **The billed directed-AI legs** (feature-plan-8): a comment fix landing
+  edit + reply + resolve, and a figure edit surviving
+  `check_figure_compliance`. Step 69 starts and cancels a real comment
+  fix (unbilled); the full round trips are the manual protocol under
+  *Directed AI actions* — both last measured 2026-08-17, see there.
 - **Insert cross-reference…** is specified for the editor context menu
   (feature-plan-3 §1) but is not implemented: `ContextMenu` supports the
   action and omits any item whose callback a host does not supply, and no

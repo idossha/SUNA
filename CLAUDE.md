@@ -19,8 +19,13 @@ Electron academic-writing platform. pnpm monorepo, TypeScript strict.
 ## Commands
 
 - `pnpm typecheck` / `pnpm test` — must pass workspace-wide before a commit.
-- `pnpm dev` — run the app. `SUNA_DEBUG_PORT=9310 pnpm dev` exposes CDP for
-  screenshots (`node <scratchpad>/cdp-shot.mjs 9310 out.png`).
+- UI checks run against a HIDDEN app — never launch a visible window for
+  testing. `node scripts/e2e/drive.mjs --boot --example` boots it once (no
+  window, no dock icon, isolated userData); then `drive.mjs --shot out.png`,
+  `--eval "expr"` or `run probe.mjs` iterate in seconds; `--stop` when done.
+- `pnpm smoke` — hidden by default too; takes
+  `--only`/`--from`/`--until`/`--list`/`--keep`.
+- `pnpm dev` — run the app with a visible window; for the human only.
 - Python: `cd python/suna_mpl && uv run pytest`.
 
 ## Gotchas
