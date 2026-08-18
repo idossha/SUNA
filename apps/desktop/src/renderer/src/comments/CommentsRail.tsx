@@ -28,6 +28,7 @@ import {
   subscribeAnchorGeometry,
   subscribeAnchorsEpoch
 } from './anchorExtension'
+import { CommentsOutline } from './CommentsOutline'
 import { layoutSlots } from './railLayout'
 import { relativeTime } from './relativeTime'
 import './comments.css'
@@ -711,6 +712,7 @@ export function CommentsRail({
           ×
         </button>
       </div>
+      <CommentsOutline comments={comments} activeId={activeId} getView={getView} />
       {unanchored.length > 0 && (
         <details className="cmt-rail__pinned">
           {/* Only OPEN threads reach this group (resolved ones live in

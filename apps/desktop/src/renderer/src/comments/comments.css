@@ -436,6 +436,122 @@
   margin-top: 6px;
 }
 
+/* ---- outline (comments/CommentsOutline.tsx) -------------------------------- */
+
+/* A chronological index of the open threads, in small type at the head of the
+   rail. It FLOATS over the track rather than sitting above it in the flex
+   column, because the rail's whole contract is that a card sits level with
+   the text it annotates: `.cmt-rail__header` is exactly as tall as
+   `.msdoc__toolbar`, which puts the viewport's top edge precisely level with
+   the document area's. Anything in flow above the viewport shortens it and
+   opens a band at the top of the page where no card can be shown at all —
+   in flow, an outline with only two rows in it cost 67px of that band. As an
+   overlay it costs none: it covers the topmost cards while it is open, and
+   uncovers them the moment it collapses. */
+.cmt-outline {
+  position: absolute;
+  top: 41px; /* .cmt-rail__header's height plus its bottom border */
+  left: 0;
+  right: 0;
+  z-index: 4; /* under .cmt-rail__grip (5), so the edge stays draggable */
+  max-height: 40%;
+  overflow-y: auto;
+  padding: 4px 10px 6px;
+  background: var(--s-bg-editor);
+  border-bottom: 1px solid var(--s-border);
+  font-size: var(--s-text-xs);
+}
+
+.cmt-outline__summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--s-ink-faint);
+}
+
+.cmt-outline__summary:hover {
+  color: var(--s-ink);
+}
+
+.cmt-outline__caret {
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+
+.cmt-outline__caret--open {
+  transform: rotate(90deg);
+}
+
+.cmt-outline__list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cmt-outline__row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--s-ink-faint);
+}
+
+.cmt-outline__row:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.cmt-outline__row--active {
+  background: var(--s-bg-active);
+  color: var(--s-ink);
+}
+
+.cmt-outline__index {
+  flex: 0 0 auto;
+  min-width: 12px;
+  text-align: right;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmt-outline__label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmt-outline__replies {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+.cmt-outline__replies::before {
+  content: '↩ ';
+}
+
+.cmt-outline__detached {
+  flex: 0 0 auto;
+  color: var(--s-warn);
+}
+
 /* ---- toolbar toggle (comments/RailToggleButton) ---------------------------- */
 
 .cmt-rail-toggle {
