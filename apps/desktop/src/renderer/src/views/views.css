@@ -371,6 +371,20 @@
   font-size: var(--s-text-xs);
 }
 
+/* The row's two actions ([@] over Remove) as one right-hand column: side by
+   side they ate width the cite key and title need in a ~230px sidebar. */
+.refs__row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 3px;
+}
+
+.refs__row-actions > * {
+  text-align: center;
+}
+
 .refs__copy {
   flex-shrink: 0;
   margin-top: 1px;
@@ -391,6 +405,35 @@
 .refs__copy:hover {
   color: var(--s-accent);
   border-color: var(--s-accent);
+}
+
+/* "Remove" — like .refs__copy, hidden until the row is hovered or selected:
+   a destructive action should not be the first thing the eye lands on. Armed
+   (aria-pressed, the second click away from deleting) it turns warning-colored and
+   stays visible regardless of hover. */
+.refs__remove {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border: 1px solid var(--s-border);
+  border-radius: 3px;
+  font-family: var(--s-font-mono);
+  font-size: 9px;
+  color: var(--s-ink-faint);
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.refs__row:hover .refs__remove,
+.refs__row[aria-selected='true'] .refs__remove,
+.refs__remove[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.refs__remove:hover,
+.refs__remove[aria-pressed='true'] {
+  color: var(--s-warn);
+  border-color: var(--s-warn);
 }
 
 /* PDF badge (resolved) / "Attach PDF…" (unresolved) — feature-plan-4 §4.

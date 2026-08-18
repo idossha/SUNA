@@ -2,6 +2,7 @@ import { useEffect, useState, type JSX } from 'react'
 import {
   AI_CLI_LABEL,
   AI_MODES,
+  DOWNLOAD_POLICIES,
   EDITOR_FONT_FAMILIES,
   EDITOR_THEME_IDS,
   EDITOR_VIEW_MODES,
@@ -12,8 +13,11 @@ import {
   SETTINGS_LIMITS,
   UI_LIT_PROVIDER_IDS,
   type AiMode,
+  type DownloadPolicy,
   type EditorFontFamily,
   type FigureWidthPreset,
+  type LibraryConfig,
+  type LibraryConfigState,
   type LitCliId,
   type LitCliPreference,
   type LitProviderId,
@@ -237,6 +241,215 @@ function AiCliSection(): JSX.Element {
         ))}
       </select>
     </div>
+  )
+}
+
+/** Short enough for the 220px select; what each one actually reaches is in
+ *  the row's hint, where there is room to say it honestly. */
+const DOWNLOAD_POLICY_LABELS: Record<DownloadPolicy, string> = {
+  off: 'Off — never download',
+  'open-access': 'Open access only',
+  publisher: 'Open access + publisher'
+}
+
+/**
+ * "Reference library" (feature-plan-10 §Layer 5): which folders on THIS
+ * machine may be searched for a paper's PDF, whether Spotlight helps, and how
+ * far a download may reach.
+ *
+ * The non-obvious part: unlike every other row on this page, these three do
+ * NOT live in userData/settings.json and never go through useSettingsStore.
+ * They are read and written with 'library:read-config'/'library:write-config',
+ * which put them in `~/SunaConfig/library.json` — because the standalone MCP
+ * server has no userData and must search exactly the folders this pane names.
+ * A second copy of them in the settings store would drift the moment either
+ * host changed one, and the two hosts have to agree about which directories
+ * may be read at all, which is not a thing to let drift.
+ *
+ * So the pane keeps no draft of its own: every write answers with the whole
+ * config — including, when the write was refused, the UNCHANGED config plus a
+ * sentence saying why — and that answer simply becomes the state.
+ */
+function ReferenceLibrarySection(): JSX.Element {
+  const [state, setState] = useState<LibraryConfigState | null>(null)
+  const [busy, setBusy] = useState(false)
+  /** An IPC call that never landed, as distinct from `state.error`, which is
+   *  main telling us why a config it DID read or write is unusable. */
+  const [failure, setFailure] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    void window.suna
+      .invoke('library:read-config', {})
+      .then(setState)
+      .catch((err) => setFailure(errMessage(err)))
+  }, [])
+
+  const write = async (patch: Partial<Omit<LibraryConfig, 'schemaVersion'>>): Promise<void> => {
+    setBusy(true)
+    setFailure(null)
+    setNotice(null)
+    try {
+      setState(await window.suna.invoke('library:write-config', { patch }))
+    } catch (err) {
+      setFailure(errMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** The same native directory dialog the project pickers use — main opens it,
+   *  so the renderer never touches the filesystem to offer a folder.
+   *
+   *  A picked folder is stored ABSOLUTE. library.json prefers portable `~/…`
+   *  roots and `expandRoots` accepts either, but nothing on the preload
+   *  surface tells the renderer where home is, and folding a path against a
+   *  guessed one would write a root that resolves somewhere else on the next
+   *  machine. An absolute root is at least honest about being this machine's;
+   *  a user who syncs the file can shorten it by hand. */
+  const addRoot = async (): Promise<void> => {
+    if (state === null) return
+    setFailure(null)
+    setNotice(null)
+    let picked: string | null
+    try {
+      const res = await window.suna.invoke('dialog:pick-directory', {
+        title: 'Add a folder to search for reference PDFs',
+        allowCreate: false
+      })
+      picked = res.path
+    } catch (err) {
+      setFailure(errMessage(err))
+      return
+    }
+    if (picked === null) return
+    if (state.config.roots.includes(picked)) {
+      setNotice(`${picked} is already in the list — it is searched once, not twice.`)
+      return
+    }
+    await write({ roots: [...state.config.roots, picked] })
+  }
+
+  const removeRoot = async (root: string): Promise<void> => {
+    if (state === null) return
+    await write({ roots: state.config.roots.filter((configured) => configured !== root) })
+  }
+
+  if (state === null) {
+    return (
+      <>
+        {failure !== null && <div className="settings-tab__error">{failure}</div>}
+        <p className="settings__empty">
+          {failure === null ? 'Reading library.json…' : 'These settings could not be read.'}
+        </p>
+      </>
+    )
+  }
+
+  const missing = new Set(state.expanded.missing)
+
+  return (
+    <>
+      {failure !== null && <div className="settings-tab__error">{failure}</div>}
+      {state.error !== null && <div className="settings-tab__error">{state.error}</div>}
+
+      <div className="settings-tab__row">
+        <label>
+          Folders to search
+          <span className="settings-tab__hint">
+            Searched read-only for a reference&apos;s PDF; a file found here is copied into the
+            project, never moved. Stored in <code>{state.path}</code> — not the app&apos;s settings
+            file — so the agent searches exactly these folders.{' '}
+            {state.config.roots.length === 0
+              ? 'Nothing is configured, so nothing on this machine will be searched.'
+              : `${state.expanded.roots.length} of ${state.config.roots.length} searchable right now.`}
+          </span>
+        </label>
+        <div className="settings-tab__keyrow">
+          <button disabled={busy} onClick={() => void addRoot()}>
+            Add folder…
+          </button>
+        </div>
+      </div>
+
+      {state.config.roots.map((root, index) => (
+        <div className="settings-tab__row" key={`${index}:${root}`}>
+          <label>
+            <code>{root}</code>
+            <span
+              className={
+                missing.has(root)
+                  ? 'settings-tab__hint settings-tab__status settings-tab__status--warn'
+                  : 'settings-tab__hint settings-tab__status settings-tab__status--ok'
+              }
+            >
+              {missing.has(root) ? 'not on this machine — skipped' : 'searchable'}
+            </span>
+          </label>
+          <div className="settings-tab__keyrow">
+            <button disabled={busy} onClick={() => void removeRoot(root)}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Every root that was dropped or collapsed into another, verbatim from
+          the expansion — "searched 3 of 4" is only useful with the reason. */}
+      {state.expanded.notes.map((note) => (
+        <p className="settings-tab__hint" key={note}>
+          {note}
+        </p>
+      ))}
+      {notice !== null && <p className="settings-tab__hint">{notice}</p>}
+
+      {/* Spotlight is macOS's own index, reached through `mdfind`. The stored
+          setting stays portable (a synced library.json keeps working); it is
+          the CONTROL that is hidden off darwin, because a toggle that does
+          nothing on this machine is worse than no toggle. */}
+      {window.suna.platform === 'darwin' && (
+        <div className="settings-tab__row">
+          <label htmlFor="set-library-spotlight">
+            Use Spotlight
+            <span className="settings-tab__hint">
+              Ask <code>mdfind</code> for PDFs whose text contains the DOI or title before walking
+              the folders above. It honours your own Spotlight privacy exclusions.
+            </span>
+          </label>
+          <input
+            id="set-library-spotlight"
+            type="checkbox"
+            disabled={busy}
+            checked={state.config.useSpotlight}
+            onChange={(e) => void write({ useSpotlight: e.target.checked })}
+          />
+        </div>
+      )}
+
+      <div className="settings-tab__row">
+        <label htmlFor="set-library-download">
+          Download policy
+          <span className="settings-tab__hint">
+            How far &quot;Find PDF&quot; may reach when no copy is on this machine. Open access
+            covers arXiv, bioRxiv and Unpaywall; publisher additionally follows the DOI and reads
+            the article page&apos;s PDF link. No setting ever tries to get past a paywall — a 403
+            is reported as a 403.
+          </span>
+        </label>
+        <select
+          id="set-library-download"
+          disabled={busy}
+          value={state.config.download}
+          onChange={(e) => void write({ download: e.target.value as DownloadPolicy })}
+        >
+          {DOWNLOAD_POLICIES.map((policy) => (
+            <option key={policy} value={policy}>
+              {DOWNLOAD_POLICY_LABELS[policy]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   )
 }
 
@@ -957,6 +1170,9 @@ export function SettingsTab(): JSX.Element {
           </div>
           <AiCliSection />
           <LitProvidersSection />
+
+          <h3 className="settings-tab__section">Reference library</h3>
+          <ReferenceLibrarySection />
         </section>
 
         <ProjectSettingsSection />
