@@ -24,12 +24,7 @@ import {
   resolveImageUrl,
   type FigureAsset
 } from './figureAssets'
-import {
-  loadFigureCaptionTitle,
-  loadTableCaption,
-  saveFigureCaptionTitle,
-  saveTableCaption
-} from './captionMeta'
+import { loadFigureCaption, loadTableCaption, saveFigureCaption, saveTableCaption } from './captionMeta'
 
 /**
  * Where the editor's images live. Carried in a facet rather than closed over
@@ -806,6 +801,11 @@ function makeCaptionEditable(el: HTMLElement, save: (text: string) => Promise<bo
     }
   })
   el.addEventListener('blur', () => {
+    // A widget torn down while its caption had focus fires blur on a
+    // detached, possibly emptied node. Saving there would write "" over a
+    // real caption (the allow-empty spans have no other guard), so a
+    // disconnected element never commits.
+    if (!el.isConnected) return
     const text = (el.textContent ?? '').trim()
     if (text === original.trim()) return
     if (text === '' && el.dataset['sunaAllowEmpty'] === undefined) {
@@ -865,7 +865,6 @@ export function editNearestCaption(view: EditorView, target: 'caption' | 'note')
     if (match === null) continue
     const kind = match[1] as 'fig' | 'tbl'
     const id = match[2] as string
-    if (target === 'note' && kind !== 'tbl') continue
     // A parking spot for the cursor OUTSIDE the embed's block span: the end
     // of the previous line, or — for an embed on line 1 — the first line
     // past the table it captions.
@@ -881,18 +880,21 @@ export function editNearestCaption(view: EditorView, target: 'caption' | 'note')
     if (anchor === null) return `:${target} — add a line after the embed first`
     view.dispatch({ selection: { anchor } })
     const escaped = CSS.escape(id)
-    const selector =
-      kind === 'fig'
-        ? `.cm-lp-figure[data-suna-figure-id="${escaped}"] .cm-lp-figure__caption .cm-lp-editable`
-        : target === 'note'
-          ? `.cm-lp-table[data-suna-table-id="${escaped}"] .cm-lp-table__note-body.cm-lp-editable`
-          : `.cm-lp-table[data-suna-table-id="${escaped}"] .cm-lp-table__caption .cm-lp-editable`
-    focusCaptionWhenReady(view.dom, selector)
+    // `:note` means "the longer explanatory text" for both kinds: a table's
+    // Note line, a figure's caption body. `:caption`/`:title` mean the short
+    // title in both.
+    const figureSel =
+      target === 'note'
+        ? `.cm-lp-figure[data-suna-figure-id="${escaped}"] .cm-lp-figure__caption-body.cm-lp-editable`
+        : `.cm-lp-figure[data-suna-figure-id="${escaped}"] .cm-lp-figure__caption em:not(.cm-lp-figure__caption-body).cm-lp-editable`
+    const tableSel =
+      target === 'note'
+        ? `.cm-lp-table[data-suna-table-id="${escaped}"] .cm-lp-table__note-body.cm-lp-editable`
+        : `.cm-lp-table[data-suna-table-id="${escaped}"] .cm-lp-table__caption .cm-lp-editable`
+    focusCaptionWhenReady(view.dom, kind === 'fig' ? figureSel : tableSel)
     return null
   }
-  return target === 'note'
-    ? ':note — no ![[tbl:…]] embed at or above the cursor'
-    : ':caption — no ![[fig:…]] or ![[tbl:…]] embed at or above the cursor'
+  return `:${target === 'note' ? 'note' : 'caption'} — no ![[fig:…]] or ![[tbl:…]] embed at or above the cursor`
 }
 
 /** ignoreEvent for widgets that host editable captions: CM must leave every event inside them alone. */
@@ -1221,15 +1223,19 @@ class FigureWidget extends WidgetType {
     body.className = 'cm-lp-figure__body'
     el.appendChild(body)
 
-    // The SUNA caption standard: bold derived "Figure N." label, italic
-    // caption title (from figure.json, filled in asynchronously), centered.
+    // The SUNA caption standard: bold derived "Figure N." label, then the
+    // caption title and body from figure.json (filled in asynchronously),
+    // italic and centered — the same label + title + body the exporters
+    // write, so the editor shows the whole caption, not a summary of it.
     const caption = document.createElement('figcaption')
     caption.className = 'cm-lp-figure__caption'
     const label = document.createElement('strong')
     label.textContent = `Figure ${this.number}.`
     const title = document.createElement('em')
     title.textContent = `fig:${this.figureId}`
-    caption.append(label, ' ', title)
+    const captionBody = document.createElement('em')
+    captionBody.className = 'cm-lp-figure__caption-body'
+    caption.append(label, ' ', title, ' ', captionBody)
     el.appendChild(caption)
 
     if (this.rootDir === null) {
@@ -1239,10 +1245,15 @@ class FigureWidget extends WidgetType {
 
     const root = this.rootDir
     const figureId = this.figureId
-    void loadFigureCaptionTitle(root, figureId).then((text) => {
-      if (text === null || !title.isConnected) return
-      title.textContent = text
-      makeCaptionEditable(title, (value) => saveFigureCaptionTitle(root, figureId, value))
+    void loadFigureCaption(root, figureId).then((meta) => {
+      if (meta === null || !title.isConnected) return
+      title.textContent = meta.title
+      makeCaptionEditable(title, (value) => saveFigureCaption(root, figureId, { title: value }))
+      captionBody.textContent = meta.body
+      // An emptied body is a real edit (the field stays, as ""), and the
+      // empty state has to stay clickable so a body can be added here.
+      captionBody.dataset['sunaAllowEmpty'] = ''
+      makeCaptionEditable(captionBody, (value) => saveFigureCaption(root, figureId, { body: value }))
     })
     mountAsset(body, figureSvgPath(this.rootDir, this.figureId), `fig:${this.figureId}`)
     return el
