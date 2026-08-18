@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
-import { assignNumbers, formatReference, parseBibtex, renderCluster, type BibEntry, type Run } from '@suna/bib'
+import {
+  assignNumbers,
+  formatReference,
+  parseBibtex,
+  removeEntryFromBib,
+  renderCluster,
+  type BibEntry,
+  type Run
+} from '@suna/bib'
 import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { orderedReferences } from '../manuscript/citations'
 import { openViewerInSide } from '../state/dock'
@@ -8,7 +16,26 @@ import { useReferencePdfs } from '../state/referencePdfs'
 import { profileLabel, usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
 import { useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
-import { autoOpenPdfPath, citeStyleOf, entryMatches, firstAuthorOf, maxAuthorsFor, pdfBadgeTitle } from './refs'
+import {
+  acquireNote,
+  autoOpenPdfPath,
+  citeStyleOf,
+  entryMatches,
+  FIND_PDF_BUSY_LABEL,
+  FIND_PDF_HINT,
+  FIND_PDF_LABEL,
+  firstAuthorOf,
+  litResultForEntry,
+  maxAuthorsFor,
+  PDF_BADGE_LABEL,
+  pdfBadgeTitle,
+  REMOVE_BUSY_LABEL,
+  REMOVE_CONFIRM_LABEL,
+  REMOVE_HINT,
+  REMOVE_LABEL,
+  removablePdfPath,
+  removeNote
+} from './refs'
 import { useCitedKeys } from './useCitedKeys'
 import { SearchTab, type FindSimilarSeed } from './lit/SearchTab'
 import './views.css'
@@ -52,6 +79,12 @@ export function ReferencesView(): JSX.Element {
   const [activeTab, setActiveTab] = useState<RefsTab>('library')
   const [findSimilarSeed, setFindSimilarSeed] = useState<FindSimilarSeed | null>(null)
   const [attachingKey, setAttachingKey] = useState<string | null>(null)
+  const [findingKey, setFindingKey] = useState<string | null>(null)
+  // Two-step removal: the first click arms the row (label flips to "Remove?"),
+  // the second does it. A confirmation the row itself carries, rather than a
+  // modal — deleting a PDF is not undoable, so it must not be one stray click.
+  const [pendingRemoveKey, setPendingRemoveKey] = useState<string | null>(null)
+  const [removingKey, setRemovingKey] = useState<string | null>(null)
   const cited = useCitedKeys()
   // Reference PDFs (feature-plan-4 §3/§4): resolved once per project (and on
   // saveBump) independent of this view ever mounting — see state/referencePdfs.
@@ -136,6 +169,10 @@ export function ReferencesView(): JSX.Element {
     displayRows[0]?.entry ??
     entries[0]
 
+  // Both PDF actions write the same references/<key>.pdf, so one gate covers
+  // them: while either is running, neither can be started again.
+  const busyKey = attachingKey ?? findingKey
+
   const copyKey = (key: string): void => {
     void navigator.clipboard.writeText(`[@${key}]`)
     setStatusNote(`Copied [@${key}]`)
@@ -146,6 +183,7 @@ export function ReferencesView(): JSX.Element {
    *  (openViewerInSide), never stacking (feature-plan-4.md §4). */
   const selectEntry = (key: string): void => {
     setSelectedKey(key)
+    setPendingRemoveKey(null)
     const path = autoOpenPdfPath(referencePdfs.map.get(key), autoOpenPdf)
     if (path !== null) openViewerInSide(path)
   }
@@ -174,6 +212,98 @@ export function ReferencesView(): JSX.Element {
       )
     } finally {
       setAttachingKey(null)
+    }
+  }
+
+  /** "Find PDF": feature-plan-10's acquisition ladder, run in the main
+   *  process in its strict preference order — the project's own
+   *  references/<key>.pdf, then this machine's configured library roots, then
+   *  an open-access/publisher download, then metadata-only. Reads may leave
+   *  the project (that is the point); the write never does.
+   *
+   *  `policy: null` means "whatever ~/SunaConfig/library.json says": how far a
+   *  download may reach is the Settings pane's choice, not this row's. And the
+   *  outcome is always named — a `metadata-only` with weak matches says so
+   *  rather than claiming nothing was found. */
+  const findPdf = async (entry: BibEntry): Promise<void> => {
+    if (rootDir === null) return
+    const { result, error: why } = litResultForEntry(entry)
+    if (result === null) {
+      setStatusNote(`Cannot search for a PDF for ${entry.key}: ${why ?? 'the entry is too incomplete'}`)
+      return
+    }
+    setFindingKey(entry.key)
+    try {
+      const outcome = await window.suna.invoke('library:acquire-pdf', {
+        result,
+        citekey: entry.key,
+        projectRoot: rootDir,
+        policy: null
+      })
+      // Only the three rungs that end with a file in references/ change what
+      // the badge resolves to; metadata-only left the project untouched.
+      if (outcome.acquisition !== null && outcome.acquisition !== 'metadata-only') {
+        referencePdfs.rescan()
+      }
+      setStatusNote(acquireNote(entry.key, outcome))
+    } catch (error) {
+      setStatusNote(
+        `Could not find a PDF for ${entry.key}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    } finally {
+      setFindingKey(null)
+    }
+  }
+
+  /** "Remove": takes the entry out of references.bib and deletes its PDF when
+   *  that PDF lives in the project's own references/ folder. Both steps are
+   *  real deletions, hence the two-click arm above.
+   *
+   *  The bib file is re-read immediately before the edit and the returned text
+   *  written straight back (removeEntryFromBib's contract) — never the copy in
+   *  `entries`, which may be minutes old. Only the matched entry's text is
+   *  cut, so entries the parser could not read survive untouched. */
+  const removeEntry = async (entry: BibEntry): Promise<void> => {
+    if (rootDir === null) return
+    setRemovingKey(entry.key)
+    setPendingRemoveKey(null)
+    const bibPath = `${rootDir}/manuscript/references.bib`
+    try {
+      const { content } = await window.suna.invoke('fs:read-text', { path: bibPath })
+      const outcome = removeEntryFromBib(content, entry.key)
+      if (!outcome.removed) {
+        setStatusNote(`${entry.key} is not in references.bib`)
+        return
+      }
+      await window.suna.invoke('fs:write-text', { path: bibPath, content: outcome.text })
+
+      const pdfPath = removablePdfPath(referencePdfs.map.get(entry.key), rootDir)
+      let deletedPdf = false
+      if (pdfPath !== null) {
+        try {
+          await window.suna.invoke('fs:delete', { path: pdfPath })
+          deletedPdf = true
+        } catch (error) {
+          // The citation is already gone; say what didn't happen rather than
+          // reporting the whole removal as a failure.
+          setStatusNote(
+            `Removed ${entry.key}, but its PDF could not be deleted: ${error instanceof Error ? error.message : String(error)}`
+          )
+          referencePdfs.rescan()
+          return
+        }
+      }
+
+      setEntries((current) => current.filter((e) => e.key !== entry.key))
+      if (selectedKey === entry.key) setSelectedKey(null)
+      referencePdfs.rescan()
+      setStatusNote(removeNote(entry.key, deletedPdf))
+    } catch (error) {
+      setStatusNote(
+        `Could not remove ${entry.key}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    } finally {
+      setRemovingKey(null)
     }
   }
 
@@ -279,31 +409,87 @@ export function ReferencesView(): JSX.Element {
                     </span>
                     {resolution ? (
                       <span className="refs__pdf-badge" title={pdfBadgeTitle(resolution.how)}>
-                        PDF
+                        {PDF_BADGE_LABEL}
                       </span>
                     ) : (
+                      // Stacked, not side by side: the sidebar row is ~230px
+                      // wide and both pills are nowrap/flex-shrink:0, so in a
+                      // line they collapse .refs__row-main to nothing and the
+                      // cite key overlaps them. A column is as wide as the
+                      // wider pill, so it costs one row of height and leaves
+                      // .refs__row-main exactly the width it had when "Attach
+                      // PDF…" stood there alone.
                       <span
-                        className="refs__attach-pdf"
-                        role="button"
-                        title="Attach a PDF for this reference (copied in, never moved)"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (attachingKey === null) void attachPdf(entry)
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          flexShrink: 0,
+                          gap: 3
                         }}
                       >
-                        {attachingKey === entry.key ? 'Attaching…' : 'Attach PDF…'}
+                        <span
+                          className="refs__attach-pdf"
+                          role="button"
+                          title={FIND_PDF_HINT}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (busyKey === null) void findPdf(entry)
+                          }}
+                        >
+                          {findingKey === entry.key ? FIND_PDF_BUSY_LABEL : FIND_PDF_LABEL}
+                        </span>
+                        <span
+                          className="refs__attach-pdf"
+                          role="button"
+                          title="Attach a PDF for this reference (copied in, never moved)"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (busyKey === null) void attachPdf(entry)
+                          }}
+                        >
+                          {attachingKey === entry.key ? 'Attaching…' : 'Attach PDF…'}
+                        </span>
                       </span>
                     )}
-                    <span
-                      className="refs__copy"
-                      role="button"
-                      title={`Copy [@${entry.key}]`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        copyKey(entry.key)
-                      }}
-                    >
-                      [@]
+                    {/* Stacked, right-hand column: [@] on top with Remove
+                        directly under it, so the two row actions cost one
+                        column of width instead of two (the PDF pills to their
+                        left already own a column). */}
+                    <span className="refs__row-actions">
+                      <span
+                        className="refs__copy"
+                        role="button"
+                        title={`Copy [@${entry.key}]`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          copyKey(entry.key)
+                        }}
+                      >
+                        [@]
+                      </span>
+                      <span
+                        className="refs__remove"
+                        role="button"
+                        title={
+                          cited.set.has(entry.key)
+                            ? `${REMOVE_HINT} — warning: this reference IS cited in the manuscript`
+                            : REMOVE_HINT
+                        }
+                        aria-pressed={pendingRemoveKey === entry.key}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (removingKey !== null) return
+                          if (pendingRemoveKey === entry.key) void removeEntry(entry)
+                          else setPendingRemoveKey(entry.key)
+                        }}
+                      >
+                        {removingKey === entry.key
+                          ? REMOVE_BUSY_LABEL
+                          : pendingRemoveKey === entry.key
+                            ? REMOVE_CONFIRM_LABEL
+                            : REMOVE_LABEL}
+                      </span>
                     </span>
                   </button>
                 )

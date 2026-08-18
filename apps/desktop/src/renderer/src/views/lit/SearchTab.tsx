@@ -9,10 +9,12 @@ import {
   type LitResult,
   type UiLitProviderId
 } from '@suna/core'
-import { appendLitResultToBib } from '@suna/bib'
+import { appendLitResultToBib, findExistingKey } from '@suna/bib'
 import { useProjectStore } from '../../state/project'
 import { useSettingsStore } from '../../state/settings'
 import { useUiStore } from '../../state/ui'
+import { acquireNote } from '../refs'
+import { useReferencePdfs } from '../../state/referencePdfs'
 import { hintFor, suggestionFor } from './provider-hint'
 import { ResultCard } from './ResultCard'
 
@@ -65,6 +67,11 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
   const noteFileSaved = useProjectStore((s) => s.noteFileSaved)
   const setStatusNote = useUiStore((s) => s.setStatusNote)
   const cliPreference = useSettingsStore((s) => s.settings['lit.cli'])
+  // The same citekey -> resolved-PDF map the Library tab badges from, so a
+  // hit whose PDF is already filed says so here too — before anyone presses
+  // "Find PDF", and after, without a second source of truth.
+  const referencePdfs = useReferencePdfs()
+  const [bibText, setBibText] = useState('')
 
   const [provider, setProviderState] = useState<UiLitProviderId>('openalex')
 
@@ -77,6 +84,32 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
   const [error, setError] = useState<string | null>(null)
   const [addingId, setAddingId] = useState<string | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+  const [findingId, setFindingId] = useState<string | null>(null)
+
+  // references.bib as text, only so `findExistingKey` can tell whether a hit
+  // is already in the file (and under which key). Re-read on saveBump, which
+  // an add from this tab bumps.
+  const saveBump = useProjectStore((s) => s.saveBump)
+  useEffect(() => {
+    if (rootDir === null) {
+      setBibText('')
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const { content } = await window.suna.invoke('fs:read-text', {
+          path: `${rootDir}/manuscript/references.bib`
+        })
+        if (!cancelled) setBibText(content)
+      } catch {
+        if (!cancelled) setBibText('') // no references.bib yet
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [rootDir, saveBump])
 
   // The active ai-cli run: searchId + its event unsubscribers, so a provider
   // switch, a new search, or the tab unmounting can cancel/clean it up
@@ -278,6 +311,54 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
     }
   }
 
+  /** "Find PDF" on a search hit: the same acquisition ladder the Library tab
+   *  runs (library:acquire-pdf — project, then the library roots in Settings,
+   *  then open access), just reached without adding the reference by hand
+   *  first. A filed PDF needs a cite key to be filed under, so a hit that is
+   *  not in references.bib yet is added first (reusing the key the file
+   *  already has for this work, when it has one). */
+  async function handleFindPdf(result: LitResult): Promise<void> {
+    if (rootDir === null) return
+    const id = cardId(result)
+    setFindingId(id)
+    try {
+      const path = `${rootDir}/manuscript/references.bib`
+      let current = ''
+      try {
+        const { content } = await window.suna.invoke('fs:read-text', { path })
+        current = content
+      } catch {
+        current = '' // no references.bib yet — the add creates it
+      }
+      let citekey = findExistingKey(current, result)
+      if (citekey === null) {
+        const outcome = appendLitResultToBib(current, result)
+        await window.suna.invoke('fs:write-text', { path, content: outcome.text })
+        noteFileSaved(path)
+        citekey = outcome.key
+      }
+      setAddedIds((prev) => new Set(prev).add(id))
+      const acquired = await window.suna.invoke('library:acquire-pdf', {
+        result,
+        citekey,
+        projectRoot: rootDir,
+        policy: null
+      })
+      // Only the rungs that end with a file in references/ change what the
+      // badge resolves to; metadata-only left the project untouched.
+      if (acquired.acquisition !== null && acquired.acquisition !== 'metadata-only') {
+        referencePdfs.rescan()
+      }
+      setStatusNote(acquireNote(citekey, acquired))
+    } catch (err) {
+      setStatusNote(
+        `Could not find a PDF — ${err instanceof Error ? err.message : String(err)}`
+      )
+    } finally {
+      setFindingId(null)
+    }
+  }
+
   function handleCopyDoi(doi: string | null): void {
     if (doi === null) return
     void navigator.clipboard.writeText(doi)
@@ -360,6 +441,9 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
         <ul className="lit-search__results">
           {results.map((result) => {
             const id = cardId(result)
+            const existingKey = findExistingKey(bibText, result)
+            const filed =
+              existingKey === null ? null : (referencePdfs.map.get(existingKey) ?? null)
             return (
               <ResultCard
                 key={id}
@@ -367,6 +451,9 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
                 added={addedIds.has(id)}
                 adding={addingId === id}
                 onAdd={() => void handleAdd(result)}
+                finding={findingId === id}
+                pdf={filed}
+                onFindPdf={() => void handleFindPdf(result)}
                 onCopyDoi={() => handleCopyDoi(result.doi)}
               />
             )
