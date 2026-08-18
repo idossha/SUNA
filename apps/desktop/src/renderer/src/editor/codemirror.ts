@@ -17,6 +17,7 @@ import { Vim, getCM, vim } from '@replit/codemirror-vim'
 import { livePreview } from './livePreview'
 import { exRegistry } from './vimEx'
 import { moveByDocumentLines } from './vimMotions'
+import { editNearestCaption } from './livePreview'
 import { sunaJsonLinter } from './jsonLint'
 import { bibLanguage, bibLinter } from './bibLang'
 import { editorTheme } from './themes'
@@ -65,6 +66,32 @@ Vim.defineEx('xit', 'x', (cm) => exRegistry.saveAndClose(cm))
 // short name starts with `h`. No caller is passed on — the overlay is one
 // app-wide dialog, not a per-view surface.
 Vim.defineEx('help', 'h', () => exRegistry.help())
+
+// `:caption` / `:note` — the keyboard path into inline caption editing.
+// From normal mode, with the cursor at or below a `![[fig:…]]` / `![[tbl:…]]`
+// embed, they focus the rendered caption title (or the table's "Note." body)
+// for in-place editing; Enter commits and returns focus to normal mode,
+// Escape reverts and returns. `:cap` follows the same prefix rule as `:wq`.
+Vim.defineEx('caption', 'cap', (cm) => {
+  const view = (cm as { cm6?: unknown }).cm6
+  if (!(view instanceof EditorView)) return
+  const problem = editNearestCaption(view, 'caption')
+  if (problem !== null) exRegistry.notifyMessage(problem)
+})
+Vim.defineEx('note', 'note', (cm) => {
+  const view = (cm as { cm6?: unknown }).cm6
+  if (!(view instanceof EditorView)) return
+  const problem = editNearestCaption(view, 'note')
+  if (problem !== null) exRegistry.notifyMessage(problem)
+})
+// `:title` — same target as `:caption`, for the muscle memory that reaches
+// for the word "title" (captions are titled `caption.title` in the schema).
+Vim.defineEx('title', 'title', (cm) => {
+  const view = (cm as { cm6?: unknown }).cm6
+  if (!(view instanceof EditorView)) return
+  const problem = editNearestCaption(view, 'caption')
+  if (problem !== null) exRegistry.notifyMessage(problem)
+})
 
 // j/k step one document line even where a block widget (an image, a figure, a
 // display equation) stands in for the source — otherwise the covered line is

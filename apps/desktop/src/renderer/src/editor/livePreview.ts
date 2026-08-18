@@ -823,6 +823,78 @@ function makeCaptionEditable(el: HTMLElement, save: (text: string) => Promise<bo
   })
 }
 
+/** One `![[fig:id]]` / `![[tbl:id]]` embed, alone on its line — the vim `:caption` target. */
+const EMBED_LINE = /^!\[\[(fig|tbl):([A-Za-z][\w.-]*)\]\]$/
+
+/**
+ * Focus `selector` under `root` once the async caption load has made it
+ * editable, caret at the end. Every attempt is deferred (never same-tick):
+ * the vim engine refocuses the editor AFTER its ex-command handler returns,
+ * so a synchronous focus here would be immediately stomped.
+ */
+function focusCaptionWhenReady(root: HTMLElement, selector: string, tries = 20): void {
+  window.setTimeout(() => {
+    const el = root.querySelector<HTMLElement>(selector)
+    if (el !== null && el.isConnected) {
+      el.focus()
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      if (document.activeElement === el) return
+    }
+    if (tries > 0) focusCaptionWhenReady(root, selector, tries - 1)
+  }, 50)
+}
+
+/**
+ * The keyboard path into caption editing — vim's `:caption` / `:note`.
+ * Finds the nearest `![[fig:…]]` / `![[tbl:…]]` embed at or above the
+ * cursor, moves the cursor off the embed's block span (a span the selection
+ * touches reveals its raw source, so the widget only exists once the cursor
+ * leaves), and focuses the widget's editable caption span. Returns an error
+ * message for the vim status line, or null on success.
+ */
+export function editNearestCaption(view: EditorView, target: 'caption' | 'note'): string | null {
+  const doc = view.state.doc
+  const startLine = doc.lineAt(view.state.selection.main.head).number
+  for (let n = startLine; n >= 1; n -= 1) {
+    const match = EMBED_LINE.exec(doc.line(n).text.trim())
+    if (match === null) continue
+    const kind = match[1] as 'fig' | 'tbl'
+    const id = match[2] as string
+    if (target === 'note' && kind !== 'tbl') continue
+    // A parking spot for the cursor OUTSIDE the embed's block span: the end
+    // of the previous line, or — for an embed on line 1 — the first line
+    // past the table it captions.
+    let anchor: number | null = null
+    if (n > 1) anchor = doc.line(n - 1).to
+    else {
+      let k = n + 1
+      while (k <= doc.lines && (doc.line(k).text.trim() === '' || doc.line(k).text.trimStart().startsWith('|'))) {
+        k += 1
+      }
+      anchor = k <= doc.lines ? doc.line(k).from : null
+    }
+    if (anchor === null) return `:${target} — add a line after the embed first`
+    view.dispatch({ selection: { anchor } })
+    const escaped = CSS.escape(id)
+    const selector =
+      kind === 'fig'
+        ? `.cm-lp-figure[data-suna-figure-id="${escaped}"] .cm-lp-figure__caption .cm-lp-editable`
+        : target === 'note'
+          ? `.cm-lp-table[data-suna-table-id="${escaped}"] .cm-lp-table__note-body.cm-lp-editable`
+          : `.cm-lp-table[data-suna-table-id="${escaped}"] .cm-lp-table__caption .cm-lp-editable`
+    focusCaptionWhenReady(view.dom, selector)
+    return null
+  }
+  return target === 'note'
+    ? ':note — no ![[tbl:…]] embed at or above the cursor'
+    : ':caption — no ![[fig:…]] or ![[tbl:…]] embed at or above the cursor'
+}
+
 /** ignoreEvent for widgets that host editable captions: CM must leave every event inside them alone. */
 function insideEditable(event: Event): boolean {
   const el =

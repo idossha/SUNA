@@ -54,6 +54,8 @@ export interface ExRegistry {
    * that never registered handlers can still ask for help.
    */
   help: () => void
+  /** Show a message on the vim status line — for ex commands (like `:caption`) that report their own errors. */
+  notifyMessage: (message: string) => void
 }
 
 /** Vim's own wording, so the message means the same thing it does in vim. */
@@ -115,6 +117,9 @@ export function createExRegistry(): ExRegistry {
     },
     help: () => {
       showHelp()
+    },
+    notifyMessage: (message) => {
+      notify(message)
     }
   }
 }
