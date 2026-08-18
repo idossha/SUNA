@@ -5,6 +5,7 @@ export * from './manuscript';
 export * from './anchor';
 export * from './comments';
 export * from './lit';
+export * from './library';
 export * from './figure';
 export * from './canvas-commands';
 export * from './profile';
