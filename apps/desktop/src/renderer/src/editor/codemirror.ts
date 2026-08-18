@@ -147,15 +147,16 @@ export interface CreateEditorOptions {
   onVimMode?: (owner: object, mode: string | null) => void
   /**
    * Formatting UX (feature-plan-3.md §1): ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K always work on
-   * prose files (contentKindFor === 'prose'); ⌘⇧M and ⌘⇧K plus the
-   * right-click context menu's "Comment" and "Insert citation…" items only
-   * do anything when the host supplies the matching callback below — the
-   * item is simply left out of the menu, and the shortcut is unhandled
-   * (falls through to the next binding), when it's absent. Ignored for
-   * non-prose files.
+   * prose files (contentKindFor === 'prose'); ⌘⇧M, ⌘⇧K and ⌘⇧F plus the
+   * right-click context menu's "Comment", "Insert citation…" and "Insert
+   * figure…" items only do anything when the host supplies the matching
+   * callback below — the item is simply left out of the menu, and the
+   * shortcut is unhandled (falls through to the next binding), when it's
+   * absent. Ignored for non-prose files.
    */
   onComment?: (view: EditorView) => void
   onInsertCitation?: (view: EditorView) => void
+  onInsertFigure?: (view: EditorView) => void
 }
 
 export interface EditorHandle {
@@ -222,7 +223,8 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   const wrapping: Extension = isProse ? EditorView.lineWrapping : []
   const formattingCallbacks: FormattingCallbacks = {
     onComment: options.onComment,
-    onInsertCitation: options.onInsertCitation
+    onInsertCitation: options.onInsertCitation,
+    onInsertFigure: options.onInsertFigure
   }
 
   const extensions: Extension[] = [

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import {
   insertCitationEffect,
+  insertCrossReferenceEffect,
+  insertFigureEmbedEffect,
   insertLinkEffect,
   toggleWrapEffect,
   wordBoundsAt
@@ -212,5 +214,102 @@ describe('insertCitationEffect', () => {
     const state = stateOf('cite HERE please', 5, 9)
     const next = state.update(insertCitationEffect(state, 'doe2019')).state
     expect(next.doc.toString()).toBe('cite [@doe2019] please')
+  })
+})
+
+describe('insertCrossReferenceEffect', () => {
+  const apply = (doc: string, from: number, to = from): string => {
+    const state = stateOf(doc, from, to)
+    return state.update(insertCrossReferenceEffect(state, 'fig-spectrum')).state.doc.toString()
+  }
+
+  it('inserts @fig:id after a space', () => {
+    expect(apply('as shown in ', 12)).toBe('as shown in @fig:fig-spectrum')
+  })
+
+  it('inserts at the very start of the document without a leading space', () => {
+    expect(apply('rest', 0)).toBe('@fig:fig-spectrumrest')
+  })
+
+  it('inserts after an opening bracket without a leading space — "(@fig:x)" parses', () => {
+    expect(apply('see (', 5)).toBe('see (@fig:fig-spectrum')
+  })
+
+  /**
+   * The parser only recognises a bare `@kind:id` at the start of a line or
+   * after whitespace/`([{`. Without this space the inserted text would look
+   * like a reference and render as prose.
+   */
+  it('adds the space the grammar needs when the cursor sits against a word', () => {
+    expect(apply('word', 4)).toBe('word @fig:fig-spectrum')
+  })
+
+  it('replaces a selection', () => {
+    expect(apply('see THAT here', 4, 8)).toBe('see @fig:fig-spectrum here')
+  })
+})
+
+describe('insertFigureEmbedEffect', () => {
+  const apply = (doc: string, from: number, to = from) => {
+    const state = stateOf(doc, from, to)
+    const next = state.update(insertFigureEmbedEffect(state, 'fig-spectrum')).state
+    return { doc: next.doc.toString(), cursor: next.selection.main.head }
+  }
+
+  it('splits a paragraph so the embed is a paragraph of its own', () => {
+    // `![[fig:id]]` is only an embed when it is a paragraph containing
+    // nothing else, so a mid-paragraph insert needs a blank line either side.
+    expect(apply('abc def', 4).doc).toBe('abc \n\n![[fig:fig-spectrum]]\n\ndef')
+  })
+
+  it('adds no padding at all on a blank line between paragraphs', () => {
+    expect(apply('one\n\n\n\ntwo', 5).doc).toBe('one\n\n![[fig:fig-spectrum]]\n\ntwo')
+  })
+
+  it('adds the missing blank line when only the line above has text', () => {
+    // cursor on the trailing empty line: nothing follows, so only the top
+    // side needs separating
+    expect(apply('one\n', 4).doc).toBe('one\n\n![[fig:fig-spectrum]]')
+  })
+
+  it('adds the missing blank line when only the line below has text', () => {
+    // at the very start nothing above needs separating; the one added \n
+    // joins the document's own to make the blank line below
+    expect(apply('\ntwo', 0).doc).toBe('![[fig:fig-spectrum]]\n\ntwo')
+  })
+
+  it('separates both sides on a lone empty line between two paragraphs', () => {
+    // 'one\n\ntwo' has ONE empty line: the embed needs a blank line above
+    // and below, so both are added
+    expect(apply('one\n\ntwo', 4).doc).toBe('one\n\n![[fig:fig-spectrum]]\n\ntwo')
+  })
+
+  it('separates both sides at the end of a paragraph', () => {
+    expect(apply('one\n\ntwo', 3).doc).toBe('one\n\n![[fig:fig-spectrum]]\n\ntwo')
+  })
+
+  it('needs no padding in an empty document', () => {
+    expect(apply('', 0).doc).toBe('![[fig:fig-spectrum]]')
+  })
+
+  it('replaces a selection', () => {
+    expect(apply('one\n\nDROP\n\ntwo', 5, 9).doc).toBe('one\n\n![[fig:fig-spectrum]]\n\ntwo')
+  })
+
+  /** Typing on the embed's own line would turn it back into plain text. */
+  it('leaves the cursor on the blank line below the embed, ready for prose', () => {
+    const { doc, cursor } = apply('abc def', 4)
+    expect(doc.slice(0, cursor)).toBe('abc \n\n![[fig:fig-spectrum]]\n')
+    expect(doc.slice(cursor)).toBe('\ndef')
+  })
+
+  it('leaves the cursor below the embed when the blank line was already there', () => {
+    const { doc, cursor } = apply('one\n\n\n\ntwo', 5)
+    expect(doc.slice(0, cursor)).toBe('one\n\n![[fig:fig-spectrum]]\n')
+  })
+
+  it('leaves the cursor at the end when the embed ends the document', () => {
+    const { doc, cursor } = apply('', 0)
+    expect(cursor).toBe(doc.length)
   })
 })

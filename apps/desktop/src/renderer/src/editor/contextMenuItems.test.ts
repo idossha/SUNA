@@ -6,11 +6,27 @@ import {
   type ContextMenuActionId
 } from './contextMenuItems'
 
-const ALL_AVAILABLE = { comment: true, insertCitation: true, insertCrossReference: true }
-const NONE_AVAILABLE = { comment: false, insertCitation: false, insertCrossReference: false }
+const ALL_AVAILABLE = {
+  comment: true,
+  insertCitation: true,
+  insertFigure: true,
+  insertCrossReference: true
+}
+const NONE_AVAILABLE = {
+  comment: false,
+  insertCitation: false,
+  insertFigure: false,
+  insertCrossReference: false
+}
 
 const SELECTION_DEPENDENT: ContextMenuActionId[] = ['comment', 'bold', 'italic', 'code', 'strikethrough', 'cut', 'copy']
-const SELECTION_INDEPENDENT: ContextMenuActionId[] = ['link', 'insertCitation', 'insertCrossReference', 'paste']
+const SELECTION_INDEPENDENT: ContextMenuActionId[] = [
+  'link',
+  'insertCitation',
+  'insertFigure',
+  'insertCrossReference',
+  'paste'
+]
 
 describe('buildContextMenuItems', () => {
   it('enables selection-dependent items (Comment, Bold, Italic, Code, Strikethrough, Cut, Copy) with a selection', () => {
@@ -47,6 +63,7 @@ describe('buildContextMenuItems', () => {
     const ids = items.filter((e) => e.kind === 'item').map((e) => e.id)
     expect(ids).not.toContain('comment')
     expect(ids).not.toContain('insertCitation')
+    expect(ids).not.toContain('insertFigure')
     expect(ids).not.toContain('insertCrossReference')
     // the rest of the menu is unaffected
     expect(ids).toEqual(expect.arrayContaining(['bold', 'italic', 'code', 'strikethrough', 'link', 'cut', 'copy', 'paste']))
@@ -101,7 +118,7 @@ describe('enabledActionIds', () => {
   it('skips disabled items and separators, preserving menu order', () => {
     const items = buildContextMenuItems(false, ALL_AVAILABLE)
     const ids = enabledActionIds(items)
-    expect(ids).toEqual(['link', 'insertCitation', 'insertCrossReference', 'paste'])
+    expect(ids).toEqual(['link', 'insertCitation', 'insertFigure', 'insertCrossReference', 'paste'])
   })
 })
 

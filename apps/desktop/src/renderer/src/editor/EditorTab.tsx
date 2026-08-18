@@ -22,6 +22,7 @@ import '../comments/comments.css'
 import { createEditor, type EditorHandle } from './codemirror'
 import { DivergenceBanner } from './DivergenceBanner'
 import { openCitationPicker } from './CitationPicker'
+import { openFigurePicker } from './FigurePicker'
 import { editorSurfaceStyle, useEditorSettings } from './settings'
 import { EDITOR_THEME_CLASS } from './themes'
 import { SettingsPopover } from './SettingsPopover'
@@ -199,7 +200,10 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           // ⌘⇧K / context-menu "Insert citation…": works for any markdown
           // file, not just manuscript sections (citations resolve project-
           // wide via the project root + manuscript.json's bibliography).
-          onInsertCitation: (view) => openCitationPicker(view)
+          onInsertCitation: (view) => openCitationPicker(view),
+          // ⌘⇧F / context-menu "Insert figure…": same reasoning — the figure
+          // list is project-wide, so it works in any markdown file.
+          onInsertFigure: (view) => openFigurePicker(view)
         })
         detach = session.attach(handleRef.current.view)
 
