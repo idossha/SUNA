@@ -465,6 +465,31 @@ export function CommentsRail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, anchorsEpoch, getView])
 
+  /* A detached thread has no place on the aligned surface, so its card lives
+     in the pinned <details> below — which used to stay CLOSED when the card
+     was activated. Clicking such a thread in the outline then looked inert:
+     it went active, and its card stayed hidden inside a collapsed group, with
+     no way to reach Resolve or Delete. Activation now opens the group and
+     scrolls the card into view, so a detached comment is exactly as usable as
+     an anchored one. Manual toggling still wins afterwards (onToggle). */
+  const pinnedRef = useRef<HTMLDetailsElement>(null)
+  const [pinnedOpen, setPinnedOpen] = useState(false)
+  const activeIsUnanchored = useMemo(
+    () => activeId !== null && unanchored.some((c) => c.id === activeId),
+    [activeId, unanchored]
+  )
+  useEffect(() => {
+    if (!activeIsUnanchored) return
+    setPinnedOpen(true)
+    // after the group paints, bring the card itself into the rail's view
+    const raf = requestAnimationFrame(() => {
+      pinnedRef.current
+        ?.querySelector(`.cmt-card[data-comment-id="${activeId}"]`)
+        ?.scrollIntoView({ block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [activeIsUnanchored, activeId])
+
   /* ---- geometry: document-space layout + measured transform ----------------
 
      Everything on this surface is derived from MEASURED geometry, never from
@@ -714,7 +739,12 @@ export function CommentsRail({
       </div>
       <CommentsOutline comments={comments} activeId={activeId} getView={getView} />
       {unanchored.length > 0 && (
-        <details className="cmt-rail__pinned">
+        <details
+          className="cmt-rail__pinned"
+          ref={pinnedRef}
+          open={pinnedOpen}
+          onToggle={(e) => setPinnedOpen((e.currentTarget as HTMLDetailsElement).open)}
+        >
           {/* Only OPEN threads reach this group (resolved ones live in
               History below), so the count is honestly alarming. */}
           <summary>Detached / unanchored ({unanchored.length})</summary>

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
   CommentsFileSchema,
   emptyCommentsFile,
+  locate,
   makeAnchor,
   type Comment,
   type CommentAuthor,
@@ -193,3 +194,135 @@ export async function replyComment(
 
 // There is deliberately NO resolve verb: resolving a thread is a human
 // judgment made in the app. Agents reply on the thread; the human resolves.
+
+/**
+ * Re-anchor comments across an in-place text edit.
+ *
+ * A human's comment points at a span of prose. When an agent rewrites that
+ * prose — which is the whole point of the ✦ AI action on a comment card —
+ * the stored quote stops existing, `locate()` returns null, and the comment
+ * the agent was answering silently falls into the rail's "detached" bucket.
+ * That is exactly backwards: the comment is more relevant after the edit,
+ * not less.
+ *
+ * So instead of letting the edit orphan them, we map every comment's located
+ * range through the edit and re-derive its anchor from the NEW text:
+ *
+ *  - span entirely before the edit  → unchanged offsets
+ *  - span entirely after the edit   → shifted by the length delta
+ *  - span overlapping the edit      → widened to cover the replacement, so a
+ *    comment on rewritten prose now quotes the rewrite
+ *
+ * A comment that was already detached before the edit stays detached (there
+ * was no range to map), and one whose span the edit deleted outright falls
+ * back to the line that took its place — never to nothing.
+ *
+ * Failures here are swallowed by the caller: an edit that succeeded on disk
+ * must not be reported as failed because the sidecar could not be updated.
+ */
+export async function reanchorAfterEdit(
+  ctx: ProjectContext,
+  path: string,
+  before: string,
+  after: string,
+  at: number,
+  removedLength: number,
+  insertedLength: number
+): Promise<void> {
+  const file = await readCommentsFile(ctx)
+  const editEnd = at + removedLength
+  const delta = insertedLength - removedLength
+  let changed = false
+
+  const comments = file.comments.map((comment): Comment => {
+    if (comment.target.kind !== 'section' || comment.target.path !== path) return comment
+    const range = locate(before, comment.target.anchor)
+    if (range === null) return comment // already detached — nothing to map
+
+    let from: number
+    let to: number
+    if (range.to <= at) {
+      ;[from, to] = [range.from, range.to]
+    } else if (range.from >= editEnd) {
+      ;[from, to] = [range.from + delta, range.to + delta]
+    } else {
+      // overlap: cover the replacement plus whatever of the span survived
+      from = Math.min(range.from, at)
+      to = Math.max(range.to, editEnd) + delta
+    }
+    if (to <= from) {
+      // the edit deleted the whole span — hold the position by anchoring to
+      // the line that now occupies it rather than dropping to detached
+      const lineStart = after.lastIndexOf('\n', Math.max(0, from - 1)) + 1
+      const lineEndRaw = after.indexOf('\n', from)
+      const lineEnd = lineEndRaw === -1 ? after.length : lineEndRaw
+      if (lineEnd <= lineStart) {
+        if (comment.detached) return comment
+        changed = true
+        return { ...comment, detached: true }
+      }
+      from = lineStart
+      to = lineEnd
+    }
+    from = Math.max(0, Math.min(from, after.length))
+    to = Math.max(from, Math.min(to, after.length))
+
+    const anchor = makeAnchor(after, from, to)
+    const old = comment.target.anchor
+    if (
+      !comment.detached &&
+      anchor.quote === old.quote &&
+      anchor.prefix === old.prefix &&
+      anchor.suffix === old.suffix
+    ) {
+      return comment
+    }
+    changed = true
+    return { ...comment, detached: false, target: { ...comment.target, anchor } }
+  })
+
+  if (!changed) return
+  await writeCommentsFile(ctx, { schemaVersion: 1, comments })
+}
+
+/**
+ * Re-tighten every comment on `path` against freshly written text.
+ *
+ * The counterpart to `reanchorAfterEdit` for a whole-file overwrite, where
+ * there is no edit range to map through: each anchor is re-located (the
+ * fuzzy tier survives rewrapped or lightly reworded prose) and its
+ * quote/prefix/suffix refreshed from where it landed, so the sidecar never
+ * holds a stale anchor. Comments whose quote genuinely no longer exists are
+ * marked detached — and stay in the file, interactive in the rail.
+ */
+export async function retightenAnchors(
+  ctx: ProjectContext,
+  path: string,
+  text: string
+): Promise<void> {
+  const file = await readCommentsFile(ctx)
+  let changed = false
+  const comments = file.comments.map((comment): Comment => {
+    if (comment.target.kind !== 'section' || comment.target.path !== path) return comment
+    const range = locate(text, comment.target.anchor)
+    if (range === null) {
+      if (comment.detached) return comment
+      changed = true
+      return { ...comment, detached: true }
+    }
+    const anchor = makeAnchor(text, range.from, range.to)
+    const old = comment.target.anchor
+    if (
+      !comment.detached &&
+      anchor.quote === old.quote &&
+      anchor.prefix === old.prefix &&
+      anchor.suffix === old.suffix
+    ) {
+      return comment
+    }
+    changed = true
+    return { ...comment, detached: false, target: { ...comment.target, anchor } }
+  })
+  if (!changed) return
+  await writeCommentsFile(ctx, { schemaVersion: 1, comments })
+}
