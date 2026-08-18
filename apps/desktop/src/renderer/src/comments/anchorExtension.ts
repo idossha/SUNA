@@ -253,21 +253,201 @@ export function liveAnchors(state: EditorState): readonly LiveAnchor[] {
   return state.field(anchorsField, false) ?? []
 }
 
-/** Select, scroll to, and briefly highlight an anchored range. */
-export function flashAnchor(view: EditorView, from: number, to: number): void {
+/**
+ * Where a jumped-to anchor lands in the readable viewport: 10% above its
+ * middle. Dead centre reads as "somewhere in the page"; a bit high leaves the
+ * sentence with its following context visible, which is what a reviewer
+ * reads next, and it is the SAME spot every time — the point of the rule.
+ */
+export const ANCHOR_VIEWPORT_FRACTION = 0.4
+
+/**
+ * The `yMargin` that puts an anchor at ANCHOR_VIEWPORT_FRACTION of the
+ * READABLE height — the scrollport minus whatever sticky chrome covers its
+ * top (the manuscript tab's toolbar). CodeMirror's `y: 'start'` lands the
+ * range at `scrollport top + yMargin`, so the offset is measured from the
+ * true top and the inset has to be added back in.
+ */
+export function anchorYMargin(
+  viewportHeight: number,
+  insetTop: number,
+  fraction: number = ANCHOR_VIEWPORT_FRACTION
+): number {
+  const readable = Math.max(0, viewportHeight - insetTop)
+  return insetTop + readable * fraction
+}
+
+/**
+ * The element the document actually scrolls in, found the way CodeMirror's
+ * own scrollIntoView finds it: the nearest ancestor that overflows. It is
+ * `.msdoc` in the manuscript tab and CodeMirror's own scroller in the editor
+ * tab, so neither surface may hard-code one.
+ */
+function scrollportOf(view: EditorView): HTMLElement | null {
+  let cur: HTMLElement | null = view.scrollDOM
+  while (cur !== null && cur !== document.body) {
+    if (cur.scrollHeight > cur.clientHeight) return cur
+    cur = cur.parentElement
+  }
+  return null
+}
+
+/** Height of the sticky chrome pinned to the scrollport's top, if any. */
+function stickyInsetOf(scrollport: HTMLElement): number {
+  let inset = 0
+  for (const child of Array.from(scrollport.children)) {
+    if (!(child instanceof HTMLElement)) continue
+    const style = getComputedStyle(child)
+    if (style.position !== 'sticky' || parseFloat(style.top || 'NaN') !== 0) continue
+    inset = Math.max(inset, child.getBoundingClientRect().height)
+  }
+  return inset
+}
+
+/** How long the flash — and the pin that holds the anchor in place — last. */
+const FLASH_MS = 1200
+/** Corrections below this are invisible; chasing them would only churn. */
+const PIN_EPSILON_PX = 1
+
+/**
+ * How far the scrollport must move to put a block at its target line.
+ * Positive scrolls down. Pure so the arithmetic can be tested without a DOM.
+ */
+export function anchorScrollDelta(
+  blockTopOnScreen: number,
+  portTop: number,
+  portHeight: number,
+  insetTop: number,
+  fraction: number = ANCHOR_VIEWPORT_FRACTION
+): number {
+  return blockTopOnScreen - (portTop + anchorYMargin(portHeight, insetTop, fraction))
+}
+
+/** The pin currently holding an anchor in place, if any — at most one. */
+let activePin: (() => void) | null = null
+/** The pending "put the flash out" timer — at most one, see flashAnchor. */
+let flashTimer = 0
+
+/**
+ * What makes the pin let go. USER GESTURES only, deliberately: a scrollTop we
+ * did not write is not evidence of the user, because CodeMirror corrects the
+ * scroll position itself whenever it replaces estimated line heights with
+ * measured ones. Aborting on that was measurably worse than not aborting —
+ * it dropped the pin mid-flight and left long jumps short of their mark.
+ * Other programmatic scrollers call cancelAnchorPin() instead.
+ */
+const ABORT_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
+
+/**
+ * Put an anchor at its target line and HOLD it there for FLASH_MS.
+ *
+ * One scroll is not enough on this surface, which is what made repeated jumps
+ * land differently: after the scroll lands, the document above the anchor
+ * keeps changing height — figure and math widgets resolve asynchronously,
+ * CodeMirror swaps estimated line heights for measured ones as regions come
+ * into view, and selecting the range reveals the raw source of any rendered
+ * span it touches. Every one of those drags the anchor off its mark, and the
+ * next click then starts from a different document than the last one.
+ *
+ * So the target is re-derived from live geometry every frame and the anchor
+ * is pulled back onto it — the document settles AROUND a fixed anchor rather
+ * than sliding it away. The pin holds only as long as the flash, and any user
+ * gesture on the scrollport ends it immediately (see ABORT_EVENTS).
+ */
+function pinAnchor(view: EditorView, pos: number, commentId: string | null): void {
+  activePin?.()
+  const found = scrollportOf(view)
+  if (found === null || found.clientHeight === 0) {
+    // no measurable scrollport (detached view, or nothing overflows) — let
+    // CodeMirror do its ancestor walk instead of guessing
+    view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'center' }) })
+    return
+  }
+  // bound non-null so the frame closures below keep the narrowing
+  const port: HTMLElement = found
+
+  let frameId = 0
+  let stopped = false
+
+  const stop = (): void => {
+    if (stopped) return
+    stopped = true
+    if (frameId !== 0) cancelAnimationFrame(frameId)
+    for (const event of ABORT_EVENTS) port.removeEventListener(event, stop, true)
+    if (activePin === stop) activePin = null
+  }
+
+  const correct = (): void => {
+    if (!view.dom.isConnected || port.clientHeight === 0) return stop()
+    // re-resolve by id so an edit that moves the text moves the pin with it
+    let target = pos
+    if (commentId !== null) {
+      const live = liveAnchors(view.state).find((a) => a.id === commentId)
+      if (live === undefined) return stop()
+      target = live.from
+    }
+    const clamped = Math.min(target, view.state.doc.length)
+    const rect = port.getBoundingClientRect()
+    const delta = anchorScrollDelta(
+      view.documentTop + view.lineBlockAt(clamped).top,
+      rect.top,
+      port.clientHeight,
+      stickyInsetOf(port)
+    )
+    if (Math.abs(delta) >= PIN_EPSILON_PX) port.scrollTop += delta
+  }
+
+  for (const event of ABORT_EVENTS) port.addEventListener(event, stop, { capture: true, passive: true })
+  activePin = stop
+  // the first correction is synchronous: the jump must not cost a frame
+  correct()
+  const deadline = performance.now() + FLASH_MS
+  const frame = (): void => {
+    frameId = 0
+    if (stopped) return
+    correct()
+    if (performance.now() >= deadline) return stop()
+    frameId = requestAnimationFrame(frame)
+  }
+  frameId = requestAnimationFrame(frame)
+}
+
+/**
+ * Release any anchor pin currently holding the document in place. Anything
+ * else that scrolls these surfaces programmatically (the section outline)
+ * calls this first, so the two never fight over the same scrollport.
+ */
+export function cancelAnchorPin(): void {
+  activePin?.()
+}
+
+/**
+ * Select, scroll to, and briefly highlight an anchored range. `commentId`
+ * lets the pin track the anchor through document changes.
+ */
+export function flashAnchor(view: EditorView, from: number, to: number, commentId?: string): void {
   view.dispatch({
     selection: { anchor: from, head: to },
-    effects: [setFlashRange.of({ from, to }), EditorView.scrollIntoView(from, { y: 'center' })]
+    effects: [setFlashRange.of({ from, to })]
   })
-  window.setTimeout(() => {
+  // AFTER the dispatch, so the reveal reflow that selecting a rendered span
+  // triggers is already in the geometry the first correction measures
+  pinAnchor(view, from, commentId ?? null)
+  // One timer for the whole app, replaced on every flash. Scheduling a fresh
+  // one per flash meant the PREVIOUS flash's timer put out the current one:
+  // jump to a comment, jump to another within the second, and the second
+  // highlight died a few hundred ms after it lit.
+  if (flashTimer !== 0) window.clearTimeout(flashTimer)
+  flashTimer = window.setTimeout(() => {
+    flashTimer = 0
     view.dispatch({ effects: setFlashRange.of(null) })
-  }, 1200)
+  }, FLASH_MS)
 }
 
 /** Flash a comment's CURRENT live range; false when it has none (detached). */
 export function flashAnchorById(view: EditorView, commentId: string): boolean {
   const anchor = liveAnchors(view.state).find((a) => a.id === commentId)
   if (anchor === undefined) return false
-  flashAnchor(view, anchor.from, anchor.to)
+  flashAnchor(view, anchor.from, anchor.to, commentId)
   return true
 }
