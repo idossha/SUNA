@@ -144,8 +144,8 @@ export function commentFixPrompt(input: CommentFixPromptInput): string {
   const rules = [
     '- Make the minimal edit that addresses the comment using mcp__suna__edit_manuscript (exact find/replace) — never write_manuscript.',
     '- Then use mcp__suna__reply_comment to summarize the change on the thread.',
-    '- Then mcp__suna__resolve_comment with { resolved: true } ONLY if the comment is fully addressed.',
-    '- If the comment is ambiguous, ask a question via mcp__suna__reply_comment and do not resolve.',
+    '- Never resolve the thread — resolving is a human decision made in the app; your reply is the signal that it is ready for review.',
+    '- If the comment is ambiguous, ask a question via mcp__suna__reply_comment instead of guessing.',
     '- Touch nothing outside the quoted region unless the comment demands it.',
     `- ${GIT_RULE}`
   ]

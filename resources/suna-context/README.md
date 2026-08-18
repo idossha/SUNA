@@ -68,7 +68,7 @@ Reference docs, by area:
 |---|---|
 | PROJECT-GUIDE.md | project layout, suna.json, directory roles, journal profiles |
 | MANUSCRIPT.md | the manuscript.md dialect: citations, cross-refs, figure embeds, math |
-| COMMENTS.md | the review-comment sidecar: schema, anchoring, the resolve procedure |
+| COMMENTS.md | the review-comment sidecar: schema, anchoring, the review procedure |
 | FIGURES.md | figure folders, provenance, figure compliance |
 | MCP.md | the 20 MCP verbs, server launch, the file-verb fallback |
 | WORKFLOW.md | session shape: reading order, notebook discipline, when to ask vs act |

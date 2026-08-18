@@ -100,6 +100,7 @@
   line-height: 1.5;
   color: var(--s-ink);
   white-space: pre-wrap;
+  user-select: text;
 }
 
 .cmt__replies {
@@ -240,11 +241,15 @@
   opacity: 0.6;
 }
 
+/* A div acting as a button (CommentsRail.ThreadCard) — text inside a card
+   must stay selectable so users can copy it; real buttons suppress that. */
 .cmt-card__main {
   display: flex;
   flex-direction: column;
   gap: 4px;
   text-align: left;
+  cursor: pointer;
+  user-select: text;
 }
 
 .cmt-card__body {
@@ -395,6 +400,36 @@
 }
 
 .cmt-rail__pinned-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Resolved threads live in a separately viewable History group at the rail's
+   foot — collapsed by default, its own scroller, reachable without competing
+   with open work. */
+.cmt-rail__history {
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+  padding: 6px 10px;
+  border-top: 1px solid var(--s-border);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.cmt-rail__history summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.cmt-rail__history summary::-webkit-details-marker {
+  display: none;
+}
+
+.cmt-rail__history-list {
   display: flex;
   flex-direction: column;
   gap: 6px;

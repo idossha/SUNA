@@ -120,8 +120,14 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     () => (sectionPath === null ? NO_COMMENTS : (commentsByPath(allComments).get(sectionPath) ?? NO_COMMENTS)),
     [allComments, sectionPath]
   )
-  const commentsForPathRef = useRef(commentsForPath)
-  commentsForPathRef.current = commentsForPath
+  // Resolved threads live in the rail's History, not in the text — only
+  // open comments get an anchor highlight (the rail still gets all of them).
+  const openCommentsForPath = useMemo(
+    () => commentsForPath.filter((c) => !c.resolved),
+    [commentsForPath]
+  )
+  const openCommentsForPathRef = useRef(openCommentsForPath)
+  openCommentsForPathRef.current = openCommentsForPath
 
   useEffect(() => {
     if (sectionPath === null || projectRootDir === null) return
@@ -218,7 +224,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
               )
             ])
           })
-          applySectionComments(view, commentsForPathRef.current)
+          applySectionComments(view, openCommentsForPathRef.current)
           const sp = sectionPathRef.current
           if (sp !== null) {
             unregisterAnchors = registerLiveAnchorSource(sp, () => liveAnchors(view.state))
@@ -300,8 +306,8 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   // document itself hasn't changed. (The rail owns flash + active mirror.)
   useEffect(() => {
     const view = handleRef.current?.view
-    if (view) applySectionComments(view, commentsForPath)
-  }, [commentsForPath])
+    if (view) applySectionComments(view, openCommentsForPath)
+  }, [openCommentsForPath])
 
   if (loadError) {
     return (

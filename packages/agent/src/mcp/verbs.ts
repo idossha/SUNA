@@ -11,9 +11,7 @@ import {
   listComments,
   listCommentsInput,
   replyComment,
-  replyCommentInput,
-  resolveComment,
-  resolveCommentInput
+  replyCommentInput
 } from './comments'
 import {
   addReference,
@@ -448,8 +446,7 @@ export const TOOLS = [
   },
   { name: 'list_comments', description: 'List review comments, optionally filtered by resolved status or section path', schema: listCommentsInput },
   { name: 'add_comment', description: 'Add a review comment anchored to an exact quote in a manuscript section', schema: addCommentInput },
-  { name: 'reply_comment', description: 'Reply to an existing review comment thread', schema: replyCommentInput },
-  { name: 'resolve_comment', description: 'Mark a review comment resolved or open', schema: resolveCommentInput },
+  { name: 'reply_comment', description: 'Reply to an existing review comment thread (resolving is human-only, in the app)', schema: replyCommentInput },
   { name: 'search_literature', description: 'Search a literature provider (default Crossref, keyless)', schema: searchLiteratureInput },
   { name: 'lookup_doi', description: 'Look up one work by DOI on a literature provider', schema: lookupDoiInput },
   { name: 'add_reference', description: 'Look up a DOI and append it to references.bib', schema: addReferenceInput }
@@ -504,8 +501,6 @@ export async function callTool(
       return addComment(ctx, addCommentInput.parse(args))
     case 'reply_comment':
       return replyComment(ctx, replyCommentInput.parse(args))
-    case 'resolve_comment':
-      return resolveComment(ctx, resolveCommentInput.parse(args))
     case 'search_literature':
       return searchLiteratureTool(searchLiteratureInput.parse(args))
     case 'lookup_doi':

@@ -135,15 +135,14 @@ describe('commentFixPrompt', () => {
     expect(second).toBeGreaterThan(first)
   })
 
-  it('orders the MCP steps edit → reply → resolve and forbids write_manuscript', () => {
+  it('orders the MCP steps edit → reply, forbids resolving and write_manuscript', () => {
     const edit = prompt.indexOf('mcp__suna__edit_manuscript')
     const reply = prompt.indexOf('mcp__suna__reply_comment')
-    const resolve = prompt.indexOf('mcp__suna__resolve_comment')
     expect(edit).toBeGreaterThan(0)
     expect(reply).toBeGreaterThan(edit)
-    expect(resolve).toBeGreaterThan(reply)
     expect(prompt).toContain('never write_manuscript')
-    expect(prompt).toContain('ONLY if the comment is fully addressed')
+    expect(prompt).toContain('Never resolve the thread')
+    expect(prompt).not.toContain('mcp__suna__resolve_comment')
     expect(prompt).toContain('Touch nothing outside the quoted region')
     expect(prompt).toContain(GIT_RULE)
   })

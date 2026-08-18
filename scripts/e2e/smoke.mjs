@@ -4320,13 +4320,13 @@ try {
     const probe = JSON.parse(out.trim().split('\n').at(-1))
     assert(probe.ok, `MCP probe failed: ${out}`)
     for (const name of [
-      'list_comments', 'add_comment', 'reply_comment', 'resolve_comment',
+      'list_comments', 'add_comment', 'reply_comment',
       'search_literature', 'lookup_doi', 'add_reference',
       'edit_manuscript', 'check_manuscript'
     ]) {
       assert(probe.tools.includes(name), `bundled MCP server is missing ${name}`)
     }
-    assert(probe.tools.length === 20, `MCP tool count: ${probe.tools.length}`)
+    assert(probe.tools.length === 19, `MCP tool count: ${probe.tools.length}`)
 
     // the anchored edit primitive, round-tripped through the real bundle:
     // edit a unique phrase, verify the section report, put it back
