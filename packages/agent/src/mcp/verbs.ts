@@ -21,6 +21,16 @@ import {
   searchLiteratureInput,
   searchLiteratureTool
 } from './lit'
+import {
+  citeStudy,
+  citeStudyInput,
+  fetchPdfInput,
+  fetchPdfTool,
+  findLocalPdfInput,
+  findLocalPdfTool,
+  findStudyInput,
+  findStudyTool
+} from './study'
 
 /**
  * File-level manuscript verbs. These operate directly on the project on disk
@@ -449,7 +459,31 @@ export const TOOLS = [
   { name: 'reply_comment', description: 'Reply to an existing review comment thread (resolving is human-only, in the app)', schema: replyCommentInput },
   { name: 'search_literature', description: 'Search a literature provider (default Crossref, keyless)', schema: searchLiteratureInput },
   { name: 'lookup_doi', description: 'Look up one work by DOI on a literature provider', schema: lookupDoiInput },
-  { name: 'add_reference', description: 'Look up a DOI and append it to references.bib', schema: addReferenceInput }
+  { name: 'add_reference', description: 'Look up a DOI and append it to references.bib', schema: addReferenceInput },
+  {
+    name: 'find_study',
+    description:
+      'Resolve a free-text mention (DOI, arXiv id, "Gunn & Gott 1972", a quoted title) to one work: every keyless provider searched in parallel, merged and ranked, with confidence, up to 4 alternatives with their DOIs, and each provider that failed named',
+    schema: findStudyInput
+  },
+  {
+    name: 'find_local_pdf',
+    description:
+      "Search this machine (Spotlight + the configured library roots) for a PDF of a work — read-only: matches with path, confidence and evidence, or 'no match' naming the roots searched",
+    schema: findLocalPdfInput
+  },
+  {
+    name: 'fetch_pdf',
+    description:
+      'Acquire the PDF for a reference already in references.bib into references/<key>.pdf — already-present, then copied-local, then downloaded, then metadata-only; reports which happened and the source path or URL. A local match too weak to copy unasked is named as a candidate instead: re-run with accept: <its path> to take that one deliberately',
+    schema: fetchPdfInput
+  },
+  {
+    name: 'cite_study',
+    description:
+      'The composite: resolve a mention, reuse or append its references.bib entry, then run the PDF ladder — one report naming the outcome and the [@key] to paste. Ambiguity (low confidence) writes nothing and asks for an explicit DOI',
+    schema: citeStudyInput
+  }
 ] as const
 
 export type ToolName = (typeof TOOLS)[number]['name']
@@ -507,6 +541,14 @@ export async function callTool(
       return lookupDoiTool(lookupDoiInput.parse(args))
     case 'add_reference':
       return addReference(ctx, addReferenceInput.parse(args))
+    case 'find_study':
+      return findStudyTool(findStudyInput.parse(args))
+    case 'find_local_pdf':
+      return findLocalPdfTool(ctx, findLocalPdfInput.parse(args))
+    case 'fetch_pdf':
+      return fetchPdfTool(ctx, fetchPdfInput.parse(args))
+    case 'cite_study':
+      return citeStudy(ctx, citeStudyInput.parse(args))
     default:
       throw new Error(`unknown tool: ${name}`)
   }
