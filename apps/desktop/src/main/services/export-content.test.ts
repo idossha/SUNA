@@ -10,10 +10,12 @@ import {
   buildExportContent,
   collectBlockImages,
   collectMarkdownImages,
+  collectTableEmbeds,
   collectTables,
   headingLevelForDepth,
   markdownImagePath,
   numberAffiliations,
+  orderByEmbedAppearance,
   pngDimensions,
   splitTexSpans,
   widthMmForPreset,
@@ -165,6 +167,29 @@ describe('markdown images', () => {
     expect(markdownImagePath('https://example.org/x.png', '/p/manuscript')).toBeNull()
     expect(markdownImagePath('data:image/png;base64,AAAA', '/p/manuscript')).toBeNull()
     expect(markdownImagePath('', '/p/manuscript')).toBeNull()
+  })
+})
+
+describe('table embeds and derived numbering order', () => {
+  it('collects ![[tbl:id]] embeds in document order', () => {
+    const root = parseSciMark('![[tbl:b]]\n\n| a |\n| --- |\n| 1 |\n\nProse.\n\n![[tbl:a]]\n')
+    expect(collectTableEmbeds(root)).toEqual(['b', 'a'])
+  })
+
+  it('orders items by first embed appearance, unembedded ones after in manifest order', () => {
+    const items = [{ id: 'x' }, { id: 'y' }, { id: 'z' }]
+    expect(orderByEmbedAppearance(items, ['z', 'x', 'z'])).toEqual([{ id: 'z' }, { id: 'x' }, { id: 'y' }])
+  })
+
+  it('keeps manifest order when nothing is embedded', () => {
+    const items = [{ id: 'x' }, { id: 'y' }]
+    expect(orderByEmbedAppearance(items, [])).toEqual(items)
+  })
+
+  it('withoutTables also drops tableEmbed nodes', () => {
+    const root = parseSciMark('![[tbl:a]]\n\n| a |\n| --- |\n| 1 |\n\nProse.\n')
+    const kept = withoutTables(root.children)
+    expect(kept.map((n) => n.type)).toEqual(['paragraph'])
   })
 })
 

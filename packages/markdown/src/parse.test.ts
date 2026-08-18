@@ -163,6 +163,20 @@ describe('figure embeds', () => {
   });
 });
 
+describe('table embeds', () => {
+  it('converts a paragraph containing exactly ![[tbl:x]] into a tableEmbed', () => {
+    const root = parseSciMark('Intro text.\n\n![[tbl:x]]\n\n| a |\n| --- |\n| 1 |');
+    const embed = narrow(root.children[1], 'tableEmbed');
+    expect(embed.tableId).toBe('x');
+    expect(narrow(root.children[2], 'table').type).toBe('table');
+  });
+
+  it('leaves paragraphs with extra text around the embed untouched', () => {
+    const root = parseSciMark('before ![[tbl:x]] after');
+    expect(narrow(root.children[0], 'paragraph').type).toBe('paragraph');
+  });
+});
+
 describe('image width attributes', () => {
   function image(source: string): Image {
     return narrow<PhrasingContent, 'image'>(inlineNodes(source)[0], 'image');

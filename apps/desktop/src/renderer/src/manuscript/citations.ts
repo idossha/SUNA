@@ -129,6 +129,33 @@ export function collectEquationLabels(source: string): (string | undefined)[] {
   return out
 }
 
+const EMBED_RE = /!\[\[(fig|tbl):([A-Za-z][\w.-]*)\]\]/g
+
+/**
+ * The manuscript's figures/tables reordered by first `![[fig:id]]` /
+ * `![[tbl:id]]` embed appearance in the prose — the order that drives
+ * numbering (derived at render time, never stored), matching the export
+ * side's orderByEmbedAppearance exactly. Items the prose never embeds keep
+ * their manifest order, after the embedded ones.
+ */
+export function orderByEmbedAppearance<T extends Identified>(
+  items: readonly T[],
+  source: string,
+  kind: 'fig' | 'tbl'
+): T[] {
+  const rank = new Map<string, number>()
+  for (const match of source.matchAll(EMBED_RE)) {
+    if (match[1] !== kind) continue
+    const id = match[2] as string
+    if (!rank.has(id)) rank.set(id, rank.size)
+  }
+  return [...items].sort((a, b) => {
+    const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER
+    const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER
+    return ra === rb ? 0 : ra - rb
+  })
+}
+
 /**
  * The document-wide cross-reference label map. `sections` is every body
  * section/box in document order, paired with its already-read source text.

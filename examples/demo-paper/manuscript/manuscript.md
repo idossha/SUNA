@@ -40,6 +40,8 @@ with outside-in removal of the gas reservoir.
 
 ![[fig:fig-velocity-map]]
 
+![[tbl:tab-observed]]
+
 | Quantity | Value | Unit |
 | --- | --- | --- |
 | Systemic velocity | 1450 | km s$^{-1}$ |

@@ -13,11 +13,13 @@ import type {
   FigureEmbedNode,
   RawLatexNode,
   SciMarkRoot,
+  TableEmbedNode,
 } from './ast';
 
 const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath);
 
 const FIGURE_EMBED = /^!\[\[fig:([A-Za-z][\w.-]*)\]\]$/;
+const TABLE_EMBED = /^!\[\[tbl:([A-Za-z][\w.-]*)\]\]$/;
 const SCAN = /\[@[^\]]*\]|@[A-Za-z][\w:.-]+(\{[^}]*\})?/g;
 const BRACKET_ITEM = /^@([A-Za-z][\w:.-]*)$/;
 const BARE = /^@([A-Za-z][\w:.-]+)(\{([^}]*)\})?/;
@@ -71,10 +73,19 @@ function transformFigureEmbeds(root: SciMarkRoot): void {
   visit(root, 'paragraph', (node, index, parent) => {
     if (parent === undefined || index === undefined) return;
     if (!node.children.every((child) => child.type === 'text')) return;
-    const match = FIGURE_EMBED.exec(toString(node).trim());
+    const text = toString(node).trim();
+    const match = FIGURE_EMBED.exec(text);
     const figureId = match?.[1];
-    if (figureId === undefined) return;
-    const embed: FigureEmbedNode = { type: 'figureEmbed', figureId };
+    if (figureId !== undefined) {
+      const embed: FigureEmbedNode = { type: 'figureEmbed', figureId };
+      copyPosition(embed, node);
+      parent.children[index] = embed;
+      return;
+    }
+    const tableMatch = TABLE_EMBED.exec(text);
+    const tableId = tableMatch?.[1];
+    if (tableId === undefined) return;
+    const embed: TableEmbedNode = { type: 'tableEmbed', tableId };
     copyPosition(embed, node);
     parent.children[index] = embed;
   });

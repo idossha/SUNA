@@ -24,6 +24,7 @@ below.
 | Equation ref | `@eq:stripping` | |
 | Section ref | `@sec:results` | |
 | Figure embed | `![[fig:overview]]` | alone on its own paragraph |
+| Table embed | `![[tbl:demographics]]` | alone on its own paragraph, directly ABOVE the markdown table it captions |
 | Inline math | `$z = 2.51$` | |
 | Display math, labeled | `$$ {#eq:stripping}` … LaTeX … `$$` | label on the opening line |
 | Raw LaTeX escape | fenced code block, info string `{=latex}` | |
@@ -70,12 +71,25 @@ measured value vs stated rule; it never rewrites — compliance is advisory-only
 
 Embed a figure with `![[fig:overview]]` alone in its own paragraph. Figure ids match
 `[A-Za-z][A-Za-z0-9_.-]*`. The figure and its caption render at that point in the
-formatted manuscript.
+formatted manuscript, in the SUNA standard: a bold derived "Figure N." label followed
+by the italic caption, centered under the figure.
 
 The caption does not live in the prose: it lives in `figures/<id>/figure.json`
 (`caption.title`). `list_figures` lists ids with caption titles; `read_figure_svg`
 returns a figure's SVG. Never hand-edit `figures/<id>/figure.svg` — it is app-owned
 (canvas); editing it bypasses undo, id-minting, and provenance.
+
+## Table embeds and captions
+
+Bind a markdown table to its caption by writing `![[tbl:id]]` alone in its own
+paragraph directly above the table. The `id` names an entry in `manuscript.json`'s
+`tables` list, which owns the caption (`caption.title`, short), the optional
+`caption.body`, and `footnotes`. It renders in the SUNA standard: a bold derived
+"Table N." label plus the italic title above the table, and an italic "Note. …"
+line (caption body + footnotes) below it. Numbering follows the order of embeds in
+the prose. A managed table the prose never embeds renders caption-only in the
+trailing Tables section instead. Table metadata is metadata — propose changes to
+`manuscript.json` rather than editing it unasked.
 
 ## Edit discipline
 

@@ -418,6 +418,74 @@
   white-space: nowrap;
 }
 
+/* Caption above / "Note." below a `![[tbl:id]]`-captioned table — the SUNA
+   table standard: bold "Table N." label, italic title, italic note line.
+   The block shrink-wraps to the table and centers as one unit, so the
+   caption's left edge and the note's wrap width ARE the table's edges. */
+.editor-tab .cm-lp-table__block {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+/* width:0 + min-width:100% keeps the caption and note OUT of the block's
+   fit-content measurement (only the table sizes it) while still letting both
+   lines fill — and wrap at — the table's width. */
+.editor-tab .cm-lp-table__caption {
+  margin: 0 0 4px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  color: var(--ed-ink-faint);
+}
+
+.editor-tab .cm-lp-table__block .cm-lp-table__caption,
+.editor-tab .cm-lp-table__block .cm-lp-table__note {
+  width: 0;
+  min-width: 100%;
+}
+
+/* Inline caption editing: the caption title / note body spans are
+   contenteditable islands inside CM's read-decorated DOM. Quiet by default,
+   a dotted underline on hover says "this is text you can edit", and focus
+   swaps it for a soft highlight. min-width keeps an EMPTY note body
+   clickable — it is how a note gets added in the first place. */
+.editor-tab .cm-lp-editable {
+  border-radius: 3px;
+  outline: none;
+  cursor: text;
+}
+
+/* The note body flows inline so its text continues on the "Note. " line.
+   Only when EMPTY does it become a small inline-block: an empty inline span
+   is a zero-width click target, and the empty state is how a note gets
+   added in the first place. */
+.editor-tab .cm-lp-table__note-body:empty {
+  display: inline-block;
+  min-width: 3ch;
+}
+
+.editor-tab .cm-lp-editable:hover {
+  text-decoration: underline dotted var(--ed-ink-faint);
+  text-underline-offset: 3px;
+}
+
+.editor-tab .cm-lp-editable:focus {
+  background: var(--ed-selection, rgba(125, 125, 125, 0.14));
+  text-decoration: none;
+}
+
+.editor-tab .cm-lp-table__caption strong {
+  color: var(--ed-ink-muted);
+}
+
+.editor-tab .cm-lp-table__note {
+  margin: 4px 0 0;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  font-style: italic;
+  color: var(--ed-ink-faint);
+}
+
 .editor-tab .cm-lp-table .cite {
   color: var(--ed-accent);
   font-family: var(--s-font-ui);
@@ -525,11 +593,20 @@
   border-radius: 2px;
 }
 
+/* The SUNA caption standard: bold upright "Figure N." label, italic caption
+   text, centered under the figure. Mirrors export-html.ts's figcaption CSS. */
 .editor-tab .cm-lp-figure__caption {
   margin-top: 6px;
   color: var(--ed-ink-faint);
   font-family: var(--s-font-ui);
   font-size: var(--s-text-sm);
+  text-align: center;
+  font-style: italic;
+}
+
+.editor-tab .cm-lp-figure__caption strong {
+  font-style: normal;
+  color: var(--ed-ink-muted);
 }
 
 /* ---- settings popover ----------------------------------------------------- */
