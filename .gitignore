@@ -39,3 +39,7 @@ packages/agent/dist-mcp/
 
 # real manuscripts used as export ground truth — personal documents, never published to the repo
 examples/docx_examples/
+
+# docs site build artifacts (website/.vitepress/dist is covered by dist/)
+website/.vitepress/cache/
+website/public/shots/*.png

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="SUNA">
+  <!-- SUNA's mark: the dark-adapted instrument palette — night-sky ground,
+       one gold ring. -->
+  <rect width="32" height="32" rx="7" fill="#16161c"/>
+  <circle cx="16" cy="16" r="7.5" fill="none" stroke="#e8b45c" stroke-width="2"/>
+  <circle cx="16" cy="16" r="2.25" fill="#e8b45c"/>
+</svg>

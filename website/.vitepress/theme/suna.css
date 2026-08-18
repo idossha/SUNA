@@ -1,0 +1,557 @@
+/* ---------------------------------------------------------------------------
+   SUNA docs theme — the app's "dark-adapted instrument" palette, ported.
+
+   The token values below are copied from
+   apps/desktop/src/renderer/src/styles/tokens.css so the website and the
+   application read as one object: deep blue-black surfaces (night sky), warm
+   off-white ink, one gold accent (dark-adapted observatory lighting) reserved
+   for active and focus states.
+
+   VitePress ships light-first; SUNA is dark-first. The mapping is:
+     :root      → suna-light  (warm paper)
+     html.dark  → suna-dark   (night sky)
+   and config.ts sets appearance: 'dark', so the site opens the way the app
+   does.
+   --------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------ light: suna-light */
+:root {
+  --s-bg-chrome: #ece7dd;
+  --s-bg-shell: #f2ede3;
+  --s-bg-panel: #f5f0e6;
+  --s-bg-editor: #f7f2e9;
+  --s-bg-raised: #fffdf8;
+  --s-bg-hover: rgba(43, 38, 32, 0.06);
+  --s-bg-active: rgba(138, 106, 47, 0.14);
+
+  --s-ink: #2b2620;
+  --s-ink-muted: #6b6257;
+  --s-ink-faint: #9a9184;
+
+  --s-accent: #8a6a2f;
+  --s-accent-ink: #fbf7ee;
+
+  --s-ok: #3f6b4f;
+  --s-warn: #a05c22;
+  --s-err: #b0503f;
+
+  --s-border: #d8cfbf;
+  --s-border-strong: #c2b8a5;
+
+  --s-shadow: rgba(43, 38, 32, 0.09);
+}
+
+/* -------------------------------------------------------- dark: suna-dark */
+.dark {
+  --s-bg-chrome: #101014;
+  --s-bg-shell: #16161c;
+  --s-bg-panel: #1a1a21;
+  --s-bg-editor: #1e1e26;
+  --s-bg-raised: #23232c;
+  --s-bg-hover: rgba(255, 255, 255, 0.05);
+  --s-bg-active: rgba(232, 180, 92, 0.12);
+
+  --s-ink: #e8e6e1;
+  --s-ink-muted: #a09d97;
+  --s-ink-faint: #6b6963;
+
+  --s-accent: #e8b45c;
+  --s-accent-ink: #16161c;
+
+  --s-ok: #7fb8a4;
+  --s-warn: #d9915b;
+  --s-err: #d97b6c;
+
+  --s-border: #2a2a33;
+  --s-border-strong: #3a3a45;
+
+  --s-shadow: rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------------------- typefaces
+   The app's three families, unchanged. Serif carries display type — it is
+   what a manuscript is set in, and it is the one thing that tells you at a
+   glance that this tool is for papers. */
+:root {
+  --s-font-ui:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --s-font-serif: 'Iowan Old Style', Palatino, 'Palatino Linotype', Georgia,
+    serif;
+  --s-font-mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --vp-font-family-base: var(--s-font-ui);
+  --vp-font-family-mono: var(--s-font-mono);
+}
+
+/* --------------------------------------------------- VitePress token bridge */
+:root {
+  --vp-c-bg: var(--s-bg-shell);
+  --vp-c-bg-alt: var(--s-bg-chrome);
+  --vp-c-bg-elv: var(--s-bg-raised);
+  --vp-c-bg-soft: var(--s-bg-panel);
+
+  --vp-c-text-1: var(--s-ink);
+  --vp-c-text-2: var(--s-ink-muted);
+  --vp-c-text-3: var(--s-ink-faint);
+
+  --vp-c-brand-1: var(--s-accent);
+  --vp-c-brand-2: var(--s-accent);
+  --vp-c-brand-3: var(--s-accent);
+  --vp-c-brand-soft: var(--s-bg-active);
+
+  --vp-c-default-1: var(--s-ink-muted);
+  --vp-c-default-2: var(--s-ink-muted);
+  --vp-c-default-3: var(--s-ink-faint);
+  --vp-c-default-soft: var(--s-bg-hover);
+
+  --vp-c-tip-1: var(--s-ok);
+  --vp-c-tip-2: var(--s-ok);
+  --vp-c-tip-3: var(--s-ok);
+  --vp-c-tip-soft: var(--s-bg-hover);
+
+  --vp-c-warning-1: var(--s-warn);
+  --vp-c-warning-2: var(--s-warn);
+  --vp-c-warning-3: var(--s-warn);
+  --vp-c-warning-soft: var(--s-bg-hover);
+
+  --vp-c-danger-1: var(--s-err);
+  --vp-c-danger-2: var(--s-err);
+  --vp-c-danger-3: var(--s-err);
+  --vp-c-danger-soft: var(--s-bg-hover);
+
+  --vp-c-divider: var(--s-border);
+  --vp-c-gutter: var(--s-border);
+  --vp-c-border: var(--s-border);
+
+  /* Gold is the app's *focus* colour, not a fill: a solid gold button would
+     shout where every other gold thing in SUNA whispers. Buttons stay
+     outlined, and fill only on hover. */
+  --vp-button-brand-bg: transparent;
+  --vp-button-brand-text: var(--s-accent);
+  --vp-button-brand-border: var(--s-accent);
+  --vp-button-brand-hover-bg: var(--s-accent);
+  --vp-button-brand-hover-text: var(--s-accent-ink);
+  --vp-button-brand-hover-border: var(--s-accent);
+  --vp-button-brand-active-bg: var(--s-accent);
+  --vp-button-brand-active-text: var(--s-accent-ink);
+  --vp-button-brand-active-border: var(--s-accent);
+
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-text: var(--s-ink-muted);
+  --vp-button-alt-border: var(--s-border-strong);
+  --vp-button-alt-hover-bg: var(--s-bg-hover);
+  --vp-button-alt-hover-text: var(--s-ink);
+  --vp-button-alt-hover-border: var(--s-border-strong);
+
+  --vp-code-block-bg: var(--s-bg-editor);
+  --vp-code-block-divider-color: var(--s-border);
+  --vp-code-line-highlight-color: var(--s-bg-active);
+  --vp-code-copy-code-bg: var(--s-bg-raised);
+  --vp-code-copy-code-hover-bg: var(--s-bg-panel);
+  --vp-code-copy-code-active-text: var(--s-accent);
+  --vp-code-tab-divider: var(--s-border);
+  --vp-code-tab-text-color: var(--s-ink-muted);
+  --vp-code-tab-active-text-color: var(--s-accent);
+  --vp-code-tab-active-bar-color: var(--s-accent);
+
+  --vp-custom-block-info-bg: var(--s-bg-panel);
+  --vp-custom-block-info-border: var(--s-border);
+  --vp-custom-block-tip-bg: var(--s-bg-panel);
+  --vp-custom-block-warning-bg: var(--s-bg-panel);
+  --vp-custom-block-danger-bg: var(--s-bg-panel);
+  --vp-custom-block-details-bg: var(--s-bg-panel);
+
+  --vp-sidebar-bg-color: var(--s-bg-chrome);
+  --vp-nav-bg-color: var(--s-bg-chrome);
+  --vp-local-nav-bg-color: var(--s-bg-chrome);
+
+  --vp-layout-max-width: 1520px;
+  --vp-sidebar-width: 268px;
+  --vp-nav-height: 56px;
+
+  --vp-shadow-1: 0 1px 2px var(--s-shadow);
+  --vp-shadow-2: 0 3px 12px var(--s-shadow);
+  --vp-shadow-3: 0 12px 32px var(--s-shadow);
+
+  --vp-home-hero-name-color: var(--s-ink);
+  --vp-home-hero-image-filter: none;
+}
+
+/* --------------------------------------------------------------- app chrome
+   One hairline of gold under the top bar — the same "you are here" signal the
+   app's activity bar uses, and the only chrome decoration on the site. */
+.VPNav {
+  border-bottom: 1px solid var(--s-border);
+}
+
+.VPNavBar .title {
+  font-family: var(--s-font-ui);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  font-size: 15px;
+}
+
+.VPSidebar {
+  border-right: 1px solid var(--s-border);
+}
+
+.VPSidebarItem.level-0 > .item > .text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+}
+
+.VPSidebarItem.is-active > .item > .link > .text {
+  color: var(--s-accent);
+}
+
+/* --------------------------------------------------------------- prose type */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  font-family: var(--s-font-serif);
+  letter-spacing: -0.005em;
+}
+
+.vp-doc h1 {
+  font-size: 2.45rem;
+  line-height: 1.16;
+  font-weight: 600;
+}
+
+.vp-doc h2 {
+  margin-top: 3rem;
+  padding-top: 1.6rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  border-top: 1px solid var(--s-border);
+}
+
+.vp-doc h3 {
+  font-size: 1.22rem;
+  font-weight: 600;
+  margin-top: 2rem;
+}
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.72;
+}
+
+/* The lede: the first paragraph after the title sets the page's claim, so it
+   is set larger and quieter, the way an abstract sits under a paper's title. */
+.vp-doc h1 + p {
+  font-size: 1.09rem;
+  line-height: 1.66;
+  color: var(--s-ink-muted);
+}
+
+.vp-doc a {
+  text-decoration-color: var(--s-bg-active);
+  text-underline-offset: 3px;
+}
+
+.vp-doc a:hover {
+  text-decoration-color: var(--s-accent);
+}
+
+/* ------------------------------------------------------------------- tables
+   Journal-rule tables are the densest thing on this site; they earn a tighter
+   grid and a monospaced first column. */
+.vp-doc table {
+  display: table;
+  width: 100%;
+  font-size: 0.92rem;
+}
+
+.vp-doc tr {
+  background: transparent;
+  border-top: 1px solid var(--s-border);
+}
+
+.vp-doc th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--s-border-strong);
+  text-align: left;
+}
+
+.vp-doc td {
+  border: 0;
+  vertical-align: top;
+}
+
+.vp-doc td:first-child code,
+.vp-doc th:first-child {
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------- code */
+.vp-doc :not(pre) > code {
+  font-size: 0.86em;
+  background: var(--s-bg-active);
+  color: var(--s-ink);
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+.vp-doc div[class*='language-'] {
+  border: 1px solid var(--s-border);
+  border-radius: 5px;
+}
+
+/* ------------------------------------------------------------ measure
+   VitePress's 688px content column is a good measure for prose but cramps a
+   full-window screenshot and the wider rule tables. 760px keeps the line
+   length readable and gives both room to breathe. */
+.VPDoc .content-container {
+  max-width: 760px;
+}
+
+/* -------------------------------------------------------------- screenshots
+   Every image on this site is a real capture of the running app, so they are
+   framed like a window rather than floated like decoration, and clicking one
+   opens it full size (see theme/index.ts). */
+.vp-doc img {
+  border-radius: 6px;
+  border: 1px solid var(--s-border);
+  box-shadow: var(--vp-shadow-2);
+}
+
+.shot {
+  margin: 2rem 0;
+}
+
+.shot img {
+  cursor: zoom-in;
+}
+
+/* Full-size overlay. A screenshot of a whole application window is unreadable
+   at column width; one click has to be able to open it. */
+.shot-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: color-mix(in srgb, var(--s-bg-chrome) 92%, transparent);
+  backdrop-filter: blur(3px);
+  cursor: zoom-out;
+  animation: shot-zoom-in 0.14s ease-out;
+}
+
+.shot-zoom img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--s-border-strong);
+  box-shadow: var(--vp-shadow-3);
+}
+
+.shot-zoom__hint {
+  position: absolute;
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--s-ink-faint);
+}
+
+@keyframes shot-zoom-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shot-zoom {
+    animation: none;
+  }
+}
+
+.shot figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--s-ink-faint);
+}
+
+/* --------------------------------------------------------------------- home
+   The hero carries no image, and VitePress's default caps the text column at
+   roughly a third of the page — which leaves two thirds of the fold empty.
+   Centre it on a reading measure instead: the screenshots below do the visual
+   work, so the hero only has to say what this is. */
+.VPHero .container {
+  max-width: 780px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.VPHero .main,
+.VPHero .name,
+.VPHero .text,
+.VPHero .tagline {
+  max-width: none;
+}
+
+.VPHero .tagline {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 60ch;
+}
+
+.VPHero .actions {
+  justify-content: center;
+}
+
+.VPHero .name {
+  font-family: var(--s-font-ui);
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  font-size: 3.1rem;
+}
+
+.VPHero .text {
+  font-family: var(--s-font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--s-ink);
+}
+
+.VPHero .tagline {
+  color: var(--s-ink-muted);
+  line-height: 1.6;
+}
+
+.VPFeature {
+  background: var(--s-bg-panel);
+  border: 1px solid var(--s-border);
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.VPFeature:hover {
+  border-color: var(--s-border-strong);
+  background: var(--s-bg-raised);
+}
+
+.VPFeature .title {
+  font-family: var(--s-font-ui);
+  font-weight: 600;
+}
+
+.VPFeature .details {
+  color: var(--s-ink-muted);
+  line-height: 1.6;
+}
+
+/* ----------------------------------------------------------- doctrine strip
+   A quiet, full-width statement block for the format doctrine and other
+   one-line claims that carry the project's position. */
+.doctrine {
+  margin: 2.6rem 0;
+  padding: 1.4rem 1.6rem;
+  border-left: 2px solid var(--s-accent);
+  background: var(--s-bg-panel);
+  border-radius: 0 5px 5px 0;
+}
+
+.doctrine p {
+  margin: 0;
+  font-family: var(--s-font-serif);
+  font-size: 1.14rem;
+  line-height: 1.6;
+  color: var(--s-ink);
+}
+
+.doctrine p + p {
+  margin-top: 0.7rem;
+  font-family: var(--s-font-ui);
+  font-size: 0.92rem;
+  color: var(--s-ink-muted);
+}
+
+/* --------------------------------------------------------- status callouts
+   Documentation that promises unshipped features is worse than none, so the
+   site has a first-class way to say "this part is not built yet". */
+.vp-doc .custom-block.warning,
+.vp-doc .custom-block.tip,
+.vp-doc .custom-block.info,
+.vp-doc .custom-block.danger {
+  border: 1px solid var(--s-border);
+  border-left-width: 2px;
+  border-radius: 0 5px 5px 0;
+}
+
+.vp-doc .custom-block.tip {
+  border-left-color: var(--s-ok);
+}
+
+.vp-doc .custom-block.warning {
+  border-left-color: var(--s-warn);
+}
+
+.vp-doc .custom-block.danger {
+  border-left-color: var(--s-err);
+}
+
+.vp-doc .custom-block.info {
+  border-left-color: var(--s-border-strong);
+}
+
+.vp-doc .custom-block-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------- key labels
+   <kbd> is used heavily on the shortcuts page; it should look like the app's
+   status-bar chips, not like a 1998 web page. */
+.vp-doc kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  font-family: var(--s-font-mono);
+  font-size: 0.8em;
+  line-height: 1.6;
+  color: var(--s-ink);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------- footer */
+.VPFooter {
+  border-top: 1px solid var(--s-border);
+  background: var(--s-bg-chrome);
+}
+
+.VPFooter .message,
+.VPFooter .copyright {
+  color: var(--s-ink-faint);
+  font-size: 0.82rem;
+}
+
+/* ------------------------------------------------------------ small screens */
+@media (max-width: 640px) {
+  .vp-doc h1 {
+    font-size: 1.9rem;
+  }
+
+  .VPHero .name {
+    font-size: 2.1rem;
+    letter-spacing: 0.22em;
+  }
+}
