@@ -62,10 +62,51 @@ export function stripXmlProlog(svg: string): string {
 const cache = new Map<string, FigureAsset>()
 const inFlight = new Map<string, Promise<FigureAsset>>()
 
+/**
+ * Per-path invalidation counter. A load that started before the file changed
+ * on disk must not write its stale bytes into the cache when it resolves, so
+ * `loadAsset` remembers the generation it started in and only caches its
+ * result while that generation is still current.
+ */
+const generation = new Map<string, number>()
+
+type InvalidateListener = (path: string) => void
+const listeners = new Set<InvalidateListener>()
+
+/**
+ * Called after `invalidateAsset(path)`. The live preview subscribes so that
+ * figures already painted into a document repaint themselves — a widget is
+ * built once and then left alone, so nothing else would ever go back for the
+ * new bytes.
+ */
+export function onAssetInvalidated(listener: InvalidateListener): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+/**
+ * Forget what `path` held and tell every subscriber. THE hook for "the file
+ * on disk is no longer what we painted": the canvas saving figure.svg, an
+ * agent rewriting one, any other save that lands on an image we have cached.
+ *
+ * Always notifies, even when nothing was cached: a load may be in flight for
+ * a widget that has not painted yet, and the repaint is what corrects it.
+ */
+export function invalidateAsset(path: string): void {
+  cache.delete(path)
+  inFlight.delete(path)
+  generation.set(path, (generation.get(path) ?? 0) + 1)
+  for (const listener of listeners) listener(path)
+}
+
 /** Test-only: drop everything so one test's fixtures cannot leak into another. */
 export function resetFigureAssetCache(): void {
   cache.clear()
   inFlight.clear()
+  generation.clear()
+  listeners.clear()
 }
 
 /** Whatever is already loaded for `path`, without starting a load. */
@@ -88,6 +129,7 @@ export async function loadAsset(path: string): Promise<FigureAsset> {
   const pending = inFlight.get(path)
   if (pending !== undefined) return pending
 
+  const startedAt = generation.get(path) ?? 0
   const load = (async (): Promise<FigureAsset> => {
     if (!bridgeReady()) return { kind: 'missing', reason: 'no file bridge' }
     try {
@@ -106,6 +148,7 @@ export async function loadAsset(path: string): Promise<FigureAsset> {
 
   inFlight.set(path, load)
   const asset = await load
+  if ((generation.get(path) ?? 0) !== startedAt) return asset
   inFlight.delete(path)
   cache.set(path, asset)
   return asset

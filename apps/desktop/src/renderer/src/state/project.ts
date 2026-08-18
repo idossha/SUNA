@@ -3,6 +3,7 @@ import type { FsNode, MigrationOutcome, SunaProjectManifest } from '@suna/core'
 import { useUiStore } from './ui'
 import { closeProjectTabs, openManuscriptTab } from './dock'
 import { useCommentsStore } from './comments'
+import { invalidateAsset } from '../editor/figureAssets'
 
 interface ProjectState {
   rootDir: string | null
@@ -95,7 +96,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   tree: null,
   saveBump: 0,
 
-  noteFileSaved: () => {
+  noteFileSaved: (path) => {
+    // A saved image is no longer what the live preview painted: drop it from
+    // the asset cache and repaint it wherever it already appears, so saving a
+    // figure on the canvas shows up in the manuscript straight away. Cheap
+    // and unconditional — a path nothing has loaded is a map miss.
+    invalidateAsset(path)
     set((s) => ({ saveBump: s.saveBump + 1 }))
   },
 

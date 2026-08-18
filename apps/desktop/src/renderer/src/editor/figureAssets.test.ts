@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cachedAsset,
   figureSvgPath,
+  invalidateAsset,
   loadAsset,
+  onAssetInvalidated,
   rasterMimeFor,
   resetFigureAssetCache,
   resolveImageUrl,
@@ -145,6 +147,61 @@ describe('loadAsset', () => {
 
   it('has nothing cached before the first load', () => {
     expect(cachedAsset('/p/figures/f/figure.svg')).toBeUndefined()
+  })
+})
+
+describe('invalidateAsset', () => {
+  const path = '/p/figures/f/figure.svg'
+
+  it('drops the cached bytes so the next load re-reads the file', async () => {
+    invoke.mockResolvedValue({ content: '<svg id="old"/>' })
+    expect(await loadAsset(path)).toEqual({ kind: 'svg', svg: '<svg id="old"/>' })
+
+    invalidateAsset(path)
+    expect(cachedAsset(path)).toBeUndefined()
+
+    invoke.mockResolvedValue({ content: '<svg id="new"/>' })
+    expect(await loadAsset(path)).toEqual({ kind: 'svg', svg: '<svg id="new"/>' })
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
+  it('notifies subscribers with the path, until they unsubscribe', () => {
+    const seen: string[] = []
+    const off = onAssetInvalidated((p) => seen.push(p))
+    invalidateAsset(path)
+    invalidateAsset('/p/other.png')
+    off()
+    invalidateAsset(path)
+    expect(seen).toEqual([path, '/p/other.png'])
+  })
+
+  it('notifies even when nothing was cached — a load may be in flight', () => {
+    const seen: string[] = []
+    onAssetInvalidated((p) => seen.push(p))
+    invalidateAsset('/p/never-loaded.svg')
+    expect(seen).toEqual(['/p/never-loaded.svg'])
+  })
+
+  /**
+   * The save-during-load race: a read that started before the file changed
+   * must not put its stale bytes back into the cache when it resolves, or
+   * every later reader gets the version the save replaced.
+   */
+  it('does not let a load that started before it repopulate the cache', async () => {
+    const deferred: { release: (value: { content: string }) => void } = { release: () => {} }
+    invoke.mockReturnValueOnce(
+      new Promise<{ content: string }>((resolve) => {
+        deferred.release = resolve
+      })
+    )
+    const pending = loadAsset(path)
+    invalidateAsset(path)
+    deferred.release({ content: '<svg id="old"/>' })
+    await pending
+    expect(cachedAsset(path)).toBeUndefined()
+
+    invoke.mockResolvedValue({ content: '<svg id="new"/>' })
+    expect(await loadAsset(path)).toEqual({ kind: 'svg', svg: '<svg id="new"/>' })
   })
 })
 

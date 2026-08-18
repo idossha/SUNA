@@ -3788,6 +3788,7 @@ try {
       `panel letters: ${labels.map((l) => l.text).join(',')}`)
     assert(labels[0].x < labels[1].x, 'panel letters are not in reading order')
     assert(labels.every((l) => l.size > 0 && l.family), 'panel letters carry no font')
+
     // ONE batch command -> ONE undo reverts the whole lettering pass
     await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
     await key('z', 'KeyZ', 4)
@@ -6233,6 +6234,85 @@ try {
       // Vim off however this ended: every later step's keyboard depends on it.
       await evalJs(`window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', false)`)
     }
+  })
+
+  /**
+   * Saving a figure on the canvas updates that figure WHERE IT APPEARS in the
+   * manuscript, with no reopen and no retyping. The two surfaces are opened
+   * side by side on purpose: switching tabs would unmount the editor and
+   * rebuild its widgets from the (now cold) asset cache anyway, so the split
+   * is the case that actually exercises the repaint.
+   */
+  await step('figure-save-shows-in-manuscript', async () => {
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(MANUSCRIPT_MD)})`)
+    await sleep(1500)
+
+    /** The inlined figure in the prose: its <text> count and its panel letters. */
+    const embedded = () =>
+      evalJs(`(() => {
+        const host = document.querySelector('[data-suna-asset-path$="fig-spectrum/figure.svg"]');
+        if (!host) return null;
+        return {
+          texts: host.querySelectorAll('text').length,
+          letters: [...host.querySelectorAll('[data-suna-panel-letter]')].map((t) => t.textContent.trim())
+        };
+      })()`)
+
+    // CodeMirror only builds widgets for the rendered viewport, so scroll
+    // until the embed exists rather than assuming it starts on screen.
+    let before = await embedded()
+    for (let i = 0; before === null && i < 12; i++) {
+      await evalJs(`(() => {
+        const sc = [...document.querySelectorAll('.cm-scroller')].find((e) => e.getBoundingClientRect().width > 0);
+        sc.scrollTop += 600;
+        return sc.scrollTop;
+      })()`)
+      await sleep(400)
+      before = await embedded()
+    }
+    assert(before !== null, 'the manuscript never painted the fig-spectrum embed')
+    assert(before.texts > 0, 'the embedded figure inlined no text at all')
+    assert(before.letters.length === 0,
+      `the embed already carries panel letters: ${before.letters.join(',')}`)
+
+    // The same figure on the canvas, beside the prose.
+    await evalJs(`window.__sunaDev.dock.openInSplit(${JSON.stringify(FIGURE)}, 'right')`)
+    await sleep(2000)
+    await evalJs(canvasJs(`
+      [...CT.querySelectorAll('.canvas-figure__action')]
+        .find((b) => b.textContent.includes('Auto-letter')).click();
+      return true;
+    `))
+    await sleep(900)
+    const onCanvas = await evalJs(canvasJs(`
+      return CT.querySelectorAll('.canvas-world > svg text[data-suna-panel-letter]').length;
+    `))
+    assert(onCanvas === 2, `auto-letter put ${onCanvas} labels on the canvas, want 2`)
+
+    // Unsaved edits must NOT leak into the manuscript: the file on disk is
+    // still what the prose shows.
+    const unsaved = await embedded()
+    assert(unsaved.letters.length === 0,
+      `the manuscript picked up UNSAVED canvas edits: ${unsaved.letters.join(',')}`)
+
+    await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
+    await key('s', 'KeyS', 4)
+    await sleep(1800)
+
+    const onDisk = await evalJs(
+      `window.suna.invoke('fs:read-text', { path: ${JSON.stringify(FIGURE)} })
+        .then((r) => (r.content.match(/data-suna-panel-letter/g) || []).length)`
+    )
+    assert(onDisk === 2, `figure.svg on disk carries ${onDisk} panel letters, want 2`)
+
+    const after = await embedded()
+    assert(after !== null, 'the embed disappeared from the manuscript after the save')
+    assert(
+      after.letters.join(',') === 'a,b',
+      `the manuscript did not pick up the saved figure: letters=[${after.letters.join(',')}], ` +
+        `texts ${before.texts} -> ${after.texts}`
+    )
   })
 
   // Under KEEP_GOING a failed step did not throw, so the summary is decided
