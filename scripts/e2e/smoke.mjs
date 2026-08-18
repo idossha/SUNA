@@ -3789,8 +3789,59 @@ try {
     assert(labels[0].x < labels[1].x, 'panel letters are not in reading order')
     assert(labels.every((l) => l.size > 0 && l.family), 'panel letters carry no font')
 
-    // ONE batch command -> ONE undo reverts the whole lettering pass
+    // ON the page, not merely in the document. A matplotlib axes bbox starts
+    // within a point of the artboard's top edge, so an unclamped label lands
+    // above it, gets clipped by the SVG viewport, and the button looks dead —
+    // which is exactly how this shipped broken. Measured, not computed.
+    const inked = await evalJs(canvasJs(`
+      const svg = CT.querySelector('.canvas-world > svg');
+      const page = svg.getBoundingClientRect();
+      return {
+        pageWidth: page.width,
+        pageHeight: page.height,
+        letters: [...svg.querySelectorAll('text[data-suna-panel-letter]')].map((t) => {
+          const r = t.getBoundingClientRect();
+          return {
+            text: t.textContent.trim(),
+            top: r.top - page.top,
+            bottom: r.bottom - page.top,
+            left: r.left - page.left,
+            right: r.right - page.left,
+            w: r.width,
+            h: r.height
+          };
+        })
+      };
+    `))
+    assert(inked.letters.length === 2,
+      `${inked.letters.length} letters carry the panel-letter mark (want 2)`)
+    for (const l of inked.letters) {
+      assert(l.w > 0 && l.h > 0, `panel letter "${l.text}" renders with no ink`)
+      assert(l.top >= 0 && l.bottom <= inked.pageHeight,
+        `panel letter "${l.text}" is clipped off the page vertically (top=${l.top}, bottom=${l.bottom}, page=${inked.pageHeight})`)
+      assert(l.left >= 0 && l.right <= inked.pageWidth,
+        `panel letter "${l.text}" is clipped off the page horizontally (left=${l.left}, right=${l.right}, page=${inked.pageWidth})`)
+    }
+
+    // Running it again REPLACES its own labels instead of stacking a second
+    // set on top of the first.
+    await evalJs(canvasJs(`
+      [...CT.querySelectorAll('.canvas-figure__action')]
+        .find((b) => b.textContent.includes('Auto-letter')).click();
+      return true;
+    `))
+    await sleep(1000)
+    const twice = await boldCount()
+    assert(twice === before + 2, `a second auto-letter pass left ${twice - before} labels (want 2)`)
+
+    // ONE batch command -> ONE undo reverts the whole lettering pass (twice
+    // over: the re-run is its own single batch of remove-then-insert).
     await evalJs(canvasJs(`CT.querySelector('.canvas-viewport').focus(); return true;`))
+    await key('z', 'KeyZ', 4)
+    await sleep(600)
+    const afterFirstUndo = await boldCount()
+    assert(afterFirstUndo === before + 2,
+      `one undo of the re-run left ${afterFirstUndo - before} panel letters (want 2)`)
     await key('z', 'KeyZ', 4)
     await sleep(600)
     const afterUndo = await boldCount()
