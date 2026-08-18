@@ -68,6 +68,34 @@ describe('comments rail CSS guards', () => {
     expect(declarations(track!.body).get('will-change')).toBe('transform')
   })
 
+  /**
+   * The alignment invariant, in two halves. `.cmt-rail__header` is exactly as
+   * tall as `.msdoc__toolbar`, which is what puts the rail viewport's top edge
+   * level with the document area's — and nothing may sit in flow above the
+   * viewport, or that band becomes dead space where no card can be drawn
+   * level with its anchor. The outline learned this the hard way: in flow,
+   * two rows of it cost 67px of the page's top.
+   */
+  it('the rail header matches the manuscript toolbar, so the viewport starts level', () => {
+    const header = parseRules(COMMENTS_CSS).find((r) => r.selector === '.cmt-rail__header')
+    const toolbar = parseRules(MANUSCRIPT_CSS).find((r) => r.selector === '.msdoc__toolbar')
+    expect(header).toBeDefined()
+    expect(toolbar).toBeDefined()
+    expect(declarations(header!.body).get('height')).toBe(declarations(toolbar!.body).get('height'))
+  })
+
+  it('the outline floats over the track instead of shortening it', () => {
+    const outline = parseRules(COMMENTS_CSS).find((r) => r.selector === '.cmt-outline')
+    expect(outline).toBeDefined()
+    const decls = declarations(outline!.body)
+    expect(decls.get('position')).toBe('absolute')
+    // opaque, or the cards it covers would show through it
+    expect(decls.get('background')).toBeDefined()
+    // and under the resize grip, so the rail edge stays draggable
+    const grip = parseRules(COMMENTS_CSS).find((r) => r.selector === '.cmt-rail__grip')
+    expect(Number(decls.get('z-index'))).toBeLessThan(Number(declarations(grip!.body).get('z-index')))
+  })
+
   it('the action row wraps — a 3-button row can never overflow the card again', () => {
     const rule = parseRules(COMMENTS_CSS).find((r) => r.selector.includes('.cmt__actions'))
     expect(rule).toBeDefined()
