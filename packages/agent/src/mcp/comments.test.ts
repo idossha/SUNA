@@ -3,7 +3,13 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DEFAULT_PROJECT_DIRS, type CommentsFile } from '@suna/core'
-import { addComment, agentAuthor, listComments, replyComment } from './comments'
+import {
+  addComment,
+  agentAuthor,
+  listComments,
+  reanchorAfterEdit,
+  replyComment
+} from './comments'
 import type { ProjectContext } from './project'
 
 let dir = ''
@@ -163,5 +169,76 @@ describe('agentAuthor', () => {
       kind: 'agent',
       name: 'Agent'
     })
+  })
+})
+
+describe('reanchorAfterEdit', () => {
+  const FILE = 'sections/02-results.md'
+  const BEFORE = 'We measured a best-fit centroid of 6563.3 Å with high confidence.'
+
+  async function commentOn(quote: string): Promise<string> {
+    const out = await addComment(ctx, { path: FILE, quote, body: 'please revise' })
+    return out.split(' ')[1] as string
+  }
+
+  async function anchorOf(id: string): Promise<{ quote: string; detached: boolean }> {
+    const file = await readCommentsJson()
+    const c = file.comments.find((x) => x.id === id)
+    if (c === undefined || c.target.kind !== 'section') throw new Error('missing')
+    return { quote: c.target.anchor.quote, detached: c.detached }
+  }
+
+  /** Apply an edit to BEFORE the way editManuscript does, then re-anchor. */
+  async function edit(find: string, replace: string): Promise<string> {
+    const at = BEFORE.indexOf(find)
+    const after = BEFORE.slice(0, at) + replace + BEFORE.slice(at + find.length)
+    await writeFile(join(dir, 'manuscript', FILE), after, 'utf8')
+    await reanchorAfterEdit(ctx, FILE, BEFORE, after, at, find.length, replace.length)
+    return after
+  }
+
+  it('re-anchors a comment onto prose the agent rewrote in place', async () => {
+    const id = await commentOn('6563.3 Å')
+    await edit('6563.3 Å', '6562.8 ± 0.2 Å')
+    expect(await anchorOf(id)).toEqual({ quote: '6562.8 ± 0.2 Å', detached: false })
+  })
+
+  it('widens a comment whose span the rewrite only partly covered', async () => {
+    const id = await commentOn('centroid of 6563.3 Å')
+    await edit('6563.3 Å with high confidence', '6562.8 Å (3σ)')
+    expect(await anchorOf(id)).toEqual({ quote: 'centroid of 6562.8 Å (3σ)', detached: false })
+  })
+
+  it('leaves a comment before the edit untouched', async () => {
+    const id = await commentOn('We measured')
+    await edit('high confidence', 'low confidence')
+    expect(await anchorOf(id)).toEqual({ quote: 'We measured', detached: false })
+  })
+
+  it('follows a comment that the edit shifted rightwards', async () => {
+    const id = await commentOn('high confidence')
+    await edit('We measured', 'We carefully measured')
+    expect(await anchorOf(id)).toEqual({ quote: 'high confidence', detached: false })
+  })
+
+  it('holds the position when the rewrite deleted the quoted span outright', async () => {
+    const id = await commentOn('with high confidence')
+    await edit(' with high confidence', '')
+    const { quote, detached } = await anchorOf(id)
+    expect(detached).toBe(false)
+    expect(quote).toBe('We measured a best-fit centroid of 6563.3 Å.')
+  })
+
+  it('leaves an already-detached comment alone rather than guessing', async () => {
+    const id = await commentOn('6563.3 Å')
+    const file = await readCommentsJson()
+    file.comments = file.comments.map((c) =>
+      c.id === id
+        ? { ...c, detached: true, target: { ...c.target, anchor: { quote: 'gone forever', prefix: '', suffix: '' } } }
+        : c
+    )
+    await writeFile(join(dir, 'manuscript', 'comments.json'), JSON.stringify(file), 'utf8')
+    await edit('high confidence', 'low confidence')
+    expect(await anchorOf(id)).toEqual({ quote: 'gone forever', detached: true })
   })
 })

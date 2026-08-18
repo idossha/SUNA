@@ -266,6 +266,33 @@
   overflow: hidden;
 }
 
+/* A long comment, or a thread with many replies, must not push the card past
+   the rail — cap the two parts that actually grow and let them scroll on
+   their own. The head, quote and action row stay put, so Resolve/Delete are
+   always reachable no matter how much was written. */
+.cmt-card__body:not(.cmt-card__body--clamped) {
+  max-height: 180px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cmt__replies {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cmt-card__body:not(.cmt-card__body--clamped)::-webkit-scrollbar,
+.cmt__replies::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cmt-card__body:not(.cmt-card__body--clamped)::-webkit-scrollbar-thumb,
+.cmt__replies::-webkit-scrollbar-thumb {
+  background: var(--s-border-strong);
+  border-radius: 3px;
+}
+
 .cmt__draft {
   background: var(--s-bg-active);
   border-color: var(--s-accent);

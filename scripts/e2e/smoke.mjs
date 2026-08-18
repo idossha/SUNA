@@ -459,10 +459,20 @@ function pngIhdr(file) {
 
 const MCP_PROBE = join(ROOT, 'scripts', 'e2e', 'mcp-probe.mjs')
 
-/** Build the standalone MCP bundle if it is not there yet (esbuild, ~50 ms). */
+/**
+ * Build the standalone MCP bundle (esbuild, ~50 ms).
+ *
+ * ALWAYS rebuilds. This used to skip when dist-mcp/server.mjs already
+ * existed, which meant a source change in packages/agent was silently tested
+ * against whatever bundle happened to be on disk — the agent verbs the app
+ * really spawns are this file, not the TypeScript. A stale bundle here makes
+ * a fixed bug still look broken (and a broken one still look fixed).
+ */
+let mcpBundleBuilt = false
 function ensureMcpBundle() {
-  if (existsSync(join(ROOT, 'packages', 'agent', 'dist-mcp', 'server.mjs'))) return
+  if (mcpBundleBuilt) return
   execSync('node build-mcp.mjs', { cwd: join(ROOT, 'packages', 'agent'), stdio: 'ignore' })
+  mcpBundleBuilt = true
 }
 
 /** Call one tool on the bundled MCP server over real stdio JSON-RPC. */

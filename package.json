@@ -17,7 +17,7 @@
     ]
   },
   "scripts": {
-    "dev": "pnpm --filter @suna/desktop dev",
+    "dev": "pnpm --filter @suna/agent build:mcp && pnpm --filter @suna/desktop dev",
     "smoke": "node scripts/e2e/smoke.mjs",
     "build": "pnpm -r --filter=!@suna/website build",
     "typecheck": "pnpm -r typecheck",

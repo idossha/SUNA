@@ -168,9 +168,25 @@ async function openProject(ctx, dir) {
   return rootDir
 }
 
+/**
+ * Rebuild packages/agent/dist-mcp/server.mjs before every boot (esbuild,
+ * ~90 ms). The app spawns that BUNDLE for MCP, not the TypeScript sources,
+ * and nothing else in the dev loop regenerates it — so without this a probe
+ * exercises whichever agent build happened to be on disk, and a just-fixed
+ * verb still behaves like the old one.
+ */
+function buildMcpBundle() {
+  try {
+    execSync('node build-mcp.mjs', { cwd: join(ROOT, 'packages', 'agent'), stdio: 'ignore' })
+  } catch (error) {
+    console.warn(`warning: could not rebuild the MCP bundle — ${error.message}`)
+  }
+}
+
 // ---------------------------------------------------------------- commands
 async function boot() {
   mkdirSync(USER_DATA, { recursive: true })
+  buildMcpBundle()
   if (await cdpAlive(opts.port)) {
     const ignored = opts.example || opts.project ? ' — --example/--project ignored, the running instance keeps its project' : ''
     console.log(`already running on :${opts.port} — reusing${ignored} (stop with --stop)`)

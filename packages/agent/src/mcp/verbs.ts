@@ -10,8 +10,10 @@ import {
   addCommentInput,
   listComments,
   listCommentsInput,
+  reanchorAfterEdit,
   replyComment,
-  replyCommentInput
+  replyCommentInput,
+  retightenAnchors
 } from './comments'
 import {
   addReference,
@@ -137,6 +139,8 @@ export async function readManuscript(ctx: ProjectContext): Promise<string> {
 export async function writeManuscript(ctx: ProjectContext, content: string): Promise<string> {
   const name = await manuscriptFileName(ctx)
   await writeAtomic(resolveInside(ctx.root, ctx.dirs.manuscript, name), content)
+  // Best-effort anchor maintenance, as in editManuscript.
+  await retightenAnchors(ctx, name, content).catch(() => undefined)
   return `wrote ${content.length} characters to ${name}`
 }
 
@@ -214,6 +218,11 @@ export async function editManuscript(
   const at = matches[0] as number
   const next = text.slice(0, at) + replace + text.slice(at + find.length)
   await writeAtomic(path, next)
+  // Keep review comments attached across the rewrite. Best-effort: the prose
+  // edit already landed, so a sidecar failure must not fail the tool call.
+  await reanchorAfterEdit(ctx, name, text, next, at, find.length, replace.length).catch(
+    () => undefined
+  )
   return `replaced ${find.length} chars with ${replace.length} chars at offset ${at} in section "${sectionLabelAt(next, at)}"`
 }
 
