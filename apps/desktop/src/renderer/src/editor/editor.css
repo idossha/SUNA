@@ -609,6 +609,13 @@
   color: var(--ed-ink-muted);
 }
 
+/* An empty caption body is a zero-width click target otherwise, and the
+   empty state is how a body gets written in the first place. */
+.editor-tab .cm-lp-figure__caption-body:empty {
+  display: inline-block;
+  min-width: 3ch;
+}
+
 /* ---- settings popover ----------------------------------------------------- */
 
 .editor-settings {
