@@ -3462,6 +3462,104 @@ try {
   })
 
   /**
+   * The comments outline (comments/CommentsOutline): the chronological index
+   * at the head of the rail, and the jump contract behind it — an anchor
+   * lands at the SAME place in the readable viewport every time, no matter
+   * where the jump started or how many times it is repeated.
+   *
+   * Both halves of that were real defects: the landing used to be whatever
+   * one scrollIntoView produced against a document still growing underneath
+   * it (figures resolving, estimated line heights being measured, the
+   * selection revealing a rendered span's raw source), and the outline used
+   * to collapse on click — pulling the row out from under the pointer, so a
+   * second click landed on whatever slid into its place.
+   */
+  await step('comments-outline-jump', async () => {
+    await openManuscriptDoc()
+    const shape = await evalJs(`(() => {
+      const rows = [...document.querySelectorAll('.cmt-outline__row')];
+      const open = window.__sunaDev.commentsStore.getState().comments.filter((c) => !c.resolved);
+      return {
+        outline: !!document.querySelector('.cmt-outline'),
+        rows: rows.length,
+        openComments: open.length,
+        summary: document.querySelector('.cmt-outline__summary')?.textContent ?? ''
+      };
+    })()`)
+    assert(shape.outline, 'no comments outline at the head of the rail')
+    assert(
+      shape.rows === shape.openComments,
+      `outline lists ${shape.rows} rows for ${shape.openComments} open comments`
+    )
+    assert(
+      shape.summary.includes(String(shape.openComments)),
+      `outline summary "${shape.summary}" does not carry the count`
+    )
+
+    // Jump with a row whose comment is actually ANCHORED — the outline lists
+    // detached threads too, and those have nowhere to jump to.
+    const row = await evalJs(`(() => {
+      const rows = [...document.querySelectorAll('.cmt-outline__row')];
+      return rows.findIndex((r) => window.__sunaDev.commentsStore.getState().comments
+        .some((c) => c.id === r.dataset.commentId && !c.detached));
+    })()`)
+    assert(row >= 0, 'no outline row whose comment is still anchored')
+
+    // A jump from far above and a jump from far below must put the anchor on
+    // the SAME line of the viewport — measured against the readable height,
+    // below the sticky toolbar.
+    const jump = `(async (fromTop) => {
+      const port = document.querySelector('.msdoc');
+      const inset = document.querySelector('.msdoc__toolbar').getBoundingClientRect().height;
+      port.scrollTop = fromTop;
+      await new Promise((r) => setTimeout(r, 300));
+      const summary = document.querySelector('.cmt-outline__summary');
+      if (summary && summary.getAttribute('aria-expanded') === 'false') summary.click();
+      await new Promise((r) => setTimeout(r, 150));
+      const rowBefore = document.querySelectorAll('.cmt-outline__row')[${row}].getBoundingClientRect().top;
+      document.querySelectorAll('.cmt-outline__row')[${row}].click();
+      await new Promise((r) => setTimeout(r, 1500));
+      const mark = document.querySelector('.msdoc .cm-content .cmt-anchor--active');
+      const rows = document.querySelectorAll('.cmt-outline__row');
+      const rowAfter = rows.length > ${row} ? rows[${row}].getBoundingClientRect().top : null;
+      const rect = port.getBoundingClientRect();
+      return {
+        pct: mark
+          ? ((mark.getBoundingClientRect().top - (rect.top + inset)) / (port.clientHeight - inset)) * 100
+          : null,
+        atBottom: port.scrollTop >= port.scrollHeight - port.clientHeight - 2,
+        rowBefore,
+        rowAfter
+      };
+    })`
+    const fromAbove = await evalJs(`${jump}(0)`)
+    const fromBelow = await evalJs(`${jump}(100000)`)
+    assert(fromAbove.pct !== null && fromBelow.pct !== null, 'the outline jump did not activate an anchor')
+    assert(
+      Math.abs(fromAbove.pct - fromBelow.pct) <= 1.5,
+      `same anchor landed at ${fromAbove.pct.toFixed(1)}% coming down and ${fromBelow.pct.toFixed(1)}% coming up`
+    )
+    // 40% of the readable height — unless the anchor sits so near the end of
+    // the document that no scroll position can reach that line
+    assert(
+      fromAbove.atBottom || Math.abs(fromAbove.pct - 40) <= 3,
+      `anchor landed at ${fromAbove.pct.toFixed(1)}% of the readable viewport, not ~40%`
+    )
+    // the row must not move under the pointer — repeat clicks have to hit it
+    assert(
+      fromAbove.rowAfter !== null && Math.abs(fromAbove.rowAfter - fromAbove.rowBefore) <= 1,
+      'the outline row moved when it was clicked — a second click would miss it'
+    )
+
+    // and clicking that same row again changes nothing about where it lands
+    const again = await evalJs(`${jump}(0)`)
+    assert(
+      Math.abs(again.pct - fromAbove.pct) <= 1.5,
+      `repeat click landed at ${again.pct.toFixed(1)}% vs ${fromAbove.pct.toFixed(1)}%`
+    )
+  })
+
+  /**
    * Shared doc sessions (state/docSessions): the raw editor tab and the
    * combined manuscript tab are two windows onto ONE buffer — typing in one
    * appears in the other WITHOUT saving, there is a single dirty state, and
