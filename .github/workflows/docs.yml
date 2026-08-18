@@ -1,0 +1,73 @@
+name: Docs site
+
+# Builds website/ and publishes it to GitHub Pages.
+#
+# Nothing here works until the repository is public (or on a plan with Pages
+# for private repos) AND Pages is switched to "GitHub Actions" as its source in
+# Settings → Pages. Until then the build job still runs on every push and acts
+# as a link-checker — VitePress fails the build on a dead internal link — while
+# the deploy job is simply skipped.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; never cancel a run that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # The website has no workspace dependencies, so it installs on its own
+      # and never drags in electron or the desktop app's toolchain.
+      - name: Install
+        run: pnpm install --filter @suna/website --frozen-lockfile
+
+      - name: Build
+        # Project pages live under /<repo>/, so the site is built with that base.
+        run: pnpm --filter @suna/website build
+        env:
+          SUNA_DOCS_BASE: /${{ github.event.repository.name }}/
+
+      - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: website/.vitepress/dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
