@@ -13,6 +13,7 @@ import type { Comment } from '@suna/core'
 import { outlineFromMarkdown, type OutlineSection } from '@suna/markdown'
 import { createEditor, type EditorHandle } from '../editor/codemirror'
 import { openCitationPicker } from '../editor/CitationPicker'
+import { openFigurePicker } from '../editor/FigurePicker'
 import { useEditorSettings } from '../editor/settings'
 import { makeAnchor } from '../comments/anchor'
 import {
@@ -182,7 +183,9 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
                 .startDraft({ kind: 'section', path: contentPath, anchor }, anchor.quote)
             },
             // ⌘⇧K / context-menu "Insert citation…".
-            onInsertCitation: (view) => openCitationPicker(view)
+            onInsertCitation: (view) => openCitationPicker(view),
+            // ⌘⇧F / context-menu "Insert figure…".
+            onInsertFigure: (view) => openFigurePicker(view)
           })
           const view = handleRef.current.view
           detach = session.attach(view)

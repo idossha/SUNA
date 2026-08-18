@@ -14,6 +14,7 @@ export type ContextMenuActionId =
   | 'strikethrough'
   | 'link'
   | 'insertCitation'
+  | 'insertFigure'
   | 'insertCrossReference'
   | 'openReferencePdf'
   | 'cut'
@@ -47,6 +48,7 @@ export interface OpenReferencePdfHit {
 export interface ContextMenuAvailability {
   comment: boolean
   insertCitation: boolean
+  insertFigure: boolean
   insertCrossReference: boolean
   /** Absent/null hides "Open reference PDF" entirely — the click didn't land on a citation. */
   openReferencePdf?: OpenReferencePdfHit | null
@@ -84,6 +86,15 @@ export function buildContextMenuItems(
       id: 'insertCitation',
       label: 'Insert citation…',
       shortcut: '⌘⇧K',
+      enabled: true
+    })
+  }
+  if (available.insertFigure) {
+    entries.push({
+      kind: 'item',
+      id: 'insertFigure',
+      label: 'Insert figure…',
+      shortcut: '⌘⇧F',
       enabled: true
     })
   }

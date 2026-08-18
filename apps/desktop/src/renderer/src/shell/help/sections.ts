@@ -35,7 +35,7 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
       ['⌘Z / ⌘⇧Z', 'Undo / redo'],
       ['⌘E', 'Source ⇄ reading view'],
       ['⌘F', 'Search'],
-      ['Right-click', 'Menu: format · link · citation · comment']
+      ['Right-click', 'Menu: format · link · citation · figure · comment']
     ]
   },
   {
@@ -48,9 +48,10 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
     ]
   },
   {
-    title: 'Citations & comments',
+    title: 'Citations, figures & comments',
     items: [
       ['⌘⇧K', 'Insert citation'],
+      ['⌘⇧F', 'Insert figure (↵ places it, ⇧↵ references it)'],
       ['⌘⇧M', 'Comment on selection'],
       ['⌘⌥M', 'Toggle comments rail'],
       ['✦ AI', 'On a comment card: send the comment to the agent']

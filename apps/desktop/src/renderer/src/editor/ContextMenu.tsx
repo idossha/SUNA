@@ -42,6 +42,7 @@ export { buildContextMenuItems, clampMenuPosition, enabledActionIds } from './co
 export interface ContextMenuCallbacks {
   onComment?: (view: EditorView) => void
   onInsertCitation?: (view: EditorView) => void
+  onInsertFigure?: (view: EditorView) => void
   onInsertCrossReference?: (view: EditorView) => void
 }
 
@@ -72,6 +73,9 @@ function runAction(
       break
     case 'insertCitation':
       callbacks.onInsertCitation?.(view)
+      break
+    case 'insertFigure':
+      callbacks.onInsertFigure?.(view)
       break
     case 'insertCrossReference':
       callbacks.onInsertCrossReference?.(view)
@@ -120,11 +124,19 @@ export function ContextMenu({ view, x, y, callbacks, citationHit, onClose }: Con
       buildContextMenuItems(hasSelection, {
         comment: callbacks.onComment !== undefined,
         insertCitation: callbacks.onInsertCitation !== undefined,
+        insertFigure: callbacks.onInsertFigure !== undefined,
         insertCrossReference: callbacks.onInsertCrossReference !== undefined,
         openReferencePdf: citationHit ?? null
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hasSelection, callbacks.onComment, callbacks.onInsertCitation, callbacks.onInsertCrossReference, citationHit]
+    [
+      hasSelection,
+      callbacks.onComment,
+      callbacks.onInsertCitation,
+      callbacks.onInsertFigure,
+      callbacks.onInsertCrossReference,
+      citationHit
+    ]
   )
   const enabledIds = useMemo(() => enabledActionIds(items), [items])
   const [activeId, setActiveId] = useState<ContextMenuActionId | null>(enabledIds[0] ?? null)

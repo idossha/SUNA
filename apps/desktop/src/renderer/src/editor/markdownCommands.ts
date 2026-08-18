@@ -252,3 +252,96 @@ export function insertCitation(key: string): Command {
     return true
   }
 }
+
+/**
+ * Characters a bare `@kind:id` cross-reference may follow and still be
+ * recognised — the parser's own rule (@suna/markdown parse.ts `PRECEDING_OK`,
+ * plus start-of-document). Inserting `@fig:x` directly after a word character
+ * would produce text that reads like a reference but parses as prose, so the
+ * insert adds the space the grammar needs.
+ */
+const XREF_PRECEDING_OK = /[\s([{]/
+
+/**
+ * `@fig:id` at the cursor (replacing any selection) — the in-prose reference,
+ * the exact counterpart of `[@key]` for figures. A space is prepended only
+ * when the character to the left would otherwise swallow the token.
+ */
+export function insertCrossReferenceEffect(state: EditorState, id: string): TransactionSpec {
+  const at = state.selection.main.from
+  const previous = at > 0 ? state.doc.sliceString(at - 1, at) : ''
+  const lead = previous === '' || XREF_PRECEDING_OK.test(previous) ? '' : ' '
+  return {
+    ...state.replaceSelection(`${lead}@fig:${id}`),
+    userEvent: 'input.complete',
+    scrollIntoView: true
+  }
+}
+
+export function insertCrossReference(id: string): Command {
+  return (view) => {
+    view.dispatch(insertCrossReferenceEffect(view.state, id))
+    return true
+  }
+}
+
+/**
+ * How many newlines an embed needs on one side to stand alone as its own
+ * paragraph, given the text between it and the nearest neighbouring content.
+ *
+ * `![[fig:id]]` is only a figure embed when it is a paragraph containing
+ * nothing else (@suna/markdown parse.ts `FIGURE_EMBED` anchors the whole
+ * paragraph). Markdown's lazy continuation means a line directly above or
+ * below folds into the same paragraph, so a blank line is required on both
+ * sides — not merely a line break.
+ *
+ * `own` is the text on the embed's own line to that side; `neighbour` is the
+ * adjacent line, or null at the document edge.
+ */
+function embedPadding(own: string, neighbour: string | null): string {
+  if (own.trim() !== '') return '\n\n'
+  if (neighbour !== null && neighbour.trim() !== '') return '\n'
+  return ''
+}
+
+/**
+ * `![[fig:id]]` on a line of its own, blank-line separated from whatever
+ * surrounds it, replacing any selection. Only as much padding as the position
+ * actually needs, so inserting on an already-blank line between paragraphs
+ * adds no stray blank lines.
+ *
+ * The cursor lands on the blank line BELOW the embed, never at the end of the
+ * embed's own line: the next thing typed after placing a figure is prose, and
+ * on the embed's line it would turn the embed back into ordinary text.
+ */
+export function insertFigureEmbedEffect(state: EditorState, id: string): TransactionSpec {
+  const { from, to } = state.selection.main
+  const headLine = state.doc.lineAt(from)
+  const tailLine = state.doc.lineAt(to)
+  const before = headLine.text.slice(0, from - headLine.from)
+  const after = tailLine.text.slice(to - tailLine.from)
+  const above = headLine.number > 1 ? state.doc.line(headLine.number - 1).text : null
+  const below = tailLine.number < state.doc.lines ? state.doc.line(tailLine.number + 1).text : null
+  const embed = `![[fig:${id}]]`
+  const lead = embedPadding(before, above)
+  const trail = embedPadding(after, below)
+  const embedEnd = from + lead.length + embed.length
+  // Whatever follows the embed in the NEW document: the padding we just added,
+  // else the untouched text from `to`. A newline there is the line break the
+  // cursor steps over; at the end of the document there is nothing to step to.
+  const following = trail !== '' ? trail : state.doc.sliceString(to, Math.min(to + 1, state.doc.length))
+  const cursor = following.startsWith('\n') ? embedEnd + 1 : embedEnd
+  return {
+    changes: { from, to, insert: `${lead}${embed}${trail}` },
+    selection: EditorSelection.cursor(cursor),
+    userEvent: 'input.complete',
+    scrollIntoView: true
+  }
+}
+
+export function insertFigureEmbed(id: string): Command {
+  return (view) => {
+    view.dispatch(insertFigureEmbedEffect(view.state, id))
+    return true
+  }
+}

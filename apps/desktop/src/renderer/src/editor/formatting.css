@@ -66,9 +66,12 @@
   background: var(--s-border);
 }
 
-/* ---- insert-citation picker ------------------------------------------- */
+/* ---- insert pickers: citation (⌘⇧K) and figure (⌘⇧F) -------------------
+   One shell, two lists. The figure picker adds a thumbnail column and a
+   footer spelling out its two insert modes; everything else is shared. */
 
-.md-citepicker {
+.md-citepicker,
+.md-figpicker {
   position: fixed;
   z-index: 61;
   width: 320px;
@@ -83,7 +86,8 @@
   overflow: hidden;
 }
 
-.md-citepicker__input {
+.md-citepicker__input,
+.md-figpicker__input {
   flex: none;
   width: 100%;
   padding: 8px 10px;
@@ -96,14 +100,16 @@
   outline: none;
 }
 
-.md-citepicker__list {
+.md-citepicker__list,
+.md-figpicker__list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 4px;
 }
 
-.md-citepicker__item {
+.md-citepicker__item,
+.md-figpicker__item {
   display: block;
   width: 100%;
   padding: 6px 8px;
@@ -112,11 +118,13 @@
   color: var(--s-ink);
 }
 
-.md-citepicker__item--active {
+.md-citepicker__item--active,
+.md-figpicker__item--active {
   background: var(--s-bg-hover);
 }
 
-.md-citepicker__item:hover {
+.md-citepicker__item:hover,
+.md-figpicker__item:hover {
   background: var(--s-bg-hover);
 }
 
@@ -137,8 +145,76 @@
   text-overflow: ellipsis;
 }
 
-.md-citepicker__empty {
+.md-citepicker__empty,
+.md-figpicker__empty {
   padding: 12px 10px;
   color: var(--s-ink-faint);
   font-size: var(--s-text-sm);
+}
+
+/* The figure picker is a touch wider and taller than the citation one: a
+   thumbnail column plus the two-mode footer. */
+.md-figpicker {
+  width: 340px;
+  max-height: 360px;
+}
+
+.md-figpicker__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Fixed box so rows keep a common height whatever a figure's aspect ratio;
+   the light plate is what keeps a black-on-transparent plot legible in the
+   dark theme, matching how the Figures view shows its cards. */
+.md-figpicker__thumb {
+  flex: none;
+  width: 52px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 2px;
+  background: #ffffff;
+}
+
+.md-figpicker__thumb--empty {
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+}
+
+.md-figpicker__item-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.md-figpicker__item-id {
+  display: block;
+  color: var(--s-accent);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+}
+
+.md-figpicker__item-title {
+  display: block;
+  margin-top: 2px;
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.md-figpicker__hint {
+  flex: none;
+  display: flex;
+  gap: 12px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--s-border);
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+}
+
+.md-figpicker__hint kbd {
+  margin-right: 4px;
+  font-family: var(--s-font-mono);
 }

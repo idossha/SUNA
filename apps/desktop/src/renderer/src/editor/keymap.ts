@@ -1,7 +1,8 @@
 /**
  * Prose formatting shortcuts (feature-plan-3.md §1): ⌘B bold, ⌘I italic,
  * ⌘⇧C code, ⌘⇧X strikethrough, ⌘K link (selection only — see
- * `insertLinkOnSelection`), ⌘⇧M comment, ⌘⇧K insert citation.
+ * `insertLinkOnSelection`), ⌘⇧M comment, ⌘⇧K insert citation, ⌘⇧F insert
+ * figure.
  * `createEditor` (codemirror.ts) only installs this extension for prose
  * files (`contentKindFor === 'prose'`) and wraps it in `Prec.high` so it
  * wins over CM's own default keymap.
@@ -37,6 +38,8 @@ export interface FormattingCallbacks {
   onComment?: (view: EditorView) => void
   /** Open the insert-citation picker. Absent -> ⌘⇧K and the menu item no-op. */
   onInsertCitation?: (view: EditorView) => void
+  /** Open the insert-figure picker. Absent -> ⌘⇧F and the menu item no-op. */
+  onInsertFigure?: (view: EditorView) => void
 }
 
 /** Wraps an optional host callback as a Command: unhandled (returns false,
@@ -58,7 +61,8 @@ export function formattingKeymap(callbacks: FormattingCallbacks): Extension {
       { key: 'Mod-Shift-x', run: toggleWrap('~~') },
       { key: 'Mod-k', run: insertLinkOnSelection() },
       { key: 'Mod-Shift-m', run: callbackCommand(callbacks.onComment) },
-      { key: 'Mod-Shift-k', run: callbackCommand(callbacks.onInsertCitation) }
+      { key: 'Mod-Shift-k', run: callbackCommand(callbacks.onInsertCitation) },
+      { key: 'Mod-Shift-f', run: callbackCommand(callbacks.onInsertFigure) }
     ])
   )
 }

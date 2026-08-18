@@ -518,6 +518,9 @@ let originalSvg = null
 /** Scratch project directories the feature-plan-5 steps create outside the
  *  example copy; removed in the finally block however the run ends. */
 const TEMP_PROJECT_DIRS = []
+/** Scratch FILES a step wrote inside the example copy; same cleanup, so a
+ *  --keep run leaves the copy as the app first opened it. */
+const TEMP_FILES = []
 
 // Connect over CDP and take the client's verbs under the exact names the
 // step bodies have always used. screenshot() keeps its artifacts-relative
@@ -6366,6 +6369,159 @@ try {
     )
   })
 
+  /**
+   * Insert-figure picker (⌘⇧F / right-click "Insert figure…"), the figure
+   * counterpart of the citation picker: pick from the project's figures,
+   * ↵ places `![[fig:id]]`, ⇧↵ writes the in-prose `@fig:id`.
+   */
+  await step('insert-figure-picker', async () => {
+    const scratch = join(COPY_DIR, 'manuscript', 'figpicker.md')
+    writeFileSync(scratch, 'Intro line.\n')
+    TEMP_FILES.push(scratch)
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(scratch)}); 'ok'`)
+    await sleep(1200)
+
+    const focusEditor = () =>
+      evalJs(`(() => {
+        const cm = [...document.querySelectorAll('.cm-content')].find((e) => e.getBoundingClientRect().width > 0);
+        cm.focus();
+        return 'ok';
+      })()`)
+
+    /**
+     * ⌘⇧F. windowsVirtualKeyCode is NOT optional for a shifted letter:
+     * CodeMirror recovers the unshifted binding name ('f') through
+     * `base[event.keyCode]`, and CDP leaves keyCode 0 without it — so the
+     * chord would arrive and match nothing. Modifiers: 4 meta | 8 shift.
+     */
+    const insertFigureChord = async () => {
+      for (const type of ['keyDown', 'keyUp']) {
+        await send('Input.dispatchKeyEvent', {
+          type,
+          key: 'F',
+          code: 'KeyF',
+          modifiers: 12,
+          windowsVirtualKeyCode: 70,
+          nativeVirtualKeyCode: 70
+        })
+      }
+    }
+    const enter = async (shift) => {
+      for (const type of ['keyDown', 'keyUp']) {
+        await send('Input.dispatchKeyEvent', {
+          type,
+          key: 'Enter',
+          code: 'Enter',
+          modifiers: shift ? 8 : 0,
+          windowsVirtualKeyCode: 13,
+          nativeVirtualKeyCode: 13
+        })
+      }
+    }
+
+    await focusEditor()
+    await sleep(250)
+    await insertFigureChord()
+    await sleep(800)
+
+    const picker = await evalJs(`(() => {
+      const p = document.querySelector('.md-figpicker');
+      if (!p) return null;
+      return {
+        ids: [...p.querySelectorAll('.md-figpicker__item')].map((b) => b.dataset.figureId),
+        thumbs: p.querySelectorAll('img.md-figpicker__thumb').length,
+        inputFocused: document.activeElement === p.querySelector('.md-figpicker__input')
+      };
+    })()`)
+    assert(picker, '⌘⇧F did not open the figure picker')
+    assert(picker.inputFocused, 'the picker opened without focusing its filter field')
+    // The demo's two figures, in manuscript order (which is figure-numbering
+    // order). Earlier steps legitimately add more — new-figure-and-svg-import
+    // creates one — so this pins the known two rather than the whole list.
+    const spectrumAt = picker.ids.indexOf('fig-spectrum')
+    const velocityAt = picker.ids.indexOf('fig-velocity-map')
+    assert(
+      spectrumAt !== -1 && velocityAt !== -1,
+      `picker lists ${JSON.stringify(picker.ids)} — missing one of the demo figures`
+    )
+    assert(
+      spectrumAt < velocityAt,
+      `picker is not in manuscript order: ${JSON.stringify(picker.ids)}`
+    )
+    assert(
+      picker.thumbs === picker.ids.length,
+      `${picker.thumbs} thumbnails for ${picker.ids.length} figures`
+    )
+
+    // typing narrows the list. Filtered on 'fig-velocity', not 'velocity':
+    // new-figure-and-svg-import may have left a 'velocity-map' figure in the
+    // project, and only the demo's carries the 'fig-' prefix.
+    await evalJs(`(() => {
+      const input = document.querySelector('.md-figpicker__input');
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, 'fig-velocity');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      return 'ok';
+    })()`)
+    await sleep(400)
+    const filtered = await evalJs(
+      `[...document.querySelectorAll('.md-figpicker__item')].map((b) => b.dataset.figureId)`
+    )
+    assert(
+      filtered.length === 1 && filtered[0] === 'fig-velocity-map',
+      `filtering by "fig-velocity" left ${JSON.stringify(filtered)}`
+    )
+
+    // ↵ places the embed as its own paragraph and closes the picker
+    await enter(false)
+    await sleep(600)
+    const placed = await evalJs(`window.__sunaDev.docSessions.peek(${JSON.stringify(scratch)})`)
+    assert(
+      placed.startsWith('![[fig:fig-velocity-map]]\n\n'),
+      `↵ did not place the embed as its own paragraph: ${JSON.stringify(placed)}`
+    )
+    assert(
+      (await evalJs(`!!document.querySelector('.md-figpicker')`)) === false,
+      'the picker stayed open after inserting'
+    )
+
+    // ⇧↵ writes the in-prose reference instead
+    await focusEditor()
+    await sleep(250)
+    await insertFigureChord()
+    await sleep(800)
+    await enter(true)
+    await sleep(600)
+    const referenced = await evalJs(`window.__sunaDev.docSessions.peek(${JSON.stringify(scratch)})`)
+    assert(
+      /@fig:fig-spectrum/.test(referenced),
+      `⇧↵ did not insert a cross-reference: ${JSON.stringify(referenced)}`
+    )
+
+    // and the same action is one right-click away
+    await evalJs(`(() => {
+      const cm = [...document.querySelectorAll('.cm-content')].find((e) => e.getBoundingClientRect().width > 0);
+      const r = cm.getBoundingClientRect();
+      cm.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: r.left + 20, clientY: r.top + 10 }));
+      return 'ok';
+    })()`)
+    await sleep(500)
+    const menuItem = await evalJs(
+      `(() => {
+        const el = document.querySelector('.md-ctxmenu__item[data-action="insertFigure"]');
+        return el ? el.textContent.trim() : null;
+      })()`
+    )
+    assert(menuItem !== null, 'no "Insert figure…" item in the right-click menu')
+    assert(/⌘⇧F/.test(menuItem), `the menu item does not name its shortcut: ${menuItem}`)
+    await evalJs(`(() => {
+      const scrim = document.querySelector('.md-ctxmenu-scrim');
+      if (scrim) scrim.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      return 'ok';
+    })()`)
+  })
+
   // Under KEEP_GOING a failed step did not throw, so the summary is decided
   // here rather than by having reached this line. Skipped steps (--only/
   // --from/--until) count as passed and can never turn a run red.
@@ -6389,6 +6545,9 @@ try {
   // while they are removed; stale recents rows need no scrubbing — they live
   // in the scratch userData, which the next run wipes.
   cleanup()
+  for (const file of TEMP_FILES) {
+    rmSync(file, { force: true })
+  }
   for (const dir of TEMP_PROJECT_DIRS) {
     rmSync(dir, { recursive: true, force: true })
   }
