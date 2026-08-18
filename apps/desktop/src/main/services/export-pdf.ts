@@ -7,7 +7,7 @@ import type { ExportOptions } from '@suna/core'
 import { writeFileAtomic } from './atomic'
 import { buildExportContent, buildSupplementContent } from './export-content'
 import { buildManuscriptHtml, buildSupplementHtml } from './export-html'
-import { resolveDocumentStyle } from './export-style'
+import { exportPalette, resolveDocumentStyle } from './export-style'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -114,7 +114,8 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
   const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
   const htmlOptions = {
     doubleSpacing: req.options.doubleSpacing,
-    lineNumbers: req.options.lineNumbers
+    lineNumbers: req.options.lineNumbers,
+    theme: req.options.theme
   }
   const html = supplement
     ? await buildSupplementHtml(content, htmlOptions)
@@ -134,23 +135,47 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
     // Supplement ground truth: the page-number footer is ALWAYS on,
     // right-aligned in the body face — whatever options.pageNumbers says.
     const pageNumbers = supplement || req.options.pageNumbers
-    const footerTemplate = pageNumbers
-      ? supplement
-        ? `<div style="font-size:9px;font-family:'Times New Roman',serif;width:100%;text-align:right;padding-right:12mm;color:#000;"><span class="pageNumber"></span></div>`
-        : '<div style="font-size:9px;width:100%;text-align:center;color:#555;"><span class="pageNumber"></span></div>'
-      : undefined
+    const palette = exportPalette(req.options.theme)
     // Page geometry comes from the same resolved style the DOCX writer uses
     // (export-style.ts) — the always-on SUNA default plus the profile's
     // stated deltas — so a manuscript exported as PDF and as DOCX has the
     // same page and margins rather than only the same text.
     const style = resolveDocumentStyle(content.profile)
     const marginIn = style.page.marginMm / 25.4
+
+    // Chromium NEVER paints page margins — printBackground and the root
+    // element's background both stop at the content box (verified against
+    // headless Chrome; CSS @page margins behave the same). A themed export
+    // therefore moves the horizontal margins INTO the body (pageCss pads the
+    // body when a palette is active) and fills the top/bottom margin bands
+    // with theme-coloured header/footer templates, which are the only things
+    // Chromium will draw in the margin area.
+    const themed = palette !== undefined
+    // A `position:fixed` element inside a header/footer template positions
+    // against the WHOLE page tile (verified: `inset:0` painted the full
+    // page), so each band is pinned to its own page edge at exactly the
+    // margin's height — flush to the paper edge, never over the body text.
+    const bandPx = marginIn * 96
+    const bandBase = themed
+      ? `-webkit-print-color-adjust:exact;background:${palette.bg};position:fixed;left:0;right:0;height:${bandPx}px;margin:0;padding:0;`
+      : ''
+    const headerTemplate = themed ? `<div style="${bandBase}top:0;"></div>` : pageNumbers ? '<span></span>' : undefined
+    const numberSpan = `<span class="pageNumber"></span>`
+    const footerTemplate = themed
+      ? `<div style="${bandBase}bottom:0;font-size:9px;text-align:center;color:${palette.inkMuted};line-height:${bandPx}px;">${pageNumbers ? numberSpan : ''}</div>`
+      : pageNumbers
+        ? supplement
+          ? `<div style="font-size:9px;font-family:'Times New Roman',serif;width:100%;text-align:right;padding-right:12mm;color:#000;">${numberSpan}</div>`
+          : `<div style="font-size:9px;width:100%;text-align:center;color:#555;">${numberSpan}</div>`
+        : undefined
     const pdf = await win.webContents.printToPDF({
       pageSize: { width: style.page.widthMm / 25.4, height: style.page.heightMm / 25.4 },
-      margins: { top: marginIn, bottom: marginIn, left: marginIn, right: marginIn },
+      margins: themed
+        ? { top: marginIn, bottom: marginIn, left: 0, right: 0 }
+        : { top: marginIn, bottom: marginIn, left: marginIn, right: marginIn },
       printBackground: true,
-      displayHeaderFooter: pageNumbers,
-      headerTemplate: pageNumbers ? '<span></span>' : undefined,
+      displayHeaderFooter: themed || pageNumbers,
+      headerTemplate,
       footerTemplate
     })
     await writeFileAtomic(target, pdf)

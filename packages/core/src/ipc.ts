@@ -75,6 +75,14 @@ export const ExportOptionsSchema = z.object({
   lineNumbers: z.boolean(),
   /** Continuous page numbers. Not profile-optional (no journal asks to omit them) — always on by default. */
   pageNumbers: z.boolean(),
+  /**
+   * The app's active editor theme (data-suna-theme) — the PDF and web-page
+   * exports render in it so the document matches the reading tab it came
+   * from. Absent (or unknown to the export palette table) falls back to the
+   * default look. DOCX ignores it: a Word file is a collaboration surface,
+   * not a themed reading artifact.
+   */
+  theme: z.string().optional(),
 });
 export type ExportOptions = z.infer<typeof ExportOptionsSchema>;
 
