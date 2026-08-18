@@ -25,10 +25,25 @@ describe('outlineRows', () => {
     expect(rows.map((r) => r.depth)).toEqual([0, 0, 1, 2])
   })
 
-  it('carries headingFrom and words straight through from the outline section', () => {
+  it('carries headingFrom straight through from the outline section', () => {
     const rows = outlineRows(sections)
     expect(rows.map((r) => r.headingFrom)).toEqual([0, 10, 60, 120])
-    expect(rows.map((r) => r.words)).toEqual([8, 3, 12, 5])
+  })
+
+  it('rolls a subsection\'s words up into its parent heading', () => {
+    const rows = outlineRows(sections)
+    // Results = 3 + Spectroscopy 12 + Kinematics 5; Spectroscopy = 12 + 5
+    expect(rows.map((r) => r.words)).toEqual([8, 20, 17, 5])
+  })
+
+  it('stops the roll-up at the next sibling, and never rolls into the untitled section', () => {
+    const rows = outlineRows([
+      { level: 0, title: '', headingFrom: 0, from: 0, to: 4, words: 7 },
+      { level: 1, title: 'Methods', headingFrom: 4, from: 14, to: 20, words: 1 },
+      { level: 2, title: 'Data', headingFrom: 20, from: 27, to: 40, words: 10 },
+      { level: 1, title: 'Results', headingFrom: 40, from: 50, to: 60, words: 4 }
+    ])
+    expect(rows.map((r) => r.words)).toEqual([7, 11, 10, 4])
   })
 
   it('assigns unique stable keys', () => {
