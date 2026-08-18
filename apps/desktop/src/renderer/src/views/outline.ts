@@ -10,7 +10,11 @@ export interface OutlineRow {
   depth: number
   /** Document offset of the heading line — the scroll-spy / click-to-scroll target. */
   headingFrom: number
-  /** Word count of the section's body (heading text excluded), from outlineFromMarkdown. */
+  /**
+   * Word count for the section: its own body (heading text excluded) plus the
+   * bodies of every nested subsection under it, so a parent heading reports
+   * the whole branch rather than the few words before its first child.
+   */
   words: number
 }
 
@@ -35,6 +39,24 @@ export function outlineRows(sections: readonly OutlineSection[]): OutlineRow[] {
     chip: chipFor(section.level),
     depth: Math.max(0, section.level - 1),
     headingFrom: section.headingFrom,
-    words: section.words
+    words: rolledUpWords(sections, i)
   }))
+}
+
+/**
+ * Words of section `index` plus every section nested under it — the ones that
+ * follow it in document order until a heading at the same or a shallower
+ * level. The untitled leading section (level 0) owns nothing but itself.
+ */
+function rolledUpWords(sections: readonly OutlineSection[], index: number): number {
+  const self = sections[index]
+  if (self === undefined) return 0
+  let total = self.words
+  if (self.level === 0) return total
+  for (let i = index + 1; i < sections.length; i++) {
+    const next = sections[i]
+    if (next === undefined || next.level <= self.level) break
+    total += next.words
+  }
+  return total
 }
