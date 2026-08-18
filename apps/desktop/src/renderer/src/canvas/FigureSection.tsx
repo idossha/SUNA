@@ -5,7 +5,9 @@ import { fmt, styleValue, toHexColor, type WorldRect } from './canvas-util'
 import { pickAvailableId } from './duplicate-id'
 import { NumberField } from './fields'
 import {
+  PANEL_LETTER_ATTR,
   findAxesGroupIds,
+  findPanelLetterIds,
   formatPanelLabel,
   letterFor,
   orderPanelsForLettering,
@@ -98,6 +100,13 @@ export function FigureSection(props: FigureSectionProps): JSX.Element {
     }
     const ordered = orderPanelsForLettering(items)
     const convention = resolvePanelLabelConvention(profile)
+    // Placement is clamped to the artboard: a matplotlib axes bbox starts at
+    // the very top of the page, so an unclamped letter lands outside the
+    // viewport and is clipped away (see panelLabelAnchor).
+    const vb = doc.artboard.viewBox
+    const bounds: WorldRect | null = vb
+      ? { x: vb.minX, y: vb.minY, width: vb.width, height: vb.height }
+      : null
     const fig = profile?.figures
     const fontPt = clamp(9, fig?.minFontPt ?? null, fig?.maxFontPt ?? null)
     const userPerPt = mmPerUser !== null && mmPerUser > 0 ? MM_PER_PT / mmPerUser : 1
@@ -107,15 +116,21 @@ export function FigureSection(props: FigureSectionProps): JSX.Element {
     const commands: CanvasCommand[] = ordered.map((item, i) => {
       const letter = letterFor(i, convention.letterCase)
       const label = formatPanelLabel(letter, convention.wrapper)
-      const anchor = panelLabelAnchor(item.bbox, fontSizeUser)
+      const anchor = panelLabelAnchor(item.bbox, fontSizeUser, bounds)
       const weight = convention.weight === 'bold' ? 'bold' : 'normal'
       const svg =
         `<text x="${interact.formatNumber(anchor.x)}" y="${interact.formatNumber(anchor.y)}" ` +
         `font-family="${interact.escapeXml(fontFamily)}" font-size="${interact.formatNumber(fontSizeUser)}" ` +
-        `font-weight="${weight}" fill="#000000">${interact.escapeXml(label)}</text>`
+        `font-weight="${weight}" fill="#000000" ${PANEL_LETTER_ATTR}="${interact.escapeXml(letter)}">` +
+        `${interact.escapeXml(label)}</text>`
       return { kind: 'insert', svg }
     })
+    // Replace this feature's own previous letters rather than stacking a
+    // second set on top of them, still as ONE undo.
+    const stale = findPanelLetterIds(doc.root)
+    if (stale.length > 0) commands.unshift({ kind: 'remove', targets: stale })
     apply({ kind: 'batch', commands, label: 'Auto-letter panels' }, 'Auto-letter panels')
+    note(`Lettered ${ordered.length} panel${ordered.length === 1 ? '' : 's'}`)
   }
 
   return (
