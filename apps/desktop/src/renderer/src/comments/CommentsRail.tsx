@@ -154,6 +154,25 @@ function DraftComposer(): JSX.Element | null {
   )
 }
 
+/**
+ * Is there a text selection INSIDE this element? The card suppresses
+ * activation while the user is selecting its text to copy — but the test has
+ * to be local. A bare `getSelection().toString() !== ''` also sees the
+ * EDITOR's selection, and jumping to a comment leaves one there (flashAnchor
+ * selects the anchored range, which a focused editor mirrors into the DOM).
+ * That made the next card click a no-op: click one comment, click another,
+ * nothing happens until you click again.
+ */
+function selectionInside(el: HTMLElement): boolean {
+  const selection = window.getSelection()
+  if (selection === null || selection.isCollapsed || selection.toString() === '') return false
+  const { anchorNode, focusNode } = selection
+  return (
+    (anchorNode !== null && el.contains(anchorNode)) ||
+    (focusNode !== null && el.contains(focusNode))
+  )
+}
+
 interface ThreadCardProps {
   comment: Comment
   active: boolean
@@ -266,8 +285,8 @@ function ThreadCard({ comment, active, onActivate, getView, aiGate }: ThreadCard
         className="cmt-card__main"
         role="button"
         tabIndex={0}
-        onClick={() => {
-          if ((window.getSelection()?.toString() ?? '') === '') onActivate()
+        onClick={(e) => {
+          if (!selectionInside(e.currentTarget)) onActivate()
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
