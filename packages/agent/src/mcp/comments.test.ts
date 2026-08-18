@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DEFAULT_PROJECT_DIRS, type CommentsFile } from '@suna/core'
-import { addComment, agentAuthor, listComments, replyComment, resolveComment } from './comments'
+import { addComment, agentAuthor, listComments, replyComment } from './comments'
 import type { ProjectContext } from './project'
 
 let dir = ''
@@ -27,6 +27,13 @@ afterEach(async () => {
 async function readCommentsJson(): Promise<CommentsFile> {
   const raw = await readFile(join(dir, 'manuscript', 'comments.json'), 'utf8')
   return JSON.parse(raw) as CommentsFile
+}
+
+/** Resolving is human-only (no MCP verb) — tests flip the flag on disk. */
+async function markResolvedOnDisk(id: string, resolved: boolean): Promise<void> {
+  const file = await readCommentsJson()
+  file.comments = file.comments.map((c) => (c.id === id ? { ...c, resolved } : c))
+  await writeFile(join(dir, 'manuscript', 'comments.json'), JSON.stringify(file), 'utf8')
 }
 
 describe('listComments', () => {
@@ -54,7 +61,7 @@ describe('listComments', () => {
     })
     const id = added.split(' ')[1] as string
     expect(await listComments(ctx, { resolved: true })).toBe('no comments')
-    await resolveComment(ctx, { id, resolved: true })
+    await markResolvedOnDisk(id, true)
     expect(await listComments(ctx, { resolved: true })).toContain(id)
     expect(await listComments(ctx, { resolved: false })).toBe('no comments')
   })
@@ -135,27 +142,6 @@ describe('replyComment', () => {
 
   it('throws for an unknown comment id', async () => {
     await expect(replyComment(ctx, { id: 'c-does-not-exist', body: 'x' })).rejects.toThrow(
-      /no comment with id/
-    )
-  })
-})
-
-describe('resolveComment', () => {
-  it('flips the resolved flag both ways', async () => {
-    const added = await addComment(ctx, {
-      path: 'sections/02-results.md',
-      quote: 'high confidence',
-      body: 'Quantify this.'
-    })
-    const id = added.split(' ')[1] as string
-    await resolveComment(ctx, { id, resolved: true })
-    expect((await readCommentsJson()).comments[0]?.resolved).toBe(true)
-    await resolveComment(ctx, { id, resolved: false })
-    expect((await readCommentsJson()).comments[0]?.resolved).toBe(false)
-  })
-
-  it('throws for an unknown comment id', async () => {
-    await expect(resolveComment(ctx, { id: 'c-does-not-exist', resolved: true })).rejects.toThrow(
       /no comment with id/
     )
   })

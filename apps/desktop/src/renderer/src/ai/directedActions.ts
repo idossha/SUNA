@@ -51,8 +51,8 @@ const COMMENT_TOOLS = [
   'mcp__suna__list_outline',
   'mcp__suna__list_comments',
   'mcp__suna__edit_manuscript',
-  'mcp__suna__reply_comment',
-  'mcp__suna__resolve_comment'
+  'mcp__suna__reply_comment'
+  // No resolve verb exists: resolving a thread is human-only, in the app.
 ]
 const REPAIR_TOOLS = ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(pnpm:*)', 'Bash(node:*)']
 

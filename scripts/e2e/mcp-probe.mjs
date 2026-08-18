@@ -139,7 +139,6 @@ const EXPECTED_TOOLS = [
   'list_comments',
   'add_comment',
   'reply_comment',
-  'resolve_comment',
   'search_literature',
   'lookup_doi',
   'add_reference'

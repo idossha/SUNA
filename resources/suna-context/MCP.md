@@ -44,7 +44,7 @@ comment):
 Set them in the environment the server is launched with. Agent comments always carry
 `author.kind: "agent"`.
 
-## The 20 verbs
+## The 19 verbs
 
 Every reply is plain text.
 
@@ -65,8 +65,7 @@ Every reply is plain text.
 | read_bib | {} | references.bib verbatim |
 | list_comments | {resolved?, path?} | review-comment threads |
 | add_comment | {path, quote, body} | open a thread anchored to exact prose text |
-| reply_comment | {id, body} | reply in a thread |
-| resolve_comment | {id, resolved} | mark a thread resolved/open |
+| reply_comment | {id, body} | reply in a thread (resolving is human-only, in the app) |
 | search_literature | {query, provider?, limit?} | search a literature provider (default Crossref, keyless) |
 | lookup_doi | {doi, provider?} | one work by DOI |
 | add_reference | {doi, provider?} | fetch a DOI's metadata and append it to references.bib (generated cite key is echoed back) |

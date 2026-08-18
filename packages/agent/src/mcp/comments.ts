@@ -191,22 +191,5 @@ export async function replyComment(
   return `replied to ${input.id}`
 }
 
-export const resolveCommentInput = z.object({
-  id: z.string().min(1),
-  resolved: z.boolean()
-})
-
-export async function resolveComment(
-  ctx: ProjectContext,
-  input: z.infer<typeof resolveCommentInput>
-): Promise<string> {
-  const file = await readCommentsFile(ctx)
-  if (!file.comments.some((comment) => comment.id === input.id)) {
-    throw new Error(`no comment with id ${input.id}`)
-  }
-  const comments = file.comments.map((comment) =>
-    comment.id === input.id ? { ...comment, resolved: input.resolved } : comment
-  )
-  await writeCommentsFile(ctx, { schemaVersion: 1, comments })
-  return `${input.id} marked ${input.resolved ? 'resolved' : 'open'}`
-}
+// There is deliberately NO resolve verb: resolving a thread is a human
+// judgment made in the app. Agents reply on the thread; the human resolves.

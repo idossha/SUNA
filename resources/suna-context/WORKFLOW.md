@@ -76,10 +76,10 @@ list_comments    {"resolved": false}
 # locate anchor.quote in the prose, make the change:
 edit_manuscript  {"find": "...", "replace": "..."}
 reply_comment    {"id": "c-...", "body": "Done: <what you changed>"}
-resolve_comment  {"id": "c-...", "resolved": true}
 ```
 
-Resolve only after actually addressing it. To ask the user something, do not guess —
+Never resolve a thread — there is no resolve verb; the user resolves in the app after
+reviewing your reply. To ask the user something, do not guess —
 open a thread anchored to the exact text it concerns:
 
 ```
@@ -104,5 +104,5 @@ If the user gave the same feedback twice, fix the instance and promote the rule 
 Orient: read UserContext, project context/, outline, open comments; say your plan.
 Cite: search -> add_reference -> `[@key]`; verify the echoed metadata.
 Edit: anchored edit_manuscript; cross-references, never stored numbers.
-Check and review: compliance verbs, then the comment loop — resolve only after fixing.
+Check and review: compliance verbs, then the comment loop — reply; the user resolves.
 Log: append to the notebook surgically; promote recurring feedback to RULES.md.

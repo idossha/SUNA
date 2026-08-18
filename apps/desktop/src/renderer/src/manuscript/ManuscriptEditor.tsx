@@ -95,8 +95,11 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     // should appear whether or not the human has ever opened the Comments
     // sidebar view.
     const allComments = useCommentsStore((s) => s.comments)
+    // Resolved threads live in the rail's History, not in the text — only
+    // open comments get an anchor highlight.
     const commentsForPath = useMemo(
-      () => commentsByPath(allComments).get(contentPath) ?? NO_COMMENTS,
+      () =>
+        (commentsByPath(allComments).get(contentPath) ?? NO_COMMENTS).filter((c) => !c.resolved),
       [allComments, contentPath]
     )
     const commentsForPathRef = useRef(commentsForPath)

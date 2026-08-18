@@ -1,7 +1,7 @@
 # COMMENTS.md — the review loop
 
-Review comments live in a sidecar file, flow through four MCP verbs, and drive one
-procedure: list open threads, fix, reply, resolve. This doc covers all of it.
+Review comments live in a sidecar file, flow through three MCP verbs, and drive one
+procedure: list open threads, fix, reply — the user resolves. This doc covers all of it.
 
 ## The sidecar doctrine
 
@@ -34,14 +34,17 @@ Anchor semantics — how a comment finds its text after the prose changes:
 
 Human- and agent-authored anchors resolve through the same implementation.
 
-## The four verbs
+## The three verbs
 
 | verb | input | purpose |
 |---|---|---|
 | list_comments | {resolved?, path?} | list threads; `{resolved: false}` = open only |
 | add_comment | {path, quote, body} | open a thread anchored to exact prose text |
 | reply_comment | {id, body} | reply in a thread |
-| resolve_comment | {id, resolved} | mark a thread resolved (or reopen) |
+
+There is deliberately no resolve verb: resolving a thread is a HUMAN decision made in
+the app. Your reply saying what you did is the signal that a thread is ready for the
+user to review and resolve.
 
 For `add_comment`, `path` is `"manuscript.md"` and `quote` must be an exact substring
 of the file — the first occurrence is anchored. See MCP.md for transport and errors.
@@ -56,9 +59,8 @@ of your reading order, see README.md):
 3. Make the requested change with `edit_manuscript` (see MANUSCRIPT.md). If the change
    would alter scientific content beyond what the comment asks, or the request is
    ambiguous, reply asking instead of guessing.
-4. `reply_comment {id, body}` stating concretely what you did.
-5. `resolve_comment {id, resolved: true}` — only AFTER the change is actually made.
-   A reply without a fix stays open.
+4. `reply_comment {id, body}` stating concretely what you did. The thread stays open —
+   only the user resolves it, in the app, after reviewing your change.
 
 If a fix fails or a comment cannot be addressed, reply saying so and leave the thread
 open. Honest reporting: dead ends go in the reply and the notebook, not under the rug.
@@ -93,5 +95,6 @@ the rest — never write author fields by hand.
   the verbs are always preferred.
 - Don't delete threads or set `detached` yourself — detachment is the anchor
   resolver's verdict, and detached threads are kept forever.
-- Don't resolve a thread you haven't actually addressed.
+- Don't mark threads resolved — not via the verbs (there is none) and not by editing
+  `comments.json`. Resolution is the user's call, in the app.
 - Don't inline comment markers in the prose. Ever.

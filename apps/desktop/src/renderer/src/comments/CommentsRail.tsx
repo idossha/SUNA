@@ -259,7 +259,23 @@ function ThreadCard({ comment, active, onActivate, getView, aiGate }: ThreadCard
       className={`cmt-card${active ? ' cmt-card--active' : ' cmt-card--compact'}${comment.resolved ? ' cmt-card--resolved' : ''}${aiRun !== undefined ? ' cmt-card--ai-busy' : ''}`}
       data-comment-id={comment.id}
     >
-      <button className="cmt-card__main" onClick={onActivate}>
+      {/* A div, not a button: comment text must stay mouse-selectable for
+          copying, and buttons suppress text selection. Activation skips
+          clicks that end a selection drag so copying never toggles the card. */}
+      <div
+        className="cmt-card__main"
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          if ((window.getSelection()?.toString() ?? '') === '') onActivate()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onActivate()
+          }
+        }}
+      >
         <div className="cmt__card-head">
           <AuthorBadge author={comment.author} />
           <span className="cmt__time">{relativeTime(comment.createdAt)}</span>
@@ -279,7 +295,7 @@ function ThreadCard({ comment, active, onActivate, getView, aiGate }: ThreadCard
         <div className={`cmt-card__body${active ? '' : ' cmt-card__body--clamped'}`}>
           {comment.body}
         </div>
-      </button>
+      </div>
 
       {active && (
         <>
@@ -403,10 +419,16 @@ export function CommentsRail({
   // signal that anchor positions may have moved.
   const anchorsEpoch = useSyncExternalStore(subscribeAnchorsEpoch, getAnchorsEpoch)
 
-  // Anchored vs detached/unanchored: only comments with a LIVE anchor get a
-  // document-space position; the rest collect in the pinned section on top.
-  // Anchored cards render in document order so DOM/tab order matches the
-  // visual top-to-bottom order the layout produces.
+  // Resolved threads leave the working surface entirely: they collect in the
+  // History section (reopenable, deletable) so finished business never
+  // competes with open review work. Deleted comments, by contrast, are gone
+  // for good once the undo toast lapses.
+  const resolved = useMemo(() => comments.filter((c) => c.resolved), [comments])
+
+  // Anchored vs detached/unanchored (OPEN threads only): comments with a
+  // LIVE anchor get a document-space position; the rest collect in the
+  // pinned section on top. Anchored cards render in document order so
+  // DOM/tab order matches the visual top-to-bottom order the layout produces.
   const { anchored, unanchored } = useMemo(() => {
     const view = getView()
     const live = new Map<string, number>()
@@ -414,6 +436,7 @@ export function CommentsRail({
     const anchoredList: Comment[] = []
     const unanchoredList: Comment[] = []
     for (const comment of comments) {
+      if (comment.resolved) continue
       if (comment.target.kind === 'section' && live.has(comment.id)) anchoredList.push(comment)
       else unanchoredList.push(comment)
     }
@@ -671,17 +694,9 @@ export function CommentsRail({
       </div>
       {unanchored.length > 0 && (
         <details className="cmt-rail__pinned">
-          {/* Alarm-count only the UNRESOLVED ones: an AI comment fix that
-              rewrites its own quoted text detaches the (now resolved)
-              comment, and finished business must not read as a problem. */}
-          <summary>
-            {(() => {
-              const open = unanchored.filter((c) => !c.resolved).length
-              return open > 0
-                ? `Detached / unanchored (${open})`
-                : `Resolved, no anchor (${unanchored.length})`
-            })()}
-          </summary>
+          {/* Only OPEN threads reach this group (resolved ones live in
+              History below), so the count is honestly alarming. */}
+          <summary>Detached / unanchored ({unanchored.length})</summary>
           <div className="cmt-rail__pinned-list">
             {unanchored.map((comment) => (
               <ThreadCard
@@ -736,6 +751,28 @@ export function CommentsRail({
           ))}
         </div>
       </div>
+      {/* Resolved threads: out of the working surface, into a separately
+          viewable history. Reopen puts one back in play; Delete (plus the
+          lapsed undo toast) is the only way a thread truly disappears. */}
+      {resolved.length > 0 && (
+        <details className="cmt-rail__history">
+          <summary>History ({resolved.length})</summary>
+          <div className="cmt-rail__history-list">
+            {resolved.map((comment) => (
+              <ThreadCard
+                key={comment.id}
+                comment={comment}
+                active={comment.id === activeId}
+                onActivate={() =>
+                  useCommentsStore.getState().setActive(comment.id === activeId ? null : comment.id)
+                }
+                getView={getView}
+                aiGate={aiGate}
+              />
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   )
 }
