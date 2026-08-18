@@ -2659,6 +2659,8 @@ try {
       }
       return { x, y };
     })()`)
+    const introPath = join(COPY_DIR, 'manuscript', 'manuscript.md')
+    const introBefore = readFileSync(introPath, 'utf8')
     await click(spot.x, spot.y)
     await sleep(250)
     await insertText(' @fig:nope ')
@@ -2674,8 +2676,6 @@ try {
       bogus.includes('fig:nope'),
       `a bogus @fig:nope should stay raw and flagged, got: ${bogus.join(', ')}`
     )
-    const introPath = join(COPY_DIR, 'manuscript', 'manuscript.md')
-    const introBefore = readFileSync(introPath, 'utf8')
     for (let i = 0; i < 6; i++) {
       await key('z', 'KeyZ', 4)
       await sleep(120)
@@ -2686,9 +2686,13 @@ try {
         .some((l) => l.textContent.includes('nope'))`
     )
     assert(cleared, 'undo did not remove the bogus crossref from the document')
+    // Autosave (on by default) writes the typing out and writes the undo back,
+    // so the invariant is the end state, not "never written": this probe must
+    // leave manuscript.md exactly as it found it. Waits out one autosave idle.
+    await sleep(1600)
     assert(
       readFileSync(introPath, 'utf8') === introBefore,
-      'the bogus-crossref probe wrote to manuscript.md (it must never save)'
+      'the bogus-crossref probe left manuscript.md changed'
     )
   })
 
@@ -3464,6 +3468,13 @@ try {
    * one ⌘S cleans both.
    */
   await step('shared-buffer-live-sync', async () => {
+    // This step's subject IS the manual-save contract — "typing appears in the
+    // other view without saving", "one ⌘S cleans both". Autosave (on by
+    // default) would write the edit out mid-step and clear the dirty flag the
+    // assertions are reading, so it is off here and restored at the end.
+    await evalJs(
+      `window.__sunaDev.settingsStore.getState().update('editor.autosave', false).then(() => 'ok')`
+    )
     await openManuscriptDoc()
     const marker = 'SYNCMARK-' + Date.now().toString(36)
     // type into the MANUSCRIPT tab (helpers target .msdoc__editor)
@@ -3546,6 +3557,11 @@ try {
       `!window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)})?.includes(${JSON.stringify(marker)})`
     )
     assert(bufferReverted, 'the live buffer did not follow the out-of-band revert')
+
+    // autosave back on: it is the shipped default every later step runs under
+    await evalJs(
+      `window.__sunaDev.settingsStore.getState().update('editor.autosave', true).then(() => 'ok')`
+    )
   })
 
   /**
@@ -6520,6 +6536,81 @@ try {
       if (scrim) scrim.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       return 'ok';
     })()`)
+  })
+
+  /**
+   * Autosave (global 'editor.autosave', ON by default): a dirty buffer writes
+   * itself out after a pause, quietly, and stops doing so the moment the
+   * setting is turned off — with ⌘S still working either way.
+   */
+  await step('autosave-on-by-default', async () => {
+    const scratch = join(COPY_DIR, 'manuscript', 'autosave.md')
+    writeFileSync(scratch, 'start\n')
+    TEMP_FILES.push(scratch)
+    await resetDock()
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(scratch)}); 'ok'`)
+    await sleep(1200)
+
+    const setting = () =>
+      evalJs(`window.__sunaDev.settingsStore.getState().settings['editor.autosave']`)
+    const dirty = () =>
+      evalJs(
+        `window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(scratch)})?.dirty`
+      )
+    const type = async (text) => {
+      await evalJs(`(() => {
+        const cm = [...document.querySelectorAll('.cm-content')].find((e) => e.getBoundingClientRect().width > 0);
+        cm.focus();
+        return 'ok';
+      })()`)
+      await sleep(200)
+      await insertText(text)
+    }
+
+    assert((await setting()) === true, 'editor.autosave is not on by default')
+
+    // The note an earlier step left behind: an autosave must not replace it.
+    const noteBefore = await evalJs(`window.__sunaDev.uiStore.getState().statusNote`)
+
+    await type('AUTO ')
+    await sleep(250)
+    assert((await dirty()) === true, 'typing did not mark the buffer dirty')
+    assert(
+      !readFileSync(scratch, 'utf8').includes('AUTO '),
+      'the edit reached disk before the autosave idle elapsed'
+    )
+
+    await sleep(1600)
+    assert(readFileSync(scratch, 'utf8').includes('AUTO '), 'autosave never wrote the file')
+    assert((await dirty()) === false, 'the session stayed dirty after autosaving')
+    // quiet: a note per typing pause would turn the status bar into a ticker
+    const note = await evalJs(`window.__sunaDev.uiStore.getState().statusNote`)
+    assert(note === noteBefore, `autosave announced itself: ${JSON.stringify(note)}`)
+
+    // off in global settings -> nothing writes itself, but ⌘S still does
+    await evalJs(
+      `window.__sunaDev.settingsStore.getState().update('editor.autosave', false).then(() => 'ok')`
+    )
+    await sleep(300)
+    try {
+      await type('MANUAL ')
+      await sleep(2200)
+      assert(
+        !readFileSync(scratch, 'utf8').includes('MANUAL '),
+        'autosave still wrote with the setting off'
+      )
+      await key('s', 'KeyS', 4)
+      await sleep(900)
+      assert(
+        readFileSync(scratch, 'utf8').includes('MANUAL '),
+        '⌘S did not save while autosave was off'
+      )
+    } finally {
+      // Back on however this ended: it is the shipped default.
+      await evalJs(
+        `window.__sunaDev.settingsStore.getState().update('editor.autosave', true).then(() => 'ok')`
+      )
+    }
   })
 
   // Under KEEP_GOING a failed step did not throw, so the summary is decided

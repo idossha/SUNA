@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangeSet, Text } from '@codemirror/state'
-import { DocSessionCore, type SessionView } from './docSessions'
+import { mirrorAutosave, resetAutosaveMirror } from './autosave'
+import {
+  AUTOSAVE_IDLE_MS,
+  DocSessionCore,
+  acquireDocSession,
+  useDocSessionsStore,
+  type SessionView
+} from './docSessions'
 
 /**
  * A fake attached view: holds its own Text and applies remote ChangeSets the
@@ -189,5 +196,169 @@ describe('DocSessionCore', () => {
     expect(localEdits).toBe(1)
     core.applyExternal('external')
     expect(localEdits).toBe(1) // external reload is not a user edit
+  })
+})
+
+/* ---------------------------------------------------------------------------
+   Autosave. Drives a REAL DocSession through acquireDocSession, with a stubbed
+   `window.suna` bridge and fake timers, because the behaviour under test is
+   "which writes reach disk, and when" — the one thing the pure core cannot
+   answer.
+   ------------------------------------------------------------------------- */
+
+const invoke = vi.fn()
+
+Object.defineProperty(globalThis, 'window', {
+  value: {
+    suna: { invoke },
+    setTimeout: (fn: () => void, ms?: number) => setTimeout(fn, ms),
+    clearTimeout: (id: unknown) => clearTimeout(id as Parameters<typeof clearTimeout>[0])
+  },
+  writable: true,
+  configurable: true
+})
+
+/** Reads answer with `disk`; writes record and become the new `disk`. */
+function bridge(initial: string): { disk: string; writes: string[] } {
+  const state = { disk: initial, writes: [] as string[] }
+  invoke.mockImplementation(async (channel: string, args: Record<string, unknown>) => {
+    if (channel === 'fs:read-text') return { content: state.disk }
+    if (channel === 'fs:write-text') {
+      const content = args['content'] as string
+      state.writes.push(content)
+      state.disk = content
+      return {}
+    }
+    return {}
+  })
+  return state
+}
+
+/**
+ * A live session with one attached fake view, ready to edit. Reaches past the
+ * public DocSession for two internals the behaviour under test needs: `core`
+ * (to drive edits the way the CodeMirror glue does, with no DOM) and
+ * `checkDisk` (the watcher's entry point, which is how a divergence arises).
+ */
+interface SessionInternals {
+  core: DocSessionCore
+  checkDisk: () => Promise<void>
+}
+
+async function liveSession(path: string, initial: string) {
+  const handle = acquireDocSession(path)
+  await handle.session.ready()
+  const internals = handle.session as unknown as SessionInternals
+  const view = new FakeView(internals.core.text())
+  const entry = internals.core.addView(view)
+  return { ...handle, core: internals.core, checkDisk: internals.checkDisk.bind(internals), view, entry }
+}
+
+describe('autosave', () => {
+  beforeEach(() => {
+    invoke.mockReset()
+    resetAutosaveMirror()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('writes the buffer once, an idle after the last edit', async () => {
+    const disk = bridge('one')
+    const { core, view, entry, release } = await liveSession('/p/a.md', 'one')
+
+    view.edit(core, entry, { from: 3, insert: ' two' })
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS - 1)
+    expect(disk.writes).toEqual([])
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(disk.writes).toEqual(['one two'])
+    release()
+  })
+
+  it('coalesces a burst of typing into one write at the end of it', async () => {
+    const disk = bridge('')
+    const { core, view, entry, release } = await liveSession('/p/b.md', '')
+
+    for (let i = 0; i < 5; i++) {
+      view.edit(core, entry, { from: view.text().length, insert: 'x' })
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS / 2)
+    }
+    expect(disk.writes).toEqual([])
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS)
+    expect(disk.writes).toEqual(['xxxxx'])
+    release()
+  })
+
+  it('leaves the session clean, so the tab loses its dirty dot', async () => {
+    bridge('one')
+    const { session, core, view, entry, release } = await liveSession('/p/c.md', 'one')
+
+    view.edit(core, entry, { from: 0, insert: 'a' })
+    expect(session.isDirty()).toBe(true)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS)
+    expect(session.isDirty()).toBe(false)
+    release()
+  })
+
+  it('does nothing at all when the setting is off', async () => {
+    const disk = bridge('one')
+    mirrorAutosave(false)
+    const { core, view, entry, release } = await liveSession('/p/d.md', 'one')
+
+    view.edit(core, entry, { from: 0, insert: 'a' })
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS * 3)
+    expect(disk.writes).toEqual([])
+    release()
+  })
+
+  it('stops a save already scheduled when the setting is turned off mid-pause', async () => {
+    const disk = bridge('one')
+    const { core, view, entry, release } = await liveSession('/p/e.md', 'one')
+
+    view.edit(core, entry, { from: 0, insert: 'a' })
+    mirrorAutosave(false)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS * 3)
+    expect(disk.writes).toEqual([])
+    release()
+  })
+
+  /**
+   * The case that would lose someone's work: the file changed on disk while
+   * the buffer was dirty. The divergence banner is waiting on an answer, and
+   * an autosave would answer it "mine" without asking.
+   */
+  it('refuses to overwrite a divergence the user has not resolved', async () => {
+    const disk = bridge('one')
+    const { session, core, checkDisk, view, entry, release } = await liveSession('/p/f.md', 'one')
+
+    view.edit(core, entry, { from: 0, insert: 'mine ' })
+    disk.disk = 'theirs'
+    await checkDisk()
+    expect(useDocSessionsStore.getState().meta.get('/p/f.md')?.diverged).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS * 3)
+    expect(disk.writes).toEqual([])
+
+    // resolving it "keep mine" is what lets the save through
+    session.resolveDivergence('keepMine')
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS)
+    expect(disk.writes).toEqual(['mine one'])
+    release()
+  })
+
+  it('does not re-save an edit an explicit ⌘S already wrote', async () => {
+    const disk = bridge('one')
+    const { session, core, view, entry, release } = await liveSession('/p/g.md', 'one')
+
+    view.edit(core, entry, { from: 0, insert: 'a' })
+    await session.save()
+    expect(disk.writes).toEqual(['aone'])
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS * 3)
+    expect(disk.writes).toEqual(['aone'])
+    release()
   })
 })

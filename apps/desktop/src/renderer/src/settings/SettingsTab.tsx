@@ -834,7 +834,10 @@ export function SettingsTab(): JSX.Element {
           <div className="settings-tab__row">
             <label htmlFor="set-autosave">
               Autosave
-              <span className="settings-tab__hint">Reserved — not applied yet; saving stays manual (⌘S).</span>
+              <span className="settings-tab__hint">
+                Save editors and the figure canvas a second after you stop editing. ⌘S still
+                works; turn this off to save only by hand.
+              </span>
             </label>
             <input
               id="set-autosave"
