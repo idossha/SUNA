@@ -51,8 +51,12 @@ describe('parentDirOf', () => {
 })
 
 describe('defaultExpanded', () => {
-  it('opens the top two levels of directories, and no files', () => {
-    expect(defaultExpanded(TREE).sort()).toEqual(
+  it('opens nothing: every root folder starts collapsed', () => {
+    expect(defaultExpanded(TREE)).toEqual([])
+  })
+
+  it('still opens the top two levels when a depth is asked for', () => {
+    expect(defaultExpanded(TREE, 2).sort()).toEqual(
       [
         '/work/paper/manuscript',
         '/work/paper/manuscript/figures',

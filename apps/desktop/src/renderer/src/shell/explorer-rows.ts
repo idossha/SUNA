@@ -14,12 +14,13 @@ export function forcesOpen(editing: ExplorerEditing | null, dirPath: string): bo
 }
 
 /**
- * Directories open by default when a project is first shown: the top two
- * levels. Depth is numbered exactly as visibleRows numbers it (top-level
- * entries are depth 0), which is what the tree used to do per-row with
- * `useState(depth < 2)` before expansion became explicit state.
+ * Directories open by default when a project is first shown: none. A project
+ * root carries seven top-level dirs; opening them all buried the manuscript
+ * under data/ and results/ listings nobody had asked to see. `maxDepth` is
+ * still numbered exactly as visibleRows numbers depth (top-level entries are
+ * depth 0), so passing 2 restores the old two-level seeding.
  */
-export function defaultExpanded(root: FsNode, maxDepth = 2): string[] {
+export function defaultExpanded(root: FsNode, maxDepth = 0): string[] {
   const out: string[] = []
   const walk = (node: FsNode, depth: number): void => {
     if (node.kind !== 'dir' || depth >= maxDepth) return
