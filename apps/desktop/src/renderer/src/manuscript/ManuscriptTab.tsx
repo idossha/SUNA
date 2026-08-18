@@ -133,10 +133,13 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   }
 
   // scroll-spy: which outline heading is currently at (or just above) the
-  // active band, via coordsAtPos on the single editor. A heading whose
-  // position hasn't rendered yet (outside CodeMirror's current viewport)
-  // simply doesn't resolve this pass — the active index just holds at its
-  // last known value until scrolling brings it (or a neighbor) into range.
+  // active band. Only positions inside CodeMirror's rendered viewport have
+  // trustworthy coordinates, so headings BEFORE that range are taken as
+  // above the band by definition (the rendered range always covers what the
+  // user can see) and headings after it as below. Measuring those with
+  // coordsAtPos was the old bug: an unrendered heading could resolve to a
+  // bogus small top — or to null while section 0 resolved — and the
+  // indicator snapped back to the first section mid-document.
   const recalcActive = useCallback((): void => {
     const view = editorRef.current?.getView()
     const container = rootRef.current
@@ -144,11 +147,20 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
     const containerRect = container.getBoundingClientRect()
     // hidden dock panel (display:none): every rect is 0 — skip the recalc
     if (containerRect.height === 0) return
+    const { from, to } = view.viewport
     let active: number | null = null
-    outline.forEach((section, i) => {
-      const top = headingTopIn(view, section.headingFrom, container)
-      if (top !== null && top <= ACTIVE_BAND_PX) active = i
-    })
+    for (let i = 0; i < outline.length; i++) {
+      const pos = outline[i]!.headingFrom
+      if (pos < from) {
+        active = i
+        continue
+      }
+      if (pos > to) break
+      const top = headingTopIn(view, pos, container)
+      if (top === null) continue
+      if (top > ACTIVE_BAND_PX) break
+      active = i
+    }
     if (active !== null) useManuscriptDocStore.getState().setActiveSectionIndex(active)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outline])
