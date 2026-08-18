@@ -170,7 +170,10 @@ reproducible.
   `safeStorage`, model picker per conversation.
 - **Tool registry** (executed app-side, permission-gated per tool class):
   - manuscript: read/edit sections, restructure, search
-  - bibliography: search bib, fetch by DOI/arXiv, insert citation
+  - bibliography: search bib, fetch by DOI/arXiv, insert citation; resolve a
+    free-text mention to one work and acquire its PDF — the project, then this
+    machine's user-configured library roots, then open access (ADR-007; reads
+    may leave the project, writes never do, ambiguity refuses to write)
   - figures: list, read structure, emit canvas commands (§5), `absorb_overlay`
   - project: run Python in project env (uv), read data/results listings
   - output: compile preview, report LaTeX errors back to the agent
