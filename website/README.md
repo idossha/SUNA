@@ -55,16 +55,27 @@ moves.
 ## Publishing
 
 `.github/workflows/docs.yml` builds the site on every push to `main` that
-touches `website/`, and deploys it to GitHub Pages. Two things must be true
-before anything appears:
+touches `website/`, and on every pull request. That build is worth having on
+its own: it runs `normalize.mjs --check` and then a full VitePress build at the
+deploy base path, so a dead internal link or an unnormalised shortcut fails CI
+rather than reaching the published site.
 
-1. the repository is public (or on a plan that serves Pages from a private repo);
-2. **Settings → Pages → Source** is set to **GitHub Actions**.
+Publishing is switched off until you turn it on, in three steps:
 
-Until then the build job still runs and acts as a link-checker, and the deploy
-job is skipped. The published URL will be `https://<owner>.github.io/SUNA/`;
-the workflow passes that path through `SUNA_DOCS_BASE`, which `config.ts`
-reads, so local builds stay at `/`.
+1. make the repository public — Pages cannot be enabled on a private repo on
+   most plans;
+2. **Settings → Pages → Source**: **GitHub Actions**;
+3. **Settings → Secrets and variables → Actions → Variables**: add
+   `DOCS_PAGES_ENABLED` = `true`.
+
+The artifact upload and the deploy job are both gated on that variable. Without
+it the workflow is a link checker and stays green; the alternative — attempting
+to publish on every push and failing until an unrelated setting changes — just
+trains everyone to ignore a red X.
+
+The published URL will be `https://<owner>.github.io/SUNA/`. The workflow
+passes that path through `SUNA_DOCS_BASE`, which `config.ts` reads and
+interpolates into the favicon link by hand, so local builds stay at `/`.
 
 ## Structure
 
