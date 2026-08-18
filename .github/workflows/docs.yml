@@ -1,12 +1,21 @@
 name: Docs site
 
-# Builds website/ and publishes it to GitHub Pages.
+# Builds website/ on every push that touches it, and publishes it to GitHub
+# Pages once you switch publishing on.
 #
-# Nothing here works until the repository is public (or on a plan with Pages
-# for private repos) AND Pages is switched to "GitHub Actions" as its source in
-# Settings → Pages. Until then the build job still runs on every push and acts
-# as a link-checker — VitePress fails the build on a dead internal link — while
-# the deploy job is simply skipped.
+# The build job is useful on its own: VitePress fails on a dead internal link,
+# so this is the site's link checker and it runs whether or not Pages is set
+# up. Publishing is gated behind a repository variable rather than attempted
+# unconditionally, because Pages cannot be enabled on a private repository on
+# most plans, and a workflow that goes red on every push until some unrelated
+# setting changes just teaches everyone to ignore the red.
+#
+# To publish, once the repository is public:
+#   1. Settings → Pages → Source: GitHub Actions
+#   2. Settings → Secrets and variables → Actions → Variables:
+#        DOCS_PAGES_ENABLED = true
+#   3. re-run this workflow (or push)
+# The site lands at https://<owner>.github.io/<repo>/.
 on:
   push:
     branches: [main]
@@ -47,23 +56,29 @@ jobs:
       - name: Install
         run: pnpm install --filter @suna/website --frozen-lockfile
 
+      # A shortcut written `<kbd>⌘\</kbd>` compiles to a broken Vue template.
+      # The normaliser rewrites those characters; --check fails instead, so a
+      # page that was hand-edited without running it does not reach main.
+      - name: Check markdown is normalised
+        run: node website/scripts/normalize.mjs --check
+
       - name: Build
-        # Project pages live under /<repo>/, so the site is built with that base.
+        # Project pages live under /<repo>/, so the site is built with that
+        # base. Building at the deploy base on every run means a base-path
+        # mistake fails here rather than after publishing.
         run: pnpm --filter @suna/website build
         env:
           SUNA_DOCS_BASE: /${{ github.event.repository.name }}/
 
-      - uses: actions/configure-pages@v5
-        if: github.event_name != 'pull_request'
-
-      - uses: actions/upload-pages-artifact@v3
-        if: github.event_name != 'pull_request'
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && vars.DOCS_PAGES_ENABLED == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: website/.vitepress/dist
 
   deploy:
     needs: build
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && vars.DOCS_PAGES_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
