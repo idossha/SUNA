@@ -16,6 +16,7 @@ import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
 import '../editor/editor.css'
+import { cancelAnchorPin } from '../comments/anchorExtension'
 import { CommentsRail } from '../comments/CommentsRail'
 import { RailToggleButton } from '../comments/RailToggleButton'
 import '../comments/comments.css'
@@ -286,6 +287,9 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
     const view = editorRef.current?.getView()
     const section = outline[scrollRequest.index]
     if (view && section !== undefined) {
+      // a comment jump may still be holding the document at its anchor —
+      // release it before scrolling somewhere else entirely
+      cancelAnchorPin()
       view.dispatch({
         effects: EditorView.scrollIntoView(section.headingFrom, {
           y: 'start',
