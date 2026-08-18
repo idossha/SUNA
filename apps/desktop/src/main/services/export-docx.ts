@@ -1071,7 +1071,9 @@ function tableNoteParagraph(t: ExportTableContent, ctx: DocxCtx): Paragraph | nu
     runs.push(...inlineFromText(t.table.caption.body, ctx, noteStyle))
   }
   for (const note of t.table.footnotes) {
-    runs.push(textRun(`${runs.length > 0 ? ' ' : ''}${note.mark} ${note.text}`, noteStyle))
+    if (runs.length > 0) runs.push(textRun(' ', noteStyle))
+    runs.push(textRun(note.mark, { ...noteStyle, superScript: true }))
+    runs.push(textRun(` ${note.text}`, noteStyle))
   }
   if (runs.length === 0) return null
   return new Paragraph({

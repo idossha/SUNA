@@ -48,6 +48,72 @@ export interface ResolvedDocumentStyle {
 }
 
 /**
+ * One editor theme's export palette. The PDF and web-page exports render in
+ * the app's ACTIVE theme so an exported document looks like the reading tab
+ * it came from. Values MIRROR renderer/src/styles/tokens.css (the `--s-*`
+ * chrome tokens per `data-suna-theme`) — keep the two in sync by hand; the
+ * main process cannot read the renderer's stylesheet.
+ */
+export interface ExportPalette {
+  bg: string
+  ink: string
+  inkMuted: string
+  inkFaint: string
+  border: string
+  accent: string
+  link: string
+  colorScheme: 'dark' | 'light'
+}
+
+export const EXPORT_THEME_PALETTES: Record<string, ExportPalette> = {
+  'suna-dark': {
+    bg: '#1e1e26',
+    ink: '#e8e6e1',
+    inkMuted: '#a09d97',
+    inkFaint: '#6b6963',
+    border: '#3a3a45',
+    accent: '#e8b45c',
+    link: '#8ab4d8',
+    colorScheme: 'dark'
+  },
+  'suna-light': {
+    bg: '#f7f2e9',
+    ink: '#2b2620',
+    inkMuted: '#6b6257',
+    inkFaint: '#9a9184',
+    border: '#c2b8a5',
+    accent: '#8a6a2f',
+    link: '#3d6d99',
+    colorScheme: 'light'
+  },
+  gruvbox: {
+    bg: '#282828',
+    ink: '#ebdbb2',
+    inkMuted: '#bdae93',
+    inkFaint: '#928374',
+    border: '#504945',
+    accent: '#fabd2f',
+    link: '#83a598',
+    colorScheme: 'dark'
+  },
+  jellybeans: {
+    bg: '#151515',
+    ink: '#e8e8d3',
+    inkMuted: '#a8a89a',
+    inkFaint: '#888888',
+    border: '#404040',
+    accent: '#fad07a',
+    link: '#8197bf',
+    colorScheme: 'dark'
+  }
+}
+
+/** The palette for an export request's `options.theme`, or undefined for the untinted print/default look. */
+export function exportPalette(theme: string | undefined): ExportPalette | undefined {
+  return theme === undefined ? undefined : EXPORT_THEME_PALETTES[theme]
+}
+
+/**
  * The SUNA house style: US Letter, 0.5 in margins, Times New Roman 11 pt at
  * 1.15 line spacing, 14 pt bold centred title, 8 pt author line, 9 pt
  * affiliations, 13/11 pt black headings, 10 pt captions/references/table

@@ -31,7 +31,7 @@ import {
 } from './export-content'
 import { writeFileAtomic } from './atomic'
 import { projectSubdir } from './paths'
-import { resolveDocumentStyle, type ResolvedDocumentStyle } from './export-style'
+import { exportPalette, resolveDocumentStyle, type ExportPalette, type ResolvedDocumentStyle } from './export-style'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
@@ -161,6 +161,20 @@ function headingHtml(level: HeadingLevel, text: string, anchorId?: string): stri
 /** The `src` for one markdown image url, or null when it has to fall back to alt text. */
 type ImageResolver = (url: string) => string | null
 
+/**
+ * Caption text rendered INLINE. The block pipeline wraps every paragraph in
+ * `<p data-pos>`, which inside a `<figcaption>` / `<em>` splits a caption
+ * into separate left-aligned paragraphs (and is invalid nesting besides) —
+ * a caption is one run of styled text, so the wrappers come off.
+ */
+function inlineMd(md: string, resolveImage: ImageResolver): string {
+  return renderHtml(parseSciMark(md), { resolveImage })
+    .replace(/<p[^>]*>/g, '')
+    .replace(/<\/p>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 async function figuresHtml(
   content: ExportContent,
   style: ResolvedDocumentStyle,
@@ -171,11 +185,11 @@ async function figuresHtml(
   const inline = style.figurePlacement === 'inline'
   const map = new Map<string, FigureResolution>()
   for (const fig of content.figures) {
-    const titleHtml = renderHtml(parseSciMark(fig.figure.caption.title), { resolveImage })
+    const titleHtml = inlineMd(fig.figure.caption.title, resolveImage)
     const bodyHtml =
       fig.figure.caption.body.trim() === ''
         ? ''
-        : renderHtml(parseSciMark(fig.figure.caption.body), { resolveImage })
+        : inlineMd(fig.figure.caption.body, resolveImage)
     const captionHtml = `<strong>${escapeHtml(fig.label)}.</strong> ${titleHtml} ${bodyHtml}`.trim()
     if (!inline) {
       // captions-list mode: no image in the body at all; the caption renders
@@ -207,7 +221,7 @@ function tableNoteHtml(content: ExportContent, tableId: string, resolveImage: Im
   if (entry === undefined) return ''
   const parts: string[] = []
   if (entry.table.caption.body !== undefined && entry.table.caption.body.trim() !== '') {
-    parts.push(renderHtml(parseSciMark(entry.table.caption.body), { resolveImage }))
+    parts.push(inlineMd(entry.table.caption.body, resolveImage))
   }
   for (const f of entry.table.footnotes) {
     parts.push(`<sup>${escapeHtml(f.mark)}</sup> ${escapeHtml(f.text)}`)
@@ -228,7 +242,7 @@ function tablesResolutionMap(
 ): Map<string, TableResolution> {
   const map = new Map<string, TableResolution>()
   for (const t of content.tables) {
-    const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
+    const title = inlineMd(t.table.caption.title, resolveImage)
     const anchor = anchored ? `<span class="ms-anchor" id="tbl-${escapeHtml(t.table.id)}"></span>` : ''
     const captionHtml = `${anchor}<strong>${escapeHtml(t.label)}.</strong> <em>${title}</em>`
     const note = tableNoteHtml(content, t.table.id, resolveImage)
@@ -250,11 +264,11 @@ function tableEntriesHtml(
   return content.tables
     .filter((t) => !exclude.has(t.table.id))
     .map((t) => {
-      const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
+      const title = inlineMd(t.table.caption.title, resolveImage)
       const body =
         t.table.caption.body === undefined
           ? ''
-          : renderHtml(parseSciMark(t.table.caption.body), { resolveImage })
+          : inlineMd(t.table.caption.body, resolveImage)
       const footnotes =
         t.table.footnotes.length === 0
           ? ''
@@ -301,11 +315,11 @@ function figureCaptionsHtml(content: ExportContent, resolveImage: ImageResolver)
   if (content.figures.length === 0) return ''
   const rows = content.figures
     .map((fig) => {
-      const title = renderHtml(parseSciMark(fig.figure.caption.title), { resolveImage })
+      const title = inlineMd(fig.figure.caption.title, resolveImage)
       const body =
         fig.figure.caption.body.trim() === ''
           ? ''
-          : ` ${renderHtml(parseSciMark(fig.figure.caption.body), { resolveImage })}`
+          : ` ${inlineMd(fig.figure.caption.body, resolveImage)}`
       return `<p class="ms-figure-caption"><strong>${escapeHtml(fig.label)}.</strong> ${title}${body}</p>`
     })
     .join('\n')
@@ -412,14 +426,28 @@ function titlePageHtml(content: ExportContent): string {
  * treatment. The SUNA house style is the always-on base; a journal profile
  * only shifts the convention fields its guidelines state.
  */
-function pageCss(style: ResolvedDocumentStyle): string {
+function pageCss(style: ResolvedDocumentStyle, palette?: ExportPalette): string {
+  // Untinted print (black on the paper) unless the export asked for the app
+  // theme — then ink/background/rules come from the theme palette so the PDF
+  // reads like the tab it was exported from.
+  const ink = palette?.ink ?? '#000'
+  // On <html>, not <body>: the root element's background propagates to the
+  // print canvas, so the theme fills the page MARGINS too instead of leaving
+  // a white frame around the themed text box.
+  const bg = palette === undefined ? '' : `html { background: ${palette.bg}; }`
+  const err = palette === undefined ? '#a00' : '#d97b6c'
   const s = style.sizesPt
   // The printable box, which is what an image may not exceed in either axis.
   const round1 = (mm: number): number => Math.round(mm * 10) / 10
   const textHeightMm = round1(style.page.heightMm - 2 * style.page.marginMm)
   return `
   * { box-sizing: border-box; }
-  body { font-family: '${style.fonts.body}', Georgia, serif; font-size: ${s.body}pt; line-height: ${style.lineSpacing}; color: #000; margin: 0; }
+  ${bg}
+  body { font-family: '${style.fonts.body}', Georgia, serif; font-size: ${s.body}pt; line-height: ${style.lineSpacing}; color: ${ink}; margin: 0; ${
+    // Themed page: printToPDF zeroes the left/right page margins (Chromium
+    // cannot paint them) and the body carries them as padding instead.
+    palette === undefined ? '' : `padding: 0 ${style.page.marginMm}mm;`
+  } }
   .ms-titlepage { text-align: center; margin-bottom: 14pt; }
   .ms-title { font-size: ${s.title}pt; font-weight: 700; margin: 0 0 4pt; }
   .ms-authors { font-size: ${s.author}pt; margin-bottom: 6pt; }
@@ -430,8 +458,8 @@ function pageCss(style: ResolvedDocumentStyle): string {
   .ms-body { text-align: left; }
   .ms-body.ms-double p, .ms-body.ms-double li { line-height: 2; }
   .ms-body p { text-align: left; margin: 0 0 ${style.bodySpaceAfterPt}pt; }
-  .ms-h-a { font-size: ${s.heading1}pt; font-weight: 700; color:#000; margin: 12pt 0 4pt; }
-  .ms-h-b { font-size: ${s.heading2}pt; font-weight: 700; color:#000; margin: 8pt 0 4pt; }
+  .ms-h-a { font-size: ${s.heading1}pt; font-weight: 700; color: ${ink}; margin: 12pt 0 4pt; }
+  .ms-h-b { font-size: ${s.heading2}pt; font-weight: 700; color: ${ink}; margin: 8pt 0 4pt; }
   .ms-h-c { font-weight: 700; font-style: italic; margin: 8pt 0 0; }
   .ms-h-box { font-size: ${s.heading2}pt; font-weight: 700; font-style: italic; margin-top: 12pt; }
   figure.figure { margin: 6pt 0 12pt; text-align: center; }
@@ -441,7 +469,7 @@ function pageCss(style: ResolvedDocumentStyle): string {
   .table-block { margin: 8pt auto 12pt; width: fit-content; max-width: 100%; }
   .table-block table { margin-inline: 0; }
   .table-caption { font-size: ${s.caption}pt; margin: 0 0 2pt; }
-  .table-caption--unresolved { color: #a00; }
+  .table-caption--unresolved { color: ${err}; }
   .table-note { font-size: ${s.caption}pt; font-style: italic; margin: 2pt 0 0; }
   /* caption/note stay inline with the table: they fill (and wrap at) the
      table's width without contributing to the block's fit-content size */
@@ -450,14 +478,14 @@ function pageCss(style: ResolvedDocumentStyle): string {
   .ms-ref { font-size: ${s.reference}pt; margin: 0 0 4pt 0; padding-left: ${style.referenceHangingMm}mm; text-indent: -${style.referenceHangingMm}mm; }
   ${style.referencesStartNewPage ? '.ms-references { page-break-before: always; }' : ''}
   .ms-ref-num { font-weight: 600; }
-  .ms-ref-flag { color: #a00; }
+  .ms-ref-flag { color: ${err}; }
   .ms-figure-caption { font-size: ${s.caption}pt; }
   table { border-collapse: collapse; margin: 8pt auto; width: auto; max-width: 100%; }
   th, td { border: 0; padding: 2pt 3pt; font-size: ${s.tableCell}pt; text-align: start; }
   th:not([style]), td:not([style]) { text-align: center; }
   td:first-child:not([style]) { text-align: left; }
-  thead th { border-top: 1pt solid #000; border-bottom: 1pt solid #000; font-weight: 700; }
-  tbody tr:last-child td { border-bottom: 1pt solid #000; }
+  thead th { border-top: 1pt solid ${ink}; border-bottom: 1pt solid ${ink}; font-weight: 700; }
+  tbody tr:last-child td { border-bottom: 1pt solid ${ink}; }
   .ms-table-entry { margin-bottom: 10pt; }
   .ms-table-footnotes { font-size: ${s.caption}pt; margin: 2pt 0 0; padding-left: 1.2em; }
 `
@@ -467,6 +495,8 @@ export interface BuildHtmlOptions {
   doubleSpacing: boolean
   /** Reserves the left gutter export-pdf.ts's line-number injection writes into; ignored otherwise. */
   lineNumbers: boolean
+  /** The app's active editor theme; when it names a known palette the page renders in it. */
+  theme?: string
 }
 
 export async function buildManuscriptHtml(
@@ -531,7 +561,7 @@ export async function buildManuscriptHtml(
   return `<!doctype html>
 <html><head><meta charset="utf-8">
 <link rel="stylesheet" href="katex.min.css">
-<style>${pageCss(style)}</style>
+<style>${pageCss(style, exportPalette(options.theme))}</style>
 </head>
 <body>
 <div class="ms-page">
@@ -694,7 +724,7 @@ export async function buildSupplementHtml(content: ExportContent, options: Build
   return `<!doctype html>
 <html><head><meta charset="utf-8">
 <link rel="stylesheet" href="katex.min.css">
-<style>${pageCss(style)}${supplementCss(style)}</style>
+<style>${pageCss(style, exportPalette(options.theme))}${supplementCss(style)}</style>
 </head>
 <body>
 <div class="ms-page">
@@ -759,8 +789,24 @@ async function withInlineKatex(html: string): Promise<string> {
  * block, quiet small-caps section labels, and the tab's reference-row shape.
  * Values are copied, not invented — change them there first.
  */
-function readerCss(): string {
-  return `
+function readerCss(palette?: ExportPalette): string {
+  // With a palette the page is pinned to the app's active theme — an export
+  // of a gruvbox project IS gruvbox, whatever the viewer's OS scheme says.
+  // Without one (older callers), the historical auto light/dark pair stands.
+  const rootVars =
+    palette !== undefined
+      ? `
+  :root {
+    --r-bg: ${palette.bg};
+    --r-ink: ${palette.ink};
+    --r-ink-muted: ${palette.inkMuted};
+    --r-ink-faint: ${palette.inkFaint};
+    --r-border: ${palette.border};
+    --r-accent: ${palette.accent};
+    --r-link: ${palette.link};
+    color-scheme: ${palette.colorScheme};
+  }`
+      : `
   :root {
     --r-bg: #1e1e26;
     --r-ink: #e8e6e1;
@@ -782,7 +828,9 @@ function readerCss(): string {
       --r-link: #3d6d99;
       color-scheme: light;
     }
-  }
+  }`
+  return `
+  ${rootVars}
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
@@ -898,11 +946,11 @@ function readerTablesHtml(content: ExportContent, resolveImage: ImageResolver): 
   const entries = content.tables
     .filter((t) => !exclude.has(t.table.id))
     .map((t) => {
-      const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
+      const title = inlineMd(t.table.caption.title, resolveImage)
       const body =
         t.table.caption.body === undefined
           ? ''
-          : renderHtml(parseSciMark(t.table.caption.body), { resolveImage })
+          : inlineMd(t.table.caption.body, resolveImage)
       const footnotes =
         t.table.footnotes.length === 0
           ? ''
@@ -944,7 +992,7 @@ function readerBackMatterHtml(content: ExportContent, resolvers: BodyResolvers):
  *   profile's figurePlacement/tablePlacement submission conventions do not
  *   apply here.
  */
-export async function buildReaderHtml(content: ExportContent): Promise<string> {
+export async function buildReaderHtml(content: ExportContent, theme?: string): Promise<string> {
   const m = content.manuscript
   const imageMap = await markdownImages(content)
   const resolveImage: ImageResolver = (url) => imageMap.get(url) ?? null
@@ -952,11 +1000,11 @@ export async function buildReaderHtml(content: ExportContent): Promise<string> {
   const figureMap = new Map<string, FigureResolution>()
   for (const fig of content.figures) {
     const dataUri = await imageDataUri(fig.pngPath)
-    const titleHtml = renderHtml(parseSciMark(fig.figure.caption.title), { resolveImage })
+    const titleHtml = inlineMd(fig.figure.caption.title, resolveImage)
     const bodyHtml =
       fig.figure.caption.body.trim() === ''
         ? ''
-        : renderHtml(parseSciMark(fig.figure.caption.body), { resolveImage })
+        : inlineMd(fig.figure.caption.body, resolveImage)
     // The empty anchor span inside the caption is the cross-ref jump target —
     // renderHtml owns the <figure> element, so the id rides in with the caption.
     const captionHtml =
@@ -1030,7 +1078,7 @@ export async function buildReaderHtml(content: ExportContent): Promise<string> {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(plainTitle)}</title>
 <style>${await inlineKatexCss()}</style>
-<style>${readerCss()}</style>
+<style>${readerCss(exportPalette(theme))}</style>
 </head>
 <body>
 <div class="ms-page">
@@ -1080,8 +1128,10 @@ export async function exportHtml(req: ExportHtmlRequest): Promise<ExportHtmlResu
   const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
   const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
   const html = supplement
-    ? await withInlineKatex(await buildSupplementHtml(content, { doubleSpacing: false, lineNumbers: false }))
-    : await buildReaderHtml(content)
+    ? await withInlineKatex(
+        await buildSupplementHtml(content, { doubleSpacing: false, lineNumbers: false, theme: req.options.theme })
+      )
+    : await buildReaderHtml(content, req.options.theme)
   const outputDir = await projectSubdir(root, 'output')
   const target = join(outputDir, `${req.outputName}.html`)
   await writeFileAtomic(target, html)

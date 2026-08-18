@@ -5,6 +5,7 @@ import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
 import { resolvePreviewProfileId } from '../state/renderProfile'
+import { useEditorSettings } from '../editor/settings'
 import { rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
 import { RequirementsPanel } from './RequirementsPanel'
@@ -206,7 +207,9 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
         profileId,
         outputName: outputName.trim(),
         figurePngPaths,
-        options: { doubleSpacing, lineNumbers, pageNumbers },
+        // The active editor theme rides along so the PDF / web page render in
+        // the look the project is being written in (DOCX ignores it).
+        options: { doubleSpacing, lineNumbers, pageNumbers, theme: useEditorSettings.getState().editorTheme },
         target
       }
       const channel = format === 'docx' ? ('export:docx' as const) : format === 'pdf' ? ('export:pdf' as const) : ('export:html' as const)
