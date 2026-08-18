@@ -138,7 +138,7 @@ The millimetre figures come from your active journal profile; those are the fall
 Despite sitting under the "Journal-spec raster" heading, the Width dropdown and the Transparent background checkbox apply to PDF export too: the PDF page is sized to the chosen width in mm, with the height from the SVG's aspect ratio, and prints a white background unless Transparent is checked. Only SVG ignores both — it is a byte-for-byte copy of the source file.
 :::
 
-Exports land in the project's `output/` directory as `<figureId>.<format>`. PDF is true vector. PNG and TIFF are rasterised at exactly the pixel size shown. TIFF is baseline uncompressed RGBA, 8 bits per sample, with the chosen dpi written into the file's resolution tags.
+Exports land in the project's `output/figures/` directory as `<figureId>.<format>`. PDF is true vector. PNG and TIFF are rasterised at exactly the pixel size shown. TIFF is baseline uncompressed RGBA, 8 bits per sample, with the chosen dpi written into the file's resolution tags.
 
 Every export saves the figure first, so the file you get always matches what is on the canvas. A failure reports `<FORMAT> export failed: <message>`.
 

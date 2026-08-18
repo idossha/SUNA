@@ -7,7 +7,7 @@ import { figureDirPath, projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
- * Figure export into the project's output/ dir.
+ * Figure export into the project's output/figures/ dir.
  * - 'svg' is a byte-identical copy of the source.
  * - 'pdf' is vector: a hidden window sized to the artboard in mm → printToPDF.
  * - 'png'/'tiff' are rasterized in the RENDERER (Image → canvas at the exact
@@ -30,14 +30,18 @@ export interface FigureExportResult {
   heightPx: number
 }
 
-/** Path the renderer should hand to 'figure:write-binary' for raster formats. */
+/**
+ * Path the renderer should hand to 'figure:write-binary' for raster formats.
+ * Exports land in `output/figures/`, not flat in `output/`, so a project's
+ * rendered figures stay separable from its manuscript exports.
+ */
 export async function figureExportPath(
   dir: string,
   figureId: string,
   format: FigureExportRequest['format']
 ): Promise<string> {
   const outputDir = await projectSubdir(assertInsideAllowedRoot(dir), 'output')
-  return join(outputDir, `${figureId}.${format}`)
+  return join(outputDir, 'figures', `${figureId}.${format}`)
 }
 
 function stripXmlPrologue(svg: string): string {
