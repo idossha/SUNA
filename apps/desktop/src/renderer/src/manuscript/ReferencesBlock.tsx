@@ -13,7 +13,13 @@ import { peekDocSessionText } from '../state/docSessions'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
 import { usePreviewProfileId } from '../state/renderProfile'
 import { citeStyleOf, maxAuthorsFor } from '../views/refs'
-import { buildLabelMap, collectClusters, orderedReferences, type ReferenceRow } from './citations'
+import {
+  buildLabelMap,
+  collectClusters,
+  orderByEmbedAppearance,
+  orderedReferences,
+  type ReferenceRow
+} from './citations'
 
 function RunSpans({ runs }: { runs: readonly Run[] }): JSX.Element {
   return (
@@ -124,7 +130,13 @@ export function ReferencesBlock({
         orderedReferences(numbers, entryMap, profile.citations.referenceList.sortOrder)
       )
       setBibError(bibProblem)
-      const labels = buildLabelMap(figures, tables, sections)
+      // Numbering follows the prose: first-embed order wins, manifest order
+      // only for anything never embedded — same rule as the exporters.
+      const labels = buildLabelMap(
+        orderByEmbedAppearance(figures, proseText, 'fig'),
+        orderByEmbedAppearance(tables, proseText, 'tbl'),
+        sections
+      )
       // share numbering + style + labels so the editor resolves its
       // citation and cross-reference chips the same way
       useManuscriptDocStore.getState().publishCitationRender({

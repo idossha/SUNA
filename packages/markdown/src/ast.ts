@@ -20,6 +20,11 @@ export interface FigureEmbedNode extends Node {
   figureId: string;
 }
 
+export interface TableEmbedNode extends Node {
+  type: 'tableEmbed';
+  tableId: string;
+}
+
 export interface RawLatexNode extends Literal {
   type: 'rawLatex';
 }
@@ -32,6 +37,7 @@ declare module 'mdast' {
 
   interface BlockContentMap {
     figureEmbed: FigureEmbedNode;
+    tableEmbed: TableEmbedNode;
     rawLatex: RawLatexNode;
   }
 
@@ -39,6 +45,7 @@ declare module 'mdast' {
     citation: CitationNode;
     crossRef: CrossRefNode;
     figureEmbed: FigureEmbedNode;
+    tableEmbed: TableEmbedNode;
     rawLatex: RawLatexNode;
   }
 

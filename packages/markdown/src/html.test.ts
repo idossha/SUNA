@@ -97,6 +97,51 @@ describe('figure embeds', () => {
   });
 });
 
+describe('table embeds', () => {
+  const TABLE_MD = '| a | b |\n| --- | --- |\n| 1 | 2 |';
+
+  it('renders an unresolved caption block over the table it precedes', () => {
+    const html = render(`![[tbl:x]]\n\n${TABLE_MD}`);
+    expect(html).toContain('<div class="table-block" data-table-id="x"');
+    expect(html).toContain('<p class="table-caption table-caption--unresolved">tbl:x</p>');
+    expect(html).toContain('<table');
+    // the table renders inside the block, not as a second sibling
+    expect(html.indexOf('<table')).toBeGreaterThan(html.indexOf('table-caption'));
+    expect(html.match(/<table/g)).toHaveLength(1);
+  });
+
+  it('renders caption above and note below via resolveTable', () => {
+    const html = render(`![[tbl:x]]\n\n${TABLE_MD}`, {
+      resolveTable: (tableId) => ({
+        captionHtml: `<strong>Table 1.</strong> <em>Metrics for ${tableId}.</em>`,
+        noteHtml: '<em class="ms-note-label">Note.</em> Values are means.',
+      }),
+    });
+    expect(html).toContain('<p class="table-caption"><strong>Table 1.</strong> <em>Metrics for x.</em></p>');
+    expect(html).toContain('<p class="table-note"><em class="ms-note-label">Note.</em> Values are means.</p>');
+    const captionAt = html.indexOf('table-caption');
+    const tableAt = html.indexOf('<table');
+    const noteAt = html.indexOf('table-note');
+    expect(captionAt).toBeLessThan(tableAt);
+    expect(tableAt).toBeLessThan(noteAt);
+  });
+
+  it('renders a caption-only block when no table follows the embed', () => {
+    const html = render('![[tbl:x]]\n\nSome prose.', {
+      resolveTable: () => ({ captionHtml: '<strong>Table 1.</strong> <em>T.</em>' }),
+    });
+    expect(html).toContain('<div class="table-block" data-table-id="x"');
+    expect(html).not.toContain('<table');
+    expect(html).toContain('<p data-pos="3-3">Some prose.</p>');
+  });
+
+  it('leaves a bare markdown table untouched', () => {
+    const html = render(TABLE_MD, { resolveTable: () => ({ captionHtml: 'x' }) });
+    expect(html).not.toContain('table-block');
+    expect(html).toContain('<table');
+  });
+});
+
 describe('images', () => {
   it('renders a markdown image with the shared class and the url as written', () => {
     const html = render('![a](b.png)');

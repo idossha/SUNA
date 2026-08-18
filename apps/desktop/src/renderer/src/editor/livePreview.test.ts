@@ -40,6 +40,44 @@ describe('extractSpans', () => {
     expect(source.slice(block.from, block.to)).toBe('![[fig:overview]]')
   })
 
+  it('numbers figure embeds by first appearance, repeats sharing a number', () => {
+    const { blocks } = extractSpans('![[fig:a]]\n\n![[fig:b]]\n\n![[fig:a]]\n')
+    const numbers = blocks.map((b) => (b.kind === 'figure' ? [b.figureId, b.number] : null))
+    expect(numbers).toEqual([
+      ['a', 1],
+      ['b', 2],
+      ['a', 1]
+    ])
+  })
+
+  it('merges a ![[tbl:id]] embed with the table under it into one numbered table span', () => {
+    const source = 'Intro.\n\n![[tbl:demo]]\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\nMore.\n'
+    const { blocks } = extractSpans(source)
+    expect(blocks).toHaveLength(1)
+    const block = blocks[0]
+    if (block?.kind !== 'table') throw new Error('expected table span')
+    expect(block.tableId).toBe('demo')
+    expect(block.number).toBe(1)
+    // the merged span covers the embed line through the table's end
+    expect(source.slice(block.from, block.to).startsWith('![[tbl:demo]]')).toBe(true)
+    expect(source.slice(block.from, block.to).endsWith('| 1 | 2 |')).toBe(true)
+  })
+
+  it('keeps a lone ![[tbl:id]] embed as its own numbered span', () => {
+    const { blocks } = extractSpans('![[tbl:solo]]\n\nProse only.\n')
+    const block = blocks[0]
+    if (block?.kind !== 'tableEmbed') throw new Error('expected tableEmbed span')
+    expect(block.tableId).toBe('solo')
+    expect(block.number).toBe(1)
+  })
+
+  it('leaves a bare markdown table without an id or number', () => {
+    const { blocks } = extractSpans('| a |\n| --- |\n| 1 |\n')
+    const block = blocks[0]
+    if (block?.kind !== 'table') throw new Error('expected table span')
+    expect(block.tableId).toBeUndefined()
+  })
+
   it('finds a markdown image as a block span, with its url and alt', () => {
     const source = 'Intro.\n\n![A spectrum](images/plot.png)\n\nMore.\n'
     const { blocks } = extractSpans(source)

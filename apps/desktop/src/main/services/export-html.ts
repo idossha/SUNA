@@ -2,7 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, extname, join } from 'node:path'
 import katex from 'katex'
-import { parseSciMark, renderHtml, type CrossRefKind, type FigureResolution, type SciMarkRoot } from '@suna/markdown'
+import {
+  parseSciMark,
+  renderHtml,
+  type CrossRefKind,
+  type FigureResolution,
+  type SciMarkRoot,
+  type TableResolution
+} from '@suna/markdown'
 import { renderCluster, type Run } from '@suna/bib'
 import type { ExportOptions, HeadingLevel } from '@suna/core'
 import {
@@ -10,6 +17,7 @@ import {
   buildExportContent,
   buildSupplementContent,
   collectMarkdownImages,
+  collectTableEmbeds,
   collectTables,
   formatReferenceRow,
   isNumericCitationMode,
@@ -189,8 +197,58 @@ async function figuresHtml(
   return map
 }
 
-function tableEntriesHtml(content: ExportContent, resolveImage: ImageResolver): string {
+/**
+ * The "Note." line under a table: caption body first, then the superscript
+ * footnotes, all one italic run (the SUNA standard; see the table-note CSS).
+ * Empty string when the table has neither.
+ */
+function tableNoteHtml(content: ExportContent, tableId: string, resolveImage: ImageResolver): string {
+  const entry = content.tables.find((t) => t.table.id === tableId)
+  if (entry === undefined) return ''
+  const parts: string[] = []
+  if (entry.table.caption.body !== undefined && entry.table.caption.body.trim() !== '') {
+    parts.push(renderHtml(parseSciMark(entry.table.caption.body), { resolveImage }))
+  }
+  for (const f of entry.table.footnotes) {
+    parts.push(`<sup>${escapeHtml(f.mark)}</sup> ${escapeHtml(f.text)}`)
+  }
+  if (parts.length === 0) return ''
+  return `<em class="ms-note-label">Note.</em> ${parts.join(' ')}`
+}
+
+/**
+ * `![[tbl:id]]` resolutions for a body render: bold derived "Table N." label,
+ * italic title above the table, "Note." below. `anchored` adds the in-page
+ * cross-ref jump target the reader/web page links to.
+ */
+function tablesResolutionMap(
+  content: ExportContent,
+  resolveImage: ImageResolver,
+  anchored: boolean
+): Map<string, TableResolution> {
+  const map = new Map<string, TableResolution>()
+  for (const t of content.tables) {
+    const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
+    const anchor = anchored ? `<span class="ms-anchor" id="tbl-${escapeHtml(t.table.id)}"></span>` : ''
+    const captionHtml = `${anchor}<strong>${escapeHtml(t.label)}.</strong> <em>${title}</em>`
+    const note = tableNoteHtml(content, t.table.id, resolveImage)
+    map.set(t.table.id, note === '' ? { captionHtml } : { captionHtml, noteHtml: note })
+  }
+  return map
+}
+
+/** Table ids the prose embeds via `![[tbl:id]]` — those render in place, not in the trailing section. */
+function embeddedTableIds(content: ExportContent): Set<string> {
+  return new Set(content.sections.flatMap((s) => (s.root === null ? [] : collectTableEmbeds(s.root))))
+}
+
+function tableEntriesHtml(
+  content: ExportContent,
+  resolveImage: ImageResolver,
+  exclude: ReadonlySet<string> = new Set()
+): string {
   return content.tables
+    .filter((t) => !exclude.has(t.table.id))
     .map((t) => {
       const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
       const body =
@@ -208,10 +266,15 @@ function tableEntriesHtml(content: ExportContent, resolveImage: ImageResolver): 
     .join('\n')
 }
 
-/** The pre-references "Tables" section (`tablePlacement: 'inline'`): manuscript.json captions only. */
+/**
+ * The pre-references "Tables" section (`tablePlacement: 'inline'`): captions
+ * of the managed tables the prose does NOT embed — embedded ones render in
+ * place, caption above and note below.
+ */
 function tablesHtml(content: ExportContent, resolveImage: ImageResolver): string {
-  if (content.tables.length === 0) return ''
-  return `<section class="ms-tables"><h2 class="ms-h-a">Tables</h2>${tableEntriesHtml(content, resolveImage)}</section>`
+  const exclude = embeddedTableIds(content)
+  if (content.tables.every((t) => exclude.has(t.table.id))) return ''
+  return `<section class="ms-tables"><h2 class="ms-h-a">Tables</h2>${tableEntriesHtml(content, resolveImage, exclude)}</section>`
 }
 
 interface BodyResolvers {
@@ -372,8 +435,17 @@ function pageCss(style: ResolvedDocumentStyle): string {
   .ms-h-c { font-weight: 700; font-style: italic; margin: 8pt 0 0; }
   .ms-h-box { font-size: ${s.heading2}pt; font-weight: 700; font-style: italic; margin-top: 12pt; }
   figure.figure { margin: 6pt 0 12pt; text-align: center; }
-  figure.figure figcaption { font-size: ${s.caption}pt; text-align: center; margin-top: 4pt; }
+  figure.figure figcaption { font-size: ${s.caption}pt; text-align: center; margin-top: 4pt; font-style: italic; }
+  figure.figure figcaption strong { font-style: normal; }
   figure.figure figcaption .ms-caption-body { font-style: italic; }
+  .table-block { margin: 8pt auto 12pt; width: fit-content; max-width: 100%; }
+  .table-block table { margin-inline: 0; }
+  .table-caption { font-size: ${s.caption}pt; margin: 0 0 2pt; }
+  .table-caption--unresolved { color: #a00; }
+  .table-note { font-size: ${s.caption}pt; font-style: italic; margin: 2pt 0 0; }
+  /* caption/note stay inline with the table: they fill (and wrap at) the
+     table's width without contributing to the block's fit-content size */
+  .table-block .table-caption, .table-block .table-note { width: 0; min-width: 100%; }
   img.md-image, .ms-body img, figure.figure img { display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: ${textHeightMm}mm; }
   .ms-ref { font-size: ${s.reference}pt; margin: 0 0 4pt 0; padding-left: ${style.referenceHangingMm}mm; text-indent: -${style.referenceHangingMm}mm; }
   ${style.referencesStartNewPage ? '.ms-references { page-break-before: always; }' : ''}
@@ -429,6 +501,8 @@ export async function buildManuscriptHtml(
   }
 
   const resolveFigure = (figureId: string): FigureResolution => figureMap.get(figureId) ?? {}
+  const tableMap = tablesResolutionMap(content, resolveImage, false)
+  const resolveTable = (tableId: string): TableResolution => tableMap.get(tableId) ?? {}
   const resolvers: BodyResolvers = { resolveCitation, resolveCrossRef, resolveImage }
 
   const tablesAtEnd = style.tablePlacement === 'end'
@@ -447,7 +521,7 @@ export async function buildManuscriptHtml(
           : tablesAtEnd
             ? ({ ...section.root, children: withoutTables(section.root.children) } as SciMarkRoot)
             : section.root
-      const body = root === null ? '' : renderHtml(root, { ...resolvers, resolveFigure })
+      const body = root === null ? '' : renderHtml(root, { ...resolvers, resolveFigure, resolveTable })
       return `${heading}\n${body}`
     })
     .join('\n')
@@ -751,8 +825,15 @@ function readerCss(): string {
   .ms-anchor { position: relative; top: -8px; }
   figure.figure { margin: 1.6em 0 2em; text-align: center; }
   figure.figure img { max-width: 100%; height: auto; }
-  figure.figure figcaption { margin-top: 0.6em; font-size: 0.88em; text-align: left; color: var(--r-ink-muted); }
-  figure.figure figcaption strong { color: var(--r-ink); }
+  figure.figure figcaption { margin-top: 0.6em; font-size: 0.88em; text-align: center; font-style: italic; color: var(--r-ink-muted); }
+  figure.figure figcaption strong { color: var(--r-ink); font-style: normal; }
+  .table-block { margin: 1.2em auto 1.6em; width: fit-content; max-width: 100%; }
+  .table-block table { margin-inline: 0; }
+  .table-block .table-caption, .table-block .table-note { width: 0; min-width: 100%; }
+  .table-caption { font-size: 0.92em; margin: 0 0 0.2em; }
+  .table-caption--unresolved { color: #d97b6c; }
+  .table-note { font-size: 0.85em; font-style: italic; color: var(--r-ink-muted); margin: 0.2em 0 0; }
+  .table-block:has(.ms-anchor:target) { outline: 1px solid var(--r-accent); outline-offset: 6px; border-radius: 2px; }
   img.md-image { display: block; margin: 1em auto; max-width: 100%; height: auto; }
   table { border-collapse: collapse; margin: 1.2em auto; }
   th, td { border: 0; padding: 4px 10px; font-size: 0.9em; }
@@ -810,10 +891,12 @@ function readerReferencesHtml(content: ExportContent): string {
   return `<section class="ms-references"><div class="ms-label">References</div>${rows}</section>`
 }
 
-/** The managed (caption-only) tables, each entry an id'd cross-ref target. */
+/** The managed tables the prose does not embed, each entry an id'd cross-ref target. */
 function readerTablesHtml(content: ExportContent, resolveImage: ImageResolver): string {
-  if (content.tables.length === 0) return ''
+  const exclude = embeddedTableIds(content)
+  if (content.tables.every((t) => exclude.has(t.table.id))) return ''
   const entries = content.tables
+    .filter((t) => !exclude.has(t.table.id))
     .map((t) => {
       const title = renderHtml(parseSciMark(t.table.caption.title), { resolveImage })
       const body =
@@ -908,12 +991,15 @@ export async function buildReaderHtml(content: ExportContent): Promise<string> {
   }
 
   const resolveFigure = (figureId: string): FigureResolution => figureMap.get(figureId) ?? {}
+  const tableMap = tablesResolutionMap(content, resolveImage, true)
+  const resolveTable = (tableId: string): TableResolution => tableMap.get(tableId) ?? {}
   const resolvers: BodyResolvers = { resolveCitation, resolveCrossRef, resolveImage }
 
   const sectionsHtml = content.sections
     .map((section) => {
       const heading = section.heading !== null ? headingHtml(section.level, section.heading) : ''
-      const body = section.root === null ? '' : renderHtml(section.root, { ...resolvers, resolveFigure })
+      const body =
+        section.root === null ? '' : renderHtml(section.root, { ...resolvers, resolveFigure, resolveTable })
       return `${heading}\n${body}`
     })
     .join('\n')

@@ -9,7 +9,7 @@ import type {
   Table,
 } from 'mdast';
 import { visit } from 'unist-util-visit';
-import type { CrossRefKind, FigureEmbedNode, SciMarkRoot } from './ast';
+import type { CrossRefKind, FigureEmbedNode, SciMarkRoot, TableEmbedNode } from './ast';
 
 export interface FigureResolution {
   svgHtml?: string;
@@ -17,10 +17,22 @@ export interface FigureResolution {
   captionHtml?: string;
 }
 
+/**
+ * What a `![[tbl:id]]` embed renders as, resolved from the manuscript's
+ * managed table list. `captionHtml` is the full caption line ("Table N." label
+ * included, the caller derives the number at format time); `noteHtml` is the
+ * "Note. …" line that renders in italics below the table.
+ */
+export interface TableResolution {
+  captionHtml?: string;
+  noteHtml?: string;
+}
+
 export interface RenderOptions {
   resolveCitation?: (keys: string[], narrative: boolean) => string;
   resolveCrossRef?: (kind: CrossRefKind, id: string, suffix?: string) => string;
   resolveFigure?: (figureId: string) => FigureResolution;
+  resolveTable?: (tableId: string) => TableResolution;
   /**
    * The `src` to give a markdown image, so a caller that can reach the file
    * system (the export path) can inline the bytes this package must not read.
@@ -42,10 +54,31 @@ export function renderHtml(root: SciMarkRoot, options: RenderOptions = {}): stri
     definitions.set(node.identifier, node);
   });
   const ctx: RenderContext = { options, definitions };
-  return root.children
-    .map((child) => renderNode(child, ctx))
-    .filter((html) => html.length > 0)
-    .join('\n');
+  return renderSiblings(root.children, ctx).join('\n');
+}
+
+/**
+ * Render a run of block siblings, pairing each `![[tbl:id]]` embed with the
+ * table that immediately follows it: the pair renders as one captioned block
+ * (caption above, "Note." below), the SUNA standard for tables. An embed with
+ * no following table still renders its caption block — the caption-only
+ * convention some journal submission formats use.
+ */
+function renderSiblings(children: readonly RootContent[], ctx: RenderContext): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < children.length; i += 1) {
+    const child = children[i] as RootContent;
+    if (child.type === 'tableEmbed') {
+      const next = children[i + 1];
+      const tableHtml = next !== undefined && next.type === 'table' ? renderTable(next, ctx) : '';
+      if (tableHtml.length > 0) i += 1;
+      out.push(renderTableEmbed(child, tableHtml, ctx));
+      continue;
+    }
+    const html = renderNode(child, ctx);
+    if (html.length > 0) out.push(html);
+  }
+  return out;
 }
 
 function escapeHtml(value: string): string {
@@ -67,10 +100,7 @@ function renderChildren(children: readonly RootContent[], ctx: RenderContext): s
 }
 
 function renderBlockChildren(children: readonly RootContent[], ctx: RenderContext): string {
-  return children
-    .map((child) => renderNode(child, ctx))
-    .filter((html) => html.length > 0)
-    .join('\n');
+  return renderSiblings(children, ctx).join('\n');
 }
 
 function renderMath(value: string, displayMode: boolean): string {
@@ -106,6 +136,22 @@ function renderFigureEmbed(node: FigureEmbedNode, ctx: RenderContext): string {
     parts.push(`<figcaption>${numberHtml}${captionHtml ?? ''}</figcaption>`);
   }
   return `<figure class="figure" data-figure-id="${idAttr}"${posAttr(node)}>${parts.join('')}</figure>`;
+}
+
+function renderTableEmbed(node: TableEmbedNode, tableHtml: string, ctx: RenderContext): string {
+  const idAttr = escapeHtml(node.tableId);
+  const resolution = ctx.options.resolveTable?.(node.tableId);
+  const parts: string[] = [];
+  if (resolution?.captionHtml !== undefined) {
+    parts.push(`<p class="table-caption">${resolution.captionHtml}</p>`);
+  } else {
+    parts.push(`<p class="table-caption table-caption--unresolved">${escapeHtml(`tbl:${node.tableId}`)}</p>`);
+  }
+  if (tableHtml.length > 0) parts.push(tableHtml);
+  if (resolution?.noteHtml !== undefined) {
+    parts.push(`<p class="table-note">${resolution.noteHtml}</p>`);
+  }
+  return `<div class="table-block" data-table-id="${idAttr}"${posAttr(node)}>${parts.join('')}</div>`;
 }
 
 function renderImage(
@@ -265,6 +311,10 @@ function renderNode(node: RootContent, ctx: RenderContext): string {
       return renderCrossRef(node.kind, node.id, node.suffix, ctx);
     case 'figureEmbed':
       return renderFigureEmbed(node, ctx);
+    case 'tableEmbed':
+      // Reached only when the embed is not a direct sibling of its table
+      // (renderSiblings pairs those); render the caption block alone.
+      return renderTableEmbed(node, '', ctx);
     case 'rawLatex':
       return `<!-- scimark:raw-latex omitted in HTML preview -->`;
     default: {

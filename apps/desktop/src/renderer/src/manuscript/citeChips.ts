@@ -290,7 +290,13 @@ export function applyFigureCaptions(
     if (caption === null) continue
     if (caption.dataset['sunaFigSig'] === signature) continue
     const { text, numbered } = figureCaptionText(id, render)
-    if (caption.textContent !== text) caption.textContent = text
+    // Only the bold label is swapped for the profile-worded one ("Fig. 1.");
+    // the italic caption title beside it (FigureWidget's <em>, filled from
+    // figure.json) stays — the SUNA caption standard is label + caption.
+    const label = caption.querySelector<HTMLElement>('strong')
+    if (label !== null && numbered && label.textContent !== `${text}.`) {
+      label.textContent = `${text}.`
+    }
     caption.classList.toggle('cm-lp-figure__caption--numbered', numbered)
     caption.dataset['sunaFigSig'] = signature
   }

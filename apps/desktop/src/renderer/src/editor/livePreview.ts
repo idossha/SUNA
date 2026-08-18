@@ -24,6 +24,12 @@ import {
   resolveImageUrl,
   type FigureAsset
 } from './figureAssets'
+import {
+  loadFigureCaptionTitle,
+  loadTableCaption,
+  saveFigureCaptionTitle,
+  saveTableCaption
+} from './captionMeta'
 
 /**
  * Where the editor's images live. Carried in a facet rather than closed over
@@ -67,15 +73,22 @@ export const livePreviewConfigFacet = Facet.define<LivePreviewConfig, LivePrevie
 export type LiveSpan =
   | { kind: 'blockMath'; from: number; to: number; tex: string; label: string | undefined }
   | { kind: 'inlineMath'; from: number; to: number; tex: string }
-  | { kind: 'figure'; from: number; to: number; figureId: string }
+  | { kind: 'figure'; from: number; to: number; figureId: string; number: number }
   /**
    * A markdown image written in the prose: ![alt](url). `width` is the CSS
    * length from a `{width=…}` attribute block, which the parser has already
    * folded into [from,to) — so replacing the span hides the braces too.
    */
   | { kind: 'image'; from: number; to: number; url: string; alt: string; width: string | undefined }
-  /** GFM table block; `md` is the raw source, re-rendered by the widget. */
-  | { kind: 'table'; from: number; to: number; md: string }
+  /**
+   * GFM table block; `md` is the raw source, re-rendered by the widget.
+   * `tableId`/`number` are present when a `![[tbl:id]]` embed line directly
+   * precedes the table (the merged span covers both): the widget then renders
+   * the SUNA-standard caption above the table and the "Note." line below it.
+   */
+  | { kind: 'table'; from: number; to: number; md: string; tableId?: string; number?: number }
+  /** A `![[tbl:id]]` embed with no table under it — renders its caption block alone. */
+  | { kind: 'tableEmbed'; from: number; to: number; tableId: string; number: number }
   | { kind: 'cite'; from: number; to: number; keys: string[] }
   | {
       kind: 'xref'
@@ -138,6 +151,7 @@ interface MdNode {
   meta?: string | null
   depth?: number
   figureId?: string
+  tableId?: string
   url?: string
   alt?: string | null
   data?: { width?: string }
@@ -322,7 +336,15 @@ export function extractSpans(source: string): SpanIndex {
       }
       case 'figureEmbed': {
         if (range && node.figureId !== undefined) {
-          blocks.push({ kind: 'figure', from: range.from, to: range.to, figureId: node.figureId })
+          // number is assigned by numberEmbedSpans once every block is known.
+          blocks.push({ kind: 'figure', from: range.from, to: range.to, figureId: node.figureId, number: 0 })
+          exclude.push(range)
+        }
+        return
+      }
+      case 'tableEmbed': {
+        if (range && node.tableId !== undefined) {
+          blocks.push({ kind: 'tableEmbed', from: range.from, to: range.to, tableId: node.tableId, number: 0 })
           exclude.push(range)
         }
         return
@@ -578,7 +600,52 @@ export function extractSpans(source: string): SpanIndex {
   inline.sort(byFrom)
   marks.sort(byFrom)
   lines.sort((a, b) => a.at - b.at)
-  return { blocks, inline, marks, lines }
+  return { blocks: pairAndNumberEmbeds(blocks, source), inline, marks, lines }
+}
+
+/**
+ * (1) Merge each `tableEmbed` span with the table block directly under it
+ * (whitespace-only gap) into ONE table span carrying the id, so the widget
+ * renders caption + table + note as a single captioned block — mirroring
+ * @suna/markdown's renderSiblings pairing exactly. (2) Assign the derived
+ * numbers: figures and tables numbered by first appearance of their id in the
+ * document (numbering is derived at render time, never stored).
+ */
+function pairAndNumberEmbeds(blocks: LiveSpan[], source: string): LiveSpan[] {
+  const out: LiveSpan[] = []
+  for (let i = 0; i < blocks.length; i += 1) {
+    const span = blocks[i] as LiveSpan
+    const next = blocks[i + 1]
+    if (
+      span.kind === 'tableEmbed' &&
+      next !== undefined &&
+      next.kind === 'table' &&
+      next.tableId === undefined &&
+      source.slice(span.to, next.from).trim() === ''
+    ) {
+      out.push({ ...next, from: span.from, tableId: span.tableId, number: 0 })
+      i += 1
+      continue
+    }
+    out.push(span)
+  }
+  const figureRank = new Map<string, number>()
+  const tableRank = new Map<string, number>()
+  const rankOf = (map: Map<string, number>, id: string): number => {
+    const hit = map.get(id)
+    if (hit !== undefined) return hit
+    const rank = map.size + 1
+    map.set(id, rank)
+    return rank
+  }
+  return out.map((span) => {
+    if (span.kind === 'figure') return { ...span, number: rankOf(figureRank, span.figureId) }
+    if (span.kind === 'tableEmbed') return { ...span, number: rankOf(tableRank, span.tableId) }
+    if (span.kind === 'table' && span.tableId !== undefined) {
+      return { ...span, number: rankOf(tableRank, span.tableId) }
+    }
+    return span
+  })
 }
 
 /* ---------------------------------------------------------------------------
@@ -702,21 +769,182 @@ export function renderTableHtml(md: string): string {
   return html
 }
 
+/**
+ * Make one caption element editable in place. Plain text only; Enter or blur
+ * commits, Escape reverts. An empty result reverts too (caption titles are
+ * required by schema — deleting the text is not how you remove a caption).
+ * `save` is called only when the trimmed text actually changed; on a failed
+ * save the previous text is restored so the widget never lies about the file.
+ */
+function makeCaptionEditable(el: HTMLElement, save: (text: string) => Promise<boolean>): void {
+  el.classList.add('cm-lp-editable')
+  el.setAttribute('contenteditable', 'plaintext-only')
+  el.setAttribute('spellcheck', 'false')
+  let original = el.textContent ?? ''
+  el.addEventListener('focus', () => {
+    original = el.textContent ?? ''
+  })
+  const refocusEditor = (): void => {
+    // Keyboard flow (vim's `:caption` / `:note`, or Enter after a click):
+    // hand focus straight back to the editor so the next keystroke is a
+    // normal-mode motion again, not a lost keypress.
+    el.closest<HTMLElement>('.cm-editor')?.querySelector<HTMLElement>('.cm-content')?.focus()
+  }
+  el.addEventListener('keydown', (event) => {
+    // The widget lives inside CodeMirror's contenteditable root: none of
+    // these keys may reach CM's keymaps while the caption has focus.
+    event.stopPropagation()
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      el.blur()
+      refocusEditor()
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      el.textContent = original
+      el.blur()
+      refocusEditor()
+    }
+  })
+  el.addEventListener('blur', () => {
+    const text = (el.textContent ?? '').trim()
+    if (text === original.trim()) return
+    if (text === '' && el.dataset['sunaAllowEmpty'] === undefined) {
+      el.textContent = original
+      return
+    }
+    const previous = original
+    original = text
+    void save(text).then((ok) => {
+      if (!ok && el.isConnected) {
+        el.textContent = previous
+        original = previous
+      }
+    })
+  })
+}
+
+/** ignoreEvent for widgets that host editable captions: CM must leave every event inside them alone. */
+function insideEditable(event: Event): boolean {
+  const el =
+    event.target instanceof HTMLElement
+      ? event.target
+      : event.target instanceof Node
+        ? event.target.parentElement
+        : null
+  return el !== null && el.closest('.cm-lp-editable') !== null
+}
+
+/**
+ * The caption line above a captioned table: bold derived "Table N." label,
+ * then the italic title from manuscript.json — filled in asynchronously, with
+ * `tbl:<id>` standing in until (or in case) the metadata resolves. Once the
+ * real title is in, it is editable in place and writes back to
+ * manuscript.json.
+ */
+function tableCaptionLine(tableId: string, number: number, rootDir: string | null): HTMLElement {
+  const caption = document.createElement('p')
+  caption.className = 'cm-lp-table__caption'
+  const label = document.createElement('strong')
+  label.textContent = `Table ${number}.`
+  const title = document.createElement('em')
+  title.textContent = `tbl:${tableId}`
+  caption.append(label, ' ', title)
+  if (rootDir !== null) {
+    const root = rootDir
+    void loadTableCaption(root, tableId).then((meta) => {
+      if (meta === null || !title.isConnected) return
+      title.textContent = meta.title
+      makeCaptionEditable(title, (text) => saveTableCaption(root, tableId, { title: text }))
+    })
+  }
+  return caption
+}
+
 class TableWidget extends WidgetType {
-  constructor(readonly md: string) {
+  constructor(
+    readonly md: string,
+    readonly tableId: string | undefined,
+    readonly number: number | undefined,
+    readonly rootDir: string | null
+  ) {
     super()
   }
   override eq(other: TableWidget): boolean {
-    return other.md === this.md
+    return (
+      other.md === this.md &&
+      other.tableId === this.tableId &&
+      other.number === this.number &&
+      other.rootDir === this.rootDir
+    )
   }
   override toDOM(): HTMLElement {
     const el = document.createElement('div')
     el.className = 'cm-lp-table'
-    el.innerHTML = renderTableHtml(this.md)
+    if (this.tableId === undefined) {
+      el.innerHTML = renderTableHtml(this.md)
+      return el
+    }
+    // Caption, table and note share one shrink-to-fit block, so the caption's
+    // left edge and the note's wrap width are the TABLE's edges, not the
+    // measure's — the caption stays inline with the table when it centers.
+    el.dataset['sunaTableId'] = this.tableId
+    const block = document.createElement('div')
+    block.className = 'cm-lp-table__block'
+    el.appendChild(block)
+    block.appendChild(tableCaptionLine(this.tableId, this.number ?? 0, this.rootDir))
+    const body = document.createElement('div')
+    body.innerHTML = renderTableHtml(this.md)
+    block.appendChild(body)
+    if (this.rootDir !== null) {
+      const tableId = this.tableId
+      const root = this.rootDir
+      void loadTableCaption(root, tableId).then((meta) => {
+        if (meta === null || !block.isConnected) return
+        // The note renders even when empty: the editable body span is how the
+        // user ADDS a note, so there must be something to click into.
+        const note = document.createElement('p')
+        note.className = 'cm-lp-table__note'
+        const noteLabel = document.createElement('span')
+        noteLabel.textContent = 'Note. '
+        const body = document.createElement('span')
+        body.className = 'cm-lp-table__note-body'
+        body.textContent = meta.body
+        // An emptied body is a real edit here — it deletes the optional field.
+        body.dataset['sunaAllowEmpty'] = ''
+        makeCaptionEditable(body, (text) => saveTableCaption(root, tableId, { body: text }))
+        note.append(noteLabel, body)
+        if (meta.footnotesText !== '') note.append(' ', meta.footnotesText)
+        block.appendChild(note)
+      })
+    }
     return el
   }
-  override ignoreEvent(): boolean {
-    return false
+  override ignoreEvent(event: Event): boolean {
+    return insideEditable(event)
+  }
+}
+
+/** A `![[tbl:id]]` embed with no table directly beneath it: the caption block alone. */
+class TableEmbedWidget extends WidgetType {
+  constructor(
+    readonly tableId: string,
+    readonly number: number,
+    readonly rootDir: string | null
+  ) {
+    super()
+  }
+  override eq(other: TableEmbedWidget): boolean {
+    return other.tableId === this.tableId && other.number === this.number && other.rootDir === this.rootDir
+  }
+  override toDOM(): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'cm-lp-table'
+    el.dataset['sunaTableId'] = this.tableId
+    el.appendChild(tableCaptionLine(this.tableId, this.number, this.rootDir))
+    return el
+  }
+  override ignoreEvent(event: Event): boolean {
+    return insideEditable(event)
   }
 }
 
@@ -904,12 +1132,13 @@ onAssetInvalidated(repaintAsset)
 class FigureWidget extends WidgetType {
   constructor(
     readonly figureId: string,
-    readonly rootDir: string | null
+    readonly rootDir: string | null,
+    readonly number: number
   ) {
     super()
   }
   override eq(other: FigureWidget): boolean {
-    return other.figureId === this.figureId && other.rootDir === this.rootDir
+    return other.figureId === this.figureId && other.rootDir === this.rootDir && other.number === this.number
   }
   override toDOM(): HTMLElement {
     const el = document.createElement('figure')
@@ -920,9 +1149,15 @@ class FigureWidget extends WidgetType {
     body.className = 'cm-lp-figure__body'
     el.appendChild(body)
 
+    // The SUNA caption standard: bold derived "Figure N." label, italic
+    // caption title (from figure.json, filled in asynchronously), centered.
     const caption = document.createElement('figcaption')
     caption.className = 'cm-lp-figure__caption'
-    caption.textContent = `fig:${this.figureId}`
+    const label = document.createElement('strong')
+    label.textContent = `Figure ${this.number}.`
+    const title = document.createElement('em')
+    title.textContent = `fig:${this.figureId}`
+    caption.append(label, ' ', title)
     el.appendChild(caption)
 
     if (this.rootDir === null) {
@@ -930,11 +1165,18 @@ class FigureWidget extends WidgetType {
       return el
     }
 
+    const root = this.rootDir
+    const figureId = this.figureId
+    void loadFigureCaptionTitle(root, figureId).then((text) => {
+      if (text === null || !title.isConnected) return
+      title.textContent = text
+      makeCaptionEditable(title, (value) => saveFigureCaptionTitle(root, figureId, value))
+    })
     mountAsset(body, figureSvgPath(this.rootDir, this.figureId), `fig:${this.figureId}`)
     return el
   }
-  override ignoreEvent(): boolean {
-    return false
+  override ignoreEvent(event: Event): boolean {
+    return insideEditable(event)
   }
 }
 
@@ -1028,7 +1270,7 @@ function decorationFor(span: LiveSpan, config: LivePreviewConfig): Decoration {
       return Decoration.replace({ widget: new BlockMathWidget(span.tex, span.label), block: true })
     case 'figure':
       return Decoration.replace({
-        widget: new FigureWidget(span.figureId, config.rootDir),
+        widget: new FigureWidget(span.figureId, config.rootDir, span.number),
         block: true
       })
     case 'image':
@@ -1037,7 +1279,15 @@ function decorationFor(span: LiveSpan, config: LivePreviewConfig): Decoration {
         block: true
       })
     case 'table':
-      return Decoration.replace({ widget: new TableWidget(span.md), block: true })
+      return Decoration.replace({
+        widget: new TableWidget(span.md, span.tableId, span.number, config.rootDir),
+        block: true
+      })
+    case 'tableEmbed':
+      return Decoration.replace({
+        widget: new TableEmbedWidget(span.tableId, span.number, config.rootDir),
+        block: true
+      })
     case 'inlineMath':
       return Decoration.replace({ widget: new InlineMathWidget(span.tex) })
     case 'cite':

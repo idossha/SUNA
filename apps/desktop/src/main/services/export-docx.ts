@@ -37,6 +37,7 @@ import {
   buildExportContent,
   buildSupplementContent,
   collectBlockImages,
+  collectTableEmbeds,
   collectTables,
   formatReferenceRow,
   isNumericCitationMode,
@@ -769,7 +770,32 @@ function blockNode(node: RootChild, ctx: DocxCtx): (Paragraph | Table)[] {
 }
 
 function blocksFromRoot(root: SciMarkRoot, ctx: DocxCtx): (Paragraph | Table)[] {
-  return root.children.flatMap((node) => blockNode(node, ctx))
+  const out: (Paragraph | Table)[] = []
+  const children = root.children
+  for (let i = 0; i < children.length; i += 1) {
+    const node = children[i] as RootChild
+    // A `![[tbl:id]]` embed binds the table directly under it to its
+    // manuscript.json caption: caption paragraph above, table, italic "Note."
+    // below — the SUNA table standard. Under `tablePlacement: 'end'` (or in a
+    // supplement, which S-numbers its tables positionally) the embed emits
+    // nothing here; the trailing Tables section carries caption and table.
+    if (node.type === 'tableEmbed' && ctx.style.tablePlacement !== 'end' && ctx.supplement === undefined) {
+      const t = ctx.content.tables.find((x) => x.table.id === node.tableId)
+      if (t !== undefined) out.push(tableCaptionParagraph(t, ctx, { titleOnly: true }))
+      const next = children[i + 1]
+      if (next !== undefined && next.type === 'table') {
+        out.push(tableFromMdast(next, ctx))
+        i += 1
+      }
+      if (t !== undefined) {
+        const note = tableNoteParagraph(t, ctx)
+        if (note !== null) out.push(note)
+      }
+      continue
+    }
+    out.push(...blockNode(node, ctx))
+  }
+  return out
 }
 
 /**
@@ -985,9 +1011,13 @@ function backMatterParagraphs(ctx: DocxCtx): Paragraph[] {
 /* ------------------------------------------------------------------ */
 
 function tablesParagraphs(content: ExportContent, ctx: DocxCtx): Paragraph[] {
-  if (content.tables.length === 0) return []
+  // Tables the prose embeds via `![[tbl:id]]` render in place (caption above,
+  // note below) — the trailing section carries only the rest.
+  const embedded = new Set(content.sections.flatMap((s) => (s.root === null ? [] : collectTableEmbeds(s.root))))
+  const rest = content.tables.filter((t) => !embedded.has(t.table.id))
+  if (rest.length === 0) return []
   const out: Paragraph[] = [headingParagraph(ctx, 'A', 'Tables')]
-  for (const t of content.tables) out.push(tableCaptionParagraph(t, ctx))
+  for (const t of rest) out.push(tableCaptionParagraph(t, ctx))
   return out
 }
 
@@ -997,7 +1027,12 @@ function tablesParagraphs(content: ExportContent, ctx: DocxCtx): Paragraph[] {
  * body — but left-aligned and, per `tableCaptionPosition`, written ABOVE the
  * table it describes.
  */
-function tableCaptionParagraph(t: ExportTableContent, ctx: DocxCtx): Paragraph {
+function tableCaptionParagraph(
+  t: ExportTableContent,
+  ctx: DocxCtx,
+  /** titleOnly: the caption line above an in-body table — its body/footnotes render below the table as a "Note." paragraph instead. */
+  opts: { titleOnly?: boolean } = {}
+): Paragraph {
   const number = ctx.content.tables.indexOf(t) + 1
   const capSize = sizeOf(ctx, 'caption')
   const bodyStyle: RunStyle = { italics: true, size: capSize }
@@ -1008,17 +1043,40 @@ function tableCaptionParagraph(t: ExportTableContent, ctx: DocxCtx): Paragraph {
     }),
     ...inlineFromText(t.table.caption.title, ctx, bodyStyle)
   ]
-  if (t.table.caption.body !== undefined && t.table.caption.body.trim() !== '') {
-    runs.push(textRun(' ', bodyStyle))
-    runs.push(...inlineFromText(t.table.caption.body, ctx, bodyStyle))
-  }
-  for (const note of t.table.footnotes) {
-    runs.push(textRun(` [${note.mark}] ${note.text}`, { italics: true, size: capSize }))
+  if (opts.titleOnly !== true) {
+    if (t.table.caption.body !== undefined && t.table.caption.body.trim() !== '') {
+      runs.push(textRun(' ', bodyStyle))
+      runs.push(...inlineFromText(t.table.caption.body, ctx, bodyStyle))
+    }
+    for (const note of t.table.footnotes) {
+      runs.push(textRun(` [${note.mark}] ${note.text}`, { italics: true, size: capSize }))
+    }
   }
   return new Paragraph({
     keepNext: true,
     spacing: { before: ptToTwips(4), after: ptToTwips(4) },
     children: runs
+  })
+}
+
+/**
+ * The italic "Note." paragraph under an in-body captioned table: caption body
+ * first, then the footnotes. Null when the table has neither.
+ */
+function tableNoteParagraph(t: ExportTableContent, ctx: DocxCtx): Paragraph | null {
+  const capSize = sizeOf(ctx, 'caption')
+  const noteStyle: RunStyle = { italics: true, size: capSize }
+  const runs: DocxInline[] = []
+  if (t.table.caption.body !== undefined && t.table.caption.body.trim() !== '') {
+    runs.push(...inlineFromText(t.table.caption.body, ctx, noteStyle))
+  }
+  for (const note of t.table.footnotes) {
+    runs.push(textRun(`${runs.length > 0 ? ' ' : ''}${note.mark} ${note.text}`, noteStyle))
+  }
+  if (runs.length === 0) return null
+  return new Paragraph({
+    spacing: { before: ptToTwips(2), after: ptToTwips(8) },
+    children: [textRun('Note. ', noteStyle), ...runs]
   })
 }
 

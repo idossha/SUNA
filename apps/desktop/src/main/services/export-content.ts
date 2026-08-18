@@ -449,7 +449,10 @@ export function collectTables(nodes: readonly RootChild[]): TableNode[] {
 export function withoutTables(nodes: readonly RootChild[]): RootChild[] {
   const out: RootChild[] = []
   for (const node of nodes) {
-    if (node.type === 'table') continue
+    // `tableEmbed` goes with its table: under 'end' placement the caption
+    // renders in the trailing Tables section, so a caption block left in the
+    // body would duplicate it.
+    if (node.type === 'table' || node.type === 'tableEmbed') continue
     if (node.type === 'blockquote') {
       out.push({
         ...node,
@@ -671,14 +674,21 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
   const citeStyle = citeStyleOf(profile.citations)
   const referenceRows = orderedReferences(numbers, entryMap, profile.citations.referenceList.sortOrder)
 
+  // Numbering follows the prose: first-embed order wins, manifest order only
+  // for anything never embedded.
+  const figureEmbedOrder = sections.flatMap((s) => (s.root === null ? [] : collectFigureEmbeds(s.root)))
+  const tableEmbedOrder = sections.flatMap((s) => (s.root === null ? [] : collectTableEmbeds(s.root)))
+  const orderedFigures = orderByEmbedAppearance(manuscript.figures, figureEmbedOrder)
+  const orderedTables = orderByEmbedAppearance(manuscript.tables, tableEmbedOrder)
+
   const labels = buildLabelMap(
-    manuscript.figures,
-    manuscript.tables,
+    orderedFigures,
+    orderedTables,
     sections.map((s) => ({ heading: s.heading, source: s.source })),
     { figure: resolveDocumentStyle(profile).figureLabel, table: 'Table' }
   )
 
-  const figures: ExportFigureContent[] = manuscript.figures.map((figure) => {
+  const figures: ExportFigureContent[] = orderedFigures.map((figure) => {
     const pngPath = opts.figurePngPaths[figure.id]
     if (pngPath === undefined) {
       throw new Error(
@@ -693,7 +703,7 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
     }
   })
 
-  const tables: ExportTableContent[] = manuscript.tables.map((table) => ({
+  const tables: ExportTableContent[] = orderedTables.map((table) => ({
     table,
     label: labels.tables.get(table.id) ?? table.id
   }))
@@ -723,24 +733,56 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
 /** The optional supplement source, by convention beside manuscript.md. */
 export const SUPPLEMENT_FILE = 'supplementary.md'
 
-interface FigureEmbedWalkNode {
+interface EmbedWalkNode {
   type?: unknown
   figureId?: unknown
+  tableId?: unknown
   children?: unknown
 }
 
-function walkFigureEmbeds(node: FigureEmbedWalkNode, out: string[]): void {
-  if (node.type === 'figureEmbed' && typeof node.figureId === 'string') out.push(node.figureId)
+function walkEmbeds(node: EmbedWalkNode, kind: 'figureEmbed' | 'tableEmbed', out: string[]): void {
+  if (node.type === kind) {
+    const id = kind === 'figureEmbed' ? node.figureId : node.tableId
+    if (typeof id === 'string') out.push(id)
+  }
   if (Array.isArray(node.children)) {
-    for (const child of node.children) walkFigureEmbeds(child as FigureEmbedWalkNode, out)
+    for (const child of node.children) walkEmbeds(child as EmbedWalkNode, kind, out)
   }
 }
 
 /** Every `![[fig:id]]` embed in one section's AST, in document order. */
 export function collectFigureEmbeds(root: SciMarkRoot): string[] {
   const out: string[] = []
-  walkFigureEmbeds(root as unknown as FigureEmbedWalkNode, out)
+  walkEmbeds(root as unknown as EmbedWalkNode, 'figureEmbed', out)
   return out
+}
+
+/** Every `![[tbl:id]]` embed in one section's AST, in document order. */
+export function collectTableEmbeds(root: SciMarkRoot): string[] {
+  const out: string[] = []
+  walkEmbeds(root as unknown as EmbedWalkNode, 'tableEmbed', out)
+  return out
+}
+
+/**
+ * The manuscript's figures/tables reordered by first embed appearance in the
+ * prose — the order that drives numbering (RULE: numbering is derived at
+ * format time, never stored). Items the prose never embeds keep their
+ * manifest order, after the embedded ones.
+ */
+export function orderByEmbedAppearance<T extends Identified>(
+  items: readonly T[],
+  embedOrder: readonly string[]
+): T[] {
+  const rank = new Map<string, number>()
+  embedOrder.forEach((id, i) => {
+    if (!rank.has(id)) rank.set(id, i)
+  })
+  return [...items].sort((a, b) => {
+    const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER
+    const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER
+    return ra === rb ? 0 : ra - rb
+  })
 }
 
 /**
