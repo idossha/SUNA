@@ -83,5 +83,6 @@ Reference docs, by area:
 - Compliance is advisory-only: flag violations, never silently reformat.
 - Numbering (figures, tables, equations, references) is derived at format time, never
   stored — write cross-references (`@fig:x`), never literal "Figure 3".
+- One paragraph is one line. Every Markdown file you write — manuscript prose, notebook entries, mission and rules files, any auxiliary doc — uses soft wrapping: a paragraph, list item, or table row is a single unbroken line, and a newline means a new block, never a mid-sentence break. Never hard-wrap prose at a column width; let the editor wrap it. When you edit a hard-wrapped file, reflow the paragraphs you touch.
 - Honest reporting: failed attempts, ambiguous results, and dead ends go in
   NOTEBOOK.md, not under the rug.

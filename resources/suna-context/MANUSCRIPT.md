@@ -109,5 +109,6 @@ trailing Tables section instead. Table metadata is metadata — propose changes 
   byline — lives in `manuscript.json` + `authors.json`, not in the prose. Read it with
   `read_manuscript_meta`. There is no metadata write verb: propose metadata changes to
   the user rather than editing those files unasked.
+- Soft-wrap the prose: a paragraph is one unbroken line in `manuscript.md`, never hard-wrapped at a column width. A newline starts a new block, never a mid-sentence break. Reflow any hard-wrapped paragraph you edit.
 - Review comments live in the `manuscript/comments.json` sidecar, never as inline
   markers in the prose. See COMMENTS.md for the comment verbs and procedure.
