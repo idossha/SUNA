@@ -19,9 +19,13 @@
   "scripts": {
     "dev": "pnpm --filter @suna/desktop dev",
     "smoke": "node scripts/e2e/smoke.mjs",
-    "build": "pnpm -r build",
+    "build": "pnpm -r --filter=!@suna/website build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "docs:dev": "pnpm --filter @suna/website dev",
+    "docs:build": "pnpm --filter @suna/website build",
+    "docs:preview": "pnpm --filter @suna/website preview",
+    "docs:shots": "node website/scripts/shots.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
