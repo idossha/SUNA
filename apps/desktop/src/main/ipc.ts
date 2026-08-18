@@ -45,6 +45,12 @@ import {
   writeText
 } from './services/fs'
 import {
+  acquireLibraryPdf,
+  findLibraryPdf,
+  readLibraryConfig,
+  writeLibraryConfig
+} from './services/library'
+import {
   aiCliSearch,
   cancelAiCliSearch,
   detectAvailableClis,
@@ -372,6 +378,49 @@ export function registerIpcHandlers(): void {
   handle('lit:cancel', async ({ searchId }) => {
     cancelAiCliSearch(searchId)
     return {}
+  })
+
+  // The reference library (feature-plan-10 §Layer 5). The settings live in
+  // ~/SunaConfig/library.json rather than userData, so the standalone MCP
+  // server searches the same folders this pane writes — which is why these
+  // are their own channels and not keys on 'settings:get'/'settings:set'.
+  handle('library:read-config', () => readLibraryConfig())
+  handle('library:write-config', ({ patch }) => writeLibraryConfig(patch))
+  handle('library:find-pdf', ({ result, projectRoot }) =>
+    findLibraryPdf({ result, projectRoot })
+  )
+  // The contact address is main's to supply, exactly as it is for 'lit:search':
+  // Unpaywall's keyless API requires one, and a renderer must not be able to
+  // put an arbitrary address on the app's outgoing requests.
+  //
+  // The download rung can run for its full 60 s budget, so the call carries an
+  // AbortSignal. This channel is a plain invoke with no id of its own, so it
+  // cannot follow the 'lit:ai-search'/'lit:cancel' idiom — that one hands the
+  // renderer a searchId to cancel BY, and adding one here means a new request
+  // field and a 'library:cancel' channel in @suna/core's contract. What main
+  // can already observe is the sender going away: closing the window while a
+  // fetch is in flight now aborts it instead of leaving it running to its
+  // deadline with nobody left to answer.
+  handle('library:acquire-pdf', async ({ result, citekey, projectRoot, policy }, event) => {
+    const controller = new AbortController()
+    const abort = (): void => controller.abort()
+    event.sender.once('destroyed', abort)
+    try {
+      return await acquireLibraryPdf({
+        result,
+        citekey,
+        projectRoot,
+        policy,
+        mailto: await politeMailto(),
+        // The renderer cannot name a candidate to accept yet: the contract in
+        // @suna/core carries no `accept` field. The ladder's accept path is
+        // implemented and tested; wiring the button to it is a contract change.
+        acceptPath: null,
+        signal: controller.signal
+      })
+    } finally {
+      event.sender.removeListener('destroyed', abort)
+    }
   })
 
   handle('ai:ask', async ({ prompt, dir, allowedTools, useMcp, viaStdin }, event) => {
