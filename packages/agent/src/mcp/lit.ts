@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { z } from 'zod'
 import { LitProviderIdSchema, type LitProviderId, type LitResult } from '@suna/core'
 import { appendLitResultToBib, lookupByDoi, searchLiterature } from '@suna/bib'
+import { describeExternalError, errorCode, quoteExternalPath } from '../library/config'
 import { resolveInside, type ProjectContext } from './project'
 
 /**
@@ -25,7 +26,12 @@ function formatResult(result: LitResult): string {
   const authors = result.authors.length > 0 ? result.authors.join(', ') : 'Unknown authors'
   const year = result.year !== null ? String(result.year) : 'n.d.'
   const doi = result.doi !== null ? ` doi:${result.doi}` : ''
-  const oa = result.openAccessUrl !== null ? ` [OA: ${result.openAccessUrl}]` : ''
+  // The OA link is a provider's string, not a URL this code parsed: a newline
+  // in it would write a second line into a result listing a model reads.
+  // `new URL()` would have dropped one; nothing here calls it. Identical
+  // construct, identical answer as `formatRow` in mcp/study.ts.
+  const oa =
+    result.openAccessUrl !== null ? ` [OA: ${quoteExternalPath(result.openAccessUrl)}]` : ''
   return `${result.source}:${result.id} — ${result.title} (${authors}, ${year})${doi}${oa}`
 }
 
@@ -74,6 +80,41 @@ export const addReferenceInput = z.object({
   provider: LitProviderIdSchema.optional()
 })
 
+interface BibTextOutcome {
+  /** The file's text, or '' when there is genuinely no bibliography yet. */
+  text: string
+  /** Null when `text` can be trusted; a sentence when the file could not be read. */
+  error: string | null
+}
+
+/**
+ * Read references.bib, in the same shape and for the same reason as
+ * `readBibText` in mcp/study.ts (kept a sibling rather than an import because
+ * that one is private to study.ts; both must answer the same way).
+ *
+ * A MISSING file is empty text and no error — the first `add_reference` in a
+ * project creates it. Anything ELSE (EISDIR when a directory sits where the
+ * file should be, EACCES on a write-only file, a mount that went away) is an
+ * error, and the distinction is load-bearing here because the text read
+ * becomes the BASE of a whole-file write: a bibliography that cannot be read
+ * but can be written would be REPLACED by the single new entry, silently
+ * deleting every reference the user had. Swallowing the failure into '' is
+ * data loss, not a fresh start.
+ */
+async function readBibText(path: string): Promise<BibTextOutcome> {
+  try {
+    return { text: await readFile(path, 'utf8'), error: null }
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return { text: '', error: null }
+    // `describeExternalError`, not the raw `describeError`: an errno message
+    // quotes the path it failed on (`EACCES: permission denied, open
+    // '<path>'`), and this sentence is returned straight to the model. A
+    // project directory named with a newline would otherwise break the line
+    // from inside the error text.
+    return { text: '', error: `could not read references.bib (${describeExternalError(error)})` }
+  }
+}
+
 /** Looks the DOI up, then appends it to references.bib via the shared @suna/bib writer. */
 export async function addReference(
   ctx: ProjectContext,
@@ -85,13 +126,11 @@ export async function addReference(
   if (outcome.result === null) return `${provider}: no record for DOI ${input.doi} — nothing added`
 
   const path = resolveInside(ctx.root, ctx.dirs.manuscript, 'references.bib')
-  let current: string
-  try {
-    current = await readFile(path, 'utf8')
-  } catch {
-    current = '' // no references.bib yet — this creates it
+  const bib = await readBibText(path)
+  if (bib.error !== null) {
+    return `${bib.error} — NOTHING WAS WRITTEN, so the existing bibliography is intact; fix the file's permissions first`
   }
-  const appended = appendLitResultToBib(current, outcome.result)
+  const appended = appendLitResultToBib(bib.text, outcome.result)
   await writeFile(path, appended.text, 'utf8')
   return `added ${appended.key} to references.bib: ${appended.entry.title}`
 }
