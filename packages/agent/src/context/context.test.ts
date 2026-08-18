@@ -7,12 +7,112 @@ import { SUNA_CONTEXT_FILES, SUNA_CONTEXT_HASH, SUNA_SKILL_FILE } from './docs.g
 import { ensureProjectAgentLayer, ensureSunaConfig, type McpInvocation } from './ensure'
 import { agentStub, isManagedStub } from './templates'
 import { TOOLS } from '../mcp/verbs'
+import type { ZodObject, ZodRawShape, ZodType } from 'zod'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')
 
 /* ------------------------------------------------------------------ */
 /* Drift gates: source docs ↔ generated module ↔ verb registry          */
 /* ------------------------------------------------------------------ */
+
+/** A verb row: second cell is an input shape like {figureId} or {}. */
+const VERB_ROW = /^\| [a-z][a-z_]* \| \{/
+
+function verbOf(row: string): string {
+  return (row.split('|')[1] ?? '').trim()
+}
+
+/**
+ * The MCP.md ↔ TOOLS comparison, factored out of the gate so the gate itself
+ * can be tested — a drift gate nobody has watched fail is a comment.
+ *
+ * ADR-004 §Drift gates promises the table equals the registry in "names and
+ * count". The Set comparison this replaces delivered only the first half:
+ * duplicating a row left the two Sets equal, so an MCP.md listing
+ * `cite_study` twice — 24 rows against 23 verbs, reading to the agent as if
+ * there were two different verbs — shipped green. Sorted arrays pin both, and
+ * the message names what actually moved so the failure is actionable.
+ */
+function verbTableDrift(mcp: string, registry: string[]): string | null {
+  const rows = mcp.split('\n').filter((line) => VERB_ROW.test(line)).map(verbOf)
+  const sortedRows = [...rows].sort()
+  const sortedRegistry = [...registry].sort()
+  if (
+    sortedRows.length === sortedRegistry.length &&
+    sortedRows.every((verb, index) => verb === sortedRegistry[index])
+  ) {
+    return null
+  }
+  const duplicated = [...new Set(sortedRows.filter((verb, i) => i > 0 && verb === sortedRows[i - 1]))]
+  const missing = sortedRegistry.filter((verb) => !rows.includes(verb))
+  const extra = [...new Set(sortedRows.filter((verb) => !registry.includes(verb)))]
+  return [
+    `MCP.md's verb table has ${rows.length} row${rows.length === 1 ? '' : 's'}, TOOLS has ${registry.length} verb${registry.length === 1 ? '' : 's'}`,
+    duplicated.length > 0 ? `duplicated rows: ${duplicated.join(', ')}` : null,
+    missing.length > 0 ? `missing from the table: ${missing.join(', ')}` : null,
+    extra.length > 0 ? `in the table but not in TOOLS: ${extra.join(', ')}` : null
+  ]
+    .filter((line) => line !== null)
+    .join('; ')
+}
+
+/** The `{…}` cell of a verb row, as the names it declares: `{doi, provider?}` -> `['doi', 'provider?']`. */
+function documentedInputs(row: string): string[] {
+  const cell = (row.split('|')[2] ?? '').trim()
+  return cell
+    .replace(/^\{|\}$/g, '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter((name) => name !== '')
+}
+
+/** The same, read off the zod schema the verb actually parses its arguments with. */
+function schemaInputs(schema: unknown): string[] {
+  const shape = (schema as ZodObject<ZodRawShape>).shape
+  return Object.entries(shape).map(([key, field]) =>
+    // A field that accepts `undefined` is one the caller may omit — the `?` the
+    // table uses. Asking the schema beats reading `.isOptional()` off a zod
+    // internal that changes shape between majors.
+    (field as ZodType).safeParse(undefined).success ? `${key}?` : key
+  )
+}
+
+/**
+ * The second half of the MCP.md ↔ TOOLS promise: every verb row declares the
+ * inputs its verb actually accepts, each with the same optional marker.
+ *
+ * The name-and-count gate above cannot see this. `fetch_pdf` gained `accept`
+ * — the only way a human can take a local match whose evidence was too thin to
+ * copy unasked — while its row went on saying `{citekey?, doi?, policy?}`, and
+ * the suite stayed green. An agent reads MCP.md to learn what it may send, so
+ * an undocumented input is an input nobody will ever pass: the verb's whole
+ * escape hatch was invisible while the ladder kept reporting candidates it
+ * refused to copy. Compared sorted, so re-ordering a row for readability is
+ * not a failure; every name and every `?` still has to match.
+ */
+function verbInputDrift(mcp: string, tools: readonly { name: string; schema: unknown }[]): string | null {
+  const problems: string[] = []
+  for (const row of mcp.split('\n').filter((line) => VERB_ROW.test(line))) {
+    const name = verbOf(row)
+    const tool = tools.find((t) => t.name === name)
+    if (tool === undefined) continue // the name gate owns this failure
+    const documented = documentedInputs(row).sort()
+    const actual = schemaInputs(tool.schema).sort()
+    const undocumented = actual.filter((input) => !documented.includes(input))
+    const invented = documented.filter((input) => !actual.includes(input))
+    if (undocumented.length === 0 && invented.length === 0) continue
+    problems.push(
+      [
+        `${name} documents {${documented.join(', ')}} but accepts {${actual.join(', ')}}`,
+        undocumented.length > 0 ? `accepted but undocumented: ${undocumented.join(', ')}` : null,
+        invented.length > 0 ? `documented but not accepted: ${invented.join(', ')}` : null
+      ]
+        .filter((part) => part !== null)
+        .join(' — ')
+    )
+  }
+  return problems.length === 0 ? null : problems.join('; ')
+}
 
 describe('docs.gen drift gates', () => {
   it('is byte-identical to what gen-suna-context.mjs generates from resources/', async () => {
@@ -44,17 +144,73 @@ describe('docs.gen drift gates', () => {
     }
   })
 
-  it('MCP.md verb table matches the TOOLS registry exactly', () => {
+  it('MCP.md verb table matches the TOOLS registry exactly — names AND count', () => {
     const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
-    const tableVerbs = mcp
-      .split('\n')
-      // verb rows only: second cell is an input shape like {figureId} or {}
-      .filter((line) => /^\| [a-z][a-z_]* \| \{/.test(line))
-      .map((line) => (line.split('|')[1] ?? '').trim())
     const registry = TOOLS.map((t) => t.name)
-    expect(new Set(tableVerbs)).toEqual(new Set(registry))
+    expect(verbTableDrift(mcp, registry)).toBeNull()
     // and the doc's advertised count stays honest
     expect(mcp).toContain(`${registry.length} verbs`)
+  })
+
+  it('catches a duplicated verb row, which a Set comparison waves through', () => {
+    const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
+    const registry = TOOLS.map((t) => t.name)
+    const row = mcp.split('\n').find((line) => VERB_ROW.test(line)) ?? ''
+    expect(row, 'MCP.md must have at least one verb row to duplicate').not.toBe('')
+
+    const drift = verbTableDrift(mcp.replace(row, `${row}\n${row}`), registry)
+    expect(drift).not.toBeNull()
+    expect(drift).toContain('duplicated')
+    expect(drift).toContain(verbOf(row))
+  })
+
+  it('catches a verb row that went missing', () => {
+    const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
+    const registry = TOOLS.map((t) => t.name)
+    const row = mcp.split('\n').find((line) => VERB_ROW.test(line)) ?? ''
+    const drift = verbTableDrift(mcp.replace(`${row}\n`, ''), registry)
+    expect(drift).not.toBeNull()
+    expect(drift).toContain('missing from the table')
+    expect(drift).toContain(verbOf(row))
+  })
+
+  it('MCP.md declares every input each verb actually accepts', () => {
+    const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
+    expect(verbInputDrift(mcp, TOOLS)).toBeNull()
+  })
+
+  it('catches an input a verb accepts but the table never mentions', () => {
+    const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
+    const row = mcp.split('\n').find((line) => line.startsWith('| fetch_pdf |')) ?? ''
+    expect(row, 'MCP.md must have a fetch_pdf row').not.toBe('')
+
+    const drift = verbInputDrift(mcp.replace(row, row.replace(', accept?}', '}')), TOOLS)
+    expect(drift).not.toBeNull()
+    expect(drift).toContain('fetch_pdf')
+    expect(drift).toContain('accepted but undocumented: accept?')
+  })
+
+  it('catches a table that promises an input the verb would reject', () => {
+    const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
+    const row = mcp.split('\n').find((line) => line.startsWith('| read_bib |')) ?? ''
+    expect(row, 'MCP.md must have a read_bib row').not.toBe('')
+
+    const drift = verbInputDrift(mcp.replace(row, row.replace('| {} |', '| {format?} |')), TOOLS)
+    expect(drift).not.toBeNull()
+    expect(drift).toContain('documented but not accepted: format?')
+  })
+
+  it('catches a required input the table advertises as optional', () => {
+    const mcp = SUNA_CONTEXT_FILES['MCP.md'] ?? ''
+    const row = mcp.split('\n').find((line) => line.startsWith('| add_comment |')) ?? ''
+    expect(row, 'MCP.md must have an add_comment row').not.toBe('')
+
+    // Calling a required input optional is the drift that costs most: the agent
+    // omits it, the verb throws, and the doc is where it learned to.
+    const drift = verbInputDrift(mcp.replace(row, row.replace('{path, quote, body}', '{path?, quote, body}')), TOOLS)
+    expect(drift).not.toBeNull()
+    expect(drift).toContain('accepted but undocumented: path')
+    expect(drift).toContain('documented but not accepted: path?')
   })
 
   it('every doc the skill and README point at actually ships', () => {
