@@ -913,7 +913,7 @@ export const CHANNELS = {
   },
 
   /**
-   * Export the current figure into the project's output/ dir.
+   * Export the current figure into the project's output/figures/ dir.
    * Main handles 'svg' (byte copy) and 'pdf' (hidden window → printToPDF).
    * 'png'/'tiff' are rasterized in the renderer and written with
    * 'figure:write-binary'; asking main for them is an error.

@@ -433,7 +433,7 @@ describe('CHANNELS', () => {
       false,
     );
     const res: ResponseOf<'figure:export'> = {
-      path: '/work/my-paper/output/fig-spectrum.png',
+      path: '/work/my-paper/output/figures/fig-spectrum.png',
       widthPx: 2126,
       heightPx: 685,
     };
@@ -756,7 +756,7 @@ describe('CHANNELS', () => {
       dir: '/work/my-paper',
       profileId: 'nature-astronomy',
       outputName: 'my-paper',
-      figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/fig-spectrum.png' },
+      figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/figures/fig-spectrum.png' },
       options: { doubleSpacing: true, lineNumbers: true, pageNumbers: true },
       target: 'manuscript',
     };
@@ -787,7 +787,7 @@ describe('CHANNELS', () => {
       dir: '/work/my-paper',
       profileId: 'suna',
       outputName: 'my-paper',
-      figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/fig-spectrum.png' },
+      figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/figures/fig-spectrum.png' },
       options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
       target: 'manuscript',
     };
