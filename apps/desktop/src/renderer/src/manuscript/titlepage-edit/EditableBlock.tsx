@@ -21,6 +21,12 @@ interface EditableBlockProps {
  * on click, matching canvas/TextEditOverlay's approach (uncontrolled DOM,
  * seeded once on entering edit mode, read off input/blur — never re-set by
  * React while focused, which would fight the caret).
+ *
+ * The two branches carry distinct keys so React remounts rather than reusing
+ * one div across the swap: the editing branch's text is written imperatively
+ * (`el.textContent = seed`), which React has no vdom record of, so a reused
+ * node would keep that raw text and APPEND the rendered children beside it —
+ * the field showing its value twice once the edit ended.
  */
 export function EditableBlock({
   className,
@@ -64,6 +70,7 @@ export function EditableBlock({
     return (
       <>
         <div
+          key="editing"
           ref={elRef}
           className={`${className} tp__field--editing`}
           contentEditable
@@ -88,6 +95,7 @@ export function EditableBlock({
   }
   return (
     <div
+      key="static"
       className={className}
       onClick={field.start}
       onKeyDown={onKeyDown}
