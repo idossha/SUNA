@@ -8,7 +8,23 @@ import {
   type RequestOf,
   type ResponseOf,
 } from './ipc';
+import { DEFAULT_LIBRARY_CONFIG, DEFAULT_LIBRARY_ROOTS } from './library';
+import { type LitResult } from './lit';
 import { DEFAULT_PROJECT_DIRS } from './project';
+
+/** Gunn & Gott 1972 — the paper feature-plan-10's own examples are written around. */
+const GUNN: LitResult = {
+  source: 'crossref',
+  id: '10.1086/151605',
+  doi: '10.1086/151605',
+  title: 'On the Infall of Matter Into Clusters of Galaxies and Some Effects on Their Evolution',
+  authors: ['James E. Gunn', 'J. Richard Gott III'],
+  year: 1972,
+  venue: 'The Astrophysical Journal',
+  citedByCount: 4212,
+  openAccessUrl: null,
+  abstract: null,
+};
 
 describe('CHANNELS', () => {
   it('declares exactly the workspace channel set', () => {
@@ -55,6 +71,10 @@ describe('CHANNELS', () => {
       'git:init',
       'git:log',
       'git:status',
+      'library:acquire-pdf',
+      'library:find-pdf',
+      'library:read-config',
+      'library:write-config',
       'lit:ai-search',
       'lit:by-doi',
       'lit:cancel',
@@ -486,6 +506,154 @@ describe('CHANNELS', () => {
     const req: RequestOf<'lit:cancel'> = { searchId: 'lit-ai-1' };
     expect(CHANNELS['lit:cancel'].request.parse(req)).toEqual(req);
     expect(CHANNELS['lit:cancel'].request.safeParse({ searchId: '' }).success).toBe(false);
+  });
+
+  it('answers library:read-config with the config AND what its roots resolve to', () => {
+    const res: ResponseOf<'library:read-config'> = {
+      config: DEFAULT_LIBRARY_CONFIG,
+      path: '/Users/ada/SunaConfig/library.json',
+      source: 'file',
+      error: null,
+      expanded: {
+        roots: ['/Users/ada/Downloads', '/Users/ada/Documents'],
+        // Reported in the STORED form, so the Settings row the user sees is
+        // the string they typed — not an expanded path they never wrote.
+        missing: ['~/Zotero/storage', '~/Papers'],
+        notes: ['library root ~/Papers → /Users/ada/Papers skipped: no such directory'],
+      },
+    };
+    expect(CHANNELS['library:read-config'].response.parse(res)).toEqual(res);
+    // Settings cannot say "3 of 4 roots" without it, so it is not optional.
+    const { expanded: _dropped, ...withoutExpanded } = res;
+    expect(CHANNELS['library:read-config'].response.safeParse(withoutExpanded).success).toBe(false);
+  });
+
+  it('keeps a usable config beside a non-null error when library.json is unusable', () => {
+    const res: ResponseOf<'library:read-config'> = {
+      config: DEFAULT_LIBRARY_CONFIG,
+      path: '/Users/ada/SunaConfig/library.json',
+      source: 'defaults',
+      error: '/Users/ada/SunaConfig/library.json is not valid JSON — using the default library settings',
+      expanded: { roots: [], missing: [...DEFAULT_LIBRARY_ROOTS], notes: [] },
+    };
+    expect(CHANNELS['library:read-config'].response.parse(res)).toEqual(res);
+    expect(
+      CHANNELS['library:read-config'].response.safeParse({ ...res, source: 'guessed' }).success,
+    ).toBe(false);
+  });
+
+  it('takes a partial library:write-config patch and rejects an out-of-range one', () => {
+    const req: RequestOf<'library:write-config'> = { patch: { useSpotlight: false } };
+    expect(CHANNELS['library:write-config'].request.parse(req)).toEqual(req);
+    expect(
+      CHANNELS['library:write-config'].request.parse({ patch: { roots: ['~/Zotero/storage'] } }),
+    ).toEqual({ patch: { roots: ['~/Zotero/storage'] } });
+    // The file's own version is not a setting: it never travels in a patch.
+    expect(CHANNELS['library:write-config'].request.parse({ patch: { schemaVersion: 1 } })).toEqual({
+      patch: {},
+    });
+    expect(
+      CHANNELS['library:write-config'].request.safeParse({ patch: { maxDepth: 0 } }).success,
+    ).toBe(false);
+    expect(
+      CHANNELS['library:write-config'].request.safeParse({ patch: { download: 'sci-hub' } }).success,
+    ).toBe(false);
+    expect(CHANNELS['library:write-config'].request.safeParse({ patch: { roots: [''] } }).success).toBe(
+      false,
+    );
+  });
+
+  it('carries the whole search context on library:find-pdf, not just the matches', () => {
+    const req: RequestOf<'library:find-pdf'> = { result: GUNN, projectRoot: '/work/my-paper' };
+    expect(CHANNELS['library:find-pdf'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['library:find-pdf'].request.safeParse({ result: GUNN }).success).toBe(false);
+
+    const res: ResponseOf<'library:find-pdf'> = {
+      matches: [
+        {
+          path: '/Users/ada/Zotero/storage/ABCD1234/Gunn_1972_Infall.pdf',
+          sizeBytes: 812_345,
+          confidence: 'high',
+          evidence: ['doi-in-bytes', 'filename-author-year'],
+        },
+      ],
+      rootsSearched: ['/Users/ada/Downloads'],
+      rootsMissing: ['~/Papers'],
+      scanned: 1_204,
+      truncated: false,
+      notes: ['library root ~/Papers → /Users/ada/Papers skipped: no such directory'],
+      error: null,
+    };
+    expect(CHANNELS['library:find-pdf'].response.parse(res)).toEqual(res);
+    // "No match anywhere" and "we could not search" must not look alike.
+    const { error: _dropped, ...withoutError } = res;
+    expect(CHANNELS['library:find-pdf'].response.safeParse(withoutError).success).toBe(false);
+    // A match with no evidence is a guess, and guesses are not returned.
+    expect(
+      CHANNELS['library:find-pdf'].response.safeParse({
+        ...res,
+        matches: [{ ...res.matches[0], evidence: [] }],
+      }).success,
+    ).toBe(false);
+    expect(
+      CHANNELS['library:find-pdf'].response.safeParse({ ...res, scanned: -1 }).success,
+    ).toBe(false);
+  });
+
+  it('requires an explicit policy on library:acquire-pdf, null meaning "as configured"', () => {
+    const req: RequestOf<'library:acquire-pdf'> = {
+      result: GUNN,
+      citekey: 'gunn1972',
+      projectRoot: '/work/my-paper',
+      policy: null,
+    };
+    expect(CHANNELS['library:acquire-pdf'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['library:acquire-pdf'].request.parse({ ...req, policy: 'off' }).policy).toBe(
+      'off',
+    );
+    // Explicitly null, never absent — the renderer must say which it means.
+    const { policy: _dropped, ...withoutPolicy } = req;
+    expect(CHANNELS['library:acquire-pdf'].request.safeParse(withoutPolicy).success).toBe(false);
+    expect(
+      CHANNELS['library:acquire-pdf'].request.safeParse({ ...req, citekey: '' }).success,
+    ).toBe(false);
+  });
+
+  it('names which acquisition happened, or nulls it beside an error', () => {
+    const copied: ResponseOf<'library:acquire-pdf'> = {
+      acquisition: 'copied-local',
+      path: '/work/my-paper/references/gunn1972.pdf',
+      relativePath: 'references/gunn1972.pdf',
+      source: '/Users/ada/Zotero/storage/ABCD1234/Gunn_1972_Infall.pdf',
+      matches: [
+        {
+          path: '/Users/ada/Zotero/storage/ABCD1234/Gunn_1972_Infall.pdf',
+          sizeBytes: 812_345,
+          confidence: 'high',
+          evidence: ['doi-in-bytes'],
+        },
+      ],
+      notes: ['local scan: 1 match across 1 root (/Users/ada/Zotero/storage), 1204 files examined'],
+      error: null,
+    };
+    expect(CHANNELS['library:acquire-pdf'].response.parse(copied)).toEqual(copied);
+
+    // Nothing was attempted: that is NOT 'metadata-only', which means "we
+    // looked everywhere and there is no PDF".
+    const refused: ResponseOf<'library:acquire-pdf'> = {
+      acquisition: null,
+      path: null,
+      relativePath: null,
+      source: null,
+      matches: [],
+      notes: [],
+      error: 'path is outside any open project: /etc',
+    };
+    expect(CHANNELS['library:acquire-pdf'].response.parse(refused)).toEqual(refused);
+    expect(
+      CHANNELS['library:acquire-pdf'].response.safeParse({ ...copied, acquisition: 'unresolved' })
+        .success,
+    ).toBe(false);
   });
 
   it('requires a non-empty prompt and dir on ai:ask', () => {

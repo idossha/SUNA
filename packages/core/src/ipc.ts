@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { DocxAnalysisSchema } from './docx-import';
-import { LitCliIdSchema, LitProviderIdSchema } from './lit';
+import {
+  DownloadPolicySchema,
+  LibraryConfigSchema,
+  PdfAcquisitionSchema,
+  PdfMatchSchema,
+} from './library';
+import { LitCliIdSchema, LitProviderIdSchema, LitResultSchema } from './lit';
 import {
   ProjectDirKeySchema,
   ProjectSettingsSchema,
@@ -103,6 +109,99 @@ export const MigrationOutcomeSchema = z.object({
   error: z.string().nullable(),
 });
 export type MigrationOutcome = z.infer<typeof MigrationOutcomeSchema>;
+
+/**
+ * `library.json` as it now stands, plus what its roots resolve to on THIS
+ * machine (feature-plan-10 §Layer 5). Both library config channels answer with
+ * this shape, so a write needs no follow-up read.
+ *
+ * `expanded` is what lets the Settings pane be honest about the search it is
+ * configuring: roots are STORED portably (`~/Zotero/storage`) and a root that
+ * is gone is dropped from the scan rather than failing it, so the pane must be
+ * able to say which of the user's four folders will actually be walked.
+ * `missing` names them in their stored form — the string the user typed, not
+ * an expanded path they never wrote.
+ */
+export const LibraryConfigStateSchema = z.object({
+  config: LibraryConfigSchema,
+  /** Absolute path of library.json, whether or not it exists yet. */
+  path: z.string().min(1),
+  /** 'defaults' covers both first run and a file that could not be used. */
+  source: z.enum(['file', 'defaults']),
+  /**
+   * Why the stored file was not used, or null. A file that does not exist yet
+   * is the normal first-run state and is NOT an error; a file that exists and
+   * is unreadable, unparseable or invalid is — surfaced rather than swallowed,
+   * because a corrupt library.json quietly ignored looks exactly like a
+   * library.json whose roots simply hold no PDFs.
+   */
+  error: z.string().nullable(),
+  expanded: z.object({
+    /** Absolute, existing, symlink-resolved, deduped — what a scan would walk. */
+    roots: z.array(z.string().min(1)),
+    /** Configured roots that cannot be searched, in their stored ('~/…') form. */
+    missing: z.array(z.string().min(1)),
+    /** One line per root that was dropped or collapsed into another. */
+    notes: z.array(z.string().min(1)),
+  }),
+});
+export type LibraryConfigState = z.infer<typeof LibraryConfigStateSchema>;
+
+/**
+ * The result of one read-only machine search (feature-plan-10 §Layer 3).
+ *
+ * An empty `matches` is a real answer, never a swallowed failure — which is
+ * why it always arrives with the rest: "nothing matched in 3 roots, ~/Papers
+ * does not exist, and the walk was truncated" is a fact the user can act on,
+ * an unexplained "no PDF" is not. `error` is non-null only when nothing was
+ * searched at all.
+ */
+export const LibraryScanOutcomeSchema = z.object({
+  /** Best first. Every match carries the evidence that produced it. */
+  matches: z.array(PdfMatchSchema),
+  /** Absolute, symlink-resolved roots that were actually walked. */
+  rootsSearched: z.array(z.string().min(1)),
+  /** Configured roots that were dropped, in their stored ('~/…') form. */
+  rootsMissing: z.array(z.string().min(1)),
+  /** Files the bounded walk examined; Spotlight hits are not walked and do not count. */
+  scanned: z.number().int().nonnegative(),
+  /** True when maxFilesScanned stopped the walk early — the answer is partial. */
+  truncated: z.boolean(),
+  /** Every partiality: skipped roots, Spotlight off, unreadable candidates. */
+  notes: z.array(z.string().min(1)),
+  error: z.string().nullable(),
+});
+export type LibraryScanOutcome = z.infer<typeof LibraryScanOutcomeSchema>;
+
+/**
+ * What one run of the acquisition ladder did (feature-plan-10, the four
+ * outcomes in their strict preference order): `already-present` →
+ * `copied-local` → `downloaded` → `metadata-only`.
+ *
+ * `acquisition` is null EXACTLY when `error` is non-null — nothing was
+ * attempted, which is a different fact from `metadata-only` ("we looked
+ * everywhere and there is no PDF; cite it from its metadata"). The renderer
+ * must be able to tell those apart before it tells the user anything.
+ */
+export const LibraryAcquireOutcomeSchema = z.object({
+  acquisition: PdfAcquisitionSchema.nullable(),
+  /** Absolute path of the PDF inside the project, or null when none was acquired. */
+  path: z.string().min(1).nullable(),
+  /** 'references/<citekey>.pdf' — the value a BibTeX `file` field wants. */
+  relativePath: z.string().min(1).nullable(),
+  /**
+   * Where the bytes came from: the absolute path on this machine they were
+   * copied from, or the URL they were downloaded from. Null for
+   * `already-present` (nothing was fetched) and for `metadata-only`.
+   */
+  source: z.string().min(1).nullable(),
+  /** What the machine search found, best first — shown when the ladder stopped short. */
+  matches: z.array(PdfMatchSchema),
+  /** Every rung that did not produce a PDF, in the order they were tried. */
+  notes: z.array(z.string().min(1)),
+  error: z.string().nullable(),
+});
+export type LibraryAcquireOutcome = z.infer<typeof LibraryAcquireOutcomeSchema>;
 
 /**
  * A capture region for 'app:capture-rect' / 'ai:repair-bundle': CSS px in the
@@ -641,6 +740,90 @@ export const CHANNELS = {
   'lit:cancel': {
     request: z.object({ searchId: z.string().min(1) }),
     response: z.object({}),
+  },
+
+  /**
+   * The reference library (feature-plan-10 §Layer 5): which folders on THIS
+   * machine may be searched for a paper's PDF, whether Spotlight helps, and
+   * how far a download may reach.
+   *
+   * These are deliberately NOT keys on 'settings:get'/'settings:set': the
+   * settings live in `~/SunaConfig/library.json`, not Electron userData,
+   * because the standalone MCP server has no userData and must search exactly
+   * the folders this pane wrote.
+   *
+   * A missing file is the normal first run (`source: 'defaults'`, `error:
+   * null`); a file that exists and cannot be used still answers with a usable
+   * config — the defaults — and says why.
+   */
+  'library:read-config': {
+    request: z.object({}),
+    response: LibraryConfigStateSchema,
+  },
+  /**
+   * Merge `patch` into library.json and write it atomically (tmp + rename).
+   * Only the fields the pane actually edits are patchable — `schemaVersion` is
+   * the file's own, not a setting — and an absent field is left exactly as it
+   * was, so two panes editing different fields cannot clobber each other.
+   *
+   * A patch that would produce an invalid config writes NOTHING and comes back
+   * with the unchanged config plus a sentence naming the problem: silently
+   * clamping it would hide a Settings bug, and silently writing it would cost
+   * the user their other choices on the next load.
+   */
+  'library:write-config': {
+    request: z.object({ patch: LibraryConfigSchema.omit({ schemaVersion: true }).partial() }),
+    response: LibraryConfigStateSchema,
+  },
+  /**
+   * Read-only search of THIS MACHINE for a PDF of `result` — Spotlight (macOS,
+   * when enabled) plus a bounded walk of the configured roots, ranked by the
+   * shared evidence rules in @suna/bib. This is the one place the app reads
+   * outside the open project, and it reads only inside the roots library.json
+   * names: nothing is copied, moved, opened for writing or executed.
+   *
+   * `projectRoot` says which open project the search is FOR — main refuses a
+   * directory it never opened, the same gate every other renderer-directed
+   * path crosses. It does not bound the search; 'library:acquire-pdf' is where
+   * it becomes the write boundary.
+   */
+  'library:find-pdf': {
+    request: z.object({
+      /** LitResultSchema — a provider hit, or one synthesized from a bib entry. */
+      result: LitResultSchema,
+      projectRoot: z.string().min(1),
+    }),
+    response: LibraryScanOutcomeSchema,
+  },
+  /**
+   * Acquire `references/<citekey>.pdf` for one reference, walking the ladder in
+   * its strict preference order: the project's own copy, then this machine,
+   * then an open-access/publisher download, then metadata-only. A local file is
+   * COPIED, never moved — the user's library keeps its file — and an existing
+   * destination is reported as `already-present`, never overwritten.
+   *
+   * A local match is copied unasked only when `isAutoCopyable` says the
+   * evidence names the WORK: `high`, or `medium` corroborated by a second
+   * distinct evidence id. That refuses two rungs, not one — every `low` match
+   * (filename title-words alone) AND an uncorroborated `medium`, which is what
+   * a lone `filename-author-year` scores, because "Smith 2020" names every
+   * paper Smith wrote in 2020, so whichever Smith 2020 sits in `~/Downloads`
+   * would be filed under this cite key and the mistake found at submission.
+   * Both come back in `matches` with their path, confidence and evidence, for
+   * the view to name and the user to attach by hand instead.
+   *
+   * `policy` is explicitly null to mean "whatever library.json says"; a value
+   * overrides the stored policy for this call only and is never written back.
+   */
+  'library:acquire-pdf': {
+    request: z.object({
+      result: LitResultSchema,
+      /** The bibliography key the PDF is filed under; it may not contain a path separator. */
+      citekey: z.string().min(1),
+      projectRoot: z.string().min(1),
+      policy: DownloadPolicySchema.nullable(),
+    }),
+    response: LibraryAcquireOutcomeSchema,
   },
 
   /**
