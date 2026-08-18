@@ -661,6 +661,9 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     try {
       const doc = await loadFromDisk()
       if (doc === null) return
+      // Same broadcast a manual save makes: the figure changed on disk, so
+      // the manuscript's live preview and the Figures view must re-read it.
+      useProjectStore.getState().noteFileSaved(path)
       // The fresh session is by definition in sync with disk.
       revRef.current += 1
       savedRevRef.current = revRef.current

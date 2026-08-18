@@ -20,6 +20,7 @@ import {
   cachedAsset,
   figureSvgPath,
   loadAsset,
+  onAssetInvalidated,
   resolveImageUrl,
   type FigureAsset
 } from './figureAssets'
@@ -828,6 +829,69 @@ function paintAsset(host: HTMLElement, asset: FigureAsset, fallbackLabel: string
 }
 
 /**
+ * The DOM attribute a painted asset holder carries, naming the file it was
+ * painted from. It is what lets a save go back and repaint the figures
+ * already sitting in an open document (`repaintAsset` below) — a CodeMirror
+ * widget is built once and never asked to rebuild while the source text is
+ * unchanged, so without this a saved figure keeps showing its old bytes
+ * until the tab is reopened.
+ */
+const ASSET_PATH_ATTR = 'data-suna-asset-path'
+
+/** The placeholder text a repaint falls back to when the file cannot be read. */
+const ASSET_LABEL_ATTR = 'data-suna-asset-label'
+
+/**
+ * Paint `path`'s asset into `host` — from the cache when it is warm (the
+ * common case once one widget has loaded the file), otherwise showing
+ * `fallbackLabel` until the read resolves. Shared by both widgets so both
+ * are equally repaintable.
+ */
+function mountAsset(host: HTMLElement, path: string, fallbackLabel: string): void {
+  host.setAttribute(ASSET_PATH_ATTR, path)
+  host.setAttribute(ASSET_LABEL_ATTR, fallbackLabel)
+  const cached = cachedAsset(path)
+  if (cached !== undefined) {
+    paintAsset(host, cached, fallbackLabel)
+    return
+  }
+  host.classList.add('cm-lp-figure__body--loading')
+  host.textContent = fallbackLabel
+  void loadAsset(path).then((asset) => {
+    // The widget may have been replaced while the read was in flight.
+    if (!host.isConnected) return
+    host.classList.remove('cm-lp-figure__body--loading')
+    paintAsset(host, asset, fallbackLabel)
+  })
+}
+
+/**
+ * Re-read `path` and repaint every holder in the document that was painted
+ * from it. Driven by figureAssets' invalidation, which every save goes
+ * through: editing a figure on the canvas and saving it updates the figure
+ * where it appears in the manuscript, with no reopen and no retyping.
+ */
+function repaintAsset(path: string): void {
+  if (typeof document === 'undefined') return
+  const holders = document.querySelectorAll<HTMLElement>(
+    `[${ASSET_PATH_ATTR}="${CSS.escape(path)}"]`
+  )
+  if (holders.length === 0) return
+  void loadAsset(path).then((asset) => {
+    for (const host of holders) {
+      if (!host.isConnected) continue
+      host.classList.remove('cm-lp-figure__body--loading')
+      paintAsset(host, asset, host.getAttribute(ASSET_LABEL_ATTR) ?? path)
+    }
+  })
+}
+
+// Module-level, matching the module-level asset cache the widgets read: one
+// subscription serves every editor in the window, and there is no editor
+// lifecycle to hang it off (widgets are transient, the cache is not).
+onAssetInvalidated(repaintAsset)
+
+/**
  * `![[fig:id]]` — renders the figure's own SVG from
  * `<rootDir>/figures/<id>/figure.svg`, with its id beneath as a caption line.
  *
@@ -866,20 +930,7 @@ class FigureWidget extends WidgetType {
       return el
     }
 
-    const path = figureSvgPath(this.rootDir, this.figureId)
-    const cached = cachedAsset(path)
-    if (cached !== undefined) {
-      paintAsset(body, cached, `fig:${this.figureId}`)
-    } else {
-      body.className = 'cm-lp-figure__body cm-lp-figure__body--loading'
-      body.textContent = `fig:${this.figureId}`
-      void loadAsset(path).then((asset) => {
-        // The widget may have been replaced while the read was in flight.
-        if (!body.isConnected) return
-        body.className = 'cm-lp-figure__body'
-        paintAsset(body, asset, `fig:${this.figureId}`)
-      })
-    }
+    mountAsset(body, figureSvgPath(this.rootDir, this.figureId), `fig:${this.figureId}`)
     return el
   }
   override ignoreEvent(): boolean {
@@ -940,18 +991,7 @@ class ImageWidget extends WidgetType {
       paintAsset(body, { kind: 'missing', reason: `cannot resolve ${this.url}` }, label)
       return el
     }
-    const cached = cachedAsset(resolved)
-    if (cached !== undefined) {
-      paintAsset(body, cached, label)
-    } else {
-      body.className = 'cm-lp-figure__body cm-lp-figure__body--loading'
-      body.textContent = label
-      void loadAsset(resolved).then((asset) => {
-        if (!body.isConnected) return
-        body.className = 'cm-lp-figure__body'
-        paintAsset(body, asset, label)
-      })
-    }
+    mountAsset(body, resolved, label)
     return el
   }
   override ignoreEvent(): boolean {
