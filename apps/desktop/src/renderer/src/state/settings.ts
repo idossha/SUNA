@@ -14,6 +14,7 @@ import {
   type SettingsResolution,
   type SunaProjectManifest
 } from '@suna/core'
+import { mirrorAutosave } from './autosave'
 import { useProjectStore } from './project'
 
 /**
@@ -30,7 +31,10 @@ import { useProjectStore } from './project'
  *   'editor.theme'        'suna-dark' | 'suna-light' | 'gruvbox' |
  *                         'jellybeans'
  *                         default app theme (editor surface + chrome).
- *   'editor.autosave'     boolean               reserved; no consumer yet.
+ *   'editor.autosave'     boolean               save a dirty buffer (and the
+ *                         figure canvas) after a pause in editing. ON by
+ *                         default; `autosaveEnabled()` below is the consumer's
+ *                         entry point.
  * The editor zone should read these once on startup via
  * `window.suna.invoke('settings:get', {})` and seed its own store's defaults.
  *
@@ -73,6 +77,7 @@ export interface GlobalSettings {
   'editor.defaultMode': EditorModeSetting
   'editor.vimMotions': boolean
   'editor.theme': EditorThemeSetting
+  /** Save after a pause in editing instead of waiting for ⌘S. Default ON. */
   'editor.autosave': boolean
   /** Whole-window zoom factor (0.9 … 1.25). */
   'appearance.uiScale': number
@@ -90,7 +95,7 @@ export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
   'editor.defaultMode': 'reading',
   'editor.vimMotions': false,
   'editor.theme': 'suna-dark',
-  'editor.autosave': false,
+  'editor.autosave': true,
   'appearance.uiScale': 1,
   'terminal.shell': '',
   'lit.mailto': '',
@@ -485,5 +490,18 @@ export function watchProjectSettings(): () => void {
 }
 
 watchProjectSettings()
+
+/**
+ * Push 'editor.autosave' down to state/autosave.ts, which the editing
+ * surfaces read. They cannot import this module — see the note there — so
+ * this subscription is the one-way channel. Fired once now for the shipped
+ * default, then on every change.
+ */
+mirrorAutosave(useSettingsStore.getState().settings['editor.autosave'])
+useSettingsStore.subscribe((state, prev) => {
+  if (state.settings['editor.autosave'] !== prev.settings['editor.autosave']) {
+    mirrorAutosave(state.settings['editor.autosave'])
+  }
+})
 
 export { SETTINGS_DEFAULTS }

@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
 import { minimalDiff } from './minimalDiff'
 import { devSeam } from './devSeam'
+import { autosaveEnabled } from './autosave'
 import { useProjectStore } from './project'
 import { useUiStore } from './ui'
 
@@ -19,6 +20,14 @@ import { useUiStore } from './ui'
  * map, the dockApi precedent; a small zustand store carries only the
  * reactive meta (dirty/diverged/view count) hosts subscribe to.
  */
+
+/**
+ * Idle before an autosave fires, in ms. Long enough that ordinary typing
+ * never triggers one mid-word, short enough that stepping away from the
+ * keyboard leaves the work on disk. One save per pause, not per keystroke:
+ * the timer restarts on every edit and the session goes clean when it lands.
+ */
+export const AUTOSAVE_IDLE_MS = 1000
 
 /** Marks a transaction as forwarded from the session (loop prevention). */
 export const remoteSync = Annotation.define<boolean>()
@@ -205,6 +214,8 @@ export interface DocSession {
   viewCount: () => number
   /** THE save path: atomic write + saveBump + status note. Resolves false on failure. */
   save: () => Promise<boolean>
+  /** Test seam: run any pending autosave now instead of waiting out the idle. */
+  flushAutosave: () => Promise<boolean>
   resolveDivergence: (choice: 'keepMine' | 'reloadDisk') => void
   /** Revert the buffer to the last on-disk content (vim `:q!`'s contract). */
   discard: () => void
@@ -236,7 +247,10 @@ class DocSessionImpl implements DocSession {
         if (this.core === null) {
           const normalized = normalizeEol(content)
           this.core = new DocSessionCore(normalized)
-          this.core.onLocalEdit = () => this.markDirty()
+          this.core.onLocalEdit = () => {
+            this.markDirty()
+            this.scheduleAutosave()
+          }
           this.diskText = normalized
         }
         return this.core.text()
@@ -317,6 +331,49 @@ class DocSessionImpl implements DocSession {
     setMeta(this.path, { dirty: true })
   }
 
+  private autosaveTimer: number | null = null
+
+  /**
+   * (Re)arm the idle timer. Every edit pushes it out, so a burst of typing
+   * costs one save at the end of it rather than one per keystroke.
+   */
+  private scheduleAutosave(): void {
+    if (!autosaveEnabled()) return
+    this.cancelAutosave()
+    this.autosaveTimer = window.setTimeout(() => {
+      this.autosaveTimer = null
+      void this.runAutosave()
+    }, AUTOSAVE_IDLE_MS)
+  }
+
+  private cancelAutosave(): void {
+    if (this.autosaveTimer === null) return
+    window.clearTimeout(this.autosaveTimer)
+    this.autosaveTimer = null
+  }
+
+  /**
+   * The conditions are re-checked at fire time, not at schedule time: the
+   * setting may have been turned off during the pause, the buffer may
+   * already be clean (a ⌘S beat us to it), and — the one that matters — the
+   * file may have changed on disk underneath a dirty buffer. Autosaving over
+   * an unresolved divergence would silently destroy the other side's edit,
+   * so a diverged session waits for the user to answer the banner.
+   */
+  private async runAutosave(): Promise<boolean> {
+    if (!autosaveEnabled()) return false
+    if (!this.dirty) return false
+    if (this.divergedDiskText !== null) return false
+    return this.save({ quiet: true })
+  }
+
+  /** Test seam: run the pending autosave now instead of waiting out the idle. */
+  flushAutosave(): Promise<boolean> {
+    if (this.autosaveTimer === null) return Promise.resolve(false)
+    this.cancelAutosave()
+    return this.runAutosave()
+  }
+
   private saveChain: Promise<boolean> = Promise.resolve(true)
 
   /**
@@ -324,13 +381,18 @@ class DocSessionImpl implements DocSession {
    * racing ⌘S in the other) could otherwise complete out of order and leave
    * the newest content off disk with the session marked clean.
    */
-  save(): Promise<boolean> {
-    const next = this.saveChain.catch(() => false).then(() => this.doSave())
+  save(options: { quiet?: boolean } = {}): Promise<boolean> {
+    // An explicit save satisfies whatever the timer was going to do.
+    this.cancelAutosave()
+    const next = this.saveChain.catch(() => false).then(() => this.doSave(options.quiet === true))
     this.saveChain = next
     return next
   }
 
-  private async doSave(): Promise<boolean> {
+  /** `quiet` (an autosave) skips the status note — the tab's dirty dot
+   *  clearing is the feedback, and a note per pause would be a ticker.
+   *  Failures always speak up. */
+  private async doSave(quiet: boolean): Promise<boolean> {
     const core = this.core
     if (core === null) return false
     const savedDoc = core.doc
@@ -347,7 +409,7 @@ class DocSessionImpl implements DocSession {
         setMeta(this.path, { diverged: false })
       }
       devSeam.noteFileSaved(this.path)
-      useUiStore.getState().setStatusNote(`Saved ${this.fileName}`)
+      if (!quiet) useUiStore.getState().setStatusNote(`Saved ${this.fileName}`)
       fireDocSaved(this.path, content)
       return true
     } catch (error) {
@@ -389,6 +451,8 @@ class DocSessionImpl implements DocSession {
   private applyDiskText(content: string): void {
     const core = this.core
     if (core === null) return
+    // The buffer is about to match disk; nothing left for a pending save.
+    this.cancelAutosave()
     core.applyExternal(content)
     this.diskText = content
     this.divergedDiskText = null
@@ -420,6 +484,10 @@ class DocSessionImpl implements DocSession {
     this.diskText = stash
     this.divergedDiskText = null
     setMeta(this.path, { diverged: false })
+    // Autosave refuses to run while diverged, so the choice the user just
+    // made is what re-arms it — otherwise "keep mine" would sit unsaved
+    // until they happened to type again.
+    this.scheduleAutosave()
   }
 
   /** True when nothing holds this session and nothing would be lost. */

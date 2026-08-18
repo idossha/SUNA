@@ -22,6 +22,8 @@ import { checkFigureSvg, getBundledProfile, type Diagnostic } from '@suna/format
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useUiStore } from '../state/ui'
 import { useProjectStore } from '../state/project'
+import { autosaveEnabled } from '../state/autosave'
+import { AUTOSAVE_IDLE_MS } from '../state/docSessions'
 import { hasDrawableContent } from './blank-canvas'
 import {
   collectUnitElements,
@@ -597,7 +599,8 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   }, [])
 
   // ---- persistence ---------------------------------------------------------
-  const save = async (): Promise<void> => {
+  /** `quiet` (an autosave) skips the status note; failures always speak up. */
+  const save = async (quiet = false): Promise<void> => {
     const session = sessionRef.current
     if (!session) return
     flushTx()
@@ -606,12 +609,32 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
       useProjectStore.getState().noteFileSaved(path)
       savedRevRef.current = revRef.current
       api.setTitle(fileName)
-      note(`Saved ${fileName}`)
+      if (!quiet) note(`Saved ${fileName}`)
       runCompliance()
     } catch (error) {
       note(`Could not save ${fileName}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
+
+  /**
+   * Autosave (global 'editor.autosave', on by default), the canvas half of
+   * what docSessions does for text: after a pause in editing, a dirty figure
+   * writes itself out. Keyed on `rev`, which only advances on a COMMITTED
+   * command — a drag in progress bumps nothing, so no save ever lands
+   * mid-gesture. The setting is re-read when the timer fires, so switching it
+   * off in Settings stops the very next one.
+   */
+  useEffect(() => {
+    if (rev === savedRevRef.current) return
+    if (!autosaveEnabled()) return
+    const timer = window.setTimeout(() => {
+      if (!aliveRef.current) return
+      if (revRef.current === savedRevRef.current || !autosaveEnabled()) return
+      void save(true)
+    }, AUTOSAVE_IDLE_MS)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rev])
 
   // ---- directed AI figure edits (feature-plan-8 §4) --------------------------
   /**
