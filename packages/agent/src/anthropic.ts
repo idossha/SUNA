@@ -1,8 +1,26 @@
+import type { AiModel } from '@suna/core'
 import type { ChatRequest, ChatResult, Provider, ProviderChatOptions } from './types'
 import { postJson } from './http'
 
 const DEFAULT_BASE_URL = 'https://api.anthropic.com'
-const DEFAULT_MODEL = 'claude-sonnet-5'
+
+/**
+ * Tier ('sonnet') → the model id this app sends today. The settings surface
+ * stores the tier, so bumping a generation is this table and nothing else —
+ * no committed suna.json has to be rewritten.
+ */
+export const ANTHROPIC_MODEL_IDS: Record<AiModel, string> = {
+  opus: 'claude-opus-5',
+  sonnet: 'claude-sonnet-5',
+  haiku: 'claude-haiku-4-5'
+}
+
+/** The model id for a tier; falls back to the shipped default tier. */
+export function anthropicModelId(model: AiModel | undefined): string {
+  return ANTHROPIC_MODEL_IDS[model ?? 'sonnet']
+}
+
+const DEFAULT_MODEL = ANTHROPIC_MODEL_IDS.sonnet
 const DEFAULT_MAX_TOKENS = 4096
 const API_VERSION = '2023-06-01'
 
@@ -23,7 +41,10 @@ export const anthropicProvider: Provider = {
         model: req.model ?? DEFAULT_MODEL,
         max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
         system: req.system,
-        messages: req.messages
+        messages: req.messages,
+        // GA on the Messages API, no beta header; omitted means the API's own
+        // default (high), so only send it when the caller picked a level.
+        ...(req.effort !== undefined ? { output_config: { effort: req.effort } } : {})
       }
     })
     return { text: concatTextBlocks(data) }

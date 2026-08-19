@@ -1,3 +1,5 @@
+import type { AiEffort } from '@suna/core'
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -8,6 +10,11 @@ export interface ChatRequest {
   messages: ChatMessage[]
   model?: string
   maxTokens?: number
+  /**
+   * Reasoning effort for the turn (@suna/core's AiEffort). Anthropic sends it
+   * as `output_config.effort`; providers with no equivalent knob ignore it.
+   */
+  effort?: AiEffort
 }
 
 export interface ProviderChatOptions {

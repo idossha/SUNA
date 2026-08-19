@@ -12,7 +12,7 @@ import {
   type RequestOf,
   type ResponseOf
 } from '@suna/core'
-import { getProvider } from '@suna/agent'
+import { anthropicModelId, getProvider } from '@suna/agent'
 import { cancelAiAsk, runAiAsk } from './services/ai-ask'
 import {
   getKey,
@@ -131,6 +131,7 @@ import {
   forgetRecentProject,
   listRecentProjects,
   readSettings,
+  resolveAiChoice,
   touchRecentProject,
   writeSettings
 } from './services/settings'
@@ -506,6 +507,9 @@ export function registerIpcHandlers(): void {
     const askId = `ai-ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const webContents = event.sender
     const cliPreference = await litCliPreference()
+    // Model/effort resolve from this project's suna.json over global settings,
+    // so a hand-edited manifest reaches the spawn without renderer help.
+    const { model, effort } = await resolveAiChoice(dir)
 
     // Fire-and-forget: the child keeps running after this handler returns.
     // Progress/outcome arrive over EVENT_CHANNELS.aiAskProgress/aiAskDone(askId).
@@ -515,6 +519,8 @@ export function registerIpcHandlers(): void {
       allowedTools,
       useMcp,
       viaStdin,
+      model,
+      effort,
       onProgress: (status) => {
         if (!webContents.isDestroyed()) webContents.send(EVENT_CHANNELS.aiAskProgress(askId), status)
       }
@@ -623,12 +629,19 @@ export function registerIpcHandlers(): void {
       AGENT_PROVIDER_IDS.map(async (id) => ({ id, hasKey: await hasKey(id) }))
     )
   }))
-  handle('agent:chat', async ({ provider, system, messages }) => {
+  handle('agent:chat', async ({ provider, system, messages, dir }) => {
     const key = await getKey(provider)
     if (provider !== 'ollama' && key === null) {
       throw new Error(`no API key configured for ${provider} — add one in settings`)
     }
-    return getProvider(provider).chat({ system, messages }, { apiKey: key ?? undefined })
+    const { model, effort } = await resolveAiChoice(dir ?? undefined)
+    // The tier only names an Anthropic model; openai/ollama keep their own
+    // default and take the effort hint only if their adapter understands it.
+    const modelId = provider === 'anthropic' ? anthropicModelId(model) : undefined
+    return getProvider(provider).chat(
+      { system, messages, model: modelId, effort },
+      { apiKey: key ?? undefined }
+    )
   })
 
   handle('term:create', async ({ cwd, cols, rows, envPath }, event) => {

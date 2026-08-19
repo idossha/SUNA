@@ -2,10 +2,15 @@ import { app } from 'electron'
 import { access, readFile, writeFile, rename, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
+  ProjectSettingsSchema,
   RECENT_PROJECTS_KEY,
+  resolveSetting,
   coerceRecentProjects,
   forgetRecentProject as dropRecent,
   touchRecentProject as pushRecent,
+  type AiEffort,
+  type AiModel,
+  type ProjectSettings,
   type RecentProject,
   type RecentProjectEntry
 } from '@suna/core'
@@ -112,4 +117,45 @@ export async function forgetRecentProject(path: string): Promise<RecentProjectEn
   const next = dropRecent(await readRecentProjects(), path)
   await writeSettings({ [RECENT_PROJECTS_KEY]: next })
   return withExistence(next)
+}
+
+/* ------------------------------------------------------------------ */
+/* The AI's model tier and effort — resolved main-side                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A project's own `settings` block, or undefined when `dir` is not a project
+ * (or its suna.json is unreadable/invalid). Deliberately forgiving: a broken
+ * manifest must degrade to the global level, never fail the AI call that is
+ * only asking which model to use.
+ */
+async function projectSettingsAt(dir: string): Promise<ProjectSettings | undefined> {
+  try {
+    const raw = await readFile(join(dir, 'suna.json'), 'utf8')
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return undefined
+    const block = (parsed as { settings?: unknown }).settings
+    const settings = ProjectSettingsSchema.safeParse(block)
+    return settings.success ? settings.data : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Which model tier and effort an AI call runs at, resolved project-then-global
+ * exactly as the Settings surface resolves it. Resolved HERE rather than
+ * passed in from the renderer so that every entry point — palette ask,
+ * directed action, chat — obeys a hand-edited suna.json without its own
+ * plumbing. `dir` absent = global level only.
+ */
+export async function resolveAiChoice(
+  dir?: string
+): Promise<{ model: AiModel; effort: AiEffort }> {
+  const global = await readSettings()
+  const project = dir === undefined ? undefined : await projectSettingsAt(dir)
+  return {
+    model: resolveSetting('ai.model', global, project).value,
+    effort: resolveSetting('ai.effort', global, project).value
+  }
 }
