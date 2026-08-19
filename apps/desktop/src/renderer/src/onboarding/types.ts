@@ -8,7 +8,7 @@ import { SETTING_KEYS, type ProjectSettings, type ResponseOf } from '@suna/core'
  */
 export type WizardMode = 'create' | 'setup'
 
-export type ScaffoldKind = 'blank' | 'starter' | 'import'
+export type ScaffoldKind = 'blank' | 'starter' | 'import' | 'document'
 
 export type PythonChoice = 'skip' | 'existing' | 'create-uv'
 
@@ -87,6 +87,8 @@ export interface WizardState {
   importDir: string | null
   importFiles: ImportableFileRow[]
   importScanning: boolean
+  /** 'document' scaffold: the .docx/.pdf/.html manuscript to start from. */
+  documentPath: string | null
 
   // Step 4 — Python environment
   pythonChoice: PythonChoice
@@ -154,6 +156,7 @@ export function createInitialWizardState(
     importDir: null,
     importFiles: [],
     importScanning: false,
+    documentPath: null,
 
     pythonChoice: 'skip',
     existingEnvPath: null,

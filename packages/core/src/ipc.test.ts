@@ -311,6 +311,7 @@ describe('CHANNELS', () => {
       activeProfileId: 'nature-astronomy',
       scaffold: 'starter',
       importDir: null,
+      documentPath: null,
       settings: { editor: { contentWidthCh: 90 } },
     };
     expect(CHANNELS['project:scaffold'].request.parse(req)).toEqual(req);
@@ -720,6 +721,9 @@ describe('CHANNELS', () => {
       affiliations: [{ marker: '1', text: 'Department of Sleep Medicine' }],
       affiliationsReason: 'short paragraphs after the author line starting with a digit marker',
       abstract: { value: 'We report on…', reason: 'paragraph following a heading matching /abstract/i' },
+      significance: { value: 'Why it matters.', reason: 'prose under a "Significance" heading' },
+      highlights: { value: ['Slow waves increase.'], reason: '1 bullet under a "Highlights" heading' },
+      keywords: { value: ['sleep', 'tTIS'], reason: 'a paragraph starting "Keywords:…"' },
       sections: [{ heading: 'Introduction', level: 1, markdown: 'Body text.' }],
       references: [
         {
@@ -730,6 +734,7 @@ describe('CHANNELS', () => {
           year: '2020',
           title: 'A title',
           journal: 'J. Sleep',
+          doi: null,
           citeKey: 'smith2020atitle',
         },
       ],

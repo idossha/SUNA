@@ -192,6 +192,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
         activeProfileId,
         scaffold: snapshot.scaffold,
         importDir: snapshot.scaffold === 'import' ? snapshot.importDir : null,
+        documentPath: snapshot.scaffold === 'document' ? snapshot.documentPath : null,
         settings
       })
     } catch (error) {

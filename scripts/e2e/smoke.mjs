@@ -601,12 +601,7 @@ try {
   })
 
   await step('open-example-project', async () => {
-    await evalJs(`(() => {
-      const btn = [...document.querySelectorAll('.welcome__actions button')]
-        .find((b) => b.textContent.includes('example'));
-      if (!btn) throw new Error('Open example button missing');
-      btn.click();
-    })()`)
+    await evalJs(`window.__sunaDev.projectStore.getState().openExampleProject()`)
     // copy + git init + tree listing take a moment on first open
     const openDeadline = Date.now() + 20_000
     let rootDir = null

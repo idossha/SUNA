@@ -1,64 +1,10 @@
-import { useState, type JSX } from 'react'
+import type { JSX } from 'react'
 import { useProjectStore } from '../state/project'
-import { useUiStore } from '../state/ui'
-import { openDocxImportTab, openOnboardingTab } from '../state/dock'
+import { openOnboardingTab } from '../state/dock'
 import { RecentProjects } from './RecentProjects'
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 export function WelcomeTab(): JSX.Element {
   const openProject = useProjectStore((s) => s.openProject)
-  const openExampleProject = useProjectStore((s) => s.openExampleProject)
-  const [settingUp, setSettingUp] = useState(false)
-  const [pickingDocx, setPickingDocx] = useState(false)
-
-  // "Import .docx…" (feature-plan-6 §2): pick a Word file, then open the
-  // Import Review tab against it. Nothing is written until that tab's own
-  // "Import" button runs — picking the file here never creates a project.
-  const importDocx = async (): Promise<void> => {
-    setPickingDocx(true)
-    try {
-      const { path } = await window.suna.invoke('dialog:pick-file', {
-        title: 'Import a .docx manuscript',
-        extensions: ['docx']
-      })
-      if (path === null) return
-      openDocxImportTab(path)
-    } catch (error) {
-      useUiStore.getState().setStatusNote(`Could not open that file: ${errorMessage(error)}`)
-    } finally {
-      setPickingDocx(false)
-    }
-  }
-
-  // "Set up project" (feature-plan-5 §5): pick an existing folder and, when it
-  // is missing suna.json, launch the wizard against it (steps 2-7). A folder
-  // that already IS a SUNA project is left to "Open project…" — this entry
-  // point never opens a project on its own.
-  const setUpProject = async (): Promise<void> => {
-    setSettingUp(true)
-    try {
-      const { path } = await window.suna.invoke('dialog:pick-directory', {
-        title: 'Choose a project folder to set up',
-        allowCreate: false
-      })
-      if (path === null) return
-      const { manifestPresent } = await window.suna.invoke('project:scaffold-status', { dir: path })
-      if (manifestPresent) {
-        useUiStore
-          .getState()
-          .setStatusNote(`${path} is already a SUNA project — use “Open project…” instead.`)
-        return
-      }
-      openOnboardingTab({ mode: 'setup', dir: path })
-    } catch (error) {
-      useUiStore.getState().setStatusNote(`Could not set up that folder: ${errorMessage(error)}`)
-    } finally {
-      setSettingUp(false)
-    }
-  }
 
   return (
     <div className="welcome">
@@ -79,21 +25,13 @@ export function WelcomeTab(): JSX.Element {
           <button className="btn" onClick={() => void openProject()}>
             Open project…
           </button>
-          <button className="btn" onClick={() => void openExampleProject()}>
-            Open example
-          </button>
-          <button className="btn" disabled={settingUp} onClick={() => void setUpProject()}>
-            Set up project…
-          </button>
-          <button className="btn" disabled={pickingDocx} onClick={() => void importDocx()}>
-            Import .docx…
-          </button>
         </div>
         <RecentProjects />
         <p className="welcome__hint">
           A project keeps sections in Markdown, references in BibTeX, figures as
           SVG with their generating code, and everything under git — publisher
-          formatting is applied only on export.
+          formatting is applied only on export. Have a manuscript already? New
+          project can start from a .docx, .pdf or .html file.
         </p>
       </div>
     </div>
