@@ -46,7 +46,7 @@ the literature APIs:
 Set them in the environment the server is launched with. Agent comments always carry
 `author.kind: "agent"`.
 
-## The 23 verbs
+## The 24 verbs
 
 Every reply is plain text.
 
@@ -68,6 +68,7 @@ Every reply is plain text.
 | list_comments | {resolved?, path?} | review-comment threads |
 | add_comment | {path, quote, body} | open a thread anchored to exact prose text |
 | reply_comment | {id, body} | reply in a thread (resolving is human-only, in the app) |
+| list_reference_notes | {citekey?, colors?, tags?, withBodyOnly?} | the reader's highlights and notes on reference PDFs, grouped by paper and joined to its bibliography entry — quote plus what they wrote about it, citable as `[@citekey, p. N]` |
 | search_literature | {query, provider?, limit?} | search a literature provider (default Crossref, keyless) |
 | lookup_doi | {doi, provider?} | one work by DOI |
 | add_reference | {doi, provider?} | fetch a DOI's metadata and append it to references.bib (generated cite key is echoed back) |

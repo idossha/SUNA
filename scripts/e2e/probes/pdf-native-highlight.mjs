@@ -201,12 +201,19 @@ export default async function run(ctx) {
   const empty = await readAnnotations(pdfPath)
   console.log(`after removing both: ${empty.bytes} bytes, ${empty.highlights.length} highlights`)
   assert(empty.highlights.length === 0, `expected 0 highlights, got ${empty.highlights.length}`)
+  // NOT byte-identical to the original, and that is correct. An earlier design
+  // rebuilt the file from a pristine baseline, so removing everything
+  // truncated back to it; that baseline was a trap, because a foreign edit
+  // invalidated it permanently. Highlights are now reconciled with incremental
+  // saves, and an incremental save only ever appends — even a deletion, which
+  // appends an update marking the object gone. What must hold is that the
+  // paper's own bytes were never rewritten.
   assert(
-    empty.bytes === pristineBytes && prefixSha(pdfPath, pristineBytes) === pristineSha,
-    `removing every highlight should restore the pristine file exactly ` +
-      `(${pristineBytes} bytes), got ${empty.bytes}`
+    prefixSha(pdfPath, pristineBytes) === pristineSha,
+    'the original bytes changed — the paper was rewritten rather than appended to'
   )
-  console.log('  the paper is byte-identical to how it was acquired')
+  assert(empty.bytes >= pristineBytes, 'the file shrank; an incremental save only grows')
+  console.log(`  the paper's own ${pristineBytes} bytes are still intact and unmodified`)
 
   return {
     pristineBytes,
@@ -214,6 +221,7 @@ export default async function run(ctx) {
     afterTwo: two.bytes,
     afterRemoveOne: afterRemove.highlights.length,
     afterRemoveAll: empty.highlights.length,
+    finalBytes: empty.bytes,
     annotation: a0
   }
 }

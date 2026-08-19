@@ -3,10 +3,13 @@
  *
  * Measures the whole path in the running app, not a stub: a real drag-shaped
  * DOM selection over pdf.js's live text layer, the popover that follows it,
- * the citekey reverse-resolved from `references/gunn1972.pdf`, and the
- * blockquote arriving in the manuscript's CodeMirror BUFFER — which is the
- * property that matters, because SUNA must never write prose to a markdown
- * file it does not own the buffer of.
+ * the citekey reverse-resolved from `references/gunn1972.pdf`, and the text
+ * Copy puts on the clipboard.
+ *
+ * There is exactly one clipboard action now, and it produces prose rather
+ * than a markdown block — "simply text as if we typed it. eg: xxx [@cite]."
+ * The separate "Copy with citation" and "Quote into manuscript" commands are
+ * gone, so this no longer asserts anything about the manuscript buffer.
  *
  * Prereq: `references/gunn1972.pdf` must exist in the project (the probe
  * refuses rather than inventing one) so the citekey resolves through the
@@ -34,20 +37,7 @@ export default async function run(ctx) {
   )
   assert(readable === true, `expected a reference PDF at ${pdfPath}: ${readable}`)
 
-  // ---- 1. the manuscript must be OPEN for a quote to have anywhere to go --
-  const manuscriptPath = `${rootDir}/manuscript/manuscript.md`
-  await evalJs(`(() => { window.__sunaDev.dock.openFileTab(${json(manuscriptPath)}); return true })()`)
-  await waitFor(`document.querySelectorAll('.cm-content').length > 0`, {
-    timeoutMs: 20000,
-    desc: 'manuscript editor mounted'
-  })
-  await sleep(600)
-
-  const before = await evalJs(`window.__sunaDev.docSessions.peek(${json(manuscriptPath)})`)
-  assert(typeof before === 'string', 'manuscript buffer not loaded')
-  assert(!before.includes('[@gunn1972, p.'), 'manuscript already contains a page-cited quote — rerun on a clean example')
-
-  // ---- 2. open the PDF and wait for a live text layer ---------------------
+  // ---- 1. open the PDF and wait for a live text layer ---------------------
   await evalJs(`(() => { window.__sunaDev.dock.openFileTab(${json(pdfPath)}); return true })()`)
   await waitFor(`document.querySelectorAll('.pdfview__textlayer span').length > 20`, {
     timeoutMs: 30000,
@@ -55,7 +45,7 @@ export default async function run(ctx) {
   })
   await sleep(700)
 
-  // ---- 3. the citekey must reverse-resolve from the filename -------------
+  // ---- 2. the citekey must reverse-resolve from the filename -------------
   const match = await evalJs(`(() => {
     const map = window.__sunaDev.referencePdfsStore.getState().map
     return { size: map.size, gunn: map.get('gunn1972') ?? null }
@@ -64,7 +54,7 @@ export default async function run(ctx) {
   assert(match.gunn !== null, 'gunn1972 did not resolve to a PDF — the scan may not have re-run')
   console.log(`citekey map: ${match.size} entries, gunn1972 -> ${match.gunn.how}`)
 
-  // ---- 4. select a real passage and let the viewer read it ---------------
+  // ---- 3. select a real passage and let the viewer read it ---------------
   const selected = await evalJs(`(() => {
     const layer = document.querySelector('.pdfview__page[data-page="1"] .pdfview__textlayer')
     if (!layer) return { error: 'no text layer on page 1' }
@@ -108,54 +98,43 @@ export default async function run(ctx) {
     `popover should name the citekey, got ${json(popover.cite)}`
   )
   assert(popover.cite?.includes('p.'), `popover should name a page, got ${json(popover.cite)}`)
-  const copyWithCitation = popover.buttons.find((b) => b.label === 'Copy with citation')
-  assert(copyWithCitation && !copyWithCitation.disabled, 'Copy with citation should be enabled')
+  const labels = popover.buttons.map((b) => b.label)
+  assert(
+    labels.includes('Copy') && !labels.includes('Copy with citation'),
+    `expected one Copy action, got ${json(labels)}`
+  )
+  assert(!labels.includes('Quote into manuscript'), 'the manuscript command should be gone')
   assert(popover.rect.top >= 0 && popover.rect.left >= 0, 'popover placed off-screen')
 
-  // ---- 5. quote into the manuscript, and prove it landed in the BUFFER ---
+  // ---- 4. Copy puts prose on the clipboard, citation inline -------------
   await evalJs(`(() => {
-    const btn = [...document.querySelectorAll('.pdfquote__btn')].find((b) => b.textContent === 'Quote into manuscript')
+    const btn = [...document.querySelectorAll('.pdfquote__btn')].find((b) => b.textContent === 'Copy')
     btn.click()
     return true
   })()`)
-  await sleep(700)
+  await sleep(600)
 
-  const note = await evalJs(`document.querySelector('.pdfview__note')?.textContent ?? null`)
-  console.log(`note: ${json(note)}`)
-  assert(note !== null, 'no confirmation shown after quoting')
+  const notice = await evalJs(`document.querySelector('.pdfview__note')?.textContent ?? null`)
+  console.log(`notice: ${json(notice)}`)
+  assert(notice !== null, 'no confirmation shown after Copy')
 
-  // Assert against the BUFFER, not `.cm-content.textContent`: CodeMirror only
-  // renders the lines in view, so the DOM is silent about an insert that
-  // landed outside the viewport or in a tab the dock has hidden. The buffer is
-  // also the thing ADR-008 actually claims — the quote reaches the manuscript
-  // as a transaction, never as a file write behind an open editor.
-  const after = await evalJs(`window.__sunaDev.docSessions.peek(${json(manuscriptPath)})`)
-  assert(typeof after === 'string', 'manuscript buffer disappeared')
-  const at = after.indexOf('[@gunn1972, p.')
-  assert(at >= 0, `the citation never reached the manuscript buffer. Notice was ${json(note)}`)
+  const clipboard = await evalJs(`navigator.clipboard.readText().then((t) => t, (e) => 'ERR: ' + String(e))`)
+  if (typeof clipboard === 'string' && !clipboard.startsWith('ERR:')) {
+    console.log(`clipboard: ${json(clipboard.slice(0, 90))}`)
+    assert(clipboard.includes('[@gunn1972, p. 1]'), `clipboard lacks the citation: ${json(clipboard)}`)
+    assert(!clipboard.startsWith('>'), 'Copy should produce prose, not a blockquote')
+    assert(!clipboard.includes('\n'), 'a PDF column break should not survive into the copy')
+    // The citation goes inline, before any sentence-final punctuation.
+    const at = clipboard.indexOf('[@gunn1972')
+    assert(at > 0, 'the passage should come before the citation')
+  } else {
+    console.log(`clipboard unreadable in this context (${clipboard}); popover contract still asserted`)
+  }
 
-  const lines = after.slice(0, at + 40).split('\n')
-  const citeLine = lines.find((l) => l.includes('[@gunn1972, p.')) ?? ''
-  const quoteLine = lines[lines.indexOf(citeLine) - 1] ?? ''
-  console.log(`manuscript now carries:\n  ${quoteLine.slice(0, 90)}\n  ${citeLine.slice(0, 90)}`)
-  assert(citeLine.startsWith('> —'), `expected a blockquote attribution line, got ${json(citeLine)}`)
-  assert(quoteLine.startsWith('> '), `expected the quote as a blockquote, got ${json(quoteLine)}`)
   assert(
-    after.length > before.length,
-    `buffer did not grow: ${before.length} -> ${after.length}`
+    (await evalJs(`!!document.querySelector('.pdfquote')`)) === false,
+    'the popover should dismiss after Copy'
   )
 
-  // ---- 6. every character that was there before is still there -----------
-  // An insert must never be a rewrite. The old buffer has to survive intact
-  // around the insertion point.
-  const head = before.slice(0, 24)
-  assert(after.includes(head), 'the start of the manuscript was lost')
-  assert(
-    after.includes(before.slice(-40)),
-    'the end of the manuscript was lost'
-  )
-
-  console.log(`buffer ${before.length} -> ${after.length} chars, quote at offset ${at}`)
-
-  return { citekey: popover.cite, note, citeLine, beforeLength: before.length, afterLength: after.length }
+  return { citekey: popover.cite, notice, buttons: labels }
 }

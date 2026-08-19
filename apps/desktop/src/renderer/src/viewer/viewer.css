@@ -666,3 +666,204 @@
   pointer-events: none;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28);
 }
+
+/* The rail card's colour dot is a control: click it to recolour without
+   going back to the page. */
+button.pdfnotes__dot {
+  padding: 0;
+  cursor: pointer;
+}
+
+button.pdfnotes__dot:hover {
+  transform: scale(1.25);
+}
+
+.pdfnotes__swatches {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0 4px;
+}
+
+.pdfnotes__swatch {
+  width: 18px;
+  height: 18px;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  background: var(--sw, #ffd400);
+}
+
+.pdfnotes__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--s-ink);
+  outline-offset: 1px;
+}
+
+.pdfnotes__swatch[data-color='yellow']  { --sw: #ffd400; }
+.pdfnotes__swatch[data-color='red']     { --sw: #ff6666; }
+.pdfnotes__swatch[data-color='green']   { --sw: #5fb236; }
+.pdfnotes__swatch[data-color='blue']    { --sw: #2ea8e5; }
+.pdfnotes__swatch[data-color='purple']  { --sw: #a28ae5; }
+.pdfnotes__swatch[data-color='magenta'] { --sw: #e56eee; }
+.pdfnotes__swatch[data-color='orange']  { --sw: #f19837; }
+.pdfnotes__swatch[data-color='gray']    { --sw: #aaaaaa; }
+
+/* Only shown when the PDF declares no page labels — the arXiv case, where a
+   citation would otherwise name the sheet rather than the printed page. */
+.pdfview__pagelabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--s-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Cross-paper reading notes tab (ADR-008). Notes are stored per paper so a
+   highlight is a small write; this is the other half of that trade — one
+   surface for the whole literature, because synthesis happens across papers.
+   -------------------------------------------------------------------------- */
+
+.rnotes {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--s-bg-shell);
+  font-family: var(--s-font-ui);
+}
+
+.rnotes__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  background: var(--s-bg-panel);
+  border-bottom: 1px solid var(--s-border);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.rnotes__search {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 4px 8px;
+  color: var(--s-ink);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font: inherit;
+}
+
+.rnotes__search:focus-visible {
+  border-color: var(--s-accent);
+}
+
+.rnotes__colors {
+  display: flex;
+  gap: 4px;
+  flex: none;
+  width: 190px;
+}
+
+.rnotes__tags,
+.rnotes__toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--s-ink-muted);
+  font: inherit;
+}
+
+.rnotes__tags {
+  padding: 3px 6px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.rnotes__count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-faint);
+}
+
+.rnotes__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px clamp(14px, 4vw, 40px) 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.rnotes__paper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 90ch;
+}
+
+.rnotes__paperhead {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.rnotes__papertitle {
+  padding: 0;
+  color: var(--s-ink);
+  font: inherit;
+  font-size: var(--s-text-lg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rnotes__papertitle:hover {
+  color: var(--s-accent);
+  text-decoration: underline;
+}
+
+.rnotes__key {
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+}
+
+.rnotes__papercount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-faint);
+}
+
+.rnotes__papersub {
+  margin: 0;
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-sm);
+  line-height: 1.45;
+}
+
+.rnotes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.rnotes__card {
+  cursor: default;
+}
+
+.rnotes__tag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--s-bg-hover);
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
+}

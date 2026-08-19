@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, realpath, stat } from 'node:fs/promises'
+import { mkdir, readFile, readdir, realpath } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
 import {
   REFERENCE_NOTES_DIR,
@@ -178,4 +178,44 @@ export async function embedHighlightsIntoPdf(
 
   await writeFileAtomic(path, incoming)
   return { bytesWritten: incoming.length }
+}
+
+/** One paper's notes, as the cross-paper view reads them. */
+export interface PaperNotes {
+  citekey: string
+  file: ReferenceNotesFile
+}
+
+/**
+ * Every paper's notes in one call.
+ *
+ * Notes are stored per paper so that making a highlight is a small write and
+ * `git diff` on a paper shows that paper's reading. Reading ACROSS papers is
+ * the other half of that trade, and doing it a file at a time from the
+ * renderer would be one IPC round trip per reference.
+ *
+ * A sidecar that fails to parse is skipped rather than failing the whole call:
+ * one corrupt file must not hide every other paper's reading.
+ */
+export async function listAllReferenceNotes(dir: string): Promise<PaperNotes[]> {
+  const root = assertInsideAllowedRoot(dir)
+  let names: string[]
+  try {
+    names = await readdir(join(root, REFERENCE_NOTES_DIR))
+  } catch {
+    return []
+  }
+
+  const out: PaperNotes[] = []
+  for (const name of names.sort()) {
+    if (!name.endsWith('.json')) continue
+    const citekey = name.slice(0, -5)
+    if (!isSafeCitekey(citekey)) continue
+    try {
+      out.push({ citekey, file: await readReferenceNotes(root, citekey) })
+    } catch {
+      // Corrupt or unreadable — skip it, and let the per-paper read report it.
+    }
+  }
+  return out
 }

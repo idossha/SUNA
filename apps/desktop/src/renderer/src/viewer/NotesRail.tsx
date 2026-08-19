@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { isDetached, noteQuote, type NoteColor, type PdfNote } from '@suna/core'
+import { NOTE_COLORS, isDetached, noteQuote, type NoteColor, type PdfNote } from '@suna/core'
 import { relativeTime } from '../comments/relativeTime'
 import '../comments/comments.css'
 
@@ -47,6 +47,7 @@ function NoteCard({
   composing,
   onActivate,
   onSaveBody,
+  onRecolor,
   onDelete,
   onCopy,
   onCloseComposer
@@ -58,11 +59,13 @@ function NoteCard({
   composing: boolean
   onActivate: () => void
   onSaveBody: (body: string) => void
+  onRecolor: (color: NoteColor) => void
   onDelete: () => void
   onCopy: () => void
   onCloseComposer: () => void
 }): JSX.Element {
   const [editing, setEditing] = useState(composing)
+  const [recoloring, setRecoloring] = useState(false)
   const [body, setBody] = useState(note.body)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -98,10 +101,39 @@ function NoteCard({
       onMouseDown={() => onActivate()}
     >
       <div className="cmt__card-head">
-        <span className="pdfnotes__dot" data-color={note.color} aria-hidden="true" />
+        <button
+          className="pdfnotes__dot"
+          data-color={note.color}
+          aria-label={`Colour: ${note.color}. Change it`}
+          title="Change colour"
+          onClick={(event) => {
+            event.stopPropagation()
+            setRecoloring((open) => !open)
+          }}
+        />
         <span className="cmt__badge">{note.author.name}</span>
         <span className="cmt__time">{relativeTime(note.createdAt)}</span>
       </div>
+
+      {recoloring && (
+        <div className="pdfnotes__swatches" role="group" aria-label="Highlight colour">
+          {NOTE_COLORS.map((color) => (
+            <button
+              key={color}
+              className="pdfnotes__swatch"
+              data-color={color}
+              aria-label={color}
+              aria-pressed={color === note.color}
+              title={color}
+              onClick={(event) => {
+                event.stopPropagation()
+                onRecolor(color)
+                setRecoloring(false)
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="cmt__quote" title={noteQuote(note)}>
         {noteQuote(note)}
@@ -195,6 +227,7 @@ export function NotesRail(props: NotesRailProps): JSX.Element {
               composing={composingFor === note.id}
               onActivate={() => props.onActivate(note.id)}
               onSaveBody={(body) => props.onSaveBody(note.id, body)}
+              onRecolor={(color) => props.onRecolor(note.id, color)}
               onDelete={() => props.onDelete(note.id)}
               onCopy={() => props.onCopy(note.id)}
               onCloseComposer={props.onCloseComposer}
