@@ -731,6 +731,20 @@
 
 .editor-settings__row--select label {
   margin-bottom: 0;
+  white-space: nowrap;
+}
+
+/* Section heading inside the popover — lets the rows under it carry short
+   labels ("Model", not "AI model") without losing what they belong to. */
+.editor-settings__group {
+  margin: 14px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--s-border);
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .editor-settings__row--select select {
