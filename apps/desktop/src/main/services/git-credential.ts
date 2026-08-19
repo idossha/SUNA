@@ -77,7 +77,20 @@ export async function remoteAuthEnv(url: string | null): Promise<NodeJS.ProcessE
     GIT_ASKPASS: await askpassScript(),
     // git prefers SSH_ASKPASS/GUI prompts in some builds; force the terminal
     // path off so the only answer it can get is ours.
-    GIT_TERMINAL_PROMPT: '0'
+    GIT_TERMINAL_PROMPT: '0',
+    // Credential helpers are consulted BEFORE GIT_ASKPASS, so on any machine
+    // that has ever authenticated github.com over HTTPS — which is most of
+    // them, osxkeychain being on by default — the helper answers and the
+    // token we just went to the trouble of obtaining is never used. Worse,
+    // when that stored credential has expired, signing in to SUNA would not
+    // fix pushes: git would keep presenting the stale one.
+    //
+    // An empty `credential.helper` RESETS the helper list rather than adding
+    // to it, so this invocation consults ours and nothing else. Passed
+    // through GIT_CONFIG_* (git 2.31+) to keep it out of the argument list.
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'credential.helper',
+    GIT_CONFIG_VALUE_0: ''
   }
 }
 

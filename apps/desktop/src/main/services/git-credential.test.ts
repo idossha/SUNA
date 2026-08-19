@@ -35,6 +35,22 @@ describe('remoteAuthEnv — when the token is offered', () => {
     expect(await canAuthenticateHttps('https://github.com/ada/paper.git')).toBe(true)
   })
 
+  /**
+   * Verified against a real machine and a real private repository: with the
+   * helper list intact, a deliberately INVALID token still authenticated,
+   * because osxkeychain answered first and git never consulted GIT_ASKPASS.
+   * On such a machine the sign-in would be decorative — and once the stored
+   * credential expired, signing in would not fix pushes at all.
+   *
+   * An empty credential.helper resets the list rather than appending to it.
+   */
+  it('resets the credential-helper list, which git consults before askpass', async () => {
+    const env = await remoteAuthEnv('https://github.com/ada/paper.git')
+    expect(env?.['GIT_CONFIG_COUNT']).toBe('1')
+    expect(env?.['GIT_CONFIG_KEY_0']).toBe('credential.helper')
+    expect(env?.['GIT_CONFIG_VALUE_0']).toBe('')
+  })
+
   it('accepts the www host GitHub also answers on', async () => {
     expect(await remoteAuthEnv('https://www.github.com/ada/paper.git')).toBeDefined()
   })
@@ -66,6 +82,14 @@ describe('remoteAuthEnv — when it must stay silent', () => {
     ]) {
       expect(await remoteAuthEnv(url)).toBeUndefined()
     }
+  })
+
+  it('does not touch the helper list when it has no token to offer', async () => {
+    token = null
+    const env = await remoteAuthEnv('https://github.com/ada/paper.git')
+    // undefined, not "an env that disables the helpers" — with no token of
+    // ours, the machine's own credentials are the only ones that can work.
+    expect(env).toBeUndefined()
   })
 
   it('offers nothing when nobody is signed in', async () => {
