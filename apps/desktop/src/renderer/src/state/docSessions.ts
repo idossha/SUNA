@@ -1,7 +1,7 @@
 import { Annotation, ChangeSet, StateEffect, Text, Transaction } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
-import { minimalDiff } from './minimalDiff'
+import { diffSpans } from '@suna/core'
 import { devSeam } from './devSeam'
 import { autosaveEnabled } from './autosave'
 import { useProjectStore } from './project'
@@ -13,8 +13,12 @@ import { useUiStore } from './ui'
  * Manuscript tab, a split) edits ONE buffer: typing in either view appears
  * in the other immediately, there is a single dirty state and a single save
  * path, and external disk changes (an agent's edit_manuscript, git) are
- * applied as a minimal single-span change so CodeMirror maps the selection,
- * scroll anchor and comment marks through them instead of clobbering them.
+ * applied as a word-level MULTI-span change (@suna/core's diffSpans) so
+ * CodeMirror maps the selection, scroll anchor and comment marks through them
+ * instead of clobbering them. Multi-span is what makes an agent edit in two
+ * places survivable: a single span would run from the first difference to the
+ * last and delete everything in between, collapsing every comment anchor and
+ * the caret along with it.
  *
  * Heavyweight internals (CM Text, attached views) live in a module-level
  * map, the dockApi precedent; a small zustand store carries only the
@@ -142,8 +146,8 @@ export class DocSessionCore {
     const current = view.getDoc().toString()
     const authoritative = this.text()
     if (current !== authoritative) {
-      const span = minimalDiff(current, authoritative)
-      if (span !== null) view.applyRemote(ChangeSet.of(span, view.getDoc().length))
+      const spans = diffSpans(current, authoritative)
+      if (spans.length > 0) view.applyRemote(ChangeSet.of(spans, view.getDoc().length))
     }
     this.entries.add(entry)
     return entry
@@ -175,11 +179,15 @@ export class DocSessionCore {
     }
   }
 
-  /** Apply external content (disk reload) to the session and every view. */
+  /**
+   * Apply external content (disk reload) to the session and every view, as
+   * one transaction carrying one change per edited run. Positions between two
+   * edited runs map to themselves, which is the whole point.
+   */
   applyExternal(content: string): void {
-    const span = minimalDiff(this.text(), content)
-    if (span === null) return
-    const changes = ChangeSet.of(span, this.doc.length)
+    const spans = diffSpans(this.text(), content)
+    if (spans.length === 0) return
+    const changes = ChangeSet.of(spans, this.doc.length)
     this.doc = changes.apply(this.doc)
     for (const entry of this.entries) this.deliver(entry, changes)
   }

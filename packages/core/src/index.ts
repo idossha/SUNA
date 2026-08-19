@@ -13,3 +13,4 @@ export * from './canvas-commands';
 export * from './profile';
 export * from './docx-import';
 export * from './ipc';
+export * from './word-diff';

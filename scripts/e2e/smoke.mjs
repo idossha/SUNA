@@ -1082,8 +1082,10 @@ try {
   await step('manuscript-view', async () => {
     await activateView('Manuscript')
     await sleep(600)
+    // the outline ends with a 'Total' word-count row (ms__row--total); it is
+    // not a section, so it must not count toward the outline assertion below
     const outline = await evalJs(
-      `[...document.querySelectorAll('.ms__row .ms__row-label')].map((e) => e.textContent)`
+      `[...document.querySelectorAll('.ms__row:not(.ms__row--total) .ms__row-label')].map((e) => e.textContent)`
     )
     assert(
       outline.length === 4,
@@ -1210,7 +1212,11 @@ try {
     assert(active === 3, `after Methods click, active section is ${active} (want 3)`)
     const outline = await evalJs(`({
       activeLabel: document.querySelector('.ms__row--active .ms__row-label')?.textContent ?? null,
-      counts: [...document.querySelectorAll('.ms__count')].map((e) => Number(e.textContent))
+      // .ms__row--total carries the whole-manuscript count; the per-section
+      // assertion below is about sections, so the two are read separately
+      counts: [...document.querySelectorAll('.ms__row:not(.ms__row--total) .ms__count')]
+        .map((e) => Number(e.textContent)),
+      total: Number(document.querySelector('.ms__row--total .ms__count')?.textContent ?? NaN)
     })`)
     assert(
       outline.activeLabel === 'Methods',
@@ -1219,6 +1225,10 @@ try {
     assert(
       outline.counts.length === 4 && outline.counts.every((c) => Number.isFinite(c) && c > 0),
       `per-section word counts missing/empty: ${outline.counts.join(', ')}`
+    )
+    assert(
+      outline.total === outline.counts.reduce((sum, c) => sum + c, 0),
+      `outline total ${outline.total} != sum of sections ${outline.counts.join('+')}`
     )
     await screenshot('manuscript-outline-active.png')
 
