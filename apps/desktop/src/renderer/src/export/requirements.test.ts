@@ -141,6 +141,12 @@ describe('statusOf / stanceTag / citationModeLabel', () => {
     expect(stanceTag('SLEEP', null)).toBeNull()
   })
 
+  it('words the house style as a preference of ours, not a requirement', () => {
+    expect(stanceTag('SUNA style', true, true)).toBe('SUNA style uses this')
+    expect(stanceTag('SUNA style', false, true)).toBe('SUNA style leaves this off')
+    expect(stanceTag('SUNA style', null, true)).toBeNull()
+  })
+
   it('humanizes all three citation modes', () => {
     expect(citationModeLabel('numeric-superscript')).toBe('Superscript numbers¹')
     expect(citationModeLabel('parenthetical-numeric')).toBe('Bracketed numbers [1]')

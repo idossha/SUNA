@@ -3,7 +3,7 @@
   "id": "suna",
   "journalName": "SUNA style",
   "publisher": "SUNA",
-  "lastVerified": "2026-08-15",
+  "lastVerified": "2026-08-19",
   "citations": {
     "mode": "author-year",
     "collapseRanges": false,
@@ -56,10 +56,15 @@
       "min": 0.5,
       "max": 2
     },
-    "preferredFontFamilies": ["Arial", "Helvetica"],
+    "preferredFontFamilies": [
+      "Arial",
+      "Helvetica"
+    ],
     "palette": {
       "requirement": "colorblind-safe-recommended",
-      "suggestedRamps": ["Wong"],
+      "suggestedRamps": [
+        "Wong"
+      ],
       "suggestedHex": [
         "#000000",
         "#E69F00",
@@ -74,9 +79,16 @@
       "redGreenDiscouraged": true
     },
     "formats": {
-      "vectorPreferred": ["svg", "pdf", "eps"],
-      "rasterAccepted": ["png", "tiff"],
-      "minDpi": 300
+      "vectorPreferred": [
+        "svg",
+        "pdf",
+        "eps"
+      ],
+      "rasterAccepted": [
+        "png",
+        "tiff"
+      ],
+      "minDpi": 600
     },
     "panelLabel": {
       "letterCase": "upper",
@@ -91,7 +103,12 @@
         "source": "file:///Users/idohaber/00_development/docx-tools/src/docx_tools/build.py"
       },
       {
-        "claim": "palette/panelLabel/format values are SUNA house defaults, not a journal requirement: this is a drafting style, so it recommends the colourblind-safe Wong ramp rather than mandating anything.",
+        "claim": "minDpi = 600 is OUR OWN requirement, not a journal's: SUNA figures are authored as vector SVG, so a raster pass is only ever a rendering of something sharper, and we would rather an internal PDF read cleanly on a high-DPI screen and in print than match the 300 dpi floor journals set for supplied artwork.",
+        "basis": "inferred",
+        "source": "file:///Users/idohaber/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+      },
+      {
+        "claim": "palette/panelLabel values are SUNA house defaults, not a journal requirement: this is a drafting style, so it recommends the colourblind-safe Wong ramp rather than mandating anything.",
         "basis": "inferred",
         "source": "file:///Users/idohaber/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
       }
@@ -107,31 +124,56 @@
         "titleLimitChars": null,
         "maxDisplayItems": null,
         "maxReferences": null
+      },
+      {
+        "id": "letter",
+        "name": "Letter",
+        "wordLimit": null,
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
+      },
+      {
+        "id": "internal-report",
+        "name": "Internal report",
+        "wordLimit": null,
+        "abstractWordLimit": null,
+        "titleLimitChars": null,
+        "maxDisplayItems": null,
+        "maxReferences": null
       }
     ],
     "runningHeadLimitChars": null,
-    "requiredSections": [
-      { "id": "title-page", "label": "Title page (title, authors, affiliations)", "required": true },
-      { "id": "abstract", "label": "Abstract", "required": true },
-      { "id": "introduction", "label": "Introduction", "required": false },
-      { "id": "methods", "label": "Methods", "required": false },
-      { "id": "results", "label": "Results", "required": false },
-      { "id": "discussion", "label": "Discussion", "required": false },
-      { "id": "references", "label": "References", "required": true }
-    ],
+    "requiredSections": [],
     "availabilityStatements": {
       "data": null,
       "code": null
     },
     "submissionFormat": {
-      "doubleSpacing": null,
-      "lineNumbers": null,
-      "acceptedFileTypes": ["docx", "pdf"]
+      "doubleSpacing": false,
+      "lineNumbers": false,
+      "pageNumbers": true,
+      "acceptedFileTypes": [
+        "docx",
+        "pdf",
+        "html"
+      ]
     },
     "sources": [],
     "provenance": [
       {
-        "claim": "No word limits and almost no required sections: this is a house drafting style, not a journal, so it must never flag a manuscript for a rule nobody stated. Limits arrive when the author switches to a journal profile.",
+        "claim": "Single-spaced, no line numbers, page numbers on: SUNA style is read on a screen or printed for ourselves, not marked up by reviewers — double spacing and line numbers exist to leave room for a reviewer's pen and to let one cite \"page 4, line 12\", and neither buys anything internally. Page numbers stay because a printed internal report gets dropped on a desk.",
+        "basis": "inferred",
+        "source": "file:///Users/idohaber/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+      },
+      {
+        "claim": "acceptedFileTypes docx/pdf/html are exactly the three formats SUNA itself exports — for a house style this field describes what we hand each other, not what a submission portal will take.",
+        "basis": "inferred",
+        "source": "file:///Users/idohaber/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+      },
+      {
+        "claim": "No required sections and no limits of any kind: this is a house drafting style, not a journal, so it must never flag a manuscript for a rule nobody stated. Limits arrive when the author switches to a journal profile.",
         "basis": "inferred",
         "source": "file:///Users/idohaber/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
       }
@@ -169,7 +211,8 @@
     "pageBreakAfterFrontMatter": true
   },
   "notes": [
-    "SUNA style is a HOUSE style, not a journal profile: it states no word limits and flags nothing, so it is the right choice while drafting. Switch to a journal profile before submission to get that journal's rules.",
+    "SUNA style is OUR OWN invented house style — an internal design, not a transcription of anybody's author guidelines. Every rule in it was chosen by us, for how we draft and circulate work; nothing here is evidence of what a journal wants, and its `sources` are empty on purpose. Switch to a journal profile before submission to get that journal's actual rules.",
+    "What it does state: single spacing, no line numbers, page numbers on, figures at 600 dpi minimum, and docx / pdf / html as the formats we exchange. What it deliberately does NOT state: any word, abstract, title, display-item or reference limit, any required section, any availability statement — so a draft in progress is never flagged for being unfinished. Its three article types (draft manuscript, letter, internal report) are the three documents we actually write.",
     "Its typography reproduces the structure `docx-tools build` produces, so an export from SUNA and one from the docx-tools CLI lay out the same: US Letter, 0.5 in margins, Times New Roman 11 pt at 1.15 line spacing, 14 pt bold centred title, 8 pt author line with superscript affiliation markers, 9 pt centred affiliations, 13 pt black H1 (Word's Heading 1 is blue by default — docx-tools forces black and so does SUNA style), figure captions BELOW the image with a bold 'Figure N.' and italic body, table captions ABOVE with APA rules only, and a 0.5 in hanging indent on the reference list.",
     "The page break after the front matter is docx-tools' behaviour too (build.py inserts one before the first heading that follows the front matter unless that heading is the Abstract)."
   ]

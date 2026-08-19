@@ -856,11 +856,68 @@ describe('the SUNA house style', () => {
     expect(suna.manuscript.runningHeadLimitChars).toBeNull();
   });
 
-  it('leaves both submission-format toggles free for the user to choose', () => {
-    // null means "this style does not state it", which is what makes the
-    // export dialog offer them as toggles rather than fixing them.
-    expect(suna.manuscript.submissionFormat.doubleSpacing).toBeNull();
-    expect(suna.manuscript.submissionFormat.lineNumbers).toBeNull();
+  it('states its own submission conventions: single-spaced, unnumbered lines, page numbers on', () => {
+    // Unlike a journal profile, the house style is ALLOWED to have an
+    // opinion — these are our conventions, not a transcription of anyone's
+    // guidelines. They seed the export checkboxes; the user can still
+    // override any of them for a given export.
+    expect(suna.manuscript.submissionFormat.doubleSpacing).toBe(false);
+    expect(suna.manuscript.submissionFormat.lineNumbers).toBe(false);
+    expect(suna.manuscript.submissionFormat.pageNumbers).toBe(true);
+  });
+
+  it('exchanges exactly the three formats SUNA exports', () => {
+    expect(suna.manuscript.submissionFormat.acceptedFileTypes).toEqual(['docx', 'pdf', 'html']);
+  });
+
+  it('offers the three documents we actually write', () => {
+    expect(suna.manuscript.articleTypes.map((t) => t.id)).toEqual([
+      'draft',
+      'letter',
+      'internal-report',
+    ]);
+    expect(suna.manuscript.articleTypes.map((t) => t.name)).toEqual([
+      'Draft manuscript',
+      'Letter',
+      'Internal report',
+    ]);
+  });
+
+  it('requires no section at all — a draft may be half-written', () => {
+    expect(suna.manuscript.requiredSections).toEqual([]);
+  });
+
+  it('asks for 600 dpi rasters, above every journal floor', () => {
+    // Figures are authored as vector SVG here, so a raster is only ever a
+    // rendering of something sharper; 600 dpi is our own bar, not a
+    // journal's 300 dpi minimum for supplied artwork.
+    // Hoisted so the comparison below is on a `number`: minDpi is nullable on
+    // the type (a journal may not state one), and the assertion above pins
+    // ours to 600 rather than narrowing it.
+    const houseMinDpi = suna.figures.formats.minDpi;
+    expect(houseMinDpi).toBe(600);
+    for (const id of JOURNAL_PROFILE_IDS) {
+      expect(
+        (houseMinDpi ?? 0) >= (profiles[id].figures.formats.minDpi ?? 0),
+        `the house style must not ask for less than ${id}`,
+      ).toBe(true);
+    }
+  });
+
+  it('is declared as ours, not sourced from anybody', () => {
+    // Every provenance entry on a house-style block is 'inferred' or points
+    // at our own repo — never at a publisher page. This is the assertion
+    // that keeps someone from quietly turning SUNA style into a journal.
+    for (const block of [suna.citations, suna.figures, suna.manuscript]) {
+      for (const entry of block.provenance ?? []) {
+        // A null source cites nothing, which is exactly what this wants.
+        expect(
+          (entry.source ?? '').startsWith('http'),
+          `house-style provenance cites ${entry.source}`,
+        ).toBe(false);
+      }
+    }
+    expect(suna.notes?.[0]).toMatch(/OUR OWN invented house style/);
   });
 
   it('cites author-year, matching docx-tools APA default', () => {
