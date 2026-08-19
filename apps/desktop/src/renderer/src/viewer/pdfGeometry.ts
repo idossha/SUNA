@@ -188,6 +188,8 @@ export function occurrencesOf(pageText: PageText, quote: string): { from: number
 
 /** A `/Highlight` annotation read out of the PDF file itself. */
 export interface ForeignHighlight {
+  /** The annotation's own `/QuadPoints`, in PDF user space, verbatim. */
+  quads: number[]
   /**
    * The annotation's object ref, e.g. "119R" — what pdf.js needs to delete it.
    * Carried through from `getAnnotations` rather than looked up again later:
@@ -274,6 +276,7 @@ export function highlightRectsFromAnnotations(
 
     const c = annotation.color
     out.push({
+      quads: quads == null ? [] : Array.from(quads, Number),
       id: annotation.id ?? '',
       ...(annotation.popupRef == null ? {} : { popupRef: annotation.popupRef }),
       rects,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planSync, type DesiredHighlight, type FileAnnotation } from './embedHighlights'
+import { planSync, sameQuads, type DesiredHighlight, type FileAnnotation } from './embedHighlights'
 import type { HighlightRect } from './pdfGeometry'
 
 /**
@@ -17,12 +17,15 @@ const want = (
   contents = ''
 ): DesiredHighlight => ({ noteId, page: 1, rects: [rect(top)], color, contents })
 
+/** User-space quads standing in for the screen rect at `top`. */
+const quadsAt = (top: number): number[] => [100, 800 - top, 300, 800 - top, 100, 786 - top, 300, 786 - top]
+
 const inFile = (
   id: string,
   top: number,
   color: string | null = 'rgb(255, 212, 0)',
   contents: string | null = null
-): FileAnnotation => ({ id, page: 1, rects: [rect(top)], color, contents })
+): FileAnnotation => ({ id, page: 1, rects: [rect(top)], quads: quadsAt(top), color, contents })
 
 describe('planSync', () => {
   it('creates an annotation for a note the file does not have', () => {
@@ -74,20 +77,20 @@ describe('planSync', () => {
     })
 
     it('removes an unclaimed annotation ONLY where the caller names the region', () => {
-      const plan = planSync([], [inFile('99R', 500)], [{ page: 1, rects: [rect(500)] }])
+      const plan = planSync([], [inFile('99R', 500)], [{ page: 1, quads: quadsAt(500) }])
       expect(plan.remove.map((a) => a.id)).toEqual(['99R'])
     })
 
     it('leaves other pages alone when a removal names one page', () => {
       const otherPage: FileAnnotation = { ...inFile('88R', 500), page: 2 }
-      const plan = planSync([], [inFile('99R', 500), otherPage], [{ page: 1, rects: [rect(500)] }])
+      const plan = planSync([], [inFile('99R', 500), otherPage], [{ page: 1, quads: quadsAt(500) }])
       expect(plan.remove.map((a) => a.id)).toEqual(['99R'])
     })
 
     it('does not remove a region a live note still claims', () => {
       // A stale removal must not take out a note that was re-made in the
       // same place before the reconcile ran.
-      const plan = planSync([want('n1', 100)], [inFile('10R', 100)], [{ page: 1, rects: [rect(100)] }])
+      const plan = planSync([want('n1', 100)], [inFile('10R', 100)], [{ page: 1, quads: quadsAt(100) }])
       expect(plan.remove).toEqual([])
       expect(plan.unchanged).toBe(1)
     })
@@ -112,7 +115,58 @@ describe('planSync', () => {
     expect(planSync([want('n1', 100)], [onPageTwo]).create).toHaveLength(1)
   })
 
+  it('reports where each matched note lives, so removal never needs the DOM', () => {
+    const plan = planSync([want('n1', 100)], [inFile('10R', 100)])
+    expect(plan.located).toEqual([{ noteId: 'n1', page: 1, quads: quadsAt(100) }])
+  })
+
+  describe('removal without the page on screen', () => {
+    it('matches a removal by user-space quads alone', () => {
+      // The bug this fixes: the rail lists notes on every page, so removing one
+      // whose page is scrolled out of view has NO screen rectangle to compare.
+      // Matching on quads means a page nobody is looking at is no different.
+      const plan = planSync([], [inFile('99R', 500)], [{ page: 1, quads: quadsAt(500) }])
+      expect(plan.remove.map((a) => a.id)).toEqual(['99R'])
+    })
+
+    it('tolerates a hair of drift in the recorded quads', () => {
+      const drifted = quadsAt(500).map((n, i) => (i % 2 === 0 ? n + 0.4 : n - 0.4))
+      expect(planSync([], [inFile('99R', 500)], [{ page: 1, quads: drifted }]).remove).toHaveLength(1)
+    })
+
+    it('does not remove an annotation somewhere else on the page', () => {
+      expect(planSync([], [inFile('99R', 500)], [{ page: 1, quads: quadsAt(120) }]).remove).toEqual([])
+    })
+
+    it('ignores a removal with no recorded quads rather than guessing', () => {
+      expect(planSync([], [inFile('99R', 500)], [{ page: 1, quads: [] }]).remove).toEqual([])
+    })
+  })
+
   it('is empty for nothing wanted and nothing present', () => {
-    expect(planSync([], [])).toEqual({ create: [], remove: [], unchanged: 0 })
+    expect(planSync([], [])).toEqual({ create: [], remove: [], unchanged: 0, located: [] })
+  })
+})
+
+describe('sameQuads', () => {
+  const q = [100, 700, 300, 700, 100, 686, 300, 686]
+
+  it('matches the same region', () => {
+    expect(sameQuads(q, [...q])).toBe(true)
+  })
+
+  it('matches whatever order the corners were written in', () => {
+    // Producers do not agree on corner order; the box is the box.
+    expect(sameQuads(q, [300, 686, 100, 700, 300, 700, 100, 686])).toBe(true)
+  })
+
+  it('tolerates sub-pixel drift but not a real move', () => {
+    expect(sameQuads(q, q.map((n) => n + 0.5))).toBe(true)
+    expect(sameQuads(q, q.map((n) => n + 20))).toBe(false)
+  })
+
+  it('never matches an empty run — an unrecorded note is not "everywhere"', () => {
+    expect(sameQuads([], q)).toBe(false)
+    expect(sameQuads(q, [])).toBe(false)
   })
 })

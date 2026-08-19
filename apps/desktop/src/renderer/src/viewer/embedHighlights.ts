@@ -199,9 +199,24 @@ export interface FileAnnotation {
   id: string
   popupRef?: string
   page: number
+  /** Viewport-space rectangles, for matching against what is painted. */
   rects: readonly HighlightRect[]
+  /**
+   * The annotation's own `/QuadPoints`, in PDF user space.
+   *
+   * Carried alongside the screen rectangles because removal must work for a
+   * page that is not rendered — the rail lists notes on every page, and a
+   * screen rectangle simply does not exist for a page nobody is looking at.
+   */
+  quads: readonly number[]
   color: string | null
   contents: string | null
+}
+
+/** A note's annotation, located in user space, for removal without the DOM. */
+export interface EmbeddedRegion {
+  page: number
+  quads: readonly number[]
 }
 
 /** What a note wants the file to say about it. */
@@ -221,6 +236,38 @@ export interface SyncPlan {
   remove: FileAnnotation[]
   /** Notes already represented correctly — nothing to do. */
   unchanged: number
+  /**
+   * Where each matched note's annotation actually is, in user space.
+   *
+   * Recorded back onto the note so a later removal never has to consult the
+   * DOM. Covers notes that were already correct as well as ones just written,
+   * so a sidecar predating this backfills the moment its page is viewed.
+   */
+  located: { noteId: string; page: number; quads: readonly number[] }[]
+}
+
+/** Do two quad runs describe the same place? Compared in user space. */
+export function sameQuads(a: readonly number[], b: readonly number[], epsilon = 1): boolean {
+  if (a.length === 0 || b.length === 0) return false
+  // Compare bounding boxes rather than every corner: a producer may order the
+  // four points differently, and a rewritten file can shift them a hair.
+  const box = (q: readonly number[]): [number, number, number, number] => {
+    const xs: number[] = []
+    const ys: number[] = []
+    for (let i = 0; i + 1 < q.length; i += 2) {
+      xs.push(q[i] as number)
+      ys.push(q[i + 1] as number)
+    }
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+  }
+  const [ax0, ay0, ax1, ay1] = box(a)
+  const [bx0, by0, bx1, by1] = box(b)
+  return (
+    Math.abs(ax0 - bx0) <= epsilon &&
+    Math.abs(ay0 - by0) <= epsilon &&
+    Math.abs(ax1 - bx1) <= epsilon &&
+    Math.abs(ay1 - by1) <= epsilon
+  )
 }
 
 /** Same region, within a couple of pixels. */
@@ -249,19 +296,25 @@ function overlapsRect(a: HighlightRect, b: HighlightRect, slack = 2): boolean {
  * region one of our notes covers IS that note's; one covering a region no note
  * covers belongs to somebody else and is never touched.
  *
- * `removedRegions` carries the rectangles of notes the user has just deleted,
- * which is the one thing geometry alone cannot infer: an annotation over a
- * region no note claims is indistinguishable from a highlight made in Preview,
- * and guessing would delete a stranger's work. So a deletion is only ever
- * performed for a region the caller explicitly names.
+ * `removed` carries the USER-SPACE regions of notes just deleted, which is the
+ * one thing geometry alone cannot infer: an annotation over a region no note
+ * claims is indistinguishable from a highlight made in Preview, and guessing
+ * would delete a stranger's work. So a deletion is only ever performed for a
+ * region the caller explicitly names.
+ *
+ * Those regions are user space rather than screen pixels on purpose. Screen
+ * rectangles only exist for pages that are rendered, and the rail lists notes
+ * on every page — so removing one whose page was scrolled out of view deleted
+ * the note and left its highlight in the PDF permanently.
  */
 export function planSync(
   desired: readonly DesiredHighlight[],
   inFile: readonly FileAnnotation[],
-  removedRegions: readonly { page: number; rects: readonly HighlightRect[] }[] = []
+  removed: readonly EmbeddedRegion[] = []
 ): SyncPlan {
   const create: DesiredHighlight[] = []
   const remove: FileAnnotation[] = []
+  const located: { noteId: string; page: number; quads: readonly number[] }[] = []
   const claimed = new Set<FileAnnotation>()
   let unchanged = 0
 
@@ -285,18 +338,24 @@ export function planSync(
       create.push(want)
     } else {
       unchanged += 1
+      located.push({ noteId: want.noteId, page: match.page, quads: match.quads })
     }
   }
 
-  for (const gone of removedRegions) {
+  // Explicit removals, matched in USER SPACE so a page nobody is looking at is
+  // no different from one on screen. This is the half that was missing: screen
+  // rectangles exist only for rendered pages, so removing a note from the rail
+  // while its page was scrolled away used to leave its highlight in the file
+  // forever.
+  for (const gone of removed) {
     for (const annotation of inFile) {
       if (claimed.has(annotation)) continue
       if (annotation.page !== gone.page) continue
-      if (!sameRegion(annotation.rects, gone.rects)) continue
+      if (!sameQuads(annotation.quads, gone.quads)) continue
       claimed.add(annotation)
       remove.push(annotation)
     }
   }
 
-  return { create, remove, unchanged }
+  return { create, remove, unchanged, located }
 }

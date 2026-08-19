@@ -38,8 +38,8 @@ export interface SyncInput {
   rectsByNote: ReadonlyMap<string, ReadonlyMap<number, readonly HighlightRect[]>>
   viewports: ReadonlyMap<number, PdfViewportLike>
   author: string
-  /** Regions of notes the user has just removed; see `planSync`. */
-  removedRegions?: readonly { page: number; rects: readonly HighlightRect[] }[]
+  /** User-space regions of notes just removed; see `planSync`. */
+  removedRegions?: readonly { page: number; quads: readonly number[] }[]
 }
 
 export interface SyncOutcome {
@@ -48,6 +48,8 @@ export interface SyncOutcome {
   removed: number
   unchanged: number
   bytesWritten?: number
+  /** Where each matched note's annotation is, for the sidecar to record. */
+  located: { noteId: string; page: number; quads: readonly number[] }[]
   error?: string
 }
 
@@ -81,7 +83,7 @@ function cssColor(note: PdfNote): string {
 export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
   const { rootDir, citekey, notes, rectsByNote, viewports, author } = input
   const path = `${rootDir}/references/${citekey}.pdf`
-  const idle = { ok: true, created: 0, removed: 0, unchanged: 0 }
+  const idle = { ok: true, created: 0, removed: 0, unchanged: 0, located: [] }
 
   // ---- what the notes want the file to say ------------------------------
   const desired: DesiredHighlight[] = []
@@ -113,21 +115,33 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
 
   let saved: Uint8Array
   let plan
+  let located: { noteId: string; page: number; quads: readonly number[] }[] = []
   try {
     const doc = await getDocument({ data: current.slice() }).promise
     const inFile: FileAnnotation[] = []
-    for (const [page, viewport] of viewports) {
+
+    // Every page a rendered viewport covers, PLUS every page a removal names.
+    // The second half matters: the rail lists notes on every page, so removing
+    // one whose page is scrolled away used to leave its annotation unread and
+    // therefore undeletable. Those pages get a scale-1 viewport from the
+    // document itself — removals match on user-space quads, so the screen
+    // rectangles for them are never consulted.
+    const pages = new Set<number>(viewports.keys())
+    for (const region of removedRegions) pages.add(region.page)
+
+    for (const page of [...pages].sort((a, b) => a - b)) {
       if (page < 1 || page > doc.numPages) continue
-      const raw = await doc
-        .getPage(page)
-        .then((p) => p.getAnnotations({ intent: 'display' }))
-        .catch(() => [])
+      const pageProxy = await doc.getPage(page).catch(() => null)
+      if (pageProxy === null) continue
+      const viewport = viewports.get(page) ?? pageProxy.getViewport({ scale: 1 })
+      const raw = await pageProxy.getAnnotations({ intent: 'display' }).catch(() => [])
       for (const found of highlightRectsFromAnnotations(raw, viewport)) {
         inFile.push({
           id: found.id,
           ...(found.popupRef === undefined ? {} : { popupRef: found.popupRef }),
           page,
           rects: found.rects,
+          quads: found.quads,
           color: found.color,
           contents: found.contents
         })
@@ -135,9 +149,10 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
     }
 
     plan = planSync(desired, inFile, removedRegions)
+    located = [...plan.located]
     if (plan.create.length === 0 && plan.remove.length === 0) {
       void doc.cleanup()
-      return { ...idle, unchanged: plan.unchanged }
+      return { ...idle, unchanged: plan.unchanged, located }
     }
 
     // ---- the minimum edit -----------------------------------------------
@@ -145,9 +160,20 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
     for (const want of plan.create) {
       const note = notes.find((n) => n.id === want.noteId)
       if (note === undefined) continue
-      creates.push(
-        ...annotationsForNote(note, new Map([[want.page, want.rects]]), viewports, author)
-      )
+      const specs = annotationsForNote(note, new Map([[want.page, want.rects]]), viewports, author)
+      creates.push(...specs)
+      // Record where we are ABOUT to put it. A created annotation has no ref
+      // to read back yet, and waiting for a later sync to notice it left the
+      // note with no recorded location at all — which is exactly how removing
+      // it from the rail, with its page scrolled away, orphaned the highlight
+      // in the file. We generated these quads, so we already know them.
+      for (const spec of specs) {
+        located.push({
+          noteId: want.noteId,
+          page: spec.pageIndex + 1,
+          quads: [...spec.quadPoints]
+        })
+      }
     }
     const deletes: DeleteAnnotationSpec[] = plan.remove
       .filter((annotation) => annotation.id !== '')
@@ -176,6 +202,7 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
       created: plan.create.length,
       removed: plan.remove.length,
       unchanged: plan.unchanged,
+      located,
       bytesWritten: result.bytesWritten
     }
   } catch (error) {

@@ -147,6 +147,7 @@ describe('highlightRectsFromAnnotations', () => {
 describe('foreignOnly', () => {
   const make = (rects: HighlightRect[]): ForeignHighlight => ({
     id: '0R',
+    quads: [],
     rects,
     color: null,
     contents: null,
