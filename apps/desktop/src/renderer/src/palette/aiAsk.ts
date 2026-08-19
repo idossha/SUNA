@@ -10,6 +10,8 @@
  * directed-action options through to the extended 'ai:ask' contract.
  */
 
+import { flushDirtySessions } from '../state/docSessions'
+
 export interface AiAskOutcome {
   text: string | null
   error: string | null
@@ -36,6 +38,10 @@ export async function startAiAsk(
   onDone: (outcome: AiAskOutcome) => void,
   options?: AiAskRunOptions
 ): Promise<AiAskHandle> {
+  // The agent reads from disk, so anything the author has typed but not saved
+  // would be invisible to it — and a whole-file write would then erase it.
+  // feature-plan-11 §11d.
+  await flushDirtySessions(dir)
   const { askId } = await window.suna.invoke('ai:ask', {
     prompt,
     dir,

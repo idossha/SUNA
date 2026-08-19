@@ -52,6 +52,60 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
+/**
+ * feature-plan-11 §11d. The race: the agent reads the manuscript, thinks for
+ * half a minute, and writes the whole file back — while the author has been
+ * typing in SUNA the entire time. A blind overwrite erases their paragraphs
+ * with nothing anywhere recording that it happened.
+ */
+describe('writeManuscript — compare-and-swap against a stale read', () => {
+  const prose = () => readFile(join(dir, 'manuscript', 'manuscript.md'), 'utf8')
+
+  it('allows a write when nothing moved since the read', async () => {
+    await readManuscript(ctx)
+    await writeManuscript(ctx, '# New\n\nReplaced.\n')
+    expect(await prose()).toBe('# New\n\nReplaced.\n')
+  })
+
+  it('refuses a write when the file changed after the read, and changes nothing', async () => {
+    await readManuscript(ctx)
+    // the author types in SUNA while the agent is still thinking
+    await writeFile(join(dir, 'manuscript', 'manuscript.md'), '# Introduction\n\nHello world, edited by a human.\n', 'utf8')
+
+    await expect(writeManuscript(ctx, '# Agent\n\nWholesale rewrite.\n')).rejects.toThrow(
+      /changed on disk after you read it/
+    )
+    expect(await prose()).toContain('edited by a human')
+  })
+
+  it('names the recovery in the refusal, so the agent can act on it', async () => {
+    await readManuscript(ctx)
+    await writeFile(join(dir, 'manuscript', 'manuscript.md'), 'moved\n', 'utf8')
+    await expect(writeManuscript(ctx, 'x\n')).rejects.toThrow(/edit_manuscript/)
+  })
+
+  it('allows a first write from a session that never read the file', async () => {
+    // Nothing to be stale against — refusing here would break legitimate
+    // wholesale authoring.
+    await writeManuscript(ctx, '# Fresh\n\nWritten blind.\n')
+    expect(await prose()).toBe('# Fresh\n\nWritten blind.\n')
+  })
+
+  it('does not mistake our OWN edit_manuscript for someone else\'s change', async () => {
+    await readManuscript(ctx)
+    await editManuscript(ctx, 'Hello world.', 'Hello galaxy.')
+    await writeManuscript(ctx, '# After\n\nOur own sequence.\n')
+    expect(await prose()).toBe('# After\n\nOur own sequence.\n')
+  })
+
+  it('does not mistake our own previous write either', async () => {
+    await readManuscript(ctx)
+    await writeManuscript(ctx, 'first\n')
+    await writeManuscript(ctx, 'second\n')
+    expect(await prose()).toBe('second\n')
+  })
+})
+
 describe('readManuscript / writeManuscript', () => {
   it('reads the file named by manuscript.json\'s manuscriptFile', async () => {
     expect(await readManuscript(ctx)).toContain('Hello world.')

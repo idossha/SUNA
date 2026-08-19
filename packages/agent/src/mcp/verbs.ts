@@ -1,5 +1,6 @@
 import { listReferenceNotes, listReferenceNotesInput } from './refnotes'
 import { readFile, readdir, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { ManuscriptSchema, emptyAuthorsFile } from '@suna/core'
@@ -130,16 +131,59 @@ async function manuscriptFileName(ctx: ProjectContext): Promise<string> {
 }
 
 /** The whole manuscript prose file (feature-plan-7 §1: one flat manuscript.md, sections are Markdown headings). */
+/**
+ * What this server last saw each manuscript file contain — recorded on every
+ * read and every write it performs itself.
+ *
+ * write_manuscript checks it before overwriting (feature-plan-11 §11d). The
+ * race it closes is real and routine: the agent reads the manuscript, thinks
+ * for thirty seconds, and writes the whole file back — while the author has
+ * been typing in SUNA the entire time. Without this the author's paragraphs
+ * simply cease to exist, with nothing anywhere recording that they did.
+ * edit_manuscript never needed it, because its exact-match contract already
+ * fails loudly when the text it was given has moved.
+ */
+const lastSeen = new Map<string, string>()
+
+function fingerprint(text: string): string {
+  return createHash('sha256').update(text).digest('hex')
+}
+
 export async function readManuscript(ctx: ProjectContext): Promise<string> {
   const name = await manuscriptFileName(ctx)
-  return readFile(resolveInside(ctx.root, ctx.dirs.manuscript, name), 'utf8')
+  const path = resolveInside(ctx.root, ctx.dirs.manuscript, name)
+  const text = await readFile(path, 'utf8')
+  lastSeen.set(path, fingerprint(text))
+  return text
 }
 
 /** Overwrites the whole manuscript prose file (atomically — a crash
- * mid-write must never truncate the user's prose). */
+ * mid-write must never truncate the user's prose), refusing when the file has
+ * moved under the read this write was built on. */
 export async function writeManuscript(ctx: ProjectContext, content: string): Promise<string> {
   const name = await manuscriptFileName(ctx)
-  await writeAtomic(resolveInside(ctx.root, ctx.dirs.manuscript, name), content)
+  const path = resolveInside(ctx.root, ctx.dirs.manuscript, name)
+  const seen = lastSeen.get(path)
+  if (seen !== undefined) {
+    // Only a file we have actually looked at can be stale to us. A first
+    // write in this session has nothing to be stale against.
+    let current: string | null = null
+    try {
+      current = await readFile(path, 'utf8')
+    } catch {
+      current = null
+    }
+    if (current !== null && fingerprint(current) !== seen) {
+      throw new Error(
+        `${name} changed on disk after you read it — the author typing in SUNA, another tool, ` +
+          `or git. Overwriting the whole file now would silently discard that work. Read it ` +
+          `again and redo your change against the current text, or use edit_manuscript, whose ` +
+          `exact match fails loudly instead of clobbering.`
+      )
+    }
+  }
+  await writeAtomic(path, content)
+  lastSeen.set(path, fingerprint(content))
   // Best-effort anchor maintenance, as in editManuscript.
   await retightenAnchors(ctx, name, content).catch(() => undefined)
   return `wrote ${content.length} characters to ${name}`
@@ -219,6 +263,9 @@ export async function editManuscript(
   const at = matches[0] as number
   const next = text.slice(0, at) + replace + text.slice(at + find.length)
   await writeAtomic(path, next)
+  // Our own write is not someone else's: record it, or a later
+  // write_manuscript would be refused for a change we made ourselves.
+  lastSeen.set(path, fingerprint(next))
   // Keep review comments attached across the rewrite. Best-effort: the prose
   // edit already landed, so a sidecar failure must not fail the tool call.
   await reanchorAfterEdit(ctx, name, text, next, at, find.length, replace.length).catch(
@@ -429,7 +476,7 @@ export const TOOLS = [
   {
     name: 'write_manuscript',
     description:
-      'Overwrite the whole manuscript prose file (manuscript/manuscript.md) — for wholesale restructures; prefer edit_manuscript for routine edits',
+      'Overwrite the whole manuscript prose file (manuscript/manuscript.md) — for wholesale restructures; prefer edit_manuscript for routine edits. Refused if the file changed since you last read it, because the author may be typing in it right now: re-read and redo your change on the current text',
     schema: writeManuscriptInput
   },
   {
