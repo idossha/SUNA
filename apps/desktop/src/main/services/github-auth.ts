@@ -32,26 +32,63 @@ const TOKEN_SLOT = 'github:token'
 const SCOPES = 'repo read:org'
 
 /**
- * The OAuth App's client ID.
+ * The OAuth App's client ID. See docs/design/github-oauth-app.md for how this
+ * one was registered and why an OAuth App rather than a GitHub App.
  *
- * PUBLIC by design — GitHub documents client IDs as non-secret, and the device
- * flow uses no client secret at all. To enable sign-in, register an OAuth App
- * at https://github.com/settings/applications/new, tick "Enable Device Flow",
- * and paste its Client ID here (or set SUNA_GITHUB_CLIENT_ID at runtime).
+ * PUBLIC by design, and committed on purpose: GitHub documents client IDs as
+ * non-secret, and the device flow uses no client secret at all. (GitHub
+ * Desktop bundles both an id AND a secret into its binary; needing only the
+ * id is the whole reason this flow was chosen.)
  *
- * Until it is filled in, `githubConfigured()` is false and the panel explains
- * that rather than failing at the first request.
+ * `SUNA_GITHUB_CLIENT_ID` overrides it at runtime — for a fork, or for
+ * anyone pointing SUNA at their own OAuth App.
  */
-const BUILT_IN_CLIENT_ID = ''
+const BUILT_IN_CLIENT_ID = 'Ov23liNjXZl4PKbGdBWg'
+
+/**
+ * Client IDs are opaque, and GitHub has changed their shape more than once
+ * ('Iv1.' + hex, later 'Ov23li…'), so this checks only that the value could
+ * be one: printable, no whitespace, no punctuation a URL-encoder would maul.
+ */
+const CLIENT_ID_RE = /^[A-Za-z0-9._-]{8,100}$/
+
+/** A client SECRET is 40 hex characters. A client ID never is. */
+const LOOKS_LIKE_SECRET = /^[0-9a-f]{40}$/
+
+/**
+ * Why the configured client id cannot be used, or null when it can.
+ *
+ * The secret check is the one worth having: pasting the secret into this slot
+ * is an easy mistake, it would be committed like the id, and GitHub would
+ * reject it with an error that names neither problem.
+ */
+export function clientIdProblem(raw: string): string | null {
+  if (raw === '') return null // simply not configured; not an error
+  if (LOOKS_LIKE_SECRET.test(raw)) {
+    return 'That value looks like an OAuth client SECRET, not a client ID. Remove it — the device flow needs no secret, and a secret must never be committed.'
+  }
+  if (!CLIENT_ID_RE.test(raw)) {
+    return `That does not look like a GitHub OAuth client ID: ${raw.slice(0, 12)}…`
+  }
+  return null
+}
 
 export function githubClientId(): string | null {
-  const fromEnv = process.env['SUNA_GITHUB_CLIENT_ID']
-  const value = (fromEnv ?? BUILT_IN_CLIENT_ID).trim()
-  return value === '' ? null : value
+  // `??` and not `||`: setting SUNA_GITHUB_CLIENT_ID to an EMPTY string is a
+  // deliberate override meaning "this build has no app", which is how the
+  // unconfigured path stays testable now that a real id ships in the binary.
+  const raw = (process.env['SUNA_GITHUB_CLIENT_ID'] ?? BUILT_IN_CLIENT_ID).trim()
+  if (raw === '' || clientIdProblem(raw) !== null) return null
+  return raw
 }
 
 export function githubConfigured(): boolean {
   return githubClientId() !== null
+}
+
+/** The configured value's problem, for the panel to show. Null when fine. */
+export function githubConfigProblem(): string | null {
+  return clientIdProblem((process.env['SUNA_GITHUB_CLIENT_ID'] ?? BUILT_IN_CLIENT_ID).trim())
 }
 
 /** In-memory copy so a signed-in session survives a keychain that refuses writes. */
@@ -246,8 +283,17 @@ function explainDeviceError(code: string, description: string): string {
   if (code === 'device_flow_disabled') {
     return `The GitHub OAuth App exists but does not have Device Flow enabled. Turn it on in the app's settings on GitHub.${detail}`
   }
-  if (code === 'incorrect_client_credentials' || code === 'unauthorized_client') {
-    return `GitHub does not recognize SUNA's OAuth client ID.${detail}`
+  // 'Not Found' is what github.com/login/device/code actually answers (404)
+  // for a client id it has never issued — verified against the live endpoint.
+  // Left generic it reads as "GitHub refused the sign-in (Not Found)", which
+  // names neither the cause nor the fix for the likeliest misconfiguration
+  // there is: a wrong, deleted, or never-registered app.
+  if (
+    code === 'Not Found' ||
+    code === 'incorrect_client_credentials' ||
+    code === 'unauthorized_client'
+  ) {
+    return `GitHub does not recognize SUNA's OAuth client ID — it may be wrong, or the app may have been deleted.${detail}`
   }
   return `GitHub refused the sign-in (${code}).${detail}`
 }
@@ -313,12 +359,16 @@ export async function githubAccount(): Promise<GitHubAccount | null> {
  */
 export async function githubSession(): Promise<GitHubSession> {
   if (!githubConfigured()) {
+    // A misconfigured id and an absent one are different problems, and only
+    // one of them is somebody's mistake.
+    const problem = githubConfigProblem()
     return {
       configured: false,
       signedIn: false,
       account: null,
       needsReauth: false,
       message:
+        problem ??
         'This build has no GitHub OAuth App configured, so SUNA cannot sign in to GitHub. You can still use SSH, which needs no sign-in.'
     }
   }

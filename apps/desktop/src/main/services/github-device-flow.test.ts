@@ -129,6 +129,18 @@ describe('startDeviceFlow', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  /**
+   * What github.com/login/device/code really answers for a client id it has
+   * never issued, verified against the live endpoint: HTTP 404 with
+   * {"error":"Not Found"}. Left unmapped it reads as "GitHub refused the
+   * sign-in (Not Found)" — the likeliest misconfiguration there is, described
+   * in the least useful way available.
+   */
+  it('names an unrecognized client id, which GitHub reports only as "Not Found"', async () => {
+    stubFetch({ [DEVICE_URL]: { status: 404, body: { error: 'Not Found' } } })
+    await expect(startDeviceFlow()).rejects.toThrow(/does not recognize SUNA's OAuth client ID/)
+  })
+
   it('names the setting to change when Device Flow is switched off on the app', async () => {
     stubFetch({
       [DEVICE_URL]: { status: 400, body: { error: 'device_flow_disabled' } }
