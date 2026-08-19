@@ -69,6 +69,23 @@ export function notesAsMarkdown(groups: readonly PaperGroup[]): string {
   return out.join('\n').trimEnd() + '\n'
 }
 
+/**
+ * Turn an IPC failure into something a person can act on.
+ *
+ * A channel the main process does not know about is almost always a stale
+ * process rather than a bug: Electron's main does not hot-swap, so a window
+ * reloaded after a pull still talks to the background process that started
+ * before the feature existed. The raw message ("No handler registered for
+ * 'refnotes:list-all'") names the symptom and hides the fix.
+ */
+export function describeIpcFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/No handler registered/i.test(message)) {
+    return 'This needs a restart — SUNA\'s background process started before reading notes existed, and Electron does not reload it with the window. Quit SUNA and start it again.'
+  }
+  return `Could not read notes: ${message}`
+}
+
 export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
   const rootDir = String(params['rootDir'] ?? '')
   const [papers, setPapers] = useState<{ citekey: string; file: ReferenceNotesFile }[] | null>(null)
@@ -92,7 +109,7 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
           found.map((p) => ({ citekey: p.citekey, file: ReferenceNotesFileSchema.parse(p.file) }))
         )
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled) setError(describeIpcFailure(err))
       }
       try {
         const { content } = await window.suna.invoke('fs:read-text', {
@@ -144,7 +161,11 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
   }
 
   if (error !== null) {
-    return <div className="rnotes"><div className="pdfview__error">Could not read notes: {error}</div></div>
+    return (
+      <div className="rnotes">
+        <div className="pdfview__error">{error}</div>
+      </div>
+    )
   }
 
   return (
