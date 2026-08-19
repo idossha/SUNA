@@ -494,3 +494,46 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---- version control on the review step ------------------------------------ */
+
+.onboard__vcs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  background: var(--s-bg-panel);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.onboard__vcs .onboard__step-sub {
+  margin: 0;
+}
+
+.onboard__vcs-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.onboard__vcs-toggle input {
+  margin-top: 2px;
+  flex: none;
+}
+
+.onboard__vcs-fields {
+  display: flex;
+  gap: 8px;
+  padding-left: 22px;
+}
+
+.onboard__vcs-fields .view__input {
+  flex: 1;
+  min-width: 0;
+}

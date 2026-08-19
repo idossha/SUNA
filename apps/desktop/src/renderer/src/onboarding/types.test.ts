@@ -5,7 +5,8 @@ import {
   createInitialWizardState,
   defaultsToGlobalPatch,
   defaultsToProjectSettings,
-  FALLBACK_DEFAULTS
+  FALLBACK_DEFAULTS,
+  repoNameFromProjectName
 } from './types'
 
 describe('defaultsToProjectSettings', () => {
@@ -76,5 +77,30 @@ describe('buildScaffoldSettings', () => {
       contentWidthCh: 140
     })
     expect(ProjectSettingsSchema.safeParse(settings).success).toBe(true)
+  })
+})
+
+describe('repoNameFromProjectName', () => {
+  it('passes a name that is already a valid repository name through', () => {
+    expect(repoNameFromProjectName('quenching-paper')).toBe('quenching-paper')
+  })
+
+  it('replaces runs of anything git or GitHub would reject with one dash', () => {
+    expect(repoNameFromProjectName('Ram-pressure stripping at z=1.7')).toBe(
+      'Ram-pressure-stripping-at-z-1.7'
+    )
+  })
+
+  it('trims leading and trailing separators, which GitHub refuses', () => {
+    expect(repoNameFromProjectName('  ...my paper...  ')).toBe('my-paper')
+  })
+
+  it('falls back rather than proposing an empty name', () => {
+    expect(repoNameFromProjectName('   ')).toBe('manuscript')
+    expect(repoNameFromProjectName('///')).toBe('manuscript')
+  })
+
+  it('caps the length at GitHub\'s limit', () => {
+    expect(repoNameFromProjectName('a'.repeat(300))).toHaveLength(100)
   })
 })
