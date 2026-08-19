@@ -294,8 +294,8 @@ accumulated meanwhile.
 
 | # | scope | gate |
 | --- | --- | --- |
-| **11a** | `@suna/core/word-diff.ts` + fuzz/snapshot tests | round-trip property holds on 10k random edit pairs |
-| **11b** | `applyExternal` uses multi-span `wordDiff` | comment anchors survive a two-place agent edit (currently they do not) |
+| **11a** ✅ | `@suna/core/word-diff.ts` + fuzz/snapshot tests | round-trip property holds on 10k random edit pairs |
+| **11b** ✅ | `applyExternal` uses multi-span `wordDiff` | comment anchors survive a two-place agent edit (currently they do not) |
 | **11c** | `merge3` + `checkDisk` three-way; banner shows conflict count | typing while an agent edits elsewhere loses nothing on either side |
 | **11d** | Layer 5 write safety | a whole-file write during a dirty buffer is refused, not silently destructive |
 | **11e** | `revisions.json` capture around AI runs | a directed action leaves a closed revision with a correct pre-image |
@@ -305,3 +305,32 @@ accumulated meanwhile.
 11a–11d are the MUST (live co-editing) and are independently valuable —
 they fix real current data-loss and anchor-collapse behaviour whether or not
 the diff UI is ever built. 11e–11g are the diff view.
+
+## Landed so far
+
+**11a — `packages/core/src/word-diff.ts`.** `wordDiff` (full alignment, for
+the review UI) and `diffSpans` (changes only, CodeMirror's change shape).
+Line-Myers to localize, word-Myers inside each changed region, then a
+left-slide normalization that makes the result independent of Myers'
+tie-breaking — which is what will let 11f recompute hunks from the baseline
+on every render instead of migrating them. Bounded by MAX_EDIT_DISTANCE and
+MAX_REGION_TOKENS; past either it degrades to "replace this region".
+Measured: a one-word edit in a 1 MB document diffs in ~5 ms; two unrelated
+3000-line documents in ~19 ms.
+
+**11b — `state/docSessions.ts` `applyExternal` / `addView`.** Now multi-span.
+`state/minimalDiff.ts` is deleted, its cases absorbed into word-diff's suite.
+
+Gates met: 10 000 randomized round-trip pairs, the full op-tiling contract on
+500 more, astral-safe boundaries, and `pnpm typecheck` + 3352 workspace tests
+green.
+
+`scripts/e2e/probes/live-coedit.mjs` proves the consequence in the running
+app, and was itself verified adversarially: with `applyExternal` temporarily
+reverted to the old single-span diff, the comment highlight on the untouched
+middle paragraph **vanishes** (its anchor collapsed); with the multi-span
+diff it survives intact. `probes/comment-reanchor.mjs` — the existing
+agent-edit-into-open-buffer probe — stays green.
+
+Not started: 11c (three-way merge), 11d (write safety), 11e–11g (the diff
+view). A dirty buffer still hits the all-or-nothing divergence banner.
