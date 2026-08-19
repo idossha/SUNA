@@ -8,6 +8,7 @@ import {
 } from '../types'
 import { buildProjectManifest } from '../manifest'
 import { projectTreeLines } from '../preview'
+import { GitHubPublish } from './GitHubPublish'
 
 interface Step7Props extends StepProps {
   targetPath: string | null
@@ -17,6 +18,7 @@ const SUBSTEP_LABELS: Record<CreateSubstep, string> = {
   dirs: 'Creating directories',
   files: 'Writing manuscript files',
   git: 'Initializing git',
+  publish: 'Publishing to GitHub',
   env: 'Python environment',
   mcp: 'Agent wiring'
 }
@@ -43,7 +45,7 @@ function aiSummary(state: StepProps['state']): string {
 }
 
 /** Step 7 — Review (feature-plan-5 §5). Presentational only; the Create button lives in the footer. */
-export function Step7Review({ state, targetPath }: Step7Props): JSX.Element {
+export function Step7Review({ state, update, targetPath }: Step7Props): JSX.Element {
   const activeProfileId = state.profileId ?? 'suna'
   const profile = getBundledProfile(activeProfileId)
   // createdAt is necessarily a preview — the real write timestamps at Create
@@ -71,7 +73,7 @@ export function Step7Review({ state, targetPath }: Step7Props): JSX.Element {
         </div>
         <div>
           <span>Journal</span> {profile?.journalName ?? activeProfileId}
-          {state.decideLater && ' (decide later — starts with Nature Astronomy)'}
+          {state.decideLater && ' (decide later — drafts in SUNA style)'}
         </div>
         <div>
           <span>Scaffold</span> {scaffoldSummary(state)}
@@ -86,7 +88,15 @@ export function Step7Review({ state, targetPath }: Step7Props): JSX.Element {
           <span>Defaults</span>{' '}
           {state.saveDefaultsToProject ? 'Saved to this project' : 'Saved to global settings'}
         </div>
+        <div>
+          <span>Version control</span>{' '}
+          {state.publishToGitHub
+            ? `git, published to GitHub as ${state.githubRepoName} (${state.githubVisibility})`
+            : 'git repository on this machine'}
+        </div>
       </div>
+
+      <GitHubPublish state={state} update={update} />
 
       <div className="onboard__review-grid">
         <div className="onboard__review-section">
@@ -103,7 +113,7 @@ export function Step7Review({ state, targetPath }: Step7Props): JSX.Element {
 
       {(state.progress.dirs !== 'pending' || state.creating || state.createError !== null) && (
         <div className="onboard__progress">
-          {CREATE_SUBSTEPS.map((key) => (
+          {CREATE_SUBSTEPS.filter((key) => key !== 'publish' || state.publishToGitHub).map((key) => (
             <div className={`onboard__progress-row onboard__progress-row--${state.progress[key]}`} key={key}>
               <span className="onboard__progress-dot" />
               {SUBSTEP_LABELS[key]}

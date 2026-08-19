@@ -304,3 +304,31 @@
   font-family: var(--s-font-mono);
   color: var(--s-ink-muted);
 }
+
+/* ---- version control ------------------------------------------------------- */
+
+.settings__vcs {
+  max-width: 520px;
+  margin-bottom: 12px;
+}
+
+.settings__vcs-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--s-text-sm);
+}
+
+.settings__vcs-warn {
+  color: var(--s-warn);
+  line-height: 1.6;
+}
+
+.settings__vcs-warn code {
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--s-bg-editor);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  user-select: text;
+}

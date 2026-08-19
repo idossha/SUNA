@@ -23,7 +23,7 @@ export type DetectedEnvRow = ResponseOf<'env:detect'>['envs'][number]
 
 export type StepStatus = 'pending' | 'active' | 'done' | 'error' | 'skipped'
 
-export const CREATE_SUBSTEPS = ['dirs', 'files', 'git', 'env', 'mcp'] as const
+export const CREATE_SUBSTEPS = ['dirs', 'files', 'git', 'publish', 'env', 'mcp'] as const
 export type CreateSubstep = (typeof CREATE_SUBSTEPS)[number]
 
 export type CreateProgress = Record<CreateSubstep, StepStatus>
@@ -32,8 +32,24 @@ export const INITIAL_CREATE_PROGRESS: CreateProgress = {
   dirs: 'pending',
   files: 'pending',
   git: 'pending',
+  publish: 'pending',
   env: 'pending',
   mcp: 'pending'
+}
+
+export type GitHubVisibility = 'private' | 'public'
+
+/**
+ * A GitHub repository name from a project name — the same shape rule the
+ * Source Control panel applies, so a project set up here and one published
+ * later end up with the same suggestion.
+ */
+export function repoNameFromProjectName(name: string): string {
+  const cleaned = name
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+  return cleaned === '' ? 'manuscript' : cleaned.slice(0, 100)
 }
 
 /** Step 6 seed/output — the five resolved keys the spec names for "Defaults". */
@@ -90,6 +106,12 @@ export interface WizardState {
   // Step 6 — Defaults
   defaults: WizardDefaults
   saveDefaultsToProject: boolean
+
+  // Step 7 — Version control. The local repository is always created; this is
+  // only about whether it also gets a remote on GitHub straight away.
+  publishToGitHub: boolean
+  githubRepoName: string
+  githubVisibility: GitHubVisibility
 
   // Step 7 — Review / create
   creating: boolean
@@ -148,6 +170,10 @@ export function createInitialWizardState(
 
     defaults: FALLBACK_DEFAULTS,
     saveDefaultsToProject: false,
+
+    publishToGitHub: false,
+    githubRepoName: '',
+    githubVisibility: 'private',
 
     creating: false,
     createError: null,

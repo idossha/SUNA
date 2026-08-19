@@ -3,6 +3,8 @@ import { resolveSettings, type ResponseOf } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useProjectStore } from '../state/project'
 import { useSettingsStore } from '../state/settings'
+import { useUiStore } from '../state/ui'
+import { useEditorSettings } from '../editor/settings'
 import { openFileTab } from '../state/dock'
 import { registerOnboardingProvider } from './devSeam'
 import { stepGate } from './gating'
@@ -96,6 +98,27 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalSettingsLoaded, rawGlobalSettings])
 
+  /**
+   * Live theme preview (step 6): the picked theme is applied to the whole
+   * app as it is picked, because "SUNA Dark" and "Gruvbox" mean nothing as
+   * words in a dropdown. The editor-settings store is localStorage-only, so
+   * previewing writes no project or global setting — step 7's create is
+   * still what commits the choice. Abandon the wizard and the theme the
+   * user arrived with is put back.
+   */
+  const themeOnEntry = useRef(useEditorSettings.getState().editorTheme)
+  const previewTheme = wizard.defaults.editorTheme
+  useEffect(() => {
+    useEditorSettings.getState().setEditorTheme(previewTheme)
+  }, [previewTheme])
+  const createdRef = useRef(false)
+  useEffect(
+    () => () => {
+      if (!createdRef.current) useEditorSettings.getState().setEditorTheme(themeOnEntry.current)
+    },
+    []
+  )
+
   // Escape cancels from anywhere in the wizard (feature-plan-5 §5) — but only
   // while this wizard is the panel on screen. dockview keeps hidden panels
   // mounted, so an ungated window listener would let an Escape pressed in a
@@ -136,6 +159,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
   const envScanDir = wizard.mode === 'setup' ? targetPath : wizard.parentDir
   /** Once dirs/files/git have succeeded, the project exists — Back/Cancel just closes. */
   const created = wizard.progress.dirs === 'done'
+  createdRef.current = created
 
   const goBack = (): void => {
     if (created || wizard.step <= firstStep) {
@@ -187,6 +211,33 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
       warnings.push('Git could not be initialized — continuing without version control.')
     }
     update({ progress, createWarnings: [...warnings] })
+
+    // Publishing needs the local repository the previous substep just made, so
+    // it is skipped rather than attempted when that failed. A failure here is a
+    // warning, never a create failure: the project on disk is complete and the
+    // remote can be added from Source Control at any time.
+    if (snapshot.publishToGitHub && scaffoldResult.gitInitialized) {
+      progress = { ...progress, publish: 'active' }
+      update({ progress })
+      try {
+        const repo = await window.suna.invoke('github:create-repo', {
+          dir: targetPath,
+          name: snapshot.githubRepoName.trim(),
+          visibility: snapshot.githubVisibility
+        })
+        await window.suna.invoke('git:push', { dir: targetPath })
+        progress = { ...progress, publish: 'done' }
+        update({ progress })
+        void repo
+      } catch (error) {
+        warnings.push(`Could not publish to GitHub: ${errorMessage(error)}`)
+        progress = { ...progress, publish: 'error' }
+        update({ progress, createWarnings: [...warnings] })
+      }
+    } else {
+      progress = { ...progress, publish: 'skipped' }
+      update({ progress })
+    }
 
     if (!snapshot.saveDefaultsToProject) {
       try {
@@ -240,6 +291,11 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     // warning must stay on screen, not vanish with the tab that reported it.
     useProjectStore.setState({ rootDir: targetPath, manifest: scaffoldResult.manifest, tree: null })
     await useProjectStore.getState().refreshTree()
+    // A brand-new project's first job is to show what it just made. The
+    // welcome screen collapses the left nav (nothing to list); a project
+    // with a scaffolded tree behind it must open with the explorer showing,
+    // or the starter's figure, bib and manuscript are invisible.
+    useUiStore.getState().setSidebarVisible(true)
     openFileTab(`${targetPath}/manuscript/manuscript.md`)
     if (warnings.length === 0) api.close()
   }

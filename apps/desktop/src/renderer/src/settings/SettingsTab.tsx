@@ -22,9 +22,11 @@ import {
   type LitCliPreference,
   type LitProviderId,
   type ResolvedSettings,
+  type ResponseOf,
   type UiLitProviderId
 } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, PICKER_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
+import { GitHubAccount } from '../views/GitHubAccount'
 import { openFileTab } from '../state/dock'
 import { profileLabel } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
@@ -270,6 +272,88 @@ const DOWNLOAD_POLICY_LABELS: Record<DownloadPolicy, string> = {
  * config — including, when the write was refused, the UNCHANGED config plus a
  * sentence saying why — and that answer simply becomes the state.
  */
+/**
+ * Version control, machine-wide.
+ *
+ * The GitHub sign-in belongs here rather than only in Source Control because
+ * it is a property of this computer, not of one manuscript: sign in once and
+ * every project on the machine can create and push its own repository. The
+ * git identity sits beside it for the same reason — it is global config, and
+ * a missing one is the single most common reason a first commit fails.
+ */
+function VersionControlSection(): JSX.Element {
+  const [ssh, setSsh] = useState<ResponseOf<'git:ssh-status'> | null>(null)
+
+  const loadSsh = async (): Promise<void> => {
+    setSsh(await window.suna.invoke('git:ssh-status', { probe: false }).catch(() => null))
+  }
+
+  useEffect(() => {
+    void loadSsh()
+  }, [])
+
+  const name = ssh?.identity.name ?? null
+  const email = ssh?.identity.email ?? null
+  const identityOk = name !== null && email !== null
+  const keyCount = ssh?.keys.length ?? 0
+
+  return (
+    <>
+      <div className="settings__vcs">
+        <GitHubAccount onChanged={loadSsh} setStatusNote={() => undefined} />
+      </div>
+
+      <div className="settings-tab__row">
+        <label>
+          Commit identity
+          <span className="settings-tab__hint">
+            The name and email git records on every commit you make, from git&apos;s own global
+            config. Without both, committing fails.
+          </span>
+        </label>
+        <div className="settings__vcs-status">
+          {ssh === null ? (
+            <span className="settings-tab__hint">Checking…</span>
+          ) : identityOk ? (
+            <span className="git__ok">
+              {name} &lt;{email}&gt;
+            </span>
+          ) : (
+            <span className="settings__vcs-warn">
+              Not set — run{' '}
+              <code>git config --global user.name &quot;Your Name&quot;</code> and{' '}
+              <code>git config --global user.email &quot;you@example.com&quot;</code> in a terminal.
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="settings-tab__row">
+        <label>
+          SSH keys
+          <span className="settings-tab__hint">
+            An alternative to signing in: a key on this machine can push without a GitHub session.
+            Either one is enough.
+          </span>
+        </label>
+        <div className="settings__vcs-status">
+          {ssh === null ? (
+            <span className="settings-tab__hint">Checking…</span>
+          ) : keyCount === 0 ? (
+            <span className="settings-tab__hint">
+              None in {ssh.sshDir}. Source Control walks through creating one.
+            </span>
+          ) : (
+            <span className="git__ok">
+              {keyCount} {keyCount === 1 ? 'key' : 'keys'} in {ssh.sshDir}
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function ReferenceLibrarySection(): JSX.Element {
   const [state, setState] = useState<LibraryConfigState | null>(null)
   const [busy, setBusy] = useState(false)
@@ -1128,6 +1212,9 @@ export function SettingsTab(): JSX.Element {
               }}
             />
           </div>
+
+          <h3 className="settings-tab__section">Version control</h3>
+          <VersionControlSection />
 
           <h3 className="settings-tab__section">References</h3>
           <div className="settings-tab__row">
