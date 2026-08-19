@@ -1119,6 +1119,12 @@ export const CHANNELS = {
     request: z.object({
       provider: z.enum(['anthropic', 'openai', 'ollama']),
       system: z.string(),
+      /**
+       * Project directory, when one is open. Main resolves 'ai.model' and
+       * 'ai.effort' against its suna.json before the call; absent = the
+       * global level decides.
+       */
+      dir: z.string().min(1).nullish(),
       messages: z
         .array(
           z.object({

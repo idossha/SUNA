@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { anthropicProvider } from './anthropic'
+import { ANTHROPIC_MODEL_IDS, anthropicModelId, anthropicProvider } from './anthropic'
 
 function jsonResponse(status: number, body: unknown): { ok: boolean; status: number; text: () => Promise<string> } {
   return {
@@ -104,6 +104,20 @@ describe('anthropicProvider', () => {
     })
   })
 
+  it('sends the effort as output_config, and omits it when unset', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { content: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await anthropicProvider.chat(
+      { system: 's', messages: [{ role: 'user', content: 'q' }], effort: 'low' },
+      { apiKey: 'k' }
+    )
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).output_config).toEqual({ effort: 'low' })
+
+    await anthropicProvider.chat({ system: 's', messages: [{ role: 'user', content: 'q' }] }, { apiKey: 'k' })
+    expect('output_config' in JSON.parse(fetchMock.mock.calls[1]![1].body)).toBe(false)
+  })
+
   it('rejects when no API key is provided', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -111,5 +125,17 @@ describe('anthropicProvider', () => {
       anthropicProvider.chat({ system: '', messages: [{ role: 'user', content: 'hi' }] }, {})
     ).rejects.toThrow('anthropic: no API key configured')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('anthropicModelId', () => {
+  it('maps every tier the settings surface can hold', () => {
+    expect(anthropicModelId('opus')).toBe(ANTHROPIC_MODEL_IDS.opus)
+    expect(anthropicModelId('sonnet')).toBe('claude-sonnet-5')
+    expect(anthropicModelId('haiku')).toBe(ANTHROPIC_MODEL_IDS.haiku)
+  })
+
+  it('falls back to the shipped default tier, which is what the provider sends bare', () => {
+    expect(anthropicModelId(undefined)).toBe('claude-sonnet-5')
   })
 })

@@ -15,7 +15,7 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { access, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LitCliId, LitCliPreference } from '@suna/core'
+import type { AiEffort, AiModel, LitCliId, LitCliPreference } from '@suna/core'
 import { codexProgressFromLine } from '@suna/bib'
 import { cliEnv, resolveCli, type CliProbe } from './lit'
 import { assertInsideAllowedRoot } from './roots'
@@ -38,6 +38,23 @@ export interface AiAskOptions {
   useMcp?: boolean
   /** Deliver the prompt over stdin: no argv length limit, absent from `ps`. */
   viaStdin?: boolean
+  /**
+   * Model tier and reasoning effort ('ai.model' / 'ai.effort', resolved
+   * project-then-global by the caller). Undefined leaves the CLI on whatever
+   * the user's own claude/codex config says — an ask must still run against a
+   * CLI whose flags this build does not know.
+   */
+  model?: AiModel
+  effort?: AiEffort
+}
+
+/**
+ * Codex reads reasoning effort from `model_reasoning_effort`, whose vocabulary
+ * stops at 'high'. The two levels above it collapse there rather than being
+ * dropped: a project that asked for more thinking gets the most codex has.
+ */
+export function codexReasoningEffort(effort: AiEffort): string {
+  return effort === 'xhigh' || effort === 'max' ? 'high' : effort
 }
 
 export interface AiAskResult {
@@ -168,12 +185,22 @@ function manageChild(
  */
 export function claudeAskArgs(
   prompt: string,
-  options: { viaStdin?: boolean; allowedTools?: string[]; mcpConfigPath?: string | null }
+  options: {
+    viaStdin?: boolean
+    allowedTools?: string[]
+    mcpConfigPath?: string | null
+    model?: AiModel
+    effort?: AiEffort
+  }
 ): string[] {
   const args =
     options.viaStdin === true
       ? ['-p', '--output-format', 'json']
       : ['-p', prompt, '--output-format', 'json']
+  // The tier names ARE claude's model aliases, so the setting passes straight
+  // through; --effort takes the same five levels the setting offers.
+  if (options.model !== undefined) args.push('--model', options.model)
+  if (options.effort !== undefined) args.push('--effort', options.effort)
   if (options.mcpConfigPath !== undefined && options.mcpConfigPath !== null) {
     args.push('--mcp-config', options.mcpConfigPath)
   }
@@ -197,7 +224,9 @@ async function runClaudeAsk(askId: string, prompt: string, options: AiAskOptions
   const args = claudeAskArgs(prompt, {
     viaStdin: options.viaStdin,
     allowedTools: options.allowedTools,
-    mcpConfigPath
+    mcpConfigPath,
+    model: options.model,
+    effort: options.effort
   })
 
   return new Promise((resolvePromise) => {
@@ -261,6 +290,17 @@ async function runClaudeAsk(askId: string, prompt: string, options: AiAskOptions
   })
 }
 
+/**
+ * The `-c model_reasoning_effort=…` pair for a codex spawn, or nothing when no
+ * effort is set. The model TIER is deliberately not passed: 'opus'/'sonnet'
+ * name Anthropic models, and codex would reject them — a codex run keeps the
+ * model its own config picks and takes only the effort.
+ */
+export function codexAskEffortArgs(effort: AiEffort | undefined): string[] {
+  if (effort === undefined) return []
+  return ['-c', `model_reasoning_effort=${codexReasoningEffort(effort)}`]
+}
+
 async function runCodexAsk(askId: string, prompt: string, options: AiAskOptions): Promise<AiAskResult> {
   const workDir = await mkdtemp(join(tmpdir(), 'suna-ai-ask-codex-'))
   const lastMessagePath = join(workDir, 'last-message.txt')
@@ -272,6 +312,7 @@ async function runCodexAsk(askId: string, prompt: string, options: AiAskOptions)
         '--sandbox',
         'read-only',
         '--skip-git-repo-check',
+        ...codexAskEffortArgs(options.effort),
         '-C',
         options.dir,
         '--output-last-message',

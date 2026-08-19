@@ -17,7 +17,7 @@ export function getProvider(id: ProviderId): Provider {
   return provider
 }
 
-export { anthropicProvider } from './anthropic'
+export { ANTHROPIC_MODEL_IDS, anthropicModelId, anthropicProvider } from './anthropic'
 export { ollamaProvider } from './ollama'
 export { openaiProvider } from './openai'
 export {

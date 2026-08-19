@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { currentManuscriptTitle } from './manuscript'
+import { useProjectStore } from './project'
 
 export type AgentProvider = 'anthropic' | 'openai' | 'ollama'
 
@@ -96,7 +97,9 @@ export const useAgentChatStore = create<AgentChatState>((set, get) => ({
       const { text: reply } = await window.suna.invoke('agent:chat', {
         provider: get().provider,
         system,
-        messages
+        messages,
+        // Main resolves ai.model/ai.effort against this project first.
+        dir: useProjectStore.getState().rootDir
       })
       set((s) => ({
         messages: [...s.messages, { role: 'assistant', content: reply }],

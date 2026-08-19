@@ -4,6 +4,8 @@ import { allowRoot } from './roots'
 import {
   cancelAiAsk,
   claudeAskArgs,
+  codexAskEffortArgs,
+  codexReasoningEffort,
   parseClaudeAskOutput,
   parseCodexAskOutput,
   runAiAsk
@@ -111,6 +113,24 @@ describe('claudeAskArgs (feature-plan-8 §2a)', () => {
     expect(claudeAskArgs('q', { mcpConfigPath: null })).toEqual(['-p', 'q', '--output-format', 'json'])
   })
 
+  it('passes the model tier and effort straight through as claude flags', () => {
+    expect(claudeAskArgs('q', { model: 'opus', effort: 'high' })).toEqual([
+      '-p',
+      'q',
+      '--output-format',
+      'json',
+      '--model',
+      'opus',
+      '--effort',
+      'high'
+    ])
+  })
+
+  it('an unset model/effort adds no flag — the CLI keeps the user\'s own config', () => {
+    expect(claudeAskArgs('q', {})).not.toContain('--model')
+    expect(claudeAskArgs('q', {})).not.toContain('--effort')
+  })
+
   it('joins allowedTools into ONE comma-separated argv element', () => {
     expect(claudeAskArgs('q', { allowedTools: ['Read', 'Grep', 'mcp__suna__edit_manuscript'] })).toEqual([
       '-p',
@@ -199,5 +219,27 @@ describe('runAiAsk — CLI-absent path', () => {
 describe('cancelAiAsk', () => {
   it('is a no-op for an unknown askId', () => {
     expect(cancelAiAsk('never-started')).toBe(false)
+  })
+})
+
+describe('codex effort mapping', () => {
+  it('passes the four levels codex knows through unchanged', () => {
+    expect(codexReasoningEffort('low')).toBe('low')
+    expect(codexReasoningEffort('medium')).toBe('medium')
+    expect(codexReasoningEffort('high')).toBe('high')
+  })
+
+  it('collapses the two levels above codex\'s vocabulary onto high', () => {
+    expect(codexReasoningEffort('xhigh')).toBe('high')
+    expect(codexReasoningEffort('max')).toBe('high')
+  })
+
+  it('emits one -c pair, and nothing at all when no effort is set', () => {
+    expect(codexAskEffortArgs('max')).toEqual(['-c', 'model_reasoning_effort=high'])
+    expect(codexAskEffortArgs(undefined)).toEqual([])
+  })
+
+  it('never passes the model tier to codex — the tiers name Anthropic models', () => {
+    expect(codexAskEffortArgs('low').join(' ')).not.toContain('model=')
   })
 })
