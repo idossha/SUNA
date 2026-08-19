@@ -825,10 +825,16 @@
 
 /* ---- references — Library / Search tabs ----------------------------------- */
 
+.refs__tabrow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  border-bottom: 1px solid var(--s-border);
+}
+
 .refs__tabs {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--s-border);
 }
 
 .refs__tab {
@@ -1024,26 +1030,39 @@
   text-decoration: none;
 }
 
-/* Cross-paper reading notes (ADR-008): the entry point sits with the
-   References tabs, because that is where the papers are. */
+/* Cross-paper reading notes (ADR-008). An ACTION, not a third tab — it opens
+   a document rather than switching this panel — so it is kept out of the
+   tablist and given the tab row's own metrics instead of a pill, which sat
+   above the baseline and read as a different visual language. */
 .refs__notesbtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
-  padding: 3px 10px;
-  color: var(--s-ink-muted);
-  background: var(--s-bg-raised);
-  border: 1px solid var(--s-border);
-  border-radius: 999px;
+  margin-bottom: -1px;
+  padding: 6px 10px 7px;
+  border-bottom: 2px solid transparent;
+  color: var(--s-ink-faint);
   font: inherit;
-  font-size: var(--s-text-xs);
-  font-weight: 600;
+  font-size: var(--s-text-sm);
 }
 
 .refs__notesbtn:hover:not(:disabled) {
-  color: var(--s-accent);
-  border-color: var(--s-border-strong);
+  color: var(--s-ink);
 }
 
 .refs__notesbtn:disabled {
-  color: var(--s-ink-faint);
+  opacity: 0.45;
   cursor: default;
+}
+
+.refs__notescount {
+  min-width: 1.5em;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--s-bg-active);
+  color: var(--s-accent);
+  font-size: var(--s-text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }

@@ -13,6 +13,8 @@ import {
 import { parseBibtex, type BibEntry } from '@suna/bib'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openViewerInSide } from '../state/dock'
+import { useProjectStore } from '../state/project'
+import { useRefNotesStore } from '../state/refnotes'
 import { citedPageLabel, quoteWithCitation } from './pdfSelection'
 import '../comments/comments.css'
 import './viewer.css'
@@ -98,6 +100,13 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [withBodyOnly, setWithBodyOnly] = useState(false)
 
+  // A highlight made while this tab is open must show up here without being
+  // asked for. `revision` catches every write this renderer makes; `saveBump`
+  // catches the ones it does not, such as a reference being removed with its
+  // notes.
+  const revision = useRefNotesStore((s) => s.revision)
+  const saveBump = useProjectStore((s) => s.saveBump)
+
   useEffect(() => {
     if (rootDir === '') return
     let cancelled = false
@@ -123,7 +132,7 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [rootDir])
+  }, [rootDir, revision, saveBump])
 
   const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries])
 
