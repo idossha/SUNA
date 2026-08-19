@@ -15,7 +15,13 @@ export const SIDEBAR_VIEW_LABELS: Record<SidebarView, string> = {
   agent: 'Agent'
 }
 
-export const SIDEBAR_WIDTH_MIN = 180
+/**
+ * The narrowest the panel may render at. 180 was too tight for the widest
+ * panel content (a reference row: cite key + title beside a two-button action
+ * column), which collided instead of reflowing. 220 is the width at which
+ * that row still holds together.
+ */
+export const SIDEBAR_WIDTH_MIN = 220
 export const SIDEBAR_WIDTH_MAX = 560
 export const SIDEBAR_WIDTH_DEFAULT = 272
 /**

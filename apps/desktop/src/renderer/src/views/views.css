@@ -302,10 +302,15 @@
   border-radius: var(--s-radius);
 }
 
+/* flex-wrap, not a single line: the row carries two non-shrinking action
+   columns (PDF pills, [@]/Remove) beside the text. In a narrow sidebar they
+   used to squeeze .refs__row-main to nothing and the cite key overlapped
+   them. Wrapping drops the actions onto their own line instead. */
 .refs__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 7px;
+  gap: 4px 7px;
   padding: 5px 8px;
   text-align: left;
   color: var(--s-ink-muted);
@@ -335,7 +340,10 @@
   flex-direction: column;
   gap: 1px;
   min-width: 0;
-  flex: 1;
+  overflow: hidden;
+  /* 132px basis is the wrap trigger: below it the actions move to their own
+     line rather than eating the last of the title's width. */
+  flex: 1 1 132px;
 }
 
 .refs__row-line {
@@ -343,10 +351,28 @@
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 
-.refs__key {
+/* The PDF pills column ("Find PDF" over "Attach PDF…"). margin-left:auto
+   keeps it — and the actions column after it — flush right once the row
+   wraps them onto their own line. */
+.refs__row-pdf {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   flex-shrink: 0;
+  gap: 3px;
+  margin-left: auto;
+}
+
+/* Shrinkable and ellipsized: a long cite key used to overflow the row-main
+   box and print itself on top of the action pills. */
+.refs__key {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--s-font-mono);
   font-size: var(--s-text-xs);
   color: var(--s-accent);
@@ -452,6 +478,8 @@
 }
 
 .refs__pdf-badge {
+  /* matches .refs__row-pdf: keeps the badge flush right on a wrapped row */
+  margin-left: auto;
   color: var(--s-accent);
   border-color: var(--s-accent);
   cursor: pointer;
