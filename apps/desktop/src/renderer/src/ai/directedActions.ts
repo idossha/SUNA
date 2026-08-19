@@ -147,7 +147,7 @@ async function runDirected(spec: DirectedSpec): Promise<AiAskOutcome> {
       spec.dir,
       (status) => useAiActionsStore.getState().progress(spec.key, status),
       settle,
-      { allowedTools: spec.allowedTools, useMcp: spec.useMcp, viaStdin: true }
+      { allowedTools: spec.allowedTools, useMcp: spec.useMcp, viaStdin: true, label: spec.title }
     )
       .then((handle) => {
         if (cancelRequested) {

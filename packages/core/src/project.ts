@@ -85,6 +85,16 @@ export type ProjectEditorSettings = z.infer<typeof ProjectEditorSettingsSchema>;
  * (see resolveSettings). The writer prunes cleared keys, so a null only ever
  * appears in a hand-edited file.
  */
+/**
+ * How the AI's unreviewed changes are shown (feature-plan-11 §11g).
+ * 'inline' paints them in the editor — removals red, additions green, at word
+ * resolution. 'off' hides the paint; it does NOT stop the baseline being
+ * captured, so turning it back on shows everything that accumulated meanwhile.
+ */
+export const REVIEW_AI_DIFF_MODES = ['inline', 'off'] as const;
+export const ReviewAiDiffsSchema = z.enum(REVIEW_AI_DIFF_MODES);
+export type ReviewAiDiffs = z.infer<typeof ReviewAiDiffsSchema>;
+
 export const ProjectSettingsSchema = z.object({
   /** Profile the preview/render surfaces use; falls back to activeProfileId. */
   previewProfileId: z.string().min(1).nullish(),
@@ -95,6 +105,7 @@ export const ProjectSettingsSchema = z.object({
   /** Committed, portable python env path (the per-machine pick lives in global settings). */
   python: z.object({ envPath: z.string().min(1).nullish() }).nullish(),
   literature: z.object({ provider: UiLitProviderIdSchema.nullish() }).nullish(),
+  review: z.object({ aiDiffs: ReviewAiDiffsSchema.nullish() }).nullish(),
   ai: z
     .object({
       mode: AiModeSchema.nullish(),

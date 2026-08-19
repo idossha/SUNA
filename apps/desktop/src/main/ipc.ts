@@ -24,6 +24,7 @@ import {
 } from './services/agent-keys'
 import { captureRect, devInfo, repairBundle } from './services/capture'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
+import { readRevisionsFile, writeRevisionsFile } from './services/revisions'
 import {
   embedHighlightsIntoPdf,
   listAllReferenceNotes,
@@ -382,6 +383,13 @@ export function registerIpcHandlers(): void {
   handle('comments:read', async ({ dir }) => ({ file: await readCommentsFile(dir) }))
   handle('comments:write', async ({ dir, file }) => {
     await writeCommentsFile(dir, file)
+    return {}
+  })
+
+  // manuscript/revisions.json — the pre-image the AI-diff view diffs against.
+  handle('revisions:read', async ({ dir }) => ({ file: await readRevisionsFile(dir) }))
+  handle('revisions:write', async ({ dir, file }) => {
+    await writeRevisionsFile(dir, file)
     return {}
   })
 

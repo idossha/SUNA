@@ -169,6 +169,65 @@
   color: var(--s-warn);
 }
 
+/* ---- AI review bar (editor/ReviewBar, feature-plan-11 §11f) ---------------
+   Same strip geometry as the divergence banner above, in the accent rather
+   than the warning colour: unreviewed AI changes are normal work to look at,
+   not a problem to fix. */
+.editor-review {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--s-bg-raised);
+  border-bottom: 1px solid var(--s-border-strong);
+  color: var(--s-ink-dim);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+}
+
+.editor-review__dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--s-ok);
+}
+
+.editor-review__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--s-ink);
+}
+
+.editor-review__btn {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  color: var(--s-ink);
+  font-size: var(--s-text-xs);
+}
+
+.editor-review__btn:hover {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+.editor-review__btn--reject:hover {
+  border-color: var(--s-err);
+  color: var(--s-err);
+}
+
+.editor-review__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ---- comments rail (comments/CommentsRail, prose tabs only) ---------------
    CodeMirror's own .cm-scroller is the scrolling element here and
    .editor-tab__source itself never scrolls, so a plain flex row with the

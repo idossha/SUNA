@@ -7,6 +7,7 @@ import {
   AiModeSchema,
   FigureWidthPresetSchema,
   ProjectSettingsSchema,
+  ReviewAiDiffsSchema,
   SETTINGS_LIMITS,
   type AiMode,
   type EditorFontFamily,
@@ -14,6 +15,7 @@ import {
   type EditorViewMode,
   type FigureWidthPreset,
   type ProjectSettings,
+  type ReviewAiDiffs,
 } from './project';
 
 /**
@@ -50,6 +52,8 @@ export interface ResolvedSettings {
   /** null = let the picker choose (it prefers a detected agent CLI). */
   'literature.provider': UiLitProviderId | null;
   'ai.mode': AiMode;
+  /** Show the AI's unreviewed changes inline, red/green at word resolution. */
+  'review.aiDiffs': ReviewAiDiffs;
   /** null = auto-detect the installed CLI. */
   'ai.cliCommand': string | null;
 }
@@ -73,6 +77,9 @@ export const SETTINGS_DEFAULTS: ResolvedSettings = {
   'python.envPath': null,
   'literature.provider': null,
   'ai.mode': 'cli',
+  // On by default: an AI change the author never sees is the failure mode
+  // this whole feature exists to prevent.
+  'review.aiDiffs': 'inline',
   'ai.cliCommand': null,
 };
 
@@ -164,6 +171,11 @@ export const SETTING_KEYS: {
     projectPath: ['ai', 'cliCommand'],
     globalKeys: ['ai.cliCommand'],
     schema: z.string().min(1),
+  },
+  'review.aiDiffs': {
+    projectPath: ['review', 'aiDiffs'],
+    globalKeys: ['review.aiDiffs'],
+    schema: ReviewAiDiffsSchema,
   },
 };
 

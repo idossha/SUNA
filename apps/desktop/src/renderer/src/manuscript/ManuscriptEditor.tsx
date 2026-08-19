@@ -25,7 +25,7 @@ import {
 import '../comments/comments.css'
 import { commentsByPath, useCommentsStore } from '../state/comments'
 import { acquireDocSession } from '../state/docSessions'
-import { useResolved, useSettingsStore } from '../state/settings'
+import { getResolved, useResolved, useSettingsStore } from '../state/settings'
 import { useVimModeStore } from '../state/vimMode'
 import {
   applyCiteChips,
@@ -34,6 +34,9 @@ import {
   applyFigureCaptions
 } from './citeChips'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
+import { useRevision } from '../state/revisions'
+import { revisionDiffExtension } from '../editor/revisionDiff'
+import { revisionReviewKeymap, syncRevisionBase } from '../editor/revisionReview'
 
 const NO_COMMENTS: Comment[] = []
 
@@ -83,6 +86,17 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     // the value that is current when it finally runs, not when it was queued.
     const liveRef = useRef(live)
     liveRef.current = live
+
+    // The AI baseline reaches this live editor the same way it reaches the raw
+    // tab: a run finishing changes the store, toggling the setting changes the
+    // resolution, and either must repaint without reopening the document.
+    const revision = useRevision(contentPath)
+    const aiDiffs = useResolved('review.aiDiffs').value
+    useEffect(() => {
+      const view = handleRef.current?.view
+      if (view === undefined) return
+      syncRevisionBase(view, contentPath, aiDiffs === 'inline')
+    }, [revision?.base, revision?.id, aiDiffs, contentPath])
 
     // latest callbacks without re-creating the editor
     const onSettledRef = useRef(onSettled)
@@ -199,10 +213,15 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
               // reverse direction (card click -> flash) and the flash watcher
               commentHighlightExtension((commentId) =>
                 useCommentsStore.getState().setActive(commentId)
-              )
+              ),
+              // AI-change review, same as the raw editor tab: this is the
+              // surface most manuscript prose is actually read on.
+              revisionDiffExtension(),
+              revisionReviewKeymap(contentPath)
             ])
           })
           applySectionComments(view, commentsForPathRef.current)
+          syncRevisionBase(view, contentPath, getResolved('review.aiDiffs').value === 'inline')
           // save-time re-anchoring prefers the editor's mapped ranges
           unregisterAnchors = registerLiveAnchorSource(contentPath, () => liveAnchors(view.state))
           reportOutline()

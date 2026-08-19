@@ -6,6 +6,7 @@ import {
   EDITOR_FONT_FAMILIES,
   EDITOR_THEME_IDS,
   EDITOR_VIEW_MODES,
+  REVIEW_AI_DIFF_MODES,
   FIGURE_WIDTH_PRESETS,
   LIT_CLI_PREFERENCE_IDS,
   LIT_PROVIDER_IDS,
@@ -22,6 +23,7 @@ import {
   type LitCliPreference,
   type LitProviderId,
   type ResolvedSettings,
+  type ReviewAiDiffs,
   type ResponseOf,
   type UiLitProviderId
 } from '@suna/core'
@@ -553,8 +555,14 @@ type ProjectSelectKey =
   | 'editor.fontFamily'
   | 'figures.defaultWidthPreset'
   | 'ai.mode'
+  | 'review.aiDiffs'
 
 type ProjectNullableKey = 'previewProfileId' | 'literature.provider'
+
+const AI_DIFF_LABELS: Record<ReviewAiDiffs, string> = {
+  inline: 'Show inline',
+  off: 'Hidden'
+}
 
 function SourceBadge({ source }: { source: 'project' | 'global' | 'default' }): JSX.Element {
   return <span className={`settings__source settings__source--${source}`}>{sourceLabel(source)}</span>
@@ -912,6 +920,14 @@ function ProjectSettingsSection(): JSX.Element {
         options={EDITOR_THEME_IDS}
         labelFor={(theme) => THEME_LABELS[theme]}
       />
+      <ProjectSelectRow
+        settingKey="review.aiDiffs"
+        id="proj-ai-diffs"
+        label="AI changes"
+        hint="Show what the AI changed, removals in red and additions in green, until you accept or reject them."
+        options={REVIEW_AI_DIFF_MODES}
+        labelFor={(mode) => AI_DIFF_LABELS[mode]}
+      />
       <ProjectVimRow />
 
       <h3 className="settings-tab__section">Figures</h3>
@@ -1095,6 +1111,26 @@ export function SettingsTab(): JSX.Element {
               {(Object.keys(MODE_LABELS) as EditorModeSetting[]).map((mode) => (
                 <option key={mode} value={mode}>
                   {MODE_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="settings-tab__row">
+            <label htmlFor="set-ai-diffs">
+              AI changes
+              <span className="settings-tab__hint">
+                Show what the AI changed — removals in red, additions in green — until you accept
+                or reject them.
+              </span>
+            </label>
+            <select
+              id="set-ai-diffs"
+              value={settings['review.aiDiffs']}
+              onChange={(e) => void update('review.aiDiffs', e.target.value as ReviewAiDiffs)}
+            >
+              {REVIEW_AI_DIFF_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {AI_DIFF_LABELS[mode]}
                 </option>
               ))}
             </select>
