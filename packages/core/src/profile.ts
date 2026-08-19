@@ -194,6 +194,15 @@ export const ManuscriptRulesSchema = z.object({
   submissionFormat: z.object({
     doubleSpacing: z.boolean().nullable(),
     lineNumbers: z.boolean().nullable(),
+    /**
+     * Page numbering, when the style states it. OPTIONAL rather than
+     * nullable-required because published author guidelines almost never
+     * mention it (ADR-002) and the twelve journal profiles therefore leave
+     * the field out entirely; absent reads the same as null — "not stated",
+     * the user's own toggle to set. The SUNA house style DOES state it,
+     * because a house style is allowed to have an opinion.
+     */
+    pageNumbers: z.boolean().nullish(),
     acceptedFileTypes: z.array(z.string().min(1)),
   }),
   stageSeverity: StageSeveritySchema.optional(),

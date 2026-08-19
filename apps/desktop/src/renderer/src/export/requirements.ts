@@ -103,11 +103,20 @@ export function citationModeLabel(mode: CitationMode): string {
 
 /**
  * The checkbox tag text in the export form ("SLEEP requires this") — the
- * journal's stance rendered as information, never as a lock: the user can
- * always override the stated value.
+ * stated stance rendered as information, never as a lock: the user can
+ * always override it.
+ *
+ * `house` reworks the wording for SUNA style, which states these conventions
+ * as OUR OWN preference rather than reporting a journal's requirement — it
+ * has nobody to require anything on behalf of.
  */
-export function stanceTag(journalName: string, stated: boolean | null): string | null {
+export function stanceTag(
+  journalName: string,
+  stated: boolean | null,
+  house = false
+): string | null {
   if (stated === null) return null
+  if (house) return stated ? `${journalName} uses this` : `${journalName} leaves this off`
   return stated ? `${journalName} requires this` : `${journalName} says do not use`
 }
 
@@ -121,9 +130,9 @@ function rangeLabel(min: number | null, max: number | null, unit: string): strin
 
 function submissionRequirements(profile: PublisherProfile): SubmissionRequirements | null {
   const stated = profile.manuscript.submissionFormat
-  // The schema does not model page numbering yet; profiles may gain the field
-  // as an optional extension. Read it defensively — absent means not stated.
-  const pageNumbers = (stated as { pageNumbers?: boolean | null }).pageNumbers ?? null
+  // Optional in the schema: a journal profile leaves it out (its guidelines
+  // never mention page numbering), and absent reads as "not stated".
+  const pageNumbers = stated.pageNumbers ?? null
   const rows: StatusRow[] = [
     { id: 'double-spacing', label: 'Double spacing', status: statusOf(stated.doubleSpacing) },
     { id: 'line-numbers', label: 'Line numbers', status: statusOf(stated.lineNumbers) },

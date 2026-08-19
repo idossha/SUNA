@@ -13,9 +13,14 @@ import { useProjectStore } from './project'
  * a project setting.
  */
 
-// The house style: what new projects draft in (main's project.ts default),
-// and — unlike a journal — never hidden from the pickers.
-export const FALLBACK_PROFILE_ID: BundledProfileId = 'suna'
+/**
+ * The house style: SUNA's own invented conventions, what new projects draft
+ * in (main's project.ts default) and the last word in every profile
+ * resolution below — a project only renders or exports as a journal because
+ * somebody said so, in Settings or in suna.json. Unlike a journal profile it
+ * is never hidden from the pickers.
+ */
+export const HOUSE_PROFILE_ID: BundledProfileId = 'suna'
 
 export function isBundledProfileId(
   id: string | null | undefined
@@ -24,8 +29,11 @@ export function isBundledProfileId(
 }
 
 /**
- * Pure resolution: a valid per-project override wins, then the project's
- * activeProfileId (when it names a bundled profile), then the fallback.
+ * Pure resolution, in the order a choice was actually made: an explicit
+ * override (the Settings 'Preview / render profile', or the References
+ * view's own 'Rendered as') wins, then the project's activeProfileId as
+ * recorded in suna.json, and failing both the house style. Nothing else
+ * gets to pick a journal on the author's behalf.
  */
 export function resolvePreviewProfileId(
   override: string | undefined,
@@ -33,7 +41,7 @@ export function resolvePreviewProfileId(
 ): BundledProfileId {
   if (isBundledProfileId(override)) return override
   if (isBundledProfileId(activeProfileId)) return activeProfileId
-  return FALLBACK_PROFILE_ID
+  return HOUSE_PROFILE_ID
 }
 
 /**

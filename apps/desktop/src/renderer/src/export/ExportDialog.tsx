@@ -4,8 +4,9 @@ import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId, type Diag
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
-import { resolvePreviewProfileId } from '../state/renderProfile'
+import { HOUSE_PROFILE_ID, resolvePreviewProfileId } from '../state/renderProfile'
 import { useEditorSettings } from '../editor/settings'
+import { useResolved } from '../state/settings'
 import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
 import { RequirementsPanel } from './RequirementsPanel'
@@ -75,7 +76,16 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const manuscript = useManuscriptStore((s) => s.manuscript)
   const manifest = useProjectStore((s) => s.manifest)
 
-  const defaultProfileId = resolvePreviewProfileId(undefined, manifest?.activeProfileId ?? null)
+  // Which profile the page OPENS on, in the order somebody actually chose
+  // it: the Settings 'Preview / render profile' (project or global) first,
+  // then suna.json's activeProfileId, and failing both the SUNA house style.
+  // Nothing infers a journal — an export is house style until someone says
+  // otherwise, and the picker below is the last word for this one export.
+  const { value: settingsProfileId } = useResolved('previewProfileId')
+  const defaultProfileId = resolvePreviewProfileId(
+    settingsProfileId ?? undefined,
+    manifest?.activeProfileId ?? null
+  )
 
   const [format, setFormat] = useState<ExportFormat>('docx')
   const [target, setTarget] = useState<ExportTarget>('manuscript')
@@ -125,16 +135,17 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   // layout when the manifest is absent or leaves it unset.
   const manuscriptDir = manifest?.directories.manuscript ?? DEFAULT_PROJECT_DIRS.manuscript
 
-  // manifest loads asynchronously after mount — seed the profile picker from
-  // it once, the moment it arrives, rather than being stuck on the
-  // pre-manifest fallback for the rest of the panel's life.
+  // manifest and settings both load asynchronously after mount — seed the
+  // profile picker once, the moment the resolution first has real inputs to
+  // work with, rather than being stuck on the house-style fallback for the
+  // rest of the panel's life. Only once: after that the picker is the user's.
   const profileSeeded = useRef(false)
   useEffect(() => {
     if (!profileSeeded.current && manifest !== null) {
       profileSeeded.current = true
-      setProfileId(resolvePreviewProfileId(undefined, manifest.activeProfileId))
+      setProfileId(defaultProfileId)
     }
-  }, [manifest])
+  }, [manifest, defaultProfileId])
 
   // Default output names per document target: <slug> for the manuscript,
   // <slug>-supplement for the supplement. Switching targets swaps the default
@@ -188,6 +199,8 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     if (stated !== null) setDoubleSpacing(stated)
     const statedLines = profile.manuscript.submissionFormat.lineNumbers
     if (statedLines !== null) setLineNumbers(statedLines)
+    const statedPages = profile.manuscript.submissionFormat.pageNumbers ?? null
+    if (statedPages !== null) setPageNumbers(statedPages)
   }, [profile])
 
   useEffect(() => {
@@ -225,8 +238,12 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const doubleSpacingStated = profile?.manuscript.submissionFormat.doubleSpacing ?? null
   const lineNumbersStated = profile?.manuscript.submissionFormat.lineNumbers ?? null
   const journalName = profile?.journalName ?? ''
-  const doubleSpacingTag = stanceTag(journalName, doubleSpacingStated)
-  const lineNumbersTag = stanceTag(journalName, lineNumbersStated)
+  // SUNA style states these as our own house conventions; a journal profile
+  // reports what that journal requires. Same tri-state, different sentence.
+  const house = profileId === HOUSE_PROFILE_ID
+  const doubleSpacingTag = stanceTag(journalName, doubleSpacingStated, house)
+  const lineNumbersTag = stanceTag(journalName, lineNumbersStated, house)
+  const pageNumbersTag = stanceTag(journalName, profile?.manuscript.submissionFormat.pageNumbers ?? null, house)
 
   const ready = rootDir !== '' && manuscript !== null && profile !== null && outputName.trim() !== '' && !busy
 
@@ -332,7 +349,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                   </select>
                 </label>
                 <label className="export-dialog__field">
-                  <span>Journal profile</span>
+                  <span>Profile</span>
                   <select value={profileId} onChange={(e) => setProfileId(e.target.value as BundledProfileId)}>
                     {pickerIds.map((id) => (
                       <option key={id} value={id}>
@@ -347,7 +364,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                 <label className="export-dialog__field export-dialog__field--wide">
                   <span>Article type</span>
                   <select value={articleTypeId} onChange={(e) => setArticleTypeId(e.target.value)}>
-                    <option value="">None — generic journal overview</option>
+                    <option value="">None — generic overview</option>
                     {profile.manuscript.articleTypes.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
@@ -404,6 +421,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                   onChange={(e) => setPageNumbers(e.target.checked)}
                 />
                 Page numbers
+                {pageNumbersTag !== null && <span className="export-dialog__stance">{pageNumbersTag}</span>}
               </label>
               <div className="export-dialog__title">Figures</div>
               {!compressionApplies ? (

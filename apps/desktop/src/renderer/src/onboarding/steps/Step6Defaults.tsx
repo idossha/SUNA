@@ -43,7 +43,7 @@ export function Step6Defaults({ state, update }: StepProps): JSX.Element {
       </div>
 
       <div className="onboard__field">
-        <label htmlFor="onboard-theme">Editor theme</label>
+        <label htmlFor="onboard-theme">Editor theme — applied as you pick, so you can see it</label>
         <select
           id="onboard-theme"
           value={state.defaults.editorTheme}

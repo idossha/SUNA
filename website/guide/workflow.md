@@ -97,6 +97,16 @@ Commit like you would commit code, because everything that matters is text: pros
   <figcaption>Source Control gives you status, diffs, commit and history without leaving the app.</figcaption>
 </figure>
 
+The view is live. It re-reads the moment anything moves — your own edits, an export, an agent, a `git add` you typed in the built-in terminal, a branch switch from another window — because SUNA watches both the project tree and `.git` itself. Nothing needs refreshing, and there is no refresh button to look for.
+
+Changes arrive in the two lists git actually keeps: **Staged changes** (the index) and **Changes** (the working tree). A file appears in both when you stage it and then keep writing, and clicking a row shows the diff for *that* side. Each row stages (`+`), unstages (`−`) or discards (`↺`) just that file, and each hunk inside a diff carries the same three actions, so you can commit the paragraph you finished without committing the half-written one below it. **Commit** takes exactly what is staged; when nothing is staged, **Stage all & commit** is offered instead of quietly committing everything. Discarding always asks first — it is the one action here that destroys work, and for an untracked file it deletes it outright.
+
+A folder that is not a repository yet gets an **Initialize repository** button: `git init -b main` plus a first commit of what is already there, entirely on your machine.
+
+To keep a copy elsewhere, you can create the repository without leaving SUNA: if you have logged the GitHub CLI in yourself (`gh auth login`), the Remote section offers **Create on GitHub** — name, visibility, optional organization owner — and points `origin` at the new repository's SSH URL. SUNA borrows that existing login and never asks for or stores a token; creation uploads nothing, so the first push is still yours to make. Without `gh`, create an empty repository on your host and paste its URL under **Remote**. SUNA stores remotes as SSH — paste an `https://github.com/owner/repo` URL and it is saved as `git@github.com:owner/repo.git`, because HTTPS asks for a username and password on every push and SUNA has no terminal in which to answer it. (A **Keep HTTPS** button is there if you really want it, and a plain path to a backup disk works too.) **Publish branch** pushes and sets the upstream; after that it is just **Push**, with the count of commits waiting to go.
+
+If SSH is not set up on this machine, expand **SSH setup**: a four-step checklist — git identity, a key in `~/.ssh`, ssh-agent, and the key authorized on your host — that shows which steps are already done, hands you the exact command for the ones that are not, copies your public key for pasting, and ends with a **Test connection** button that runs the real handshake. A push that fails on authentication opens the same checklist with git's own message underneath.
+
 Two things not to worry about: `.mcp.json` bakes an absolute path, so SUNA gitignores it and re-creates it per machine — a collaborator who clones your project gets their own on first open. And no AI run in SUNA commits or runs destructive git commands; the history is yours.
 
 ## Where to go next

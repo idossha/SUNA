@@ -21,14 +21,18 @@ function abstractLimitLabel(profile: ReturnType<typeof getBundledProfile>): stri
   return limit === null ? 'No abstract limit stated' : `${limit}-word abstract limit`
 }
 
-/** Step 2 — Target journal (feature-plan-5 §5): four bundled profiles as cards. */
+/**
+ * Step 2 — Target journal (feature-plan-5 §5): the bundled profiles as cards,
+ * house style first. "Decide later" is not a deferral into nothing: it means
+ * SUNA style, which is also what a project gets when nobody picks.
+ */
 export function Step2Profile({ state, update }: StepProps): JSX.Element {
   return (
     <div className="onboard__step-page">
       <h2 className="onboard__step-title">Target journal</h2>
       <p className="onboard__step-sub">
         Sets the citation style, figure widths, and manuscript limits SUNA checks against. You can
-        change this later in the project&apos;s formatting settings.
+        change this later in the project&apos;s formatting settings — nothing here is permanent.
       </p>
 
       <div className="onboard__cards">
@@ -76,7 +80,8 @@ export function Step2Profile({ state, update }: StepProps): JSX.Element {
         <div className="onboard__choice-body">
           <div className="onboard__choice-title">Decide later</div>
           <div className="onboard__choice-hint">
-            Starts with Nature Astronomy&apos;s formatting; change the target journal any time.
+            Drafts in SUNA style — our own house style, which states no limits and flags nothing.
+            Pick a journal whenever you know where this is going.
           </div>
         </div>
       </label>
