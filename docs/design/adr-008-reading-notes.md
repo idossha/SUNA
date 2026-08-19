@@ -95,41 +95,46 @@ first amendment had already replaced export-to-`output/` with an explicit
 in-place command; this one drops the command as well. Highlighting writes the
 PDF, the way Preview does.
 
-The two requirements fight each other in the PDF object model, and the way out
-is the byte-prefix property:
+**Superseded once already.** The first version rebuilt the file from a recorded
+pristine baseline on every change, because pdf.js was believed unable to delete
+an annotation the loaded document already had — mozilla/pdf.js#18407 is about
+*editing* one. It worked, and it was a trap: the moment another application
+rewrote the paper the baseline stopped matching and SUNA could never write to
+that file again, with no recovery.
 
-- pdf.js **cannot delete or edit an annotation the loaded document already
-  had** (mozilla/pdf.js#18407). Append-on-change would duplicate every
-  highlight forever and removal would be impossible.
-- but `saveDocument()` is a strict incremental append, so the pristine file
-  remains a byte-exact prefix.
+**pdf.js can delete.** Staging `{ id: '<ref>', deleted: true, pageIndex }`
+under a key with the `pdfjs_internal_editor_` prefix drops the annotation from
+the page's `/Annots` on save. The missing prefix was the entire reason it
+looked impossible — `getNewAnnotationsMap` skips every key without it, so an
+entry stored under any other name is silently ignored and the save appears to
+do nothing. Measured: two highlights (119R, 120R), delete 119R, save — 120R
+survives, 119R is gone, and the result is still a byte-exact append.
 
-So the PDF's annotation layer is **derived and regenerated**, never edited:
-truncate to `pristineBytes` → verify `pristineSha256` → load that → stage every
-current note → save → restamp the sidecar. Removal is simply a regeneration
-with one fewer note.
+So there is **no baseline and nothing to invalidate**. Highlights are
+reconciled against the file as it is: `planSync` reads the file's own
+`/Highlight` annotations, matches them to notes **by geometry**, and issues the
+minimum edit — create what is missing, replace what disagrees (a recolour or an
+edited body; pdf.js adds and removes rather than modifies), remove what the
+user deleted. Every write is an ordinary incremental append over whatever the
+document currently is, which makes a foreign edit a non-event rather than a
+lockout.
 
-Measured in the running app (`probes/pdf-native-highlight.mjs`), on the example
-paper at 447,218 pristine bytes:
+Two properties carry the safety, and both are tested:
 
-| step | file | highlights |
-|---|---|---|
-| baseline | 447,218 | 0 |
-| one highlight | 448,354 | 1 |
-| two highlights | 448,981 | 2 |
-| remove one | 448,326 | 1 |
-| remove both | **447,218** | 0 |
+- **An annotation no note claims is never touched.** It belongs to Preview,
+  Zotero or the publisher. Geometry cannot tell such a highlight from one whose
+  note was deleted — both cover a region no note claims — so a deletion is only
+  ever performed for a region the caller *names*, captured from the note's own
+  rectangles before it is removed.
+- **The main process holds one invariant with no stored state**: the incoming
+  bytes must begin with the file on disk right now. `saveDocument()` only
+  appends, so anything else means the file changed under the renderer mid-edit
+  and writing would discard whatever changed it.
 
-The last row is the point: removing every highlight leaves the paper
-**byte-identical to how ADR-007 acquired it**, verified by hashing the prefix.
-The written annotation is a real `/Subtype /Highlight` with `/QuadPoints`, `/C`,
-`/T` and an `/AP` appearance stream — without that stream Preview renders
-nothing — and a note body rides along as `/Contents` with a `/Popup`, so the
-note text is visible in Preview and Acrobat too, not just the colour.
-
-Writes are **debounced (700 ms)**, so a burst of highlighting costs one
-regeneration rather than one per colour click; each regeneration re-parses and
-re-serialises the whole document.
+Measured end to end in the running app: two SUNA highlights (green, blue) → an
+external application appends a red one → three in the file → SUNA removes its
+green one → **blue and red both survive**. The same sequence used to be
+unrecoverable at step three.
 
 The sidecar remains the source of truth, because the PDF cannot hold what the
 rail needs: pdf.js writes no `/NM`, so an annotation has no stable identity to

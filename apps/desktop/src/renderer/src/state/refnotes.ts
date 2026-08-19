@@ -46,14 +46,18 @@ interface RefNotesState {
   deleteNote: (id: string) => Promise<void>
   /** Replace runs after a re-anchor sweep; writes only when something changed. */
   applyResolvedRuns: (updates: ReadonlyMap<string, PdfNoteRun[]>) => Promise<void>
-  /** Record the baseline and result of writing highlights into the PDF. */
-  recordEmbed: (result: {
-    pristineBytes: number
-    pristineSha256: string
-    sha256: string
-    pageCount: number
-    noteIds: string[]
-  }) => Promise<void>
+  /**
+   * Regions of notes just removed, awaiting removal from the PDF too.
+   *
+   * Geometry alone cannot tell an annotation whose note was deleted from a
+   * highlight someone made in Preview — both cover a region no note claims —
+   * and guessing would delete a stranger's work. So a deletion is only ever
+   * performed for a region named here, and the list is cleared once the file
+   * agrees.
+   */
+  pendingRemovals: { page: number; rects: { left: number; top: number; width: number; height: number }[] }[]
+  noteRemoved: (regions: { page: number; rects: { left: number; top: number; width: number; height: number }[] }[]) => void
+  clearPendingRemovals: () => void
 }
 
 export const useRefNotesStore = create<RefNotesState>((set, get) => ({
@@ -64,7 +68,7 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
   error: null,
 
   load: async (rootDir, citekey) => {
-    set({ rootDir, citekey, loading: true, error: null, file: null })
+    set({ rootDir, citekey, loading: true, error: null, file: null, pendingRemovals: [] })
     try {
       const { file } = await window.suna.invoke('refnotes:read', { dir: rootDir, citekey })
       // A different PDF may have been opened while this read was in flight.
@@ -76,7 +80,8 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
     }
   },
 
-  clear: () => set({ rootDir: null, citekey: null, file: null, loading: false, error: null }),
+  clear: () =>
+    set({ rootDir: null, citekey: null, file: null, loading: false, error: null, pendingRemovals: [] }),
 
   addNote: async (runs, color, body = '') => {
     const { rootDir, citekey, file } = get()
@@ -130,34 +135,15 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
     await persist(set, get, { ...file, notes })
   },
 
-  recordEmbed: async ({ pristineBytes, pristineSha256, sha256, pageCount, noteIds }) => {
-    const { file, citekey } = get()
-    if (file === null || citekey === null) return
-    const now = new Date().toISOString()
-    // `pristine*` describe the file BEFORE SUNA ever appended, and never move
-    // once recorded — they are what makes a re-embed able to truncate back and
-    // therefore what makes removing a highlight possible at all.
-    const source = {
-      path: `references/${citekey}.pdf`,
-      sha256,
-      pristineBytes: file.source?.pristineBytes ?? pristineBytes,
-      pristineSha256: file.source?.pristineSha256 ?? pristineSha256,
-      pageCount: file.source?.pageCount ?? Math.max(1, pageCount),
-      pageLabelOffset: file.source?.pageLabelOffset ?? 0,
-      extractor: { pdfjs: PDFJS_VERSION, pageText: 1 },
-      sweptAt: now
-    }
-    const embed = { at: now, noteIds, resultSha256: sha256 }
-    await persist(set, get, { ...file, source, embed })
-  }
-}))
+  pendingRemovals: [],
 
-/**
- * The extractor version stamped into the sidecar. Bumping pdfjs-dist can
- * change how a page's text comes out, which is exactly when stored quotes
- * deserve to be re-checked rather than trusted.
- */
-const PDFJS_VERSION = '6.2.108'
+  noteRemoved: (regions) => {
+    if (regions.length === 0) return
+    set({ pendingRemovals: [...get().pendingRemovals, ...regions] })
+  },
+
+  clearPendingRemovals: () => set({ pendingRemovals: [] })
+}))
 
 /**
  * Optimistic in-memory update, then the atomic write. A failed write rolls the

@@ -186,8 +186,17 @@ export function occurrencesOf(pageText: PageText, quote: string): { from: number
   return out
 }
 
-/** A highlight that is in the PDF file but not in SUNA's sidecar. */
+/** A `/Highlight` annotation read out of the PDF file itself. */
 export interface ForeignHighlight {
+  /**
+   * The annotation's object ref, e.g. "119R" — what pdf.js needs to delete it.
+   * Carried through from `getAnnotations` rather than looked up again later:
+   * re-finding it by any other field is unsound, because several highlights on
+   * a page routinely share every property except position.
+   */
+  id: string
+  /** Ref of the `/Popup`, so deleting the highlight takes its popup with it. */
+  popupRef?: string
   /** Page-relative CSS-pixel rectangles, one per quad. */
   rects: HighlightRect[]
   /** `/C` as CSS, when the annotation declares one. */
@@ -200,6 +209,8 @@ export interface ForeignHighlight {
 
 /** The parts of a pdf.js annotation this module reads. */
 export interface PdfAnnotationLike {
+  id?: string
+  popupRef?: string | null
   subtype?: string
   quadPoints?: ArrayLike<number> | null
   rect?: ArrayLike<number> | null
@@ -263,6 +274,8 @@ export function highlightRectsFromAnnotations(
 
     const c = annotation.color
     out.push({
+      id: annotation.id ?? '',
+      ...(annotation.popupRef == null ? {} : { popupRef: annotation.popupRef }),
       rects,
       color:
         c != null && c.length >= 3 ? `rgb(${Number(c[0])}, ${Number(c[1])}, ${Number(c[2])})` : null,

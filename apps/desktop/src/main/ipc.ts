@@ -26,7 +26,6 @@ import { captureRect, devInfo, repairBundle } from './services/capture'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
 import {
   embedHighlightsIntoPdf,
-  readPristinePdf,
   readReferenceNotes,
   writeReferenceNotes
 } from './services/refnotes'
@@ -341,21 +340,8 @@ export function registerIpcHandlers(): void {
     await writeReferenceNotes(dir, citekey, file)
     return {}
   })
-  handle('refnotes:pristine', async ({ dir, citekey }) => {
-    // The recorded baseline comes from the sidecar, which is the only place
-    // that remembers what the file looked like before SUNA appended anything.
-    const notes = await readReferenceNotes(dir, citekey)
-    const recorded =
-      notes.source === null
-        ? null
-        : {
-            pristineBytes: notes.source.pristineBytes,
-            pristineSha256: notes.source.pristineSha256
-          }
-    return readPristinePdf(dir, citekey, recorded)
-  })
-  handle('refnotes:embed', async ({ dir, citekey, base64, pristineBytes, pristineSha256 }) =>
-    embedHighlightsIntoPdf(dir, citekey, base64, { pristineBytes, pristineSha256 })
+  handle('refnotes:embed', async ({ dir, citekey, base64 }) =>
+    embedHighlightsIntoPdf(dir, citekey, base64)
   )
 
   handle('lit:search', async ({ provider, query, limit }) =>

@@ -1,24 +1,36 @@
 import { getDocument } from 'pdfjs-dist'
 import type { PdfNote } from '@suna/core'
 import { base64ToUint8Array } from './binary'
-import { annotationsForNote, stageAnnotations, type HighlightAnnotationSpec } from './embedHighlights'
-import type { HighlightRect } from './pdfGeometry'
+import {
+  NOTE_COLOR_RGB,
+  annotationsForNote,
+  planSync,
+  stageAnnotations,
+  type DeleteAnnotationSpec,
+  type DesiredHighlight,
+  type FileAnnotation,
+  type HighlightAnnotationSpec
+} from './embedHighlights'
+import { highlightRectsFromAnnotations, type HighlightRect } from './pdfGeometry'
 import type { PdfViewportLike } from './pdfSelection'
 
 /**
- * Regenerating `references/<citekey>.pdf` so its native annotations match the
- * sidecar (ADR-008, amended: highlights are native to the PDF, and removable).
+ * Keeping `references/<citekey>.pdf` in step with the sidecar (ADR-008,
+ * amended: "keep it simple and robust ... make sure everything is updated even
+ * if users make changes via preview or Zotero").
  *
- * Always from the PRISTINE copy, never from the file as it stands. pdf.js
- * cannot delete an annotation the loaded document already had
- * (mozilla/pdf.js#18407), so editing in place could only ever add — two
- * highlights then one would leave three. Loading the pristine bytes and
- * writing every current note is the only formulation where removal exists,
- * and `saveDocument()`'s strict-append behaviour is what makes the pristine
- * copy recoverable in the first place.
+ * The whole operation is a RECONCILE against the file as it is right now.
+ * Nothing is remembered between runs — no pristine baseline, no stored object
+ * ref, no hash — so there is nothing a foreign edit can invalidate. Preview
+ * rewriting the file, Zotero adding a highlight, ADR-007 replacing the paper
+ * with the published version: each is just a different starting document, read
+ * fresh and edited minimally.
+ *
+ * The file is always re-read from disk rather than reusing the copy on screen,
+ * because the copy on screen is as old as the tab.
  */
 
-export interface EmbedInput {
+export interface SyncInput {
   rootDir: string
   citekey: string
   notes: readonly PdfNote[]
@@ -26,16 +38,16 @@ export interface EmbedInput {
   rectsByNote: ReadonlyMap<string, ReadonlyMap<number, readonly HighlightRect[]>>
   viewports: ReadonlyMap<number, PdfViewportLike>
   author: string
+  /** Regions of notes the user has just removed; see `planSync`. */
+  removedRegions?: readonly { page: number; rects: readonly HighlightRect[] }[]
 }
 
-export interface EmbedOutcome {
+export interface SyncOutcome {
   ok: boolean
-  /** Annotations written; 0 is a legitimate result (every highlight removed). */
-  annotations: number
+  created: number
+  removed: number
+  unchanged: number
   bytesWritten?: number
-  sha256?: string
-  pristineBytes?: number
-  pristineSha256?: string
   error?: string
 }
 
@@ -54,64 +66,119 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
+function cssColor(note: PdfNote): string {
+  const rgb = NOTE_COLOR_RGB[note.color] ?? NOTE_COLOR_RGB.yellow
+  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
+}
+
 /**
- * Write every current highlight into the reference PDF, replacing whatever
- * SUNA wrote before.
+ * Reconcile the PDF's `/Highlight` annotations with the sidecar's notes.
  *
- * Never throws: a failure to embed must not cost the user their notes, which
- * are already safely in the sidecar. The PDF is the derived artifact here.
+ * Never throws: the notes are already safe in the sidecar, and the PDF is the
+ * derived artifact. A failure here costs the file's annotations being briefly
+ * out of date, not anyone's reading.
  */
-export async function embedHighlights(input: EmbedInput): Promise<EmbedOutcome> {
+export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
   const { rootDir, citekey, notes, rectsByNote, viewports, author } = input
+  const path = `${rootDir}/references/${citekey}.pdf`
+  const idle = { ok: true, created: 0, removed: 0, unchanged: 0 }
 
-  let baseline
-  try {
-    baseline = await window.suna.invoke('refnotes:pristine', { dir: rootDir, citekey })
-  } catch (error) {
-    return { ok: false, annotations: 0, error: errorMessage(error) }
-  }
-  if (baseline.conflict !== null) {
-    return { ok: false, annotations: 0, error: baseline.conflict }
-  }
-
-  const specs: HighlightAnnotationSpec[] = []
+  // ---- what the notes want the file to say ------------------------------
+  const desired: DesiredHighlight[] = []
   for (const note of notes) {
-    const rects = rectsByNote.get(note.id)
-    if (rects === undefined || rects.size === 0) continue
-    specs.push(...annotationsForNote(note, rects, viewports, author))
+    const byPage = rectsByNote.get(note.id)
+    if (byPage === undefined) continue
+    for (const [page, rects] of byPage) {
+      if (rects.length === 0) continue
+      desired.push({
+        noteId: note.id,
+        page,
+        rects,
+        color: cssColor(note),
+        contents: note.body.trim()
+      })
+    }
   }
+  const removedRegions = input.removedRegions ?? []
+  if (desired.length === 0 && removedRegions.length === 0) return idle
 
-  const pristine = base64ToUint8Array(baseline.base64)
+  // ---- what it says now -------------------------------------------------
+  let current: Uint8Array
+  try {
+    const { base64 } = await window.suna.invoke('fs:read-binary', { path })
+    current = base64ToUint8Array(base64)
+  } catch (error) {
+    return { ...idle, ok: false, error: errorMessage(error) }
+  }
 
   let saved: Uint8Array
+  let plan
   try {
-    // A separate document from the one on screen: this one must be the
-    // pristine copy, and loading detaches `data` into the worker.
-    const doc = await getDocument({ data: pristine.slice() }).promise
-    stageAnnotations(doc.annotationStorage, specs)
+    const doc = await getDocument({ data: current.slice() }).promise
+    const inFile: FileAnnotation[] = []
+    for (const [page, viewport] of viewports) {
+      if (page < 1 || page > doc.numPages) continue
+      const raw = await doc
+        .getPage(page)
+        .then((p) => p.getAnnotations({ intent: 'display' }))
+        .catch(() => [])
+      for (const found of highlightRectsFromAnnotations(raw, viewport)) {
+        inFile.push({
+          id: found.id,
+          ...(found.popupRef === undefined ? {} : { popupRef: found.popupRef }),
+          page,
+          rects: found.rects,
+          color: found.color,
+          contents: found.contents
+        })
+      }
+    }
+
+    plan = planSync(desired, inFile, removedRegions)
+    if (plan.create.length === 0 && plan.remove.length === 0) {
+      void doc.cleanup()
+      return { ...idle, unchanged: plan.unchanged }
+    }
+
+    // ---- the minimum edit -----------------------------------------------
+    const creates: HighlightAnnotationSpec[] = []
+    for (const want of plan.create) {
+      const note = notes.find((n) => n.id === want.noteId)
+      if (note === undefined) continue
+      creates.push(
+        ...annotationsForNote(note, new Map([[want.page, want.rects]]), viewports, author)
+      )
+    }
+    const deletes: DeleteAnnotationSpec[] = plan.remove
+      .filter((annotation) => annotation.id !== '')
+      .map((annotation) => ({
+        id: annotation.id,
+        deleted: true as const,
+        ...(annotation.popupRef === undefined ? {} : { popupRef: annotation.popupRef }),
+        pageIndex: annotation.page - 1
+      }))
+
+    stageAnnotations(doc.annotationStorage, creates, deletes)
     saved = new Uint8Array(await doc.saveDocument())
     void doc.cleanup()
   } catch (error) {
-    return { ok: false, annotations: specs.length, error: errorMessage(error) }
+    return { ...idle, ok: false, error: errorMessage(error) }
   }
 
   try {
     const result = await window.suna.invoke('refnotes:embed', {
       dir: rootDir,
       citekey,
-      base64: toBase64(saved),
-      pristineBytes: baseline.pristineBytes,
-      pristineSha256: baseline.pristineSha256
+      base64: toBase64(saved)
     })
     return {
       ok: true,
-      annotations: specs.length,
-      bytesWritten: result.bytesWritten,
-      sha256: result.sha256,
-      pristineBytes: baseline.pristineBytes,
-      pristineSha256: baseline.pristineSha256
+      created: plan.create.length,
+      removed: plan.remove.length,
+      unchanged: plan.unchanged,
+      bytesWritten: result.bytesWritten
     }
   } catch (error) {
-    return { ok: false, annotations: specs.length, error: errorMessage(error) }
+    return { ...idle, ok: false, error: errorMessage(error) }
   }
 }

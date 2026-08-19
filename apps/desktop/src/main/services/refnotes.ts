@@ -129,141 +129,53 @@ function referencePdfPath(dir: string, citekey: string): string {
   return join(assertInsideAllowedRoot(dir), 'references', `${citekey}.pdf`)
 }
 
-export interface PristineBaseline {
-  base64: string
-  pristineBytes: number
-  pristineSha256: string
-  hasEmbedded: boolean
-  conflict: string | null
-}
-
-/**
- * The reference PDF as it was before SUNA appended anything.
- *
- * `saveDocument()` only ever appends, so the pristine copy is literally the
- * first `pristineBytes` of the file on disk. When nothing has been embedded
- * yet the whole file IS the baseline, and that is what gets recorded.
- *
- * `conflict` is set — and the FULL file returned untouched — when the recorded
- * baseline no longer hashes right. That means something other than SUNA
- * rewrote the file (Preview rewrites rather than appends: one highlight took a
- * 1,188,902-byte Nature PDF to 800,682 and perturbed its font table), and
- * truncating to a stale length would destroy it. The caller reports rather
- * than repairs.
- */
-export async function readPristinePdf(
-  dir: string,
-  citekey: string,
-  recorded: { pristineBytes: number; pristineSha256: string } | null
-): Promise<PristineBaseline> {
-  const path = referencePdfPath(dir, citekey)
-  const bytes = await readFile(path)
-
-  if (recorded === null || recorded.pristineBytes === 0) {
-    return {
-      base64: bytes.toString('base64'),
-      pristineBytes: bytes.length,
-      pristineSha256: sha256(bytes),
-      hasEmbedded: false,
-      conflict: null
-    }
-  }
-
-  if (recorded.pristineBytes > bytes.length) {
-    return {
-      base64: bytes.toString('base64'),
-      pristineBytes: bytes.length,
-      pristineSha256: sha256(bytes),
-      hasEmbedded: false,
-      conflict:
-        `the PDF is now shorter (${bytes.length} bytes) than the ${recorded.pristineBytes}-byte ` +
-        'baseline SUNA recorded, so it was replaced or rewritten by another tool'
-    }
-  }
-
-  const prefix = bytes.subarray(0, recorded.pristineBytes)
-  const actual = sha256(prefix)
-  if (actual !== recorded.pristineSha256) {
-    return {
-      base64: bytes.toString('base64'),
-      pristineBytes: bytes.length,
-      pristineSha256: sha256(bytes),
-      hasEmbedded: false,
-      conflict:
-        'the first bytes of this PDF no longer match the baseline SUNA recorded, so another ' +
-        'application rewrote the file; SUNA will not truncate it'
-    }
-  }
-
-  return {
-    base64: prefix.toString('base64'),
-    pristineBytes: recorded.pristineBytes,
-    pristineSha256: recorded.pristineSha256,
-    hasEmbedded: bytes.length > recorded.pristineBytes,
-    conflict: null
-  }
-}
-
 export interface EmbedResult {
-  sha256: string
   bytesWritten: number
 }
 
 /**
- * Replace `references/<citekey>.pdf` with a regenerated copy carrying the
- * current highlights.
+ * Replace `references/<citekey>.pdf` with the incrementally-saved copy the
+ * renderer produced.
  *
- * Two checks stand between the renderer and the artifact of record, and both
- * exist because this is the one place SUNA overwrites a file it did not
- * create:
+ * One invariant, and it needs nothing remembered: **the incoming bytes must
+ * begin with the file that is on disk right now.** `saveDocument()` only ever
+ * appends, so an incoming file that does not extend the current one was built
+ * against a document that no longer exists, and writing it would discard
+ * whatever changed in between.
  *
- *  1. the file ON DISK must still carry the recorded pristine prefix — if it
- *     does not, someone else edited it and the incoming bytes were built on a
- *     baseline that no longer exists;
- *  2. the INCOMING bytes must start with that same prefix — a regeneration
- *     that does not extend the pristine file is not a regeneration, and
- *     writing it would silently replace the paper with something else.
- *
- * Only then does the atomic write happen, so a failure at any point leaves the
- * PDF exactly as it was.
+ * This replaced a recorded pristine baseline. The baseline worked until
+ * another application rewrote the paper — Preview rewrites rather than
+ * appends, taking a 1,188,902-byte Nature PDF to 800,682 and perturbing its
+ * font table — after which it could never match again and SUNA was locked out
+ * of that file permanently. Comparing against the live file has no such state
+ * to go stale: a foreign edit simply becomes the new thing we append to.
  */
 export async function embedHighlightsIntoPdf(
   dir: string,
   citekey: string,
-  base64: string,
-  recorded: { pristineBytes: number; pristineSha256: string }
+  base64: string
 ): Promise<EmbedResult> {
   const path = referencePdfPath(dir, citekey)
   const incoming = Buffer.from(base64, 'base64')
 
-  if (incoming.length < recorded.pristineBytes) {
-    throw new Error(
-      `refusing to write ${incoming.length} bytes over a ${recorded.pristineBytes}-byte baseline`
-    )
-  }
   if (incoming.subarray(0, 5).toString('latin1') !== '%PDF-') {
     throw new Error('refusing to write bytes that are not a PDF')
   }
 
   const onDisk = await readFile(path)
-  if (onDisk.length < recorded.pristineBytes) {
-    throw new Error('the PDF on disk is shorter than the recorded baseline; not overwriting it')
-  }
-  if (sha256(onDisk.subarray(0, recorded.pristineBytes)) !== recorded.pristineSha256) {
+  if (incoming.length < onDisk.length) {
     throw new Error(
-      'the PDF on disk no longer matches the baseline SUNA recorded — another application ' +
-        'rewrote it, so its highlights were not replaced'
+      `refusing to write ${incoming.length} bytes over the ${onDisk.length} bytes on disk: ` +
+        'an incremental save only ever grows the file'
     )
   }
-  if (sha256(incoming.subarray(0, recorded.pristineBytes)) !== recorded.pristineSha256) {
-    throw new Error('the regenerated PDF does not extend the pristine file; not writing it')
+  if (!incoming.subarray(0, onDisk.length).equals(onDisk)) {
+    throw new Error(
+      'the PDF changed while its highlights were being written, so the update was ' +
+        'built against a file that no longer exists; nothing was written'
+    )
   }
 
   await writeFileAtomic(path, incoming)
-  return { sha256: sha256(incoming), bytesWritten: incoming.length }
-}
-
-/** Byte length of a reference PDF, for cheap change detection. */
-export async function referencePdfSize(dir: string, citekey: string): Promise<number> {
-  return (await stat(referencePdfPath(dir, citekey))).size
+  return { bytesWritten: incoming.length }
 }

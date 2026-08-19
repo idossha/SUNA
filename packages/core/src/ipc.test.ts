@@ -96,7 +96,6 @@ describe('CHANNELS', () => {
       'project:touch-recent',
       'project:update-settings',
       'refnotes:embed',
-      'refnotes:pristine',
       'refnotes:read',
       'refnotes:write',
       'settings:get',
