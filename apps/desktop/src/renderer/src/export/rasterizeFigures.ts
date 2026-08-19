@@ -13,7 +13,26 @@ import { parseRasterExportError } from '../canvas/units'
  *
  * Returns figureId -> absolute PNG path, the exact shape 'export:docx' and
  * 'export:pdf' require for `figurePngPaths`.
+ *
+ * With `{ compress: true }` the same pass produces the *compressed* variant
+ * a PDF / web-page export embeds when the full-resolution figures make the
+ * file unreasonably large: the raster is taken at COMPRESSED_DPI instead of
+ * the profile's minimum and encoded as JPEG, written as a sibling
+ * `<id>-compressed.jpg` so the real PNG export stays untouched. Screen and
+ * review copies survive this easily; the submission copy should not use it
+ * (a journal's stated minimum dpi is a compliance rule), which is why only
+ * the PDF and web-page exports offer it and the DOCX one does not.
  */
+
+/** Resolution of the compressed pass — well above screen, well below print. */
+export const COMPRESSED_DPI = 150
+/** JPEG quality of the compressed pass: no visible artefacts on line plots. */
+export const COMPRESSED_JPEG_QUALITY = 0.72
+
+export interface RasterizeOptions {
+  /** Re-encode at COMPRESSED_DPI as JPEG rather than at the profile dpi as PNG. */
+  compress?: boolean
+}
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -24,9 +43,9 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   })
 }
 
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('canvas.toBlob failed'))), 'image/png')
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('canvas.toBlob failed'))), type, quality)
   })
 }
 
@@ -47,7 +66,14 @@ function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-async function rasterizeOne(rootDir: string, figureId: string, canvasRef: string, widthMm: number, dpi: number): Promise<string> {
+async function rasterizeOne(
+  rootDir: string,
+  figureId: string,
+  canvasRef: string,
+  widthMm: number,
+  dpi: number,
+  compress: boolean
+): Promise<string> {
   let parsed: { path: string; widthPx: number; heightPx: number } | null = null
   try {
     await window.suna.invoke('figure:export', {
@@ -62,7 +88,10 @@ async function rasterizeOne(rootDir: string, figureId: string, canvasRef: string
     parsed = parseRasterExportError(error instanceof Error ? error.message : String(error))
   }
   if (!parsed) throw new Error(`could not resolve the PNG export path for figure "${figureId}"`)
-  const { path, widthPx, heightPx } = parsed
+  const { widthPx, heightPx } = parsed
+  // The compressed pass must not overwrite the figure's real PNG export —
+  // it writes a sibling JPEG that only the compressed document embeds.
+  const path = compress ? parsed.path.replace(/\.png$/i, '-compressed.jpg') : parsed.path
 
   const { content: svgText } = await window.suna.invoke('fs:read-text', { path: `${rootDir}/${canvasRef}` })
   const blob = new Blob([svgText], { type: 'image/svg+xml' })
@@ -77,7 +106,10 @@ async function rasterizeOne(rootDir: string, figureId: string, canvasRef: string
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, widthPx, heightPx)
     ctx.drawImage(img, 0, 0, widthPx, heightPx)
-    const base64 = await blobToBase64(await canvasToPngBlob(canvas))
+    const encoded = compress
+      ? await canvasToBlob(canvas, 'image/jpeg', COMPRESSED_JPEG_QUALITY)
+      : await canvasToBlob(canvas, 'image/png')
+    const base64 = await blobToBase64(encoded)
     await window.suna.invoke('figure:write-binary', { path, base64 })
     return path
   } finally {
@@ -88,14 +120,16 @@ async function rasterizeOne(rootDir: string, figureId: string, canvasRef: string
 export async function rasterizeManuscriptFigures(
   rootDir: string,
   manuscript: Manuscript,
-  profile: PublisherProfile
+  profile: PublisherProfile,
+  options: RasterizeOptions = {}
 ): Promise<Record<string, string>> {
+  const compress = options.compress ?? false
   const presets = widthPresetsFor(profile)
-  const dpi = defaultDpi(profile)
+  const dpi = compress ? Math.min(defaultDpi(profile), COMPRESSED_DPI) : defaultDpi(profile)
   const out: Record<string, string> = {}
   for (const figure of manuscript.figures) {
     const widthMm = presets.find((p) => p.key === figure.widthPreset)?.widthMm ?? presets[0]?.widthMm ?? 89
-    out[figure.id] = await rasterizeOne(rootDir, figure.id, figure.canvasRef, widthMm, dpi)
+    out[figure.id] = await rasterizeOne(rootDir, figure.id, figure.canvasRef, widthMm, dpi, compress)
   }
   return out
 }

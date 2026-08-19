@@ -6,7 +6,7 @@ import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
 import { resolvePreviewProfileId } from '../state/renderProfile'
 import { useEditorSettings } from '../editor/settings'
-import { rasterizeManuscriptFigures } from './rasterizeFigures'
+import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
 import { RequirementsPanel } from './RequirementsPanel'
 import { stanceTag } from './requirements'
@@ -31,6 +31,20 @@ function slugify(name: string): string {
   return base === '' ? 'manuscript' : base
 }
 
+function fileSizeLabel(bytes: number): string {
+  return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`
+}
+
+/** A file's size on disk, or null when it cannot be measured (never fatal). */
+async function fileSizeOf(path: string): Promise<number | null> {
+  try {
+    const { bytes } = await window.suna.invoke('fs:file-size', { path })
+    return bytes
+  } catch {
+    return null
+  }
+}
+
 function severityDot(severity: Diagnostic['severity']): string {
   return severity === 'error' ? 'export-dialog__dot--error' : 'export-dialog__dot--warning'
 }
@@ -46,6 +60,15 @@ function severityDot(severity: Diagnostic['severity']): string {
  * checker first and shows violations as non-blocking warnings; on Export,
  * rasterizes every manuscript figure to PNG at the profile's width/dpi
  * (rasterizeFigures.ts) and calls 'export:docx' / 'export:pdf'.
+ *
+ * Figure compression is the user's decision and nothing else's: a checkbox
+ * in the Figures section, off by default, that a PDF / web-page export
+ * honours by embedding the figures at COMPRESSED_DPI as JPEG instead of at
+ * the profile's stated minimum as PNG. The app never compresses on its own
+ * and never withholds the choice — the size of the result is shown either
+ * way, and a full-resolution export that turns out too big can be rewritten
+ * compressed in place by the Compress button beside it (which just flips the
+ * same checkbox and re-exports).
  */
 export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const rootDir = String(params['rootDir'] ?? '')
@@ -65,12 +88,24 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const [doubleSpacing, setDoubleSpacing] = useState(true)
   const [lineNumbers, setLineNumbers] = useState(true)
   const [pageNumbers, setPageNumbers] = useState(true)
+  /**
+   * Compress the embedded figures? The user's call, always — never inferred
+   * from how big the file turned out. Off by default, because the export a
+   * journal receives has to keep the profile's stated resolution.
+   */
+  const [compressFigures, setCompressFigures] = useState(false)
 
   const [diagnostics, setDiagnostics] = useState<Diagnostic[] | null>(null)
   const [checking, setChecking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
+  const [resultBytes, setResultBytes] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Size of the last export before it was compressed — drives the "8.4 MB → 1.2 MB" line. */
+  const [compressedFrom, setCompressedFrom] = useState<number | null>(null)
+  /** Whether the file now on disk was written with compressed figures. */
+  const [resultCompressed, setResultCompressed] = useState(false)
+  const [compressing, setCompressing] = useState(false)
 
   const profile = getBundledProfile(profileId)
 
@@ -195,32 +230,76 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
 
   const ready = rootDir !== '' && manuscript !== null && profile !== null && outputName.trim() !== '' && !busy
 
+  /**
+   * One export pass. `compress` re-embeds the figures at COMPRESSED_DPI as
+   * JPEG (rasterizeFigures.ts) instead of at the profile's minimum dpi as
+   * PNG, and writes over the same output file — the uncompressed document is
+   * always one more Export click away.
+   */
+  const exportOnce = async (compress: boolean): Promise<string> => {
+    if (manuscript === null || profile === null) throw new Error('nothing to export')
+    const figurePngPaths = await rasterizeManuscriptFigures(rootDir, manuscript, profile, { compress })
+    const request = {
+      dir: rootDir,
+      profileId,
+      outputName: outputName.trim(),
+      figurePngPaths,
+      // The active editor theme rides along so the PDF / web page render in
+      // the look the project is being written in (DOCX ignores it).
+      options: { doubleSpacing, lineNumbers, pageNumbers, theme: useEditorSettings.getState().editorTheme },
+      target
+    }
+    const channel = format === 'docx' ? ('export:docx' as const) : format === 'pdf' ? ('export:pdf' as const) : ('export:html' as const)
+    const res = await window.suna.invoke(channel, request)
+    return res.path
+  }
+
   const runExport = async (): Promise<void> => {
-    if (!ready || manuscript === null || profile === null) return
+    if (!ready) return
     setBusy(true)
     setError(null)
     setResult(null)
+    setResultBytes(null)
+    setCompressedFrom(null)
+    setResultCompressed(false)
     try {
-      const figurePngPaths = await rasterizeManuscriptFigures(rootDir, manuscript, profile)
-      const request = {
-        dir: rootDir,
-        profileId,
-        outputName: outputName.trim(),
-        figurePngPaths,
-        // The active editor theme rides along so the PDF / web page render in
-        // the look the project is being written in (DOCX ignores it).
-        options: { doubleSpacing, lineNumbers, pageNumbers, theme: useEditorSettings.getState().editorTheme },
-        target
-      }
-      const channel = format === 'docx' ? ('export:docx' as const) : format === 'pdf' ? ('export:pdf' as const) : ('export:html' as const)
-      const res = await window.suna.invoke(channel, request)
-      setResult(res.path)
+      const path = await exportOnce(compressFigures)
+      setResult(path)
+      setResultBytes(await fileSizeOf(path))
+      setResultCompressed(compressFigures)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
     }
   }
+
+  const runCompress = async (): Promise<void> => {
+    if (result === null || compressing || busy) return
+    const before = resultBytes
+    setCompressing(true)
+    setError(null)
+    try {
+      const path = await exportOnce(true)
+      setResult(path)
+      setResultBytes(await fileSizeOf(path))
+      setCompressedFrom(before)
+      setResultCompressed(true)
+      setCompressFigures(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCompressing(false)
+    }
+  }
+
+  /**
+   * Compression applies to the two formats that EMBED the figures (the DOCX
+   * writer wants real PNGs), and only when there are figures to compress.
+   */
+  const compressionApplies = format !== 'docx' && (manuscript?.figures.length ?? 0) > 0
+  /** The after-the-fact offer: exported at full resolution, now sees the size. */
+  const canCompressResult = compressionApplies && result !== null && !resultCompressed
 
   return (
     <div className="export-dialog">
@@ -326,6 +405,32 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                 />
                 Page numbers
               </label>
+              <div className="export-dialog__title">Figures</div>
+              {!compressionApplies ? (
+                <p className="export-dialog__hint">
+                  {format === 'docx'
+                    ? 'A Word export embeds the figures at the profile\u2019s resolution \u2014 compression is offered for PDF and web-page exports.'
+                    : 'This manuscript has no figures to compress.'}
+                </p>
+              ) : (
+                <>
+                  <label className="export-dialog__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={compressFigures}
+                      onChange={(e) => setCompressFigures(e.target.checked)}
+                    />
+                    Compress embedded figures
+                    <span className="export-dialog__stance">{COMPRESSED_DPI} dpi JPEG</span>
+                  </label>
+                  <p className="export-dialog__hint">
+                    {compressFigures
+                      ? `Figures go in at ${COMPRESSED_DPI} dpi as JPEG \u2014 a much smaller file for sharing and review. Turn this off for a submission that must meet ${profile?.figures.formats.minDpi ?? 300} dpi.`
+                      : `Figures go in at full resolution (${profile?.figures.formats.minDpi ?? 300} dpi PNG) \u2014 what a submission needs, and what makes the file large.`}
+                  </p>
+                </>
+              )}
+
               <div className="export-dialog__title">Compliance check</div>
               {target === 'supplement' && (
                 <p className="export-dialog__hint">
@@ -362,7 +467,34 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                 </button>
               </div>
 
-              {result !== null && <p className="export-dialog__result">Exported → {result}</p>}
+              {result !== null && (
+                <p className="export-dialog__result">
+                  Exported → {result}
+                  {resultBytes !== null && ` (${fileSizeLabel(resultBytes)})`}
+                  {resultCompressed && (
+                    <span className="export-dialog__compressed-note">
+                      {compressedFrom !== null && resultBytes !== null
+                        ? `Compressed ${fileSizeLabel(compressedFrom)} → ${fileSizeLabel(resultBytes)} — figures re-embedded at ${COMPRESSED_DPI} dpi JPEG.`
+                        : `Figures embedded at ${COMPRESSED_DPI} dpi JPEG.`}
+                    </span>
+                  )}
+                </p>
+              )}
+              {canCompressResult && (
+                <div className="export-dialog__compress">
+                  <button
+                    className="export-dialog__compress-btn"
+                    disabled={compressing}
+                    onClick={() => void runCompress()}
+                  >
+                    {compressing ? 'Compressing…' : 'Compress figures'}
+                  </button>
+                  <span className="export-dialog__hint">
+                    Rewrites this {FORMAT_LABEL[format]} with its figures at {COMPRESSED_DPI} dpi JPEG. The
+                    full-resolution file is one Export click away.
+                  </span>
+                </div>
+              )}
               {error !== null && <p className="export-dialog__error">{error}</p>}
             </>
           )}

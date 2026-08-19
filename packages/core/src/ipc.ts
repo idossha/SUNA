@@ -404,6 +404,16 @@ export const CHANNELS = {
     }),
   },
   /**
+   * A file's size in bytes, root-confined like the rest of the fs surface.
+   * Unlike 'fs:read-binary' it never reads the bytes, so it stays cheap for
+   * the very files that matter here — a multi-megabyte PDF/HTML export whose
+   * size the export page reports before and after compression.
+   */
+  'fs:file-size': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({ bytes: z.number().int().nonnegative() }),
+  },
+  /**
    * Copy a file INTO the project ("Attach PDF…"). `from` may live anywhere on
    * disk — that is the point — while `to` must resolve inside an open project
    * root. Parent directories are created; an existing `to` is never

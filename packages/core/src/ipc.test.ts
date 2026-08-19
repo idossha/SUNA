@@ -59,6 +59,7 @@ describe('CHANNELS', () => {
       'fs:copy-file',
       'fs:create-file',
       'fs:delete',
+      'fs:file-size',
       'fs:list',
       'fs:mkdir',
       'fs:move',
