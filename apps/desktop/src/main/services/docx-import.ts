@@ -528,7 +528,10 @@ export async function commitDocxAnalysis(
   const manifest: SunaProjectManifest = SunaProjectManifestSchema.parse({
     schemaVersion: 1,
     name,
-    activeProfileId: 'nature-astronomy',
+    // House style, like every other new project: importing a .docx says
+    // nothing about where it is going. The author picks a journal when
+    // there is one to pick.
+    activeProfileId: 'suna',
     directories: DEFAULT_PROJECT_DIRS,
     createdAt: new Date().toISOString()
   })
