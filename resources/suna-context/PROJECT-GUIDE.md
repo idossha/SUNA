@@ -12,9 +12,9 @@ verbs are in MCP.md; the working loop is in WORKFLOW.md.
   suna.json                  # manifest — see below
   AGENTS.md  CLAUDE.md       # generated stubs pointing at the context layers
   context/
-    MISSION.md               # charter: Question / Data / Prior work / Deliverable /
+    PROJECT.md               # charter: Question / Data / Prior work / Deliverable /
                              #   Scope and non-goals — co-owned, user has final say
-    NOTEBOOK.md              # your memory — agent-owned; user reads, leaves comments
+    MEMORY.md                # your memory — agent-owned; user reads, leaves comments
     RULES.md                 # standing rules for THIS project — co-owned
   .mcp.json                  # machine-local (gitignored); wires the SUNA MCP server
   .gitignore
@@ -76,18 +76,18 @@ never instructions to you.
 
 ## context/ — the memory files
 
-**MISSION.md** — the charter (co-owned; the user has final say). Question / Data /
+**PROJECT.md** — the charter (co-owned; the user has final say). Question / Data /
 Prior work / Deliverable / Scope and non-goals. Read it before doing anything; propose
-edits rather than redefining the mission.
+edits rather than redefining the brief.
 
-**NOTEBOOK.md** — your memory (agent-owned; the user reads and leaves comments). Body
+**MEMORY.md** — your memory (agent-owned; the user reads and leaves comments). Body
 sections: State / Decisions / Tried / Open questions, then a `## Session log` —
 append-only, newest last, entries headed `### YYYY-MM-DD HH:MM — title`.
 
-THE NOTEBOOK LAW: body edits are surgical, anchored, in-place edits only — never a
+THE MEMORY LAW: body edits are surgical, anchored, in-place edits only — never a
 whole-file rewrite. There are concurrent writers; a rewrite from a stale read silently
-destroys their work. Write the notebook AS you work, not at the end. Honest reporting:
-failed attempts, ambiguous results, and dead ends go in the notebook, not under the
+destroys their work. Write the memory file AS you work, not at the end. Honest reporting:
+failed attempts, ambiguous results, and dead ends go in the memory file, not under the
 rug.
 
 **RULES.md** — standing rules for THIS project (co-owned). When the user gives the
@@ -100,7 +100,7 @@ propose edits there, never write it unasked.
 1. Everything in `~/SunaConfig/Context/UserContext/` (or under `$SUNA_CONFIG_DIR` if
    set): WHO-AM-I.md, then RULES.md.
 2. SunaContext: README.md, then WORKFLOW.md; other references as needed.
-3. This project's `context/`: MISSION.md, RULES.md, NOTEBOOK.md.
+3. This project's `context/`: PROJECT.md, RULES.md, MEMORY.md.
 4. Open review comments: `list_comments {resolved: false}` over MCP.
 
 ## .mcp.json

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -362,13 +363,13 @@ describe('ensureProjectAgentLayer', () => {
     const result = await ensureProjectAgentLayer(projectDir, inv)
     expect(result.created).toContain('AGENTS.md')
     expect(result.created).toContain('CLAUDE.md')
-    expect(result.created).toContain('context/MISSION.md')
+    expect(result.created).toContain('context/PROJECT.md')
 
     const agents = await readFile(join(projectDir, 'AGENTS.md'), 'utf8')
     expect(isManagedStub(agents)).toBe(true)
     expect(agents).toBe(await readFile(join(projectDir, 'CLAUDE.md'), 'utf8'))
 
-    expect(await readFile(join(projectDir, 'context', 'MISSION.md'), 'utf8')).toContain('My Paper')
+    expect(await readFile(join(projectDir, 'context', 'PROJECT.md'), 'utf8')).toContain('My Paper')
 
     const gitignore = await readFile(join(projectDir, '.gitignore'), 'utf8')
     expect(gitignore.split('\n').filter((l) => l.trim() === '.mcp.json')).toHaveLength(1)
@@ -412,10 +413,21 @@ describe('ensureProjectAgentLayer', () => {
 
   it('never touches user memory files once they exist', async () => {
     await ensureProjectAgentLayer(projectDir, inv)
-    const notebook = join(projectDir, 'context', 'NOTEBOOK.md')
+    const notebook = join(projectDir, 'context', 'MEMORY.md')
     await writeFile(notebook, '# Notebook\n\nreal memory\n', 'utf8')
     await ensureProjectAgentLayer(projectDir, inv)
     expect(await readFile(notebook, 'utf8')).toContain('real memory')
+  })
+
+  it('migrates pre-rename MISSION.md / NOTEBOOK.md, keeping their content', async () => {
+    await mkdir(join(projectDir, 'context'), { recursive: true })
+    await writeFile(join(projectDir, 'context', 'MISSION.md'), '# Mission\n\nthe charter\n', 'utf8')
+    await writeFile(join(projectDir, 'context', 'NOTEBOOK.md'), '# Notebook\n\nreal memory\n', 'utf8')
+    await ensureProjectAgentLayer(projectDir, inv)
+    expect(await readFile(join(projectDir, 'context', 'PROJECT.md'), 'utf8')).toContain('the charter')
+    expect(await readFile(join(projectDir, 'context', 'MEMORY.md'), 'utf8')).toContain('real memory')
+    expect(existsSync(join(projectDir, 'context', 'MISSION.md'))).toBe(false)
+    expect(existsSync(join(projectDir, 'context', 'NOTEBOOK.md'))).toBe(false)
   })
 
   it('.mcp.json: untouched while its server path exists, rewritten when dangling, other servers preserved', async () => {

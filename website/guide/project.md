@@ -16,8 +16,8 @@ my-paper/
 ├── AGENTS.md                      generated stub pointing coding agents at context/
 ├── CLAUDE.md                      identical stub, under the name Claude Code looks for
 ├── context/
-│   ├── MISSION.md                 the charter: question, data, prior work, deliverable, scope
-│   ├── NOTEBOOK.md                the agent's memory: state, decisions, tried, session log
+│   ├── PROJECT.md                 the charter: question, data, prior work, deliverable, scope
+│   ├── MEMORY.md                  the agent's memory: state, decisions, tried, session log
 │   └── RULES.md                   standing rules for this project only
 ├── manuscript/
 │   ├── manuscript.md              all the prose; sections are Markdown headings
@@ -52,8 +52,8 @@ A freshly scaffolded project is smaller than this. The wizard writes the seven d
 | `.gitignore` | SUNA, yours after | Five lines: `output/`, `.DS_Store`, `__pycache__/`, `.venv/`, `.mcp.json`. |
 | `.mcp.json` | SUNA | Points Claude Code and Codex at this project's SUNA MCP server. Gitignored — it is machine-local. See [MCP](/ai/mcp). |
 | `AGENTS.md`, `CLAUDE.md` | SUNA, yours on request | Identical generated stubs that send a coding agent to the context layers. |
-| `context/MISSION.md` | You and the agent | The charter. Question / Data / Prior work / Deliverable / Scope and non-goals. You have the final say on it. |
-| `context/NOTEBOOK.md` | The agent | State / Decisions / Tried / Open questions, plus an append-only `## Session log` whose entries are headed `### YYYY-MM-DD HH:MM — title`, newest last. |
+| `context/PROJECT.md` | You and the agent | The charter. Question / Data / Prior work / Deliverable / Scope and non-goals. You have the final say on it. |
+| `context/MEMORY.md` | The agent | State / Decisions / Tried / Open questions, plus an append-only `## Session log` whose entries are headed `### YYYY-MM-DD HH:MM — title`, newest last. |
 | `context/RULES.md` | You | Standing rules that apply to this project only. |
 | `manuscript/manuscript.md` | You | Every word of prose. See [the manuscript](/writing/manuscript). |
 | `manuscript/manuscript.json` | SUNA and you | Metadata. Captions for figures and tables live here, not in the prose. |
@@ -146,7 +146,7 @@ Safe to do. The settings writer re-reads the file from disk, merges its change, 
 | --- | --- | --- |
 | `figures/*/figure.svg` and `figure.svg.suna.json` | `suna.json` | `code/`, `data/`, `analysis/`, `results/` |
 | `output/` | `manuscript.json`, `authors.json`, `figure.json` | `manuscript.md`, `references.bib` |
-| `.mcp.json` | `AGENTS.md`, `CLAUDE.md` | `context/RULES.md`, and `context/MISSION.md` in the end |
+| `.mcp.json` | `AGENTS.md`, `CLAUDE.md` | `context/RULES.md`, and `context/PROJECT.md` in the end |
 
 `AGENTS.md` and `CLAUDE.md` start life as generated stubs whose first line is a marker:
 

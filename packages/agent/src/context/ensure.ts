@@ -10,8 +10,8 @@ import {
   WHO_AM_I_SEED,
   agentStub,
   isManagedStub,
-  missionTemplate,
-  notebookTemplate,
+  projectTemplate,
+  memoryTemplate,
   rulesTemplate
 } from './templates'
 
@@ -296,9 +296,27 @@ export async function ensureProjectAgentLayer(
   const created: string[] = []
 
   const contextDir = join(root, PROJECT_CONTEXT_DIR)
+  // Projects scaffolded before the rename carry the old names; move the
+  // user's content across rather than leaving it orphaned beside a fresh
+  // empty template. Only when the new name is not already taken.
+  const renames: [string, string][] = [
+    ['MISSION.md', 'PROJECT.md'],
+    ['NOTEBOOK.md', 'MEMORY.md']
+  ]
+  for (const [old, next] of renames) {
+    const from = join(contextDir, old)
+    const to = join(contextDir, next)
+    if (existsSync(from) && !existsSync(to)) {
+      try {
+        await rename(from, to)
+      } catch {
+        // a failed migration just means the template gets written below
+      }
+    }
+  }
   const memory: [string, string][] = [
-    ['MISSION.md', missionTemplate(projectName)],
-    ['NOTEBOOK.md', notebookTemplate()],
+    ['PROJECT.md', projectTemplate(projectName)],
+    ['MEMORY.md', memoryTemplate()],
     ['RULES.md', rulesTemplate()]
   ]
   for (const [name, body] of memory) {

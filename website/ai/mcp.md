@@ -158,4 +158,4 @@ These are the constraints you can rely on, whichever agent is driving.
 
 The file is the API. Every source of truth in a SUNA project is plain text — JSON, Markdown, BibTeX, SVG — so when MCP is unavailable an agent can read and edit the files directly, with the same discipline: anchored edits, comments only in the `manuscript/comments.json` sidecar, and never touching `figures/*/figure.svg` or `output/`.
 
-One thing is always done with plain file tools: the `context/` files. There is no MCP verb for `MISSION.md`, `NOTEBOOK.md` or `RULES.md`, and the shipped agent docs tell agents to edit them directly. See [context layers](/ai/context) and [the file layout](/reference/files).
+One thing is always done with plain file tools: the `context/` files. There is no MCP verb for `PROJECT.md`, `MEMORY.md` or `RULES.md`, and the shipped agent docs tell agents to edit them directly. See [context layers](/ai/context) and [the file layout](/reference/files).

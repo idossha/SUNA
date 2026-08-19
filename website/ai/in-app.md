@@ -130,4 +130,4 @@ Two boundaries are deliberate, and they hold across every surface on this page.
 
 **Compliance checks are advisory.** `check_manuscript` and `check_figure_compliance` report issues and rewrite nothing, so an AI run that consults them still has to make the edit through the allowlist it was given.
 
-For what a CLI session reads before it starts work — your `WHO-AM-I.md`, the project's `MISSION.md`, the standing rules — see [Context files](/ai/context).
+For what a CLI session reads before it starts work — your `WHO-AM-I.md`, the project's `PROJECT.md`, the standing rules — see [Context files](/ai/context).

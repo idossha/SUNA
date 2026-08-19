@@ -20,8 +20,8 @@ The first two layers live at the machine level, in `~/SunaConfig/Context/` — o
 <project>/
   AGENTS.md  CLAUDE.md  # layer 3 — generated stubs pointing at the layers above
   context/
-    MISSION.md          # the charter
-    NOTEBOOK.md         # the agent's memory
+    PROJECT.md          # the charter
+    MEMORY.md           # the agent's memory
     RULES.md            # standing rules for this project
   .mcp.json             # machine-local, gitignored; wires the MCP server
 ```
@@ -71,7 +71,7 @@ The docs are compiled into SUNA itself, so the MCP server can write them with no
 
 Everything in this layer lives in the project folder, so it is under git with the manuscript and travels with the project when you share it.
 
-### context/MISSION.md
+### context/PROJECT.md
 
 The charter — what this project is and what "done" means. It is co-owned: an agent may draft it from your answers, you correct it in place, and you have the final say. SUNA seeds five headings for you to fill in.
 
@@ -85,7 +85,7 @@ The charter — what this project is and what "done" means. It is co-owned: an a
 
 The non-goals section earns its keep. It is what stops an agent from helpfully expanding your letter into a review.
 
-### context/NOTEBOOK.md
+### context/MEMORY.md
 
 The agent's memory of the project. Agent-owned: agents write it, you read it and leave comments. It has a body kept true by surgical in-place edits — `## State`, `## Decisions`, `## Tried`, `## Open questions` — and an append-only `## Session log` whose entries are headed `### YYYY-MM-DD HH:MM — title`, newest last.
 
@@ -115,8 +115,8 @@ That marker decides ownership. While it is there, SUNA may refresh the file when
 | `UserContext/RULES.md` | you | propose edits; never write unasked |
 | `SunaContext/**` | the app | read only; overwritten on every update |
 | `AGENTS.md`, `CLAUDE.md` | SUNA, while line 1 carries the marker | leave alone; delete the marker to take the file |
-| `context/MISSION.md` | co-owned, you have final say | edit with your agreement |
-| `context/NOTEBOOK.md` | the agent | you read it and leave comments |
+| `context/PROJECT.md` | co-owned, you have final say | edit with your agreement |
+| `context/MEMORY.md` | the agent | you read it and leave comments |
 | `context/RULES.md` | co-owned | an agent promotes your recurring feedback into it |
 | `manuscript/**` | you | anchored edits; comments go in `comments.json`, never inline |
 | `figures/*/figure.svg` | the app's canvas | read only; hand-edits bypass undo, id-minting and provenance |
@@ -128,13 +128,13 @@ SUNA's shipped instructions put the layers in this order at the start of a sessi
 
 1. Everything in `UserContext/` — WHO-AM-I.md, then RULES.md.
 2. `SunaContext/README.md`, then `WORKFLOW.md`; other reference docs as the task needs them.
-3. The project's `context/` files — MISSION.md, NOTEBOOK.md, RULES.md.
+3. The project's `context/` files — PROJECT.md, MEMORY.md, RULES.md.
 4. Open review comments, via `list_comments {"resolved": false}`.
 
 The orientation stage of `WORKFLOW.md` adds three read-only verbs to step 4 — `list_project`, `read_manuscript_meta` and `list_outline` — so the agent sees the file tree, the metadata and the section outline before it changes anything. See [the MCP verbs](/ai/mcp) for what each returns, and [review comments](/writing/comments) for how threads work.
 
 ::: info Context files have no MCP verb
-Deliberately. An agent edits MISSION.md, NOTEBOOK.md and RULES.md with its own file tools, the same way it would edit any Markdown file. The MCP verbs cover the manuscript, figures, references and comments only.
+Deliberately. An agent edits PROJECT.md, MEMORY.md and RULES.md with its own file tools, the same way it would edit any Markdown file. The MCP verbs cover the manuscript, figures, references and comments only.
 :::
 
 ## If the files are missing

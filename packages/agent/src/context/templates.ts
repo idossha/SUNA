@@ -11,7 +11,7 @@
  * migration for zero benefit). */
 export const PROJECT_CONTEXT_DIR = 'context'
 
-export const PROJECT_CONTEXT_FILES = ['MISSION.md', 'NOTEBOOK.md', 'RULES.md'] as const
+export const PROJECT_CONTEXT_FILES = ['PROJECT.md', 'MEMORY.md', 'RULES.md'] as const
 
 /**
  * First line of every generated stub. The version marker is the heal
@@ -40,7 +40,7 @@ export function agentStub(): string {
 This is a SUNA project — an academic manuscript with managed figures, references, and review comments, all plain text. Agent instructions, user context, and project memory live in two places:
 
 1. **Machine level:** \`~/SunaConfig/Context/\` (or \`$SUNA_CONFIG_DIR/Context/\` when that variable is set) — who the user is (\`UserContext/\`) and how to work with SUNA projects (\`SunaContext/\` — start with its \`README.md\`; the session playbook is \`SunaContext/WORKFLOW.md\`).
-2. **Project level:** \`context/\` in this folder — the mission (\`MISSION.md\`), the running notebook (\`NOTEBOOK.md\`), and this project's rules (\`RULES.md\`). Read all three before working.
+2. **Project level:** \`context/\` in this folder — the project brief (\`PROJECT.md\`), the running memory file (\`MEMORY.md\`), and this project's rules (\`RULES.md\`). Read all three before working.
 
 SUNA's manuscript tools reach agents via \`.mcp.json\` in this folder (machine-local, not committed; the verb reference is \`SunaContext/MCP.md\`). If \`.mcp.json\` is missing, open the project in SUNA once — it heals on open.
 `
@@ -48,10 +48,10 @@ SUNA's manuscript tools reach agents via \`.mcp.json\` in this folder (machine-l
 
 const MANAGED_COMMENT_OPEN = '<!--'
 
-/** context/MISSION.md — the co-owned project charter. */
-export function missionTemplate(projectName: string): string {
+/** context/PROJECT.md — the co-owned project charter. */
+export function projectTemplate(projectName: string): string {
   const name = projectName.trim() === '' ? 'this project' : projectName.trim()
-  return `# Mission — ${name}
+  return `# Project — ${name}
 
 ${MANAGED_COMMENT_OPEN} The project charter: what we are doing and why. Co-owned by the user and the agent — an agent may draft from the user's answers; the user corrects in place or via comments and has final say. Agents read this before working. -->
 
@@ -77,9 +77,9 @@ What is explicitly in and out of scope.
 `
 }
 
-/** context/NOTEBOOK.md — the agent's memory of the project. */
-export function notebookTemplate(): string {
-  return `# Project notebook
+/** context/MEMORY.md — the agent's memory of the project. */
+export function memoryTemplate(): string {
+  return `# Project memory
 
 ${MANAGED_COMMENT_OPEN} The agent's memory of this project. Agent-owned: agents write; the user reads and leaves comments. Body = current truth, edited in place with surgical anchored edits — never a whole-file rewrite. Session log = append-only history, newest last. -->
 

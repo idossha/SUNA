@@ -40,11 +40,11 @@ Figure mutation goes through the app's canvas, not through you. To change a figu
    only through the app's canvas, never through you.
 3. If you cannot trace the figure to a script, or the change is a judgment call,
    propose it instead: `add_comment` anchored to the figure's embed or the prose
-   discussing it, or an entry in `context/NOTEBOOK.md` (notebook discipline is in
+   discussing it, or an entry in `context/MEMORY.md` (memory-file discipline is in
    WORKFLOW.md). Destructive or ambiguous changes are proposed first, never done
    silently.
 
-Record what you changed and why in `context/NOTEBOOK.md` as you go.
+Record what you changed and why in `context/MEMORY.md` as you go.
 
 ## Compliance loop
 

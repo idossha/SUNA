@@ -5,6 +5,6 @@
 This is a SUNA project — an academic manuscript with managed figures, references, and review comments, all plain text. Agent instructions, user context, and project memory live in two places:
 
 1. **Machine level:** `~/SunaConfig/Context/` (or `$SUNA_CONFIG_DIR/Context/` when that variable is set) — who the user is (`UserContext/`) and how to work with SUNA projects (`SunaContext/` — start with its `README.md`; the session playbook is `SunaContext/WORKFLOW.md`).
-2. **Project level:** `context/` in this folder — the mission (`MISSION.md`), the running notebook (`NOTEBOOK.md`), and this project's rules (`RULES.md`). Read all three before working.
+2. **Project level:** `context/` in this folder — the project brief (`PROJECT.md`), the running memory file (`MEMORY.md`), and this project's rules (`RULES.md`). Read all three before working.
 
 SUNA's manuscript tools reach agents via `.mcp.json` in this folder (machine-local, not committed; the verb reference is `SunaContext/MCP.md`). If `.mcp.json` is missing, open the project in SUNA once — it heals on open.

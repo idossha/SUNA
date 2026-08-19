@@ -1,6 +1,6 @@
 # A typical workflow
 
-How a paper actually gets written in SUNA: from an empty folder and a MISSION statement, through drafting with figures and citations, review passes, journal compliance, and export.
+How a paper actually gets written in SUNA: from an empty folder and a PROJECT statement, through drafting with figures and citations, review passes, journal compliance, and export.
 
 The phases below are not enforced by the app. They are the order in which a manuscript tends to come together, and the places where SUNA's design either helps or deliberately stays out of the way.
 
@@ -12,9 +12,9 @@ The scaffold gives you `manuscript/` (`manuscript.md`, `manuscript.json`, `autho
 
 Leave the journal alone for now. A new project's active profile is `suna` — SUNA's own house style, not a journal. It flags nothing and sets the manuscript in clean typography. You switch to a journal profile when you know where you are submitting, which for most papers is much later than you think.
 
-The step people skip and regret is `context/MISSION.md`. It is seeded with five headings — Question, Data, Prior work, Deliverable, Scope and non-goals — and it is the project charter both you and any AI agent read first. "Deliverable" asks what you are producing, for what venue and audience, and what *done* looks like. Ten minutes there saves an agent from confidently drafting the wrong paper.
+The step people skip and regret is `context/PROJECT.md`. It is seeded with five headings — Question, Data, Prior work, Deliverable, Scope and non-goals — and it is the project charter both you and any AI agent read first. "Deliverable" asks what you are producing, for what venue and audience, and what *done* looks like. Ten minutes there saves an agent from confidently drafting the wrong paper.
 
-Alongside it SUNA writes `context/NOTEBOOK.md` (agent-owned working memory: State, Decisions, Tried, Open questions, plus an append-only session log) and `context/RULES.md` for standing rules that apply to this project only. Rules that apply to everything you write belong in `~/SunaConfig/Context/UserContext/RULES.md`, next to `WHO-AM-I.md`, which describes your field, position and taste. These are yours; SUNA seeds them once and never overwrites them.
+Alongside it SUNA writes `context/MEMORY.md` (agent-owned working memory: State, Decisions, Tried, Open questions, plus an append-only session log) and `context/RULES.md` for standing rules that apply to this project only. Rules that apply to everything you write belong in `~/SunaConfig/Context/UserContext/RULES.md`, next to `WHO-AM-I.md`, which describes your field, position and taste. These are yours; SUNA seeds them once and never overwrites them.
 
 ## Phase 2 — Draft, with figures and citations arriving as the analysis lands
 

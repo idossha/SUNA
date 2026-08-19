@@ -1,4 +1,4 @@
-# Mission — Ram-pressure stripping in a z=1.7 cluster (demo)
+# Project — Ram-pressure stripping in a z=1.7 cluster (demo)
 
 <!-- The project charter: what we are doing and why. Co-owned by the user and the agent — an agent may draft from the user's answers; the user corrects in place or via comments and has final say. Agents read this before working. -->
 

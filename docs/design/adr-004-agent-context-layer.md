@@ -26,7 +26,7 @@ SUNA, not with the project:
      context layers. Line 1 carries a `suna:agent-stub v1` marker; SUNA may
      rewrite the file only while the marker is present — deleting it hands
      the file to the user forever.
-   - `context/MISSION.md` (co-owned charter), `context/NOTEBOOK.md` (agent
+   - `context/PROJECT.md` (co-owned charter), `context/MEMORY.md` (agent
      memory: body + append-only session log, surgical edits only),
      `context/RULES.md` (promoted standing preferences). Created only when
      missing, never rewritten.
