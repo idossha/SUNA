@@ -29,6 +29,7 @@ export default async (ctx) => {
   const revisionsPath = join(rootDir, 'manuscript', 'revisions.json')
   const original = readFileSync(manuscriptPath, 'utf8')
 
+  let commentId = null
   const failures = []
   const check = (name, cond, detail) => {
     if (cond) console.log(`  ✓ ${name}`)
@@ -128,6 +129,89 @@ export default async (ctx) => {
     )
     check('turning it back on restores the paint', back > 0, `${back} marks`)
 
+    // A comment over the SAME prose must not wash out the diff colours: the
+    // anchor is a TRAIL (text-decoration), never a background. This is the
+    // exact collision that made a commented, AI-edited sentence unreadable.
+    const live = readFileSync(manuscriptPath, 'utf8')
+    const quote = newLine.slice(0, 60)
+    assert(live.includes(quote), 'the edited sentence is not on disk to anchor to')
+    commentId = await ctx.evalJs(`(async () => {
+      const store = window.__sunaDev.commentsStore.getState()
+      const c = await store.add(
+        { kind: 'section', path: 'manuscript.md', anchor: {
+            quote: ${JSON.stringify(quote)}, prefix: '', suffix: '' } },
+        'revise this sentence'
+      )
+      return c === null ? null : c.id
+    })()`)
+    check('a comment can be anchored over the AI-edited sentence', commentId !== null)
+    await ctx.sleep(900)
+
+    const anchorStyle = await ctx.evalJs(`(() => {
+      const el = document.querySelector('.cm-content .cmt-anchor')
+      if (!el) return null
+      const cs = getComputedStyle(el)
+      return { bg: cs.backgroundColor, line: cs.textDecorationLine, style: cs.textDecorationStyle }
+    })()`)
+    check('the comment anchor is rendered at all', anchorStyle !== null,
+      'no .cmt-anchor in the editor — the trail assertion below would be vacuous')
+    check('a comment anchor draws a trail, not a background wash',
+      anchorStyle !== null &&
+        anchorStyle.line.includes('underline') &&
+        (anchorStyle.bg === 'rgba(0, 0, 0, 0)' || anchorStyle.bg === 'transparent'),
+      JSON.stringify(anchorStyle))
+    check('the diff marks keep their own background under the comment',
+      (await ctx.evalJs(`(() => {
+        const el = document.querySelector('.cm-content .cm-sunaDiff-ins')
+        if (!el) return false
+        const bg = getComputedStyle(el).backgroundColor
+        return bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent'
+      })()`)) === true)
+
+    // ---- the per-hunk popover ---------------------------------------------
+    const markBox = await ctx.evalJs(`(() => {
+      const el = document.querySelector('.cm-content .cm-sunaDiff-ins')
+      if (!el) return null
+      el.scrollIntoView({ block: 'center' })
+      const r = el.getBoundingClientRect()
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    })()`)
+    check('an addition mark is on screen to click', markBox !== null)
+    if (markBox !== null) {
+      await ctx.click(markBox.x, markBox.y)
+      await ctx.sleep(500)
+      const pop = await ctx.evalJs(`(() => {
+        const el = document.querySelector('.cm-sunaDiff-actions')
+        return el === null ? null : {
+          text: el.textContent,
+          buttons: [...el.querySelectorAll('button')].map((b) => b.textContent)
+        }
+      })()`)
+      check('clicking a change opens its Accept/Reject popover',
+        pop !== null && pop.buttons.includes('Accept') && pop.buttons.includes('Reject'),
+        JSON.stringify(pop))
+
+      const beforePopover = await ctx.evalJs(
+        `window.__sunaDev.docSessions.peek(${JSON.stringify(manuscriptPath)})`
+      )
+      const rejectBtn = await ctx.evalJs(`(() => {
+        const b = [...document.querySelectorAll('.cm-sunaDiff-action')].find((e) => e.textContent === 'Reject')
+        if (!b) return null
+        const r = b.getBoundingClientRect()
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+      })()`)
+      if (rejectBtn !== null) {
+        await ctx.click(rejectBtn.x, rejectBtn.y)
+        await ctx.sleep(1200)
+        const afterPopover = await ctx.evalJs(
+          `window.__sunaDev.docSessions.peek(${JSON.stringify(manuscriptPath)})`
+        )
+        check('Reject in the popover edits the prose back', afterPopover !== beforePopover)
+        check('the popover closes after acting',
+          (await ctx.evalJs(`!document.querySelector('.cm-sunaDiff-actions')`)) === true)
+      }
+    }
+
     // ---- reject one hunk, then accept the rest -----------------------------
     const beforeReject = readFileSync(manuscriptPath, 'utf8')
     await ctx.evalJs(`document.querySelector('.cm-content')?.focus()`)
@@ -154,6 +238,14 @@ export default async (ctx) => {
     )
     check('a closed revision leaves no paint behind', cleared === 0, `${cleared} marks`)
   } finally {
+    if (commentId !== null) {
+      await ctx
+        .evalJs(`(async () => {
+          const store = window.__sunaDev.commentsStore.getState()
+          if (typeof store.remove === 'function') await store.remove(${JSON.stringify('COMMENT_ID')})
+        })()`.replace('COMMENT_ID', commentId))
+        .catch(() => {})
+    }
     writeFileSync(manuscriptPath, original, 'utf8')
     rmSync(revisionsPath, { force: true })
     await ctx
