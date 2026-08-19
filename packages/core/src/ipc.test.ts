@@ -51,6 +51,7 @@ describe('CHANNELS', () => {
       'env:uv-available',
       'export:docx',
       'export:html',
+      'export:notes',
       'export:pdf',
       'figure:create',
       'figure:duplicate',
@@ -822,6 +823,51 @@ describe('CHANNELS', () => {
     expect(CHANNELS['export:pdf'].request.parse(req)).toEqual(req);
     const res: ResponseOf<'export:pdf'> = { path: '/work/my-paper/output/my-paper.pdf' };
     expect(CHANNELS['export:pdf'].response.parse(res)).toEqual(res);
+  });
+
+  it('validates export:notes request/response shapes', () => {
+    const req: RequestOf<'export:notes'> = {
+      dir: '/work/my-paper',
+      format: 'pdf',
+      outputName: 'reading-notes',
+      title: 'Reading notes',
+      subtitle: '2 notes · 1 paper · exported 2026-08-19',
+      papers: [
+        {
+          citekey: 'gunn1972',
+          label: 'Gunn & Gott (1972)',
+          title: 'On the Infall of Matter into Clusters of Galaxies',
+          notes: [
+            {
+              page: '3',
+              quote: 'Ram pressure strips the gas.',
+              body: 'Cite in the intro.',
+              color: 'green',
+              tags: ['mechanism'],
+              detached: false,
+            },
+          ],
+        },
+      ],
+    };
+    expect(CHANNELS['export:notes'].request.parse(req)).toEqual(req);
+    expect(CHANNELS['export:notes'].request.safeParse({ ...req, dir: '' }).success).toBe(false);
+    // Not the manuscript exporter: a profile is not part of this contract, and
+    // a format outside the three documents is a bug, not a fallback.
+    expect(CHANNELS['export:notes'].request.safeParse({ ...req, format: 'latex' }).success).toBe(
+      false,
+    );
+    // subtitle and detached carry defaults, so an older caller still parses.
+    const lean = CHANNELS['export:notes'].request.parse({
+      dir: req.dir,
+      format: 'html',
+      outputName: 'reading-notes',
+      title: 'Reading notes',
+      papers: [{ citekey: 'k', label: '', title: '', notes: [] }],
+    });
+    expect(lean.subtitle).toBe('');
+    const res: ResponseOf<'export:notes'> = { path: '/work/my-paper/output/notes/reading-notes.pdf' };
+    expect(CHANNELS['export:notes'].response.parse(res)).toEqual(res);
   });
 
   it('validates export:html request/response shapes', () => {

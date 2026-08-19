@@ -51,9 +51,16 @@ export const FIND_PDF_HINT =
   "Look for this paper's PDF: the project, then the library folders in Settings, then open access"
 export const PDF_BADGE_LABEL = 'PDF'
 
-/** Tooltip text for the References list's PDF badge (feature-plan-4.md §4). */
+/**
+ * Tooltip text for the References list's PDF badge (feature-plan-4.md §4).
+ *
+ * The badge is a button, so the tooltip leads with what clicking it does and
+ * keeps the resolution mechanism as the second half: which of the three ways
+ * a PDF was found matters when a row shows the WRONG paper, and that is the
+ * only moment anyone reads this.
+ */
 export function pdfBadgeTitle(how: PdfResolutionHow): string {
-  return PDF_HOW_LABEL[how]
+  return `Open this PDF — ${PDF_HOW_LABEL[how]}`
 }
 
 /**
