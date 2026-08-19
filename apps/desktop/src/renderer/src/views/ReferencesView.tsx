@@ -8,12 +8,13 @@ import {
   type BibEntry,
   type Run
 } from '@suna/bib'
-import { REFERENCE_NOTES_DIR } from '@suna/core'
+import { REFERENCE_NOTES_DIR, ReferenceNotesFileSchema } from '@suna/core'
 import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { orderedReferences } from '../manuscript/citations'
 import { openReadingNotesTab, openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
 import { useReferencePdfs } from '../state/referencePdfs'
+import { useRefNotesStore } from '../state/refnotes'
 import { profileLabel, usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
 import { useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
@@ -78,6 +79,37 @@ export function ReferencesView(): JSX.Element {
   const [usage, setUsage] = useState<UsageFilter>('all')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<RefsTab>('library')
+
+  /**
+   * How many highlights exist across every paper, so the button says whether
+   * there is anything behind it. Failures are swallowed on purpose: the count
+   * is a nicety, and a background process older than the channel must not put
+   * an error in the References panel over one.
+   */
+  const [noteCount, setNoteCount] = useState(0)
+  const refNotesRevision = useRefNotesStore((s) => s.revision)
+  useEffect(() => {
+    if (rootDir === null) {
+      setNoteCount(0)
+      return
+    }
+    let cancelled = false
+    void window.suna
+      .invoke('refnotes:list-all', { dir: rootDir })
+      .then(({ papers }) => {
+        if (cancelled) return
+        setNoteCount(
+          papers.reduce(
+            (total, paper) => total + ReferenceNotesFileSchema.parse(paper.file).notes.length,
+            0
+          )
+        )
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [rootDir, refNotesRevision, saveBump])
   const [findSimilarSeed, setFindSimilarSeed] = useState<FindSimilarSeed | null>(null)
   const [attachingKey, setAttachingKey] = useState<string | null>(null)
   const [findingKey, setFindingKey] = useState<string | null>(null)
@@ -327,32 +359,39 @@ export function ReferencesView(): JSX.Element {
 
   return (
     <div className="view refs">
-      <div className="refs__tabs" role="tablist" aria-label="References">
-        <button
-          role="tab"
-          className="refs__tab"
-          aria-selected={activeTab === 'library'}
-          onClick={() => setActiveTab('library')}
-        >
-          Library
-        </button>
-        <button
-          role="tab"
-          className="refs__tab"
-          aria-selected={activeTab === 'search'}
-          onClick={() => setActiveTab('search')}
-        >
-          Search
-        </button>
+      <div className="refs__tabrow">
+        <div className="refs__tabs" role="tablist" aria-label="References">
+          <button
+            role="tab"
+            className="refs__tab"
+            aria-selected={activeTab === 'library'}
+            onClick={() => setActiveTab('library')}
+          >
+            Library
+          </button>
+          <button
+            role="tab"
+            className="refs__tab"
+            aria-selected={activeTab === 'search'}
+            onClick={() => setActiveTab('search')}
+          >
+            Search
+          </button>
+        </div>
+        {/* An action, not a third tab: it opens a document rather than
+            switching this panel. Kept OUT of the tablist for that reason, and
+            styled to the tab row's own metrics so it sits on the same
+            baseline instead of floating above it. */}
         <button
           className="refs__notesbtn"
-          title="Every highlight across every paper"
+          title="Reading notes — every highlight across every paper"
           disabled={rootDir === null}
           onClick={() => {
             if (rootDir !== null) openReadingNotesTab(rootDir)
           }}
         >
           Notes
+          {noteCount > 0 && <span className="refs__notescount">{noteCount}</span>}
         </button>
       </div>
 

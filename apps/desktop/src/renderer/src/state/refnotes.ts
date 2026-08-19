@@ -38,6 +38,17 @@ interface RefNotesState {
   file: ReferenceNotesFile | null
   loading: boolean
   error: string | null
+  /**
+   * Bumped on every successful write.
+   *
+   * The cross-paper view reads every paper's notes, but the store only ever
+   * holds the paper on screen — so it cannot learn about a new highlight by
+   * watching the notes themselves. A counter is the whole signal it needs, and
+   * it costs nothing: `saveBump` would have worked too, but every bump makes
+   * `referencePdfs` rescan the whole references directory and re-parse the
+   * bibliography, which is a lot to pay for one highlight.
+   */
+  revision: number
 
   load: (rootDir: string, citekey: string) => Promise<void>
   clear: () => void
@@ -75,6 +86,7 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
   file: null,
   loading: false,
   error: null,
+  revision: 0,
 
   load: async (rootDir, citekey) => {
     set({ rootDir, citekey, loading: true, error: null, file: null, pendingRemovals: [] })
@@ -191,6 +203,7 @@ async function persist(
   set({ file: next, error: null })
   try {
     await window.suna.invoke('refnotes:write', { dir: rootDir, citekey, file: next })
+    set({ revision: get().revision + 1 })
   } catch (error) {
     set({ file: previous, error: errorMessage(error) })
   }
