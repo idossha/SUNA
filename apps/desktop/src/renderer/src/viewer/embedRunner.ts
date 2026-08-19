@@ -50,6 +50,11 @@ export interface SyncOutcome {
   bytesWritten?: number
   /** Where each matched note's annotation is, for the sidecar to record. */
   located: { noteId: string; page: number; quads: readonly number[] }[]
+  /**
+   * Removals that found nothing to remove, so the caller can keep them queued.
+   * Dropping these reported success for work that never happened.
+   */
+  unmatchedRemovals: { page: number; quads: readonly number[] }[]
   error?: string
 }
 
@@ -83,7 +88,7 @@ function cssColor(note: PdfNote): string {
 export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
   const { rootDir, citekey, notes, rectsByNote, viewports, author } = input
   const path = `${rootDir}/references/${citekey}.pdf`
-  const idle = { ok: true, created: 0, removed: 0, unchanged: 0, located: [] }
+  const idle = { ok: true, created: 0, removed: 0, unchanged: 0, located: [], unmatchedRemovals: [] }
 
   // ---- what the notes want the file to say ------------------------------
   const desired: DesiredHighlight[] = []
@@ -92,12 +97,14 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
     if (byPage === undefined) continue
     for (const [page, rects] of byPage) {
       if (rects.length === 0) continue
+      const recorded = note.embed.find((e) => e.page === page)
       desired.push({
         noteId: note.id,
         page,
         rects,
         color: cssColor(note),
-        contents: note.body.trim()
+        contents: note.body.trim(),
+        ...(recorded === undefined ? {} : { embed: recorded.quads })
       })
     }
   }
@@ -152,7 +159,12 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
     located = [...plan.located]
     if (plan.create.length === 0 && plan.remove.length === 0) {
       void doc.cleanup()
-      return { ...idle, unchanged: plan.unchanged, located }
+      return {
+        ...idle,
+        unchanged: plan.unchanged,
+        located,
+        unmatchedRemovals: [...plan.unmatchedRemovals]
+      }
     }
 
     // ---- the minimum edit -----------------------------------------------
@@ -203,6 +215,7 @@ export async function syncHighlights(input: SyncInput): Promise<SyncOutcome> {
       removed: plan.remove.length,
       unchanged: plan.unchanged,
       located,
+      unmatchedRemovals: [...plan.unmatchedRemovals],
       bytesWritten: result.bytesWritten
     }
   } catch (error) {

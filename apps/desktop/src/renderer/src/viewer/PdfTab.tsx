@@ -32,7 +32,7 @@ import { useProjectStore } from '../state/project'
 import { useReferencePdfsStore } from '../state/referencePdfs'
 import { useRefNotesStore } from '../state/refnotes'
 import { base64ToUint8Array } from './binary'
-import { toUserRect } from './embedHighlights'
+import { sameQuads, toUserRect } from './embedHighlights'
 import { syncHighlights } from './embedRunner'
 import { HighlightLayer } from './HighlightLayer'
 import { NotesRail } from './NotesRail'
@@ -204,6 +204,18 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const [note, setNote] = useState<string | null>(null)
   /** The stored highlight the popover is over, and where to anchor it. */
   const [pickedNote, setPickedNote] = useState<{ id: string; rect: DOMRect } | null>(null)
+  /**
+   * Regions removed since this document was loaded.
+   *
+   * The loaded `PDFDocumentProxy` was parsed from the bytes as they were at
+   * open, and an incremental save never reaches it — so an annotation we have
+   * since deleted is still in `page.getAnnotations()` for the life of the tab.
+   * Without remembering them, every removed highlight came back as an
+   * unclickable "foreign" rectangle.
+   */
+  const [removedThisSession, setRemovedThisSession] = useState<
+    { page: number; quads: readonly number[] }[]
+  >([])
   const [railOpen, setRailOpen] = useState(false)
   const [composingFor, setComposingFor] = useState<string | null>(null)
 
@@ -265,20 +277,54 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const setPageLabelOffset = useRefNotesStore((s) => s.setPageLabelOffset)
   const pageLabelOffset = notesFile?.source?.pageLabelOffset ?? 0
   const notesCitekey = useRefNotesStore((s) => s.citekey)
+  const notesError = useRefNotesStore((s) => s.error)
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
 
+  /**
+   * This tab's own citekey, and whether the shared store is currently holding
+   * it.
+   *
+   * The notes store is a single slot, but dockview keeps every open PDF tab
+   * MOUNTED — switching tabs does not unmount the other one. So two viewers
+   * race for one slot: A's rail would list B's notes, and a highlight made in
+   * A would be written into B's sidecar carrying A's quote and A's page. Every
+   * read and every write below is gated on the slot actually holding this
+   * tab's paper.
+   */
+  const myCitekey = citekeyMatch.kind === 'one' ? citekeyMatch.citekey : null
+  const notesAreMine = myCitekey !== null && notesCitekey === myCitekey
+
   const notes = useMemo(
-    () => (notesFile === null ? [] : sortNotes(notesFile.notes)),
-    [notesFile]
+    () => (notesFile === null || !notesAreMine ? [] : sortNotes(notesFile.notes)),
+    [notesFile, notesAreMine]
   )
 
+  /**
+   * What this tab has asked the shared slot to hold.
+   *
+   * Per TAB, not derived from the slot's current contents: two mounted viewers
+   * comparing themselves to one slot ping-pong, each reloading because the
+   * other just took it. A ref means each tab claims the slot once when it
+   * mounts, and again only when the reader actually acts in it (below).
+   */
+  const requestedRef = useRef<string | null>(null)
+
   useEffect(() => {
-    if (rootDir === null || citekeyMatch.kind !== 'one') {
-      clearNotes()
+    if (rootDir === null || myCitekey === null) {
+      // Only give up the slot if it is OURS. A PDF that is not a reference used
+      // to call clear() unconditionally and wipe the notes — and the pending
+      // removals — of whatever paper another tab had loaded.
+      if (notesCitekey !== null && requestedRef.current === notesCitekey) clearNotes()
+      requestedRef.current = null
       return
     }
-    void loadNotes(rootDir, citekeyMatch.citekey)
-  }, [rootDir, citekeyMatch, loadNotes, clearNotes])
+    if (requestedRef.current === myCitekey) return
+    requestedRef.current = myCitekey
+    void loadNotes(rootDir, myCitekey)
+    // `notesCitekey` is deliberately not a dependency: reacting to another
+    // tab taking the slot is what causes the ping-pong.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootDir, myCitekey, loadNotes, clearNotes])
 
   // Every note's rectangles, resolved ONCE and shared by the overlay and by
   // the code that writes /QuadPoints into the PDF — so what is painted and
@@ -306,11 +352,27 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
         const rects = byPage.get(entry.page)
         if (rects !== undefined) ours.push(...rects)
       }
-      const foreign = foreignOnly(entry.annotations, ours)
+      let foreign = foreignOnly(entry.annotations, ours)
+      // A highlight that was removed is not a stranger's. Its note is already
+      // out of the sidecar, so nothing covers its region any more — and the
+      // loaded document still holds the annotation, because an incremental
+      // save never reaches the copy pdf.js parsed at open. Without this it
+      // reappeared instantly as a read-only rectangle that could not be
+      // clicked, recoloured or removed, and only went away on the next reopen:
+      // exactly "I removed the note and the highlight is still there".
+      //
+      // Kept for the whole session rather than only while the removal is
+      // queued, because the stale in-memory document outlives the queue.
+      const queued = removedThisSession.filter((r) => r.page === entry.page)
+      if (queued.length > 0) {
+        foreign = foreign.filter(
+          (highlight) => !queued.some((r) => sameQuads(highlight.quads, r.quads))
+        )
+      }
       if (foreign.length > 0) map.set(entry.page, foreign)
     }
     return map
-  }, [renderedPages, resolvedNotes])
+  }, [renderedPages, resolvedNotes, removedThisSession])
 
   // ---- keep the PDF's own annotations in step with the sidecar ----------
   // Debounced, because a burst of highlighting should cost one reconcile
@@ -320,11 +382,13 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const syncTimerRef = useRef<number | null>(null)
   const syncKeyRef = useRef<string>('')
   useEffect(() => {
-    if (rootDir === null || notesCitekey === null || notesFile === null) return
+    if (rootDir === null || notesFile === null || !notesAreMine) return
     // Nothing to do until the notes have geometry: rectangles come from
     // rendered pages, and reconciling before page 1 has painted would look
     // like every note had vanished.
-    if (notes.length > 0 && resolvedNotes.byNote.size === 0) return
+    // A removal no longer needs geometry — it is matched in user space — so it
+    // must not be held back by the guard that waits for the page to paint.
+    if (notes.length > 0 && resolvedNotes.byNote.size === 0 && pendingRemovals.length === 0) return
 
     const key = JSON.stringify([
       notes.map((n) => [n.id, n.color, n.body, [...(resolvedNotes.byNote.get(n.id)?.keys() ?? [])]]),
@@ -339,7 +403,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       const viewports = new Map(renderedPages.map((entry) => [entry.page, entry.viewport]))
       void syncHighlights({
         rootDir,
-        citekey: notesCitekey,
+        citekey: myCitekey,
         notes,
         rectsByNote: resolvedNotes.byNote,
         viewports,
@@ -352,7 +416,11 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           syncKeyRef.current = ''
           return
         }
-        if (pendingRemovals.length > 0) clearPendingRemovals()
+        // Clear only what this run actually performed. Anything queued while
+        // it was in flight, or that it could not match, stays for the next one.
+        if (pendingRemovals.length > 0) {
+          clearPendingRemovals(pendingRemovals, outcome.unmatchedRemovals)
+        }
         // Remember where the file put each highlight, so removing it later
         // never depends on its page being on screen.
         if (outcome.located.length > 0) void recordEmbeds(outcome.located)
@@ -364,7 +432,8 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     }
   }, [
     rootDir,
-    notesCitekey,
+    myCitekey,
+    notesAreMine,
     notesFile,
     notes,
     resolvedNotes,
@@ -388,6 +457,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     setPageLabels(null)
     setSelection(null)
     setNote(null)
+    setRemovedThisSession([])
     renderedRef.current.clear()
 
     void (async () => {
@@ -522,6 +592,19 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   }, [])
 
   /**
+   * Take the shared slot back when the reader acts in THIS tab.
+   *
+   * Mounted-but-inactive viewers must not fight over it, so ownership follows
+   * the last tab the reader touched rather than the last one to render.
+   */
+  const reclaimSlot = useCallback((): void => {
+    if (rootDir === null || myCitekey === null) return
+    if (notesCitekey === myCitekey) return
+    requestedRef.current = myCitekey
+    void loadNotes(rootDir, myCitekey)
+  }, [rootDir, myCitekey, notesCitekey, loadNotes])
+
+  /**
    * A click with no selection is a click ON something. Highlights are painted
    * UNDER the text layer so a highlighted passage stays selectable, and
    * pdf.js's span rules carry `z-index: 1`, so the rect can never receive the
@@ -563,6 +646,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     const root = scrollRef.current
     if (!root) return
     const onUp = (event: Event): void => {
+      reclaimSlot()
       // Let the browser finish updating the selection before reading it.
       window.setTimeout(() => {
         const live = window.getSelection()
@@ -582,7 +666,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       root.removeEventListener('mouseup', onUp)
       root.removeEventListener('keyup', onUp)
     }
-  }, [refreshSelection, pickNoteAt])
+  }, [refreshSelection, pickNoteAt, reclaimSlot])
 
   // A new selection supersedes the last notice, and supersedes a highlight
   // popover — you cannot be acting on both at once.
@@ -643,12 +727,13 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const applyColor = useCallback(
     (color: NoteColor): void => {
       if (pickedNote !== null) {
+        if (!notesAreMine) return
         void updateNote(pickedNote.id, { color })
         setPickedNote(null)
         return
       }
       if (selection === null) return
-      if (notesCitekey === null) {
+      if (!notesAreMine) {
         setNote('This PDF is not a reference in this project, so there is nowhere to keep notes.')
         setSelection(null)
         return
@@ -666,7 +751,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       window.getSelection()?.removeAllRanges()
       setSelection(null)
     },
-    [pickedNote, selection, notesCitekey, addNote, updateNote]
+    [pickedNote, selection, notesAreMine, addNote, updateNote]
   )
 
   /** Note button: highlight (if needed) and open the rail composer on it. */
@@ -678,7 +763,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       setPickedNote(null)
       return
     }
-    if (selection === null || notesCitekey === null) return
+    if (selection === null || !notesAreMine) return
     const runs = selection.anchors.map((anchor) => ({
       page: anchor.page,
       quote: anchor.quote,
@@ -694,7 +779,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     })
     window.getSelection()?.removeAllRanges()
     setSelection(null)
-  }, [pickedNote, selection, notesCitekey, addNote])
+  }, [pickedNote, selection, notesAreMine, addNote])
 
   const removeHighlight = useCallback(
     (noteId: string): void => {
@@ -711,7 +796,9 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       const note = notes.find((n) => n.id === noteId)
       const recorded = note?.embed ?? []
       if (recorded.length > 0) {
-        noteRemoved(recorded.map((e) => ({ page: e.page, quads: [...e.quads] })))
+        const regions = recorded.map((e) => ({ page: e.page, quads: [...e.quads] }))
+        noteRemoved(regions)
+        setRemovedThisSession((current) => [...current, ...regions])
       } else {
         // Nothing recorded yet — a note made before this existed, or one whose
         // sync has not run. Fall back to converting what is painted, which
@@ -728,7 +815,10 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           }
           if (quads.length > 0) regions.push({ page, quads })
         }
-        if (regions.length > 0) noteRemoved(regions)
+        if (regions.length > 0) {
+          noteRemoved(regions)
+          setRemovedThisSession((current) => [...current, ...regions])
+        }
       }
       void deleteNote(noteId)
       setPickedNote(null)
@@ -846,21 +936,43 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           >
             +
           </button>
-          {notesCitekey !== null && pageLabels === null && (
-            <label className="pdfview__pagelabel" title={
-              'This PDF declares no printed page numbers, so a citation uses the sheet number. ' +
-              'Set what page 1 is actually printed as.'
-            }>
+          {notesAreMine && pageLabels === null && (
+            <label
+              className="pdfview__pagelabel"
+              title={
+                'This PDF declares no printed page numbers, so a citation uses the sheet ' +
+                'number. Set what page 1 is actually printed as.'
+              }
+            >
               p.1 =
               <input
+                /* Remounted when the stored offset arrives: the toolbar paints
+                   while the sidecar is still loading, and an uncontrolled input
+                   never picks up the value that lands afterwards — so a paper
+                   with an offset of 107 showed "1", and one click in and out of
+                   the field persisted 0 and silently re-cited every quote. */
+                key={`pagelabel-${pageLabelOffset}`}
                 className="pdfview__pagejump"
                 type="number"
+                min={1}
                 defaultValue={1 + pageLabelOffset}
                 aria-label="Printed number of the first page"
                 onBlur={(event) => {
-                  const printed = Number(event.currentTarget.value)
-                  if (!Number.isFinite(printed)) return
-                  void setPageLabelOffset(Math.round(printed) - 1, numPages)
+                  const raw = event.currentTarget.value.trim()
+                  // An empty field is the first step of retyping, not a request
+                  // to cite page 0; Number('') is 0 and passes isFinite.
+                  if (raw === '') {
+                    event.currentTarget.value = String(1 + pageLabelOffset)
+                    return
+                  }
+                  const printed = Number(raw)
+                  if (!Number.isFinite(printed) || printed < 1) {
+                    event.currentTarget.value = String(1 + pageLabelOffset)
+                    return
+                  }
+                  const next = Math.round(printed) - 1
+                  if (next === pageLabelOffset) return
+                  void setPageLabelOffset(next, numPages)
                 }}
               />
             </label>
@@ -962,7 +1074,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           ambiguous={resolvedNotes.ambiguous}
           detached={resolvedNotes.detached}
           composingFor={composingFor}
-          citekey={notesCitekey}
+          citekey={myCitekey}
           onActivate={(noteId) => {
             setActiveNoteId(noteId)
             const target = notes.find((n) => n.id === noteId)
@@ -996,12 +1108,21 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           }
           onCopy={copyQuote}
           onDismiss={dismissQuote}
-          onHighlight={notesCitekey === null ? undefined : applyColor}
-          onNote={notesCitekey === null ? undefined : startNote}
+          onHighlight={notesAreMine ? applyColor : undefined}
+          onNote={notesAreMine ? startNote : undefined}
           onRemove={
             pickedNoteObject === null ? undefined : () => removeHighlight(pickedNoteObject.id)
           }
         />
+      )}
+
+      {/* A failed read or write is otherwise completely silent: the highlight
+          paints for a frame and vanishes, or Remove makes the card come back,
+          with nothing said. */}
+      {notesError !== null && notesAreMine && (
+        <div className="pdfview__note pdfview__note--error" role="alert">
+          {notesError}
+        </div>
       )}
 
       {note !== null && (

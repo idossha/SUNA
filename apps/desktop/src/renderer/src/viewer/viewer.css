@@ -867,3 +867,11 @@ button.pdfnotes__dot:hover {
   color: var(--s-ink-muted);
   font-size: var(--s-text-xs);
 }
+
+/* A notes read/write failure. Otherwise silent: the highlight paints for a
+   frame and vanishes, or Remove makes the card come back, with no explanation. */
+.pdfview__note--error {
+  border-color: var(--s-err);
+  color: var(--s-err);
+  max-width: 80%;
+}

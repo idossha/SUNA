@@ -227,6 +227,16 @@ export interface DesiredHighlight {
   /** CSS `rgb(r, g, b)`, so it compares directly with what was read back. */
   color: string
   contents: string
+  /**
+   * The note's own record of where SUNA put this annotation, in user space.
+   *
+   * When present it is the ONLY thing allowed to identify the annotation.
+   * Matching by overlapping screen rectangles instead let a surviving note
+   * claim a deleted neighbour's annotation — so the removal found nothing and
+   * was skipped — and let a highlight drawn over a passage someone had already
+   * highlighted in Preview claim and delete THEIR annotation.
+   */
+  embed?: readonly number[]
 }
 
 export interface SyncPlan {
@@ -234,6 +244,14 @@ export interface SyncPlan {
   create: DesiredHighlight[]
   /** Annotations to drop: stale representations, plus explicitly removed notes. */
   remove: FileAnnotation[]
+  /**
+   * Removals that found nothing to remove.
+   *
+   * Reported rather than swallowed: the caller holds these until they are
+   * actually performed, because reporting success for a removal that could not
+   * be made leaves the highlight in the file and nothing ever retries.
+   */
+  unmatchedRemovals: EmbeddedRegion[]
   /** Notes already represented correctly — nothing to do. */
   unchanged: number
   /**
@@ -246,28 +264,37 @@ export interface SyncPlan {
   located: { noteId: string; page: number; quads: readonly number[] }[]
 }
 
-/** Do two quad runs describe the same place? Compared in user space. */
+/** Each quad's bounding box, in a canonical order. */
+function quadBoxes(q: readonly number[]): [number, number, number, number][] {
+  const out: [number, number, number, number][] = []
+  for (let i = 0; i + 7 < q.length; i += 8) {
+    const xs = [q[i], q[i + 2], q[i + 4], q[i + 6]].map(Number)
+    const ys = [q[i + 1], q[i + 3], q[i + 5], q[i + 7]].map(Number)
+    out.push([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)])
+  }
+  return out.sort((a, b) => a[1] - b[1] || a[0] - b[0])
+}
+
+/**
+ * Do two quad runs describe the same place? Compared in PDF user space.
+ *
+ * Per QUAD, not by one outer box. A highlight over two lines is L-shaped, and
+ * its outer box is identical to that of a solid block covering both lines and
+ * the gap between them — so an outer-box comparison called a two-line run and
+ * an unrelated block-shaped annotation the same annotation. Corners are
+ * normalised because producers do not agree on their order, and quads are
+ * sorted because a rewritten file may reorder them.
+ */
 export function sameQuads(a: readonly number[], b: readonly number[], epsilon = 1): boolean {
   if (a.length === 0 || b.length === 0) return false
-  // Compare bounding boxes rather than every corner: a producer may order the
-  // four points differently, and a rewritten file can shift them a hair.
-  const box = (q: readonly number[]): [number, number, number, number] => {
-    const xs: number[] = []
-    const ys: number[] = []
-    for (let i = 0; i + 1 < q.length; i += 2) {
-      xs.push(q[i] as number)
-      ys.push(q[i + 1] as number)
-    }
-    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
-  }
-  const [ax0, ay0, ax1, ay1] = box(a)
-  const [bx0, by0, bx1, by1] = box(b)
-  return (
-    Math.abs(ax0 - bx0) <= epsilon &&
-    Math.abs(ay0 - by0) <= epsilon &&
-    Math.abs(ax1 - bx1) <= epsilon &&
-    Math.abs(ay1 - by1) <= epsilon
-  )
+  const left = quadBoxes(a)
+  const right = quadBoxes(b)
+  if (left.length === 0 || left.length !== right.length) return false
+  return left.every((box, i) => {
+    const other = right[i]
+    if (other === undefined) return false
+    return box.every((n, j) => Math.abs(n - (other[j] as number)) <= epsilon)
+  })
 }
 
 /** Same region, within a couple of pixels. */
@@ -314,17 +341,35 @@ export function planSync(
 ): SyncPlan {
   const create: DesiredHighlight[] = []
   const remove: FileAnnotation[] = []
+  const unmatchedRemovals: EmbeddedRegion[] = []
   const located: { noteId: string; page: number; quads: readonly number[] }[] = []
   const claimed = new Set<FileAnnotation>()
   let unchanged = 0
 
   for (const want of desired) {
-    const match = inFile.find(
-      (annotation) =>
-        !claimed.has(annotation) &&
-        annotation.page === want.page &&
-        sameRegion(annotation.rects, want.rects)
-    )
+    const onPage = inFile.filter((a) => !claimed.has(a) && a.page === want.page)
+    const recorded = want.embed ?? []
+
+    // A note that knows where SUNA put it is identified by THAT and nothing
+    // else. Falling back to overlap here is what let one note claim a
+    // neighbour's annotation — skipping the neighbour's removal — and what let
+    // a highlight drawn over a passage already highlighted in Preview claim
+    // and delete that annotation.
+    //
+    // With nothing recorded — a note predating this, or one whose first sync
+    // has not run — an overlapping annotation is adopted ONLY if it already
+    // says exactly what we would say. Anything that disagrees belongs to
+    // somebody else, and ours goes in beside it rather than over it.
+    const match =
+      recorded.length > 0
+        ? onPage.find((a) => sameQuads(a.quads, recorded))
+        : onPage.find(
+            (a) =>
+              sameRegion(a.rects, want.rects) &&
+              a.color === want.color &&
+              (a.contents ?? '') === want.contents
+          )
+
     if (match === undefined) {
       create.push(want)
       continue
@@ -348,14 +393,22 @@ export function planSync(
   // while its page was scrolled away used to leave its highlight in the file
   // forever.
   for (const gone of removed) {
-    for (const annotation of inFile) {
-      if (claimed.has(annotation)) continue
-      if (annotation.page !== gone.page) continue
-      if (!sameQuads(annotation.quads, gone.quads)) continue
-      claimed.add(annotation)
-      remove.push(annotation)
+    // Exactly ONE annotation per named region. Removing every annotation whose
+    // box matched took a stranger's highlight of the same words along with
+    // ours, since two applications highlighting the same sentence produce two
+    // annotations over the same quads.
+    const hit = inFile.find(
+      (a) => !claimed.has(a) && a.page === gone.page && sameQuads(a.quads, gone.quads)
+    )
+    if (hit === undefined) {
+      // Say so rather than reporting success: the caller keeps this queued and
+      // tries again, instead of dropping it and orphaning the highlight.
+      unmatchedRemovals.push(gone)
+      continue
     }
+    claimed.add(hit)
+    remove.push(hit)
   }
 
-  return { create, remove, unchanged, located }
+  return { create, remove, unchanged, located, unmatchedRemovals }
 }

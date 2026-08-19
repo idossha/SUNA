@@ -39,6 +39,15 @@ interface RefNotesState {
   loading: boolean
   error: string | null
   /**
+   * The sidecar exists but could not be read.
+   *
+   * Nothing is written while this is set. The renderer used to substitute an
+   * empty file on a parse failure and the next highlight persisted it, so one
+   * merge-conflict marker in `references/notes/<key>.json` silently destroyed
+   * every note on that paper.
+   */
+  loadFailed: boolean
+  /**
    * Bumped on every successful write.
    *
    * The cross-paper view reads every paper's notes, but the store only ever
@@ -68,7 +77,20 @@ interface RefNotesState {
    */
   pendingRemovals: { page: number; quads: number[] }[]
   noteRemoved: (regions: { page: number; quads: number[] }[]) => void
-  clearPendingRemovals: () => void
+  /**
+   * Drop the removals that were actually performed, keeping any the reconcile
+   * could not match.
+   *
+   * Clearing the whole array threw away removals queued WHILE a sync was in
+   * flight — delete two highlights a second apart on a large paper and the
+   * second one is gone from the UI and permanent in the PDF. And a removal
+   * that matched nothing must survive to be retried rather than be reported
+   * as done.
+   */
+  clearPendingRemovals: (
+    consumed?: readonly { page: number; quads: readonly number[] }[],
+    unmatched?: readonly { page: number; quads: readonly number[] }[]
+  ) => void
   /**
    * Record where each note's annotation ended up in the PDF, in user space.
    *
@@ -94,10 +116,19 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
   file: null,
   loading: false,
   error: null,
+  loadFailed: false,
   revision: 0,
 
   load: async (rootDir, citekey) => {
-    set({ rootDir, citekey, loading: true, error: null, file: null, pendingRemovals: [] })
+    set({
+      rootDir,
+      citekey,
+      loading: true,
+      error: null,
+      loadFailed: false,
+      file: null,
+      pendingRemovals: []
+    })
     try {
       const { file } = await window.suna.invoke('refnotes:read', { dir: rootDir, citekey })
       // A different PDF may have been opened while this read was in flight.
@@ -105,12 +136,28 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
       set({ file: ReferenceNotesFileSchema.parse(file), loading: false })
     } catch (error) {
       if (get().citekey !== citekey) return
-      set({ loading: false, error: errorMessage(error), file: emptyReferenceNotes(citekey) })
+      // Show the notes as empty so the viewer still works, but refuse to
+      // WRITE: overwriting an unreadable sidecar would destroy whatever is in
+      // it, which is the opposite of what the read guard is for.
+      set({
+        loading: false,
+        error: errorMessage(error),
+        loadFailed: true,
+        file: emptyReferenceNotes(citekey)
+      })
     }
   },
 
   clear: () =>
-    set({ rootDir: null, citekey: null, file: null, loading: false, error: null, pendingRemovals: [] }),
+    set({
+      rootDir: null,
+      citekey: null,
+      file: null,
+      loading: false,
+      error: null,
+      loadFailed: false,
+      pendingRemovals: []
+    }),
 
   addNote: async (runs, color, body = '') => {
     const { rootDir, citekey, file } = get()
@@ -172,7 +219,15 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
     set({ pendingRemovals: [...get().pendingRemovals, ...regions] })
   },
 
-  clearPendingRemovals: () => set({ pendingRemovals: [] }),
+  clearPendingRemovals: (consumed = [], unmatched = []) => {
+    const id = (r: { page: number; quads: readonly number[] }): string =>
+      `${r.page}:${r.quads.join(',')}`
+    const done = new Set(consumed.map(id))
+    for (const miss of unmatched) done.delete(id(miss))
+    // Keep anything this sync did not see (queued while it was in flight) and
+    // anything it saw but could not match (so it is retried, not lost).
+    set({ pendingRemovals: get().pendingRemovals.filter((r) => !done.has(id(r))) })
+  },
 
   recordEmbeds: async (located) => {
     const { file } = get()
@@ -185,11 +240,16 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
     }
     let changed = false
     const notes = file.notes.map((note) => {
-      const embed = byNote.get(note.id)
-      if (embed === undefined) return note
-      if (JSON.stringify(embed) === JSON.stringify(note.embed)) return note
+      const fresh = byNote.get(note.id)
+      if (fresh === undefined) return note
+      // MERGE by page rather than replace. `located` only covers pages that
+      // were rendered, so replacing dropped the other half of a note whose
+      // runs span a page break — and that half then became unremovable.
+      const merged = [...note.embed.filter((e) => !fresh.some((f) => f.page === e.page)), ...fresh]
+      merged.sort((a, b) => a.page - b.page)
+      if (JSON.stringify(merged) === JSON.stringify(note.embed)) return note
       changed = true
-      return { ...note, embed }
+      return { ...note, embed: merged }
     })
     // Reading a paper must never produce a git-modified file: when the record
     // already matches, nothing is written.
@@ -230,8 +290,12 @@ async function persist(
   get: () => RefNotesState,
   next: ReferenceNotesFile
 ): Promise<void> {
-  const { rootDir, citekey, file: previous } = get()
+  const { rootDir, citekey, file: previous, loadFailed } = get()
   if (rootDir === null || citekey === null) return
+  if (loadFailed) {
+    set({ error: 'This paper\'s notes file could not be read, so nothing is being written to it.' })
+    return
+  }
   set({ file: next, error: null })
   try {
     await window.suna.invoke('refnotes:write', { dir: rootDir, citekey, file: next })

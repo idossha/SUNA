@@ -88,13 +88,23 @@ async function citekeysWithNotes(ctx: ProjectContext): Promise<string[]> {
   }
 }
 
-async function readNotesFor(ctx: ProjectContext, citekey: string): Promise<PdfNote[]> {
+async function readNotesFor(
+  ctx: ProjectContext,
+  citekey: string,
+): Promise<{ notes: PdfNote[]; pageLabelOffset: number }> {
   try {
     const path = resolveInside(ctx.root, REFERENCE_NOTES_DIR, `${citekey}.json`);
     const parsed: unknown = JSON.parse(await readFile(path, 'utf8'));
-    return sortNotes(ReferenceNotesFileSchema.parse(parsed).notes);
+    const file = ReferenceNotesFileSchema.parse(parsed);
+    return {
+      notes: sortNotes(file.notes),
+      // The paper's printed-page correction. Printing the raw sheet number
+      // here gave an agent a different page from the one the app copies, and
+      // the agent's is the one that ends up in prose.
+      pageLabelOffset: file.source?.pageLabelOffset ?? 0,
+    };
   } catch {
-    return [];
+    return { notes: [], pageLabelOffset: 0 };
   }
 }
 
@@ -129,7 +139,8 @@ export async function listReferenceNotes(
   let papers = 0;
 
   for (const citekey of keys) {
-    const notes = (await readNotesFor(ctx, citekey)).filter((note) => matches(note, input));
+    const { notes: all, pageLabelOffset } = await readNotesFor(ctx, citekey);
+    const notes = all.filter((note) => matches(note, input));
     if (notes.length === 0) continue;
     papers += 1;
     total += notes.length;
@@ -151,7 +162,7 @@ export async function listReferenceNotes(
       if (note.tags.length > 0) flags.push(...note.tags.map((tag) => `#${tag}`));
       if (isDetached(note)) flags.push('detached');
       if (note.ambiguous) flags.push('ambiguous');
-      lines.push(`- p. ${notePage(note)} [${flags.join(' ')}]`);
+      lines.push(`- p. ${notePage(note) + pageLabelOffset} [${flags.join(' ')}]`);
       lines.push(`  > ${noteQuote(note)}`);
       if (note.body.trim() !== '') {
         for (const line of note.body.trim().split('\n')) lines.push(`  ${line}`);

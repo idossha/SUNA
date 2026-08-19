@@ -38,6 +38,15 @@ interface PaperGroup {
   citekey: string
   entry: BibEntry | undefined
   notes: PdfNote[]
+  /**
+   * The paper's own printed-page correction.
+   *
+   * Carried because a note cited three different pages depending on where you
+   * asked: the popover applied the offset, this view and the MCP verb printed
+   * the raw sheet number — and the one that gets pasted into a manuscript was
+   * the wrong one.
+   */
+  pageLabelOffset: number
 }
 
 function paperLabel(citekey: string, entry: BibEntry | undefined): string {
@@ -60,7 +69,7 @@ export function notesAsMarkdown(groups: readonly PaperGroup[]): string {
     }
     out.push('')
     for (const note of group.notes) {
-      const page = citedPageLabel(notePage(note), null)
+      const page = citedPageLabel(notePage(note), null, group.pageLabelOffset)
       out.push(`- ${quoteWithCitation(noteQuote(note), group.citekey, page)}`)
       if (note.body.trim() !== '') {
         for (const line of note.body.trim().split('\n')) out.push(`  ${line}`)
@@ -155,7 +164,14 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
           noteQuote(n).toLowerCase().includes(needle) || n.body.toLowerCase().includes(needle)
         )
       })
-      if (notes.length > 0) out.push({ citekey: paper.citekey, entry: byKey.get(paper.citekey), notes })
+      if (notes.length > 0) {
+        out.push({
+          citekey: paper.citekey,
+          entry: byKey.get(paper.citekey),
+          notes,
+          pageLabelOffset: paper.file.source?.pageLabelOffset ?? 0
+        })
+      }
     }
     return out
   }, [papers, byKey, query, colorFilter, tagFilter, withBodyOnly])
@@ -262,7 +278,9 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
                   <article key={n.id} className="cmt-card rnotes__card">
                     <div className="cmt__card-head">
                       <span className="pdfnotes__dot" data-color={n.color} aria-hidden="true" />
-                      <span className="cmt__time">p. {notePage(n)}</span>
+                      <span className="cmt__time">
+                        p. {citedPageLabel(notePage(n), null, group.pageLabelOffset)}
+                      </span>
                       {n.tags.map((tag) => (
                         <span key={tag} className="rnotes__tag">
                           {tag}
