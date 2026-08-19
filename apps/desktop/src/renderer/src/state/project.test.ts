@@ -61,7 +61,7 @@ function resetStores(): void {
     loading: false,
     error: null,
     draft: null,
-    flashRequest: null,
+    revealRequest: null,
     activeId: null,
     composing: false
   })

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { Comment } from '@suna/core'
 import { useCommentsStore } from '../state/comments'
-import { flashAnchorById } from './anchorExtension'
+import { revealAnchorById } from './anchorExtension'
 import { relativeTime } from './relativeTime'
 import { OUTLINE_IDLE_MS, outlineEntries, outlineStartsCollapsed } from './outline'
 
@@ -56,7 +56,7 @@ export function CommentsOutline({ comments, activeId, getView }: CommentsOutline
   const jump = (id: string): void => {
     useCommentsStore.getState().setActive(id)
     const view = getView()
-    if (view !== null) flashAnchorById(view, id)
+    if (view !== null) revealAnchorById(view, id)
     // Deliberately NOT collapsing here. Collapsing on click pulls the row out
     // from under the pointer, so a second click on the same row lands on
     // whatever slid into that spot — the list has to stay put while it is

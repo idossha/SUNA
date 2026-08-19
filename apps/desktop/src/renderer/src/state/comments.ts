@@ -35,7 +35,7 @@ export interface CommentDraft {
 
 let nextDraftNonce = 1
 
-export interface FlashRequest {
+export interface RevealRequest {
   commentId: string
   nonce: number
 }
@@ -187,7 +187,7 @@ interface CommentsState {
   loading: boolean
   error: string | null
   draft: CommentDraft | null
-  flashRequest: FlashRequest | null
+  revealRequest: RevealRequest | null
   /** The rail's focused thread (also drives the editor's active highlight). */
   activeId: string | null
   /** True while a reply/draft textarea has focus — guards external reloads. */
@@ -196,7 +196,7 @@ interface CommentsState {
   load: (rootDir: string) => Promise<void>
   startDraft: (target: CommentTarget, preview: string) => void
   cancelDraft: () => void
-  requestFlash: (commentId: string) => void
+  requestReveal: (commentId: string) => void
   setActive: (id: string | null) => void
   setComposing: (composing: boolean) => void
   add: (target: CommentTarget, body: string) => Promise<Comment | null>
@@ -218,7 +218,7 @@ export const useCommentsStore = create<CommentsState>((set, get) => ({
   loading: false,
   error: null,
   draft: null,
-  flashRequest: null,
+  revealRequest: null,
   activeId: null,
   composing: false,
 
@@ -238,8 +238,8 @@ export const useCommentsStore = create<CommentsState>((set, get) => ({
     if (!composing) runPendingReload()
   },
 
-  requestFlash: (commentId) =>
-    set((s) => ({ flashRequest: { commentId, nonce: (s.flashRequest?.nonce ?? 0) + 1 } })),
+  requestReveal: (commentId) =>
+    set((s) => ({ revealRequest: { commentId, nonce: (s.revealRequest?.nonce ?? 0) + 1 } })),
 
   load: async (rootDir) => {
     if (get().loading && get().rootDir === rootDir) return

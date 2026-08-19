@@ -279,7 +279,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   }, [])
 
   // outline clicks: scroll to the requested heading via CodeMirror's own
-  // ancestor-aware scrollIntoView (comments/anchorExtension's flashAnchor
+  // ancestor-aware scrollIntoView (comments/anchorExtension's revealAnchor
   // uses the same mechanism). Held (not consumed) until the editor has
   // settled — scrolling earlier would target a view that doesn't exist yet.
   const scrollRequest = useManuscriptDocStore((s) => s.scrollRequest)

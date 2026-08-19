@@ -210,7 +210,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
           view.dispatch({
             effects: StateEffect.appendConfig.of([
               // highlight decorations + click-to-activate; the rail owns the
-              // reverse direction (card click -> flash) and the flash watcher
+              // reverse direction (card click -> reveal) and the reveal watcher
               commentHighlightExtension((commentId) =>
                 useCommentsStore.getState().setActive(commentId)
               ),
@@ -273,7 +273,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     // push comment-list changes (new/resolved/deleted comments anywhere) into
     // this editor's live anchor decorations — resolving/adding/removing a
     // comment changes the set even when the document itself hasn't changed.
-    // (The rail owns the flash watcher and the active-thread mirror.)
+    // (The rail owns the reveal watcher and the active-thread mirror.)
     useEffect(() => {
       const view = handleRef.current?.view
       if (view) applySectionComments(view, commentsForPath)
