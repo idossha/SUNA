@@ -462,12 +462,36 @@ duplication the standalone MCP server already carries for `comments.json`.
   `AnnotationEditorUIManager` constructor takes 16 undocumented positional
   arguments and the `.d.ts` misdeclares the `textLayer` option. We use pdf.js's
   **writer** (`annotationStorage` + `saveDocument`) without its editor UI.
-- **Existing annotations render read-only.** `getAnnotations({intent:'any'})`
-  returns `{subtype, quadPoints, rect, color, contentsObj}`; today `PdfTab`
-  mounts only a `TextLayer`, so a paper highlighted in Zotero or Preview opens
-  blank. That is a correctness bug independent of this feature. *Adopt into
-  notes* maps quads → overlapping item boxes → runs → a real anchor, which is
-  the migration path off Zotero.
+- **Existing annotations render read-only**, and a claim in an earlier draft of
+  this ADR was wrong. It said a paper highlighted in Preview or Zotero "opens
+  blank"; it does not. pdf.js's `page.render()` defaults to
+  `annotationMode: ENABLE`, which paints any annotation carrying an `/AP`
+  straight onto the canvas, so foreign highlights were always visible. The
+  error came from checking for `getAnnotations` calls and concluding from
+  their absence.
+
+  That default had a real cost, though: after an embed the file carries our
+  own highlights, so on reopen each was drawn twice — once by the canvas, once
+  by the overlay, both multiplying. Measured: the canvas pixel under a green
+  highlight read `[30,35,27]` against a `[40,40,40]` control.
+
+  So the page now renders with `annotationMode: DISABLE` and SUNA paints every
+  highlight itself, reading the file's own `/Highlight` annotations through
+  `getAnnotations` and mapping their `QuadPoints` with
+  `viewport.convertToViewportPoint`. Ours are removed from that set by
+  geometric overlap, since after an embed the file's copy and the sidecar's
+  note describe the same region. Foreign highlights keep their own colour, are
+  not interactive, and carry their `/Contents` and `/T` in a tooltip.
+  *Adopt into notes* is still unbuilt.
+
+- **A highlight cannot receive its own click, so the page hit-tests instead.**
+  Highlights are painted UNDER the text layer so a highlighted passage stays
+  selectable, and pdf.js's span rules carry `z-index: 1` — measured,
+  `elementFromPoint` over a highlight returns a text span, never the rect.
+  Clicking a highlight therefore did nothing, and a bare highlight with no
+  note was only reachable through the rail. The page now hit-tests a click
+  with no selection against the rectangles it already has (`noteAtPoint`),
+  which is also why those rectangles are resolved once and shared.
 
 ## Rejected
 

@@ -10,6 +10,7 @@ import {
 } from 'react'
 import {
   AbortException,
+  AnnotationMode,
   GlobalWorkerOptions,
   RenderingCancelledException,
   TextLayer,
@@ -37,6 +38,12 @@ import { NotesRail } from './NotesRail'
 import { useNoteRects } from './useNoteRects'
 import { currentPageIndex, layoutPages, type PageBox } from './pdf-layout'
 import { citekeyForPdfPath, type PdfCitekeyMatch } from './pdfCitekey'
+import {
+  foreignOnly,
+  highlightRectsFromAnnotations,
+  noteAtPoint,
+  type HighlightRect
+} from './pdfGeometry'
 import {
   citedPageLabel,
   quoteWithCitation,
@@ -105,7 +112,20 @@ function PdfPageCanvas({
     canvas.style.height = `${Math.floor(viewport.height)}px`
 
     const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined
-    const renderTask = page.render({ canvas, viewport, transform })
+    // DISABLE, against pdf.js's ENABLE default. With the default, an annotation
+    // carrying an /AP is painted straight onto the canvas — which is why a
+    // paper highlighted in Preview shows up here for free, and also why our
+    // OWN embedded highlights were being drawn twice after a reopen: once by
+    // the canvas, once by the overlay, both multiplying. Measured: the canvas
+    // pixel under a green highlight read [30,35,27] against a [40,40,40]
+    // control. We paint every highlight ourselves instead, from one source,
+    // and read the file's own annotations below so nothing disappears.
+    const renderTask = page.render({
+      canvas,
+      viewport,
+      transform,
+      annotationMode: AnnotationMode.DISABLE
+    })
     renderTask.promise.catch((error: unknown) => {
       if (error instanceof RenderingCancelledException) return
       setRenderError(error instanceof Error ? error.message : String(error))
@@ -133,7 +153,11 @@ function PdfPageCanvas({
             page: pageNumber,
             pageText: buildPageText(content.items as PdfTextItemLike[]),
             textDivs: textLayer.textDivs as HTMLElement[],
-            viewport
+            viewport,
+            annotations: highlightRectsFromAnnotations(
+              await page.getAnnotations({ intent: 'display' }).catch(() => []),
+              viewport
+            )
           })
         } catch (error: unknown) {
           // Selection is best-effort: a text-layer failure never takes the
@@ -258,6 +282,29 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     []
   )
   const resolvedNotes = useNoteRects(notes, renderedPages, pageElFor, effectiveScale, textEpoch)
+  // The mouseup handler is attached once and must not close over a stale map.
+  const resolvedRef = useRef(resolvedNotes)
+  resolvedRef.current = resolvedNotes
+
+  /**
+   * Highlights the FILE carries that the sidecar does not — made in Preview,
+   * Zotero or Acrobat. Our own show up here too after an embed, so they are
+   * removed by geometry: a file annotation covering a region the sidecar
+   * already paints IS that note.
+   */
+  const foreignByPage = useMemo(() => {
+    const map = new Map<number, ReturnType<typeof foreignOnly>>()
+    for (const entry of renderedPages) {
+      const ours: HighlightRect[] = []
+      for (const byPage of resolvedNotes.byNote.values()) {
+        const rects = byPage.get(entry.page)
+        if (rects !== undefined) ours.push(...rects)
+      }
+      const foreign = foreignOnly(entry.annotations, ours)
+      if (foreign.length > 0) map.set(entry.page, foreign)
+    }
+    return map
+  }, [renderedPages, resolvedNotes])
 
   // ---- keep the PDF's own annotations in step with the sidecar ----------
   // Debounced, because a burst of highlighting should cost one regeneration,
@@ -458,12 +505,60 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     setSelection(readPdfSelection(window.getSelection(), rendered))
   }, [])
 
+  /**
+   * A click with no selection is a click ON something. Highlights are painted
+   * UNDER the text layer so a highlighted passage stays selectable, and
+   * pdf.js's span rules carry `z-index: 1`, so the rect can never receive the
+   * event itself — `elementFromPoint` over a highlight returns a text span.
+   * So the page hit-tests the point against the rectangles it already has.
+   */
+  const pickNoteAt = useCallback(
+    (clientX: number, clientY: number): boolean => {
+      for (const [idx, el] of pageElsRef.current) {
+        const box = el.getBoundingClientRect()
+        if (clientX < box.left || clientX > box.right || clientY < box.top || clientY > box.bottom) {
+          continue
+        }
+        const hit = noteAtPoint(
+          resolvedRef.current.byNote,
+          idx + 1,
+          clientX - box.left,
+          clientY - box.top
+        )
+        if (hit === null) return false
+        setActiveNoteId(hit.noteId)
+        setPickedNote({
+          id: hit.noteId,
+          rect: new DOMRect(
+            box.left + hit.rect.left,
+            box.top + hit.rect.top,
+            hit.rect.width,
+            hit.rect.height
+          )
+        })
+        return true
+      }
+      return false
+    },
+    []
+  )
+
   useEffect(() => {
     const root = scrollRef.current
     if (!root) return
-    const onUp = (): void => {
+    const onUp = (event: Event): void => {
       // Let the browser finish updating the selection before reading it.
-      window.setTimeout(refreshSelection, 0)
+      window.setTimeout(() => {
+        const live = window.getSelection()
+        const hasSelection = live !== null && !live.isCollapsed && live.toString().trim() !== ''
+        if (hasSelection) {
+          refreshSelection()
+          return
+        }
+        setSelection(null)
+        if (event instanceof MouseEvent && pickNoteAt(event.clientX, event.clientY)) return
+        setPickedNote(null)
+      }, 0)
     }
     root.addEventListener('mouseup', onUp)
     root.addEventListener('keyup', onUp)
@@ -471,7 +566,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       root.removeEventListener('mouseup', onUp)
       root.removeEventListener('keyup', onUp)
     }
-  }, [refreshSelection])
+  }, [refreshSelection, pickNoteAt])
 
   // A new selection supersedes the last notice, and supersedes a highlight
   // popover — you cannot be acting on both at once.
@@ -764,6 +859,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
                         page={idx + 1}
                         notes={notes}
                         resolved={resolvedNotes}
+                        foreign={foreignByPage.get(idx + 1)}
                         activeNoteId={activeNoteId}
                         onActivate={(noteId, rect) => {
                           const host = pageElsRef.current.get(idx)

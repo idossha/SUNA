@@ -126,6 +126,51 @@ export function rectsForQuoteAt(
 }
 
 /**
+ * The topmost note whose painted rectangle contains a point, in page-relative
+ * CSS pixels. Later entries win, so a highlight drawn over an earlier one is
+ * the one you get.
+ *
+ * Hit-testing exists because the highlights CANNOT receive the click
+ * themselves. They are painted under the text layer on purpose — a highlighted
+ * passage must still be selectable — and pdf.js's own span rules carry
+ * `z-index: 1`, so every pointer event lands on a text span. Measured:
+ * `elementFromPoint` at the centre of a highlight returns a SPAN, never the
+ * rect. So the page hit-tests the point against the rectangles it already has,
+ * rather than trying to win a stacking fight it should lose.
+ */
+export function noteAtPoint(
+  rectsByNote: ReadonlyMap<string, ReadonlyMap<number, readonly HighlightRect[]>>,
+  page: number,
+  x: number,
+  y: number
+): { noteId: string; rect: HighlightRect } | null {
+  let found: { noteId: string; rect: HighlightRect } | null = null
+  for (const [noteId, byPage] of rectsByNote) {
+    for (const rect of byPage.get(page) ?? []) {
+      if (
+        x >= rect.left &&
+        x <= rect.left + rect.width &&
+        y >= rect.top &&
+        y <= rect.top + rect.height
+      ) {
+        found = { noteId, rect }
+      }
+    }
+  }
+  return found
+}
+
+/** Do two rectangles overlap enough to be the same highlight? */
+export function overlaps(a: HighlightRect, b: HighlightRect, slack = 2): boolean {
+  return (
+    a.left < b.left + b.width + slack &&
+    b.left < a.left + a.width + slack &&
+    a.top < b.top + b.height + slack &&
+    b.top < a.top + a.height + slack
+  )
+}
+
+/**
  * Every occurrence of `quote` in a page's text, as `[from, to)` pairs.
  * Used by the re-anchor sweep to tell "found once" from "found four times",
  * which is the difference between anchoring and refusing to guess.
@@ -139,4 +184,110 @@ export function occurrencesOf(pageText: PageText, quote: string): { from: number
     at = pageText.text.indexOf(quote, at + quote.length)
   }
   return out
+}
+
+/** A highlight that is in the PDF file but not in SUNA's sidecar. */
+export interface ForeignHighlight {
+  /** Page-relative CSS-pixel rectangles, one per quad. */
+  rects: HighlightRect[]
+  /** `/C` as CSS, when the annotation declares one. */
+  color: string | null
+  /** `/Contents` — the note text Preview or Acrobat attached. */
+  contents: string | null
+  /** `/T` — who made it. */
+  author: string | null
+}
+
+/** The parts of a pdf.js annotation this module reads. */
+export interface PdfAnnotationLike {
+  subtype?: string
+  quadPoints?: ArrayLike<number> | null
+  rect?: ArrayLike<number> | null
+  color?: Uint8ClampedArray | number[] | null
+  contentsObj?: { str?: string } | null
+  titleObj?: { str?: string } | null
+}
+
+interface ViewportLike {
+  convertToViewportPoint: (x: number, y: number) => number[]
+}
+
+/**
+ * Turn the `/Highlight` annotations a PDF already carries into rectangles we
+ * can paint.
+ *
+ * Needed because the canvas no longer draws them: rendering with
+ * `annotationMode: DISABLE` stopped our own highlights being painted twice,
+ * but it would also have made a paper highlighted in Preview or Zotero open
+ * looking blank. Reading them here keeps them visible AND makes them
+ * distinguishable from SUNA's own, which the canvas never could.
+ *
+ * `quadPoints` is a flat run of 8 numbers per quad in PDF user space; each is
+ * mapped through the viewport so rotation and zoom are handled by pdf.js
+ * rather than by arithmetic here.
+ */
+export function highlightRectsFromAnnotations(
+  annotations: readonly PdfAnnotationLike[],
+  viewport: ViewportLike
+): ForeignHighlight[] {
+  const out: ForeignHighlight[] = []
+
+  for (const annotation of annotations) {
+    if (annotation.subtype !== 'Highlight') continue
+    const quads = annotation.quadPoints
+    const rects: HighlightRect[] = []
+
+    if (quads != null && quads.length >= 8) {
+      for (let i = 0; i + 7 < quads.length; i += 8) {
+        // Corners come as upper-left, upper-right, lower-left, lower-right;
+        // take the extremes rather than assuming which is which, since not
+        // every producer writes them in spec order.
+        const xs: number[] = []
+        const ys: number[] = []
+        for (let c = 0; c < 8; c += 2) {
+          const point = viewport.convertToViewportPoint(
+            Number(quads[i + c]),
+            Number(quads[i + c + 1])
+          )
+          xs.push(point[0] ?? 0)
+          ys.push(point[1] ?? 0)
+        }
+        const left = Math.min(...xs)
+        const top = Math.min(...ys)
+        const width = Math.max(...xs) - left
+        const height = Math.max(...ys) - top
+        if (width > 0.5 && height > 0.5) rects.push({ left, top, width, height })
+      }
+    }
+    if (rects.length === 0) continue
+
+    const c = annotation.color
+    out.push({
+      rects,
+      color:
+        c != null && c.length >= 3 ? `rgb(${Number(c[0])}, ${Number(c[1])}, ${Number(c[2])})` : null,
+      contents: annotation.contentsObj?.str?.trim() || null,
+      author: annotation.titleObj?.str?.trim() || null
+    })
+  }
+
+  return out
+}
+
+/**
+ * Drop the annotations that are SUNA's own copies of notes it already paints.
+ *
+ * After an embed the file contains our highlights too, so reading them back
+ * would paint everything twice — the very doubling `annotationMode: DISABLE`
+ * was meant to end. Geometry is the honest discriminator: if a file annotation
+ * covers a region the sidecar already accounts for, it IS that note.
+ */
+export function foreignOnly(
+  found: readonly ForeignHighlight[],
+  ours: readonly HighlightRect[]
+): ForeignHighlight[] {
+  if (ours.length === 0) return [...found]
+  return found.filter(
+    (highlight) => !highlight.rects.some((rect) => ours.some((mine) => overlaps(rect, mine)))
+  )
 }
