@@ -39,6 +39,9 @@ import {
   detectAbstract,
   detectAffiliations,
   detectAuthors,
+  detectHighlights,
+  detectKeywords,
+  detectSignificance,
   detectTitle,
   splitSections
 } from './docx-heuristics'
@@ -116,6 +119,7 @@ export function referenceToBibEntry(ref: DocxReferenceDraftLike): BibEntry {
   }
   if (ref.year !== null) entry.year = ref.year
   if (ref.journal !== null) entry.journal = ref.journal
+  if (ref.doi !== null) entry.doi = ref.doi
   if (ref.style === 'unknown' || ref.title === null) entry.note = ref.raw
   return entry
 }
@@ -227,13 +231,39 @@ function frontMatterExcludedIndices(
 export async function analyzeDocx(docxPath: string): Promise<DocxAnalysis> {
   const tempDir = join(tmpdir(), `suna-docx-import-${randomBytes(6).toString('hex')}`)
   const { html, figures, warnings } = await extractDocument(docxPath, tempDir)
+  return analyzeHtmlDocument({ sourcePath: docxPath, html, figures, warnings, tempDir })
+}
+
+/**
+ * The format-independent half of the analyzer: everything from an HTML
+ * fragment onwards (front matter, sections, references, citations). `.docx`
+ * reaches it through mammoth; `.html` is its own input already; `.pdf` is
+ * flattened to paragraphs first (document-import.ts). Keeping one function
+ * here is what makes those three sources produce the same shape of project.
+ */
+export async function analyzeHtmlDocument(input: {
+  sourcePath: string
+  html: string
+  figures: DocxFigureDraft[]
+  warnings: DocxWarning[]
+  tempDir: string | null
+}): Promise<DocxAnalysis> {
+  const { sourcePath: docxPath, html, figures } = input
+  const warnings = [...input.warnings]
+  const tempDir = input.tempDir
   const blocks = parseHtmlBlocks(html)
 
   const title = detectTitle(blocks)
   const authors = detectAuthors(blocks, title.index ?? -1)
   const affiliations = detectAffiliations(blocks, authors.index ?? title.index ?? -1)
   const abstract = detectAbstract(blocks)
+  const significance = detectSignificance(blocks)
+  const highlights = detectHighlights(blocks)
+  const keywords = detectKeywords(blocks)
   const excluded = frontMatterExcludedIndices(title, authors, affiliations, abstract)
+  for (const i of [...significance.usedIndices, ...highlights.usedIndices, ...keywords.usedIndices]) {
+    excluded.add(i)
+  }
 
   const { headingIndex: refHeadingIndex, references } = extractReferences(blocks)
   const bodyEnd = refHeadingIndex ?? blocks.length
@@ -290,6 +320,9 @@ export async function analyzeDocx(docxPath: string): Promise<DocxAnalysis> {
     affiliations: affiliations.affiliations,
     affiliationsReason: affiliations.reason,
     abstract: { value: abstract.value, reason: abstract.reason },
+    significance: { value: significance.value, reason: significance.reason },
+    highlights: { value: highlights.value, reason: highlights.reason },
+    keywords: { value: keywords.value, reason: keywords.reason },
     sections,
     references,
     citationReport: { mappedCount, literalCount },
@@ -471,12 +504,14 @@ function buildManuscriptAndAuthors(analysis: DocxAnalysis): BuiltManuscript {
 
   const manuscript = ManuscriptSchema.parse({
     title,
-    shortTitle: title,
     articleType: 'article',
     doi: null,
     openAccess: null,
     history: { received: null, accepted: null, publishedOnline: null },
     abstract: { content: analysis.abstract.value as string },
+    ...(analysis.keywords.value.length > 0 ? { keywords: analysis.keywords.value } : {}),
+    ...(analysis.significance.value !== null ? { significance: analysis.significance.value } : {}),
+    ...(analysis.highlights.value.length > 0 ? { highlights: analysis.highlights.value } : {}),
     manuscriptFile: 'manuscript.md',
     figures: [],
     tables: [],
@@ -497,6 +532,39 @@ function buildManuscriptAndAuthors(analysis: DocxAnalysis): BuiltManuscript {
   return { manuscript, authorsFile }
 }
 
+/**
+ * Writes an analysis's manuscript over an EXISTING project's manuscript
+ * directory: manuscript.json, authors.json, the prose file, references.bib and
+ * every extracted figure. Shared by the standalone import (which makes the
+ * project itself first) and by the onboarding wizard's "start from a document"
+ * scaffold, which has already scaffolded a blank project around it.
+ */
+export async function writeAnalysisIntoProject(
+  analysis: DocxAnalysis,
+  targetDir: string
+): Promise<void> {
+  const { manuscript, authorsFile } = buildManuscriptAndAuthors(analysis)
+  const manuscriptMarkdown = buildManuscriptMarkdown(analysis.sections, analysis.figures)
+  const manuscriptDir = join(targetDir, DEFAULT_PROJECT_DIRS.manuscript)
+  await mkdir(manuscriptDir, { recursive: true })
+
+  await writeFile(join(manuscriptDir, 'manuscript.json'), JSON.stringify(manuscript, null, 2) + '\n')
+  await writeFile(join(manuscriptDir, 'authors.json'), JSON.stringify(authorsFile, null, 2) + '\n')
+  await writeFileAtomic(join(manuscriptDir, manuscript.manuscriptFile), manuscriptMarkdown)
+
+  const bibEntries = analysis.references.map(referenceToBibEntry)
+  await writeFileAtomic(
+    join(manuscriptDir, 'references.bib'),
+    bibEntries.length > 0 ? serializeBibtex(bibEntries) : ''
+  )
+
+  const figuresRoot = join(targetDir, DEFAULT_PROJECT_DIRS.figures)
+  for (const figure of analysis.figures) {
+    await mkdir(join(figuresRoot, figure.id), { recursive: true })
+    await copyFile(figure.tempPath, join(figuresRoot, figure.id, `figure.${figure.ext}`))
+  }
+}
+
 export async function commitDocxAnalysis(
   analysis: DocxAnalysis,
   targetDir: string,
@@ -514,16 +582,6 @@ export async function commitDocxAnalysis(
     throw new Error(`target directory is not empty (pass force to import anyway): ${targetDir}`)
   }
 
-  const { manuscript, authorsFile } = buildManuscriptAndAuthors(analysis)
-  const manuscriptMarkdown = buildManuscriptMarkdown(analysis.sections, analysis.figures)
-
-  await mkdir(targetDir, { recursive: true })
-  for (const sub of Object.values(DEFAULT_PROJECT_DIRS)) {
-    await mkdir(join(targetDir, sub), { recursive: true })
-  }
-  const manuscriptDir = join(targetDir, DEFAULT_PROJECT_DIRS.manuscript)
-  await mkdir(manuscriptDir, { recursive: true })
-
   const name = basename(targetDir)
   const manifest: SunaProjectManifest = SunaProjectManifestSchema.parse({
     schemaVersion: 1,
@@ -535,21 +593,12 @@ export async function commitDocxAnalysis(
     directories: DEFAULT_PROJECT_DIRS,
     createdAt: new Date().toISOString()
   })
-  await writeFile(join(targetDir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
-  await writeFile(join(manuscriptDir, 'manuscript.json'), JSON.stringify(manuscript, null, 2) + '\n')
-  await writeFile(join(manuscriptDir, 'authors.json'), JSON.stringify(authorsFile, null, 2) + '\n')
-  await writeFileAtomic(join(manuscriptDir, manuscript.manuscriptFile), manuscriptMarkdown)
-
-  const bibEntries = analysis.references.map(referenceToBibEntry)
-  await writeFileAtomic(join(manuscriptDir, 'references.bib'), bibEntries.length > 0 ? serializeBibtex(bibEntries) : '')
-
-  const figuresRoot = join(targetDir, DEFAULT_PROJECT_DIRS.figures)
-  for (const figure of analysis.figures) {
-    const dest = join(figuresRoot, figure.id, `figure.${figure.ext}`)
-    await mkdir(join(figuresRoot, figure.id), { recursive: true })
-    await copyFile(figure.tempPath, dest)
+  await mkdir(targetDir, { recursive: true })
+  for (const sub of Object.values(DEFAULT_PROJECT_DIRS)) {
+    await mkdir(join(targetDir, sub), { recursive: true })
   }
-
+  await writeFile(join(targetDir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
+  await writeAnalysisIntoProject(analysis, targetDir)
   await writeFile(join(targetDir, '.gitignore'), PROJECT_GITIGNORE)
 
   try {

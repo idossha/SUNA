@@ -218,6 +218,52 @@ describe('rewriteBlocksCitations — author-year style', () => {
   })
 })
 
+describe('parseReferenceEntry — IEEE / quoted-title entries', () => {
+  const raw =
+    '[1] G. Nolan, and C. Reyes, \u201cSleep and the price of plasticity: from synaptic and cellular ' +
+    'homeostasis to memory consolidation,\u201d Neuron, vol. 81, pp. 12\u201334, 2014, ' +
+    'doi: 10.1016/j.neuron.2013.12.025.'
+
+  it('anchors on the quoted title rather than the first period', () => {
+    const parsed = parseReferenceEntry(raw, 1)
+    expect(parsed.authors).toEqual(['Nolan, G.', 'Reyes, C.'])
+    expect(parsed.title).toBe(
+      'Sleep and the price of plasticity: from synaptic and cellular homeostasis to memory consolidation'
+    )
+    expect(parsed.journal).toBe('Neuron')
+    expect(parsed.style).toBe('numbered')
+  })
+
+  it('dates the entry by its year, not by the digits inside the DOI', () => {
+    expect(parseReferenceEntry(raw, 1).year).toBe('2014')
+    expect(parseReferenceEntry(raw, 1).doi).toBe('10.1016/j.neuron.2013.12.025')
+  })
+
+  it('reads "et al." and multi-author lists as family-first names', () => {
+    const parsed = parseReferenceEntry(
+      '[2] K. Wulff, S. Gatti, J. G. Wettstein, and R. G. Foster, \u201cSleep and circadian rhythm ' +
+        'disruption,\u201d Nature Reviews Neuroscience, vol. 11, pp. 589\u2013599, 2010.',
+      2
+    )
+    expect(parsed.authors).toEqual(['Wulff, K.', 'Gatti, S.', 'Wettstein, J. G.', 'Foster, R. G.'])
+    expect(parseReferenceEntry('[3] A. J. Krause et al., \u201cThe brain,\u201d Nature, 2017.', 3).authors).toEqual([
+      'Krause, A. J.'
+    ])
+  })
+
+  it('keys such an entry by first author and year', () => {
+    const [ref] = assignCiteKeys([parseReferenceEntry(raw, 1)])
+    expect(ref?.citeKey).toBe('nolan2014sleep')
+  })
+
+  it('leaves author-year entries to the existing parser', () => {
+    const parsed = parseReferenceEntry('Smith, J. (2020). A plain title. J. Sleep, 1, 1-2.', null)
+    expect(parsed.style).toBe('author-year')
+    expect(parsed.authors).toEqual(['Smith, J.'])
+    expect(parsed.title).toBe('A plain title')
+  })
+})
+
 function runsText(runs: readonly { text: string }[]): string {
   return runs.map((r) => r.text).join('')
 }

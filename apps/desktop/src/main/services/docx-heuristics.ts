@@ -286,6 +286,125 @@ export function detectAbstract(blocks: readonly Block[]): DetectedAbstract {
 }
 
 /* ------------------------------------------------------------------ */
+/* Significance / highlights / keywords                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A title-page block the manuscript schema stores as a FIELD, not as prose:
+ * `significance`, `highlights` and `keywords` belong on the title page, so
+ * leaving them in the body would both lose them (the title page would render
+ * empty) and duplicate them (they would open the manuscript as section one).
+ * Each detector reports the indices it consumed so the body excludes them.
+ */
+export interface DetectedBlock<T> {
+  value: T
+  usedIndices: number[]
+  reason: string
+}
+
+const SIGNIFICANCE_HEADING_RE =
+  /^(statement\s+of\s+significance|significance(\s+statement)?)\s*:?\s*$/i
+const HIGHLIGHTS_HEADING_RE = /^highlights\s*:?\s*$/i
+const KEYWORDS_RE = /^key\s?words\s*[:\u2014\u2013-]\s*(.+)$/i
+
+/** The blocks between `headingIndex` and the next heading. */
+function blocksUnderHeading(blocks: readonly Block[], headingIndex: number): number[] {
+  const indices: number[] = []
+  for (let j = headingIndex + 1; j < blocks.length; j += 1) {
+    const next = blocks[j]
+    if (next === undefined || next.kind === 'heading') break
+    if (next.kind === 'paragraph' && isBlankRuns(next.runs)) continue
+    indices.push(j)
+  }
+  return indices
+}
+
+/**
+ * A heading matching /statement of significance|significance/i and the prose
+ * under it. Word documents that lead with a bold "Significance" run rather
+ * than a real heading style are not matched — a guess there would eat the
+ * first paragraph of a paper that merely discusses significance.
+ */
+export function detectSignificance(blocks: readonly Block[]): DetectedBlock<string | null> {
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]
+    if (block === undefined || block.kind !== 'heading') continue
+    const heading = blockText(block).trim()
+    if (!SIGNIFICANCE_HEADING_RE.test(heading)) continue
+    const body = blocksUnderHeading(blocks, i)
+    const text = body
+      .map((j) => {
+        const b = blocks[j]
+        return b !== undefined && b.kind === 'paragraph' ? runsToPlainText(b.runs).trim() : ''
+      })
+      .filter((t) => t !== '')
+      .join('\n\n')
+    if (text === '') continue
+    return {
+      value: text,
+      usedIndices: [i, ...body],
+      reason: `prose under a heading matching /statement of significance|significance/i ("${heading}")`
+    }
+  }
+  return { value: null, usedIndices: [], reason: 'no "Significance" heading with prose under it found' }
+}
+
+/** Bullets under a "Highlights" heading — a list, or one paragraph per bullet. */
+export function detectHighlights(blocks: readonly Block[]): DetectedBlock<string[]> {
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]
+    if (block === undefined || block.kind !== 'heading') continue
+    const heading = blockText(block).trim()
+    if (!HIGHLIGHTS_HEADING_RE.test(heading)) continue
+    const body = blocksUnderHeading(blocks, i)
+    const items: string[] = []
+    for (const j of body) {
+      const b = blocks[j]
+      if (b === undefined) continue
+      if (b.kind === 'list') {
+        for (const item of b.items) {
+          const text = runsToPlainText(item).trim()
+          if (text !== '') items.push(text)
+        }
+      } else if (b.kind === 'paragraph') {
+        // Word bullets pasted as plain paragraphs keep their bullet glyph.
+        const text = runsToPlainText(b.runs).replace(/^[\u2022\u00b7\u2043*-]\s*/, '').trim()
+        if (text !== '') items.push(text)
+      }
+    }
+    if (items.length === 0) continue
+    return {
+      value: items,
+      usedIndices: [i, ...body],
+      reason: `${items.length} bullet(s) under a heading matching /highlights/i`
+    }
+  }
+  return { value: [], usedIndices: [], reason: 'no "Highlights" heading with bullets under it found' }
+}
+
+/**
+ * A "Keywords: a; b; c" paragraph. Semicolons separate where present —
+ * keywords are themselves allowed to contain commas ("sleep, slow waves") —
+ * and commas only when there is no semicolon in the line.
+ */
+export function detectKeywords(blocks: readonly Block[]): DetectedBlock<string[]> {
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]
+    if (block === undefined || block.kind !== 'paragraph') continue
+    const text = runsToPlainText(block.runs).trim()
+    const match = KEYWORDS_RE.exec(text)
+    if (match === null) continue
+    const list = (match[1] as string).trim().replace(/[.;]\s*$/, '')
+    const parts = (list.includes(';') ? list.split(';') : list.split(','))
+      .map((k) => k.trim())
+      .filter((k) => k !== '')
+    if (parts.length === 0) continue
+    return { value: parts, usedIndices: [i], reason: `a paragraph starting "${text.slice(0, 20)}…"` }
+  }
+  return { value: [], usedIndices: [], reason: 'no paragraph starting "Keywords:" found' }
+}
+
+/* ------------------------------------------------------------------ */
 /* Sections                                                             */
 /* ------------------------------------------------------------------ */
 

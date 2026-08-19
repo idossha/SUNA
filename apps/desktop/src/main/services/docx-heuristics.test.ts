@@ -5,6 +5,9 @@ import {
   detectAbstract,
   detectAffiliations,
   detectAuthors,
+  detectHighlights,
+  detectKeywords,
+  detectSignificance,
   detectTitle,
   runsToMarkdown,
   slugifyHeading,
@@ -215,5 +218,57 @@ describe('runsToMarkdown / blocksToMarkdown', () => {
     expect(md).toContain('- one\n- two')
     expect(md).toContain('| H1 | H2 |')
     expect(md).toContain('| a | b |')
+  })
+})
+
+describe('detectSignificance', () => {
+  it('takes the prose under a "Statement of Significance" heading and reports its indices', () => {
+    const blocks: Block[] = [
+      h(1, 'Statement of Significance'),
+      p('Slow waves matter.'),
+      p('And so does dose.'),
+      h(1, 'Introduction'),
+      p('Body.')
+    ]
+    const result = detectSignificance(blocks)
+    expect(result.value).toBe('Slow waves matter.\n\nAnd so does dose.')
+    expect(result.usedIndices).toEqual([0, 1, 2])
+  })
+
+  it('ignores prose that merely mentions significance', () => {
+    expect(detectSignificance([p('The significance of this result is unclear.')]).value).toBeNull()
+  })
+})
+
+describe('detectHighlights', () => {
+  it('reads bullets from a list or from bulleted paragraphs', () => {
+    const list: Block[] = [
+      h(1, 'Highlights'),
+      { kind: 'list', ordered: false, items: [[{ text: 'One thing.' }], [{ text: 'Another.' }]] },
+      h(1, 'Introduction')
+    ]
+    expect(detectHighlights(list).value).toEqual(['One thing.', 'Another.'])
+    const paragraphs: Block[] = [h(1, 'Highlights'), p('\u2022 One thing.'), h(1, 'Introduction')]
+    expect(detectHighlights(paragraphs).value).toEqual(['One thing.'])
+  })
+})
+
+describe('detectKeywords', () => {
+  it('splits on semicolons, keeping keywords that contain commas', () => {
+    const result = detectKeywords([p('Keywords: NREM sleep; slow waves, K-complexes; tTIS.')])
+    expect(result.value).toEqual(['NREM sleep', 'slow waves, K-complexes', 'tTIS'])
+    expect(result.usedIndices).toEqual([0])
+  })
+
+  it('falls back to commas when there is no semicolon', () => {
+    expect(detectKeywords([p('Key words: sleep, spindles, attention')]).value).toEqual([
+      'sleep',
+      'spindles',
+      'attention'
+    ])
+  })
+
+  it('finds nothing in a document without a keywords line', () => {
+    expect(detectKeywords([p('The keywords were chosen carefully.')]).value).toEqual([])
   })
 })
