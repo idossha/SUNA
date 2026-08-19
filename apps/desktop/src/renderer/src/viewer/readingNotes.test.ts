@@ -31,6 +31,7 @@ describe('notesAsMarkdown', () => {
   const group = {
     citekey: 'gunn1972',
     entry: undefined,
+    pageLabelOffset: 0,
     notes: [
       {
         id: 'n1',
@@ -57,5 +58,13 @@ describe('notesAsMarkdown', () => {
 
   it('is empty-safe', () => {
     expect(notesAsMarkdown([])).toBe('# Reading notes\n')
+  })
+
+  it('applies the paper printed-page correction, like every other surface', () => {
+    // A note used to cite three different pages depending on where you asked,
+    // and the one pasted into a manuscript was the wrong one.
+    const md = notesAsMarkdown([{ ...group, pageLabelOffset: 107 }])
+    expect(md).toContain('p. 110')
+    expect(md).not.toContain('p. 3]')
   })
 })

@@ -407,6 +407,118 @@ export default async function run(ctx) {
     )
   })
 
+  // ------------------------------------------------- audit regressions ----
+  await scenario('13. a removed highlight does not come back as a foreign one', async () => {
+    // The literal shape of the report: the note goes, the rectangle stays.
+    // pdf.js parsed the file at open, so an incremental save never reaches the
+    // loaded document and the annotation is still in getAnnotations() for the
+    // life of the tab.
+    await highlight(1, 'yellow')
+    await evalJs(`(() => { window.__sunaDev.dock.closePanel(${json(pdfPath)}); return 1 })()`)
+    await sleep(1200)
+    await evalJs(`(() => { window.__sunaDev.dock.openFileTab(${json(pdfPath)}); return 1 })()`)
+    await waitFor(`document.querySelectorAll('.pdfview__textlayer span').length > 20`, {
+      timeoutMs: 30000,
+      desc: 'text layer'
+    })
+    await sleep(1200)
+
+    await openRail()
+    await sleep(400)
+    await removeFromRail()
+    await sleep(900) // before the debounce fires
+    const midway = await evalJs(`document.querySelectorAll('.pdfhl__rect').length`)
+    assert(midway === 0, `the removed highlight is still painted (${midway} rects)`)
+    await settle()
+    const after = await evalJs(`(() => JSON.stringify({
+      ours: document.querySelectorAll('.pdfhl__rect:not(.pdfhl__rect--foreign)').length,
+      foreign: document.querySelectorAll('.pdfhl__rect--foreign').length
+    }))()`)
+    const counts = JSON.parse(after)
+    assert(counts.ours === 0 && counts.foreign === 0, `still painted: ${after}`)
+    assert((await fileHighlights(pdfPath)).length === 0, 'and it is still in the file')
+  })
+
+  await scenario('14. deleting a nested highlight does not skip via its neighbour', async () => {
+    // A phrase inside a longer passage. Matching by overlap let the survivor
+    // claim the deleted one's annotation, so the removal found nothing.
+    await highlight(1, 'yellow')
+    await highlight(2, 'green')
+    assert((await fileHighlights(pdfPath)).length === 2, 'setup: expected 2')
+    await openRail()
+    await sleep(400)
+    await removeFromRail(0)
+    await settle()
+    const left = await fileHighlights(pdfPath)
+    assert(left.length === 1, `expected 1 left, got ${left.length}`)
+    // And the survivor must still be removable — it must not have recorded the
+    // deleted one's location.
+    await removeFromRail(0)
+    await settle()
+    assert((await fileHighlights(pdfPath)).length === 0, 'the survivor became unremovable')
+  })
+
+  await scenario('15. two removals in quick succession both land', async () => {
+    // The second used to be queued while the first sync was in flight and then
+    // cleared wholesale on its success — gone from the UI, permanent in the PDF.
+    await highlight(1, 'yellow')
+    await highlight(3, 'green')
+    await openRail()
+    await sleep(400)
+    await removeFromRail(0)
+    await sleep(900)
+    await removeFromRail(0)
+    await settle()
+    await settle()
+    const left = await fileHighlights(pdfPath)
+    assert(left.length === 0, `expected both gone, ${left.length} left in the file`)
+  })
+
+  await scenario('16. a highlight over a stranger\'s highlight leaves theirs alone', async () => {
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(pdfPath)) }).promise
+    const first = await doc.getPage(1)
+    const vp = first.getViewport({ scale: 1 })
+    // Cover most of the page so it certainly overlaps whatever we highlight.
+    const x0 = 60, y0 = vp.height - 300, x1 = 550, y1 = vp.height - 60
+    doc.annotationStorage.setValue('pdfjs_internal_editor_0', {
+      annotationType: 9,
+      color: [46, 168, 229],
+      opacity: 0.4,
+      quadPoints: [x0, y1, x1, y1, x0, y0, x1, y0],
+      outlines: [[x0, y0, x0, y1, x1, y1, x1, y0]],
+      rect: [x0, y0, x1, y1],
+      rotation: 0,
+      pageIndex: 0,
+      user: 'Preview',
+      popup: { contents: 'their reading', rect: [x0, y0, x1, y1] }
+    })
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(pdfPath, new Uint8Array(await doc.saveDocument()))
+
+    await evalJs(`(() => { window.__sunaDev.dock.closePanel(${json(pdfPath)}); return 1 })()`)
+    await sleep(1000)
+    await evalJs(`(() => { window.__sunaDev.dock.openFileTab(${json(pdfPath)}); return 1 })()`)
+    await waitFor(`document.querySelectorAll('.pdfview__textlayer span').length > 20`, {
+      timeoutMs: 30000,
+      desc: 'text layer'
+    })
+    await sleep(1200)
+
+    await highlight(1, 'yellow')
+    const both = await fileHighlights(pdfPath)
+    assert(both.length === 2, `ours did not join theirs (${both.length})`)
+    const theirs = both.find((a) => a.contents === 'their reading')
+    assert(theirs !== undefined, 'the stranger annotation was destroyed by our highlight')
+
+    await openRail()
+    await sleep(400)
+    await removeFromRail(0)
+    await settle()
+    const left = await fileHighlights(pdfPath)
+    assert(left.length === 1, `expected theirs alone, got ${left.length}`)
+    assert(left[0].contents === 'their reading', 'we removed the wrong annotation')
+  })
+
   // -------------------------------------------------------------------------
   console.log('')
   for (const f of failures) console.log(`  FAILED: ${f.name}\n          ${f.error}`)

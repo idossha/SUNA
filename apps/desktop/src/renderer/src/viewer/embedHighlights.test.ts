@@ -14,8 +14,16 @@ const want = (
   noteId: string,
   top: number,
   color = 'rgb(255, 212, 0)',
-  contents = ''
-): DesiredHighlight => ({ noteId, page: 1, rects: [rect(top)], color, contents })
+  contents = '',
+  embed?: number[]
+): DesiredHighlight => ({
+  noteId,
+  page: 1,
+  rects: [rect(top)],
+  color,
+  contents,
+  ...(embed === undefined ? {} : { embed })
+})
 
 /** User-space quads standing in for the screen rect at `top`. */
 const quadsAt = (top: number): number[] => [100, 800 - top, 300, 800 - top, 100, 786 - top, 300, 786 - top]
@@ -50,13 +58,22 @@ describe('planSync', () => {
 
   it('replaces rather than edits when a note is recoloured', () => {
     // pdf.js can add and remove but not modify in place (#18407).
-    const plan = planSync([want('n1', 100, 'rgb(95, 178, 54)')], [inFile('10R', 100)])
+    // The note carries its recorded location, the normal state after its first
+    // sync — that is what authorises replacing the annotation rather than
+    // leaving a stranger's alone.
+    const plan = planSync(
+      [want('n1', 100, 'rgb(95, 178, 54)', '', quadsAt(100))],
+      [inFile('10R', 100)]
+    )
     expect(plan.remove.map((a) => a.id)).toEqual(['10R'])
     expect(plan.create).toHaveLength(1)
   })
 
   it('replaces when a note body changed, so /Contents follows', () => {
-    const plan = planSync([want('n1', 100, 'rgb(255, 212, 0)', 'new note')], [inFile('10R', 100)])
+    const plan = planSync(
+      [want('n1', 100, 'rgb(255, 212, 0)', 'new note', quadsAt(100))],
+      [inFile('10R', 100)]
+    )
     expect(plan.remove.map((a) => a.id)).toEqual(['10R'])
     expect(plan.create).toHaveLength(1)
   })
@@ -144,7 +161,13 @@ describe('planSync', () => {
   })
 
   it('is empty for nothing wanted and nothing present', () => {
-    expect(planSync([], [])).toEqual({ create: [], remove: [], unchanged: 0, located: [] })
+    expect(planSync([], [])).toEqual({
+      create: [],
+      remove: [],
+      unchanged: 0,
+      located: [],
+      unmatchedRemovals: []
+    })
   })
 })
 
@@ -168,5 +191,100 @@ describe('sameQuads', () => {
   it('never matches an empty run — an unrecorded note is not "everywhere"', () => {
     expect(sameQuads([], q)).toBe(false)
     expect(sameQuads(q, [])).toBe(false)
+  })
+})
+
+/**
+ * Regressions from the robustness audit. Each names the way the paradigm broke
+ * before it was pinned; several were reproduced by executing `planSync`.
+ */
+describe('planSync — audit regressions', () => {
+  const rect2 = (top: number, height = 14): HighlightRect => ({ left: 100, top, width: 200, height })
+  const qAt = (top: number): number[] => [100, 800 - top, 300, 800 - top, 100, 786 - top, 300, 786 - top]
+  const ann = (
+    id: string,
+    top: number,
+    color = 'rgb(255, 212, 0)',
+    contents: string | null = null
+  ): FileAnnotation => ({ id, page: 1, rects: [rect2(top)], quads: qAt(top), color, contents })
+
+  it('a surviving note does not claim a deleted neighbour annotation', () => {
+    // Highlight a phrase, then a longer passage containing it, then delete the
+    // phrase. The survivor used to claim the phrase's annotation by overlap,
+    // so the removal matched nothing and the highlight stayed in the PDF —
+    // and the survivor recorded the WRONG location for its own next removal.
+    const phrase = ann('annPhrase', 120)
+    const para = ann('annPara', 100)
+    const survivor = { ...want('para', 100), embed: qAt(100) }
+    const plan = planSync([survivor], [phrase, para], [{ page: 1, quads: qAt(120) }])
+    expect(plan.remove.map((a) => a.id)).toEqual(['annPhrase'])
+    expect(plan.unmatchedRemovals).toEqual([])
+    expect(plan.located).toEqual([{ noteId: 'para', page: 1, quads: qAt(100) }])
+  })
+
+  it('never claims — or deletes — an annotation that disagrees with the note', () => {
+    // Somebody highlighted this passage in Preview and wrote on it. Ours goes
+    // in beside theirs; theirs is not touched.
+    const theirs = ann('preview', 100, 'rgb(46, 168, 229)', 'their note')
+    const plan = planSync([want('n1', 100)], [theirs])
+    expect(plan.remove).toEqual([])
+    expect(plan.create).toHaveLength(1)
+  })
+
+  it('does not claim a merely adjacent foreign annotation', () => {
+    const nearby = ann('foreign', 115, 'rgb(46, 168, 229)', 'theirs')
+    expect(planSync([want('n1', 100)], [nearby]).remove).toEqual([])
+  })
+
+  it('removes exactly one annotation per named region', () => {
+    // The same sentence highlighted in both SUNA and Preview yields two
+    // annotations over the same quads; removing ours must not take theirs.
+    const ours = ann('a1', 100)
+    const theirs = ann('a2', 100, 'rgb(46, 168, 229)', 'preview note')
+    const plan = planSync([], [ours, theirs], [{ page: 1, quads: qAt(100) }])
+    expect(plan.remove).toHaveLength(1)
+  })
+
+  it('reports a removal it could not match instead of reporting success', () => {
+    const plan = planSync([], [ann('a1', 100)], [{ page: 1, quads: qAt(500) }])
+    expect(plan.remove).toEqual([])
+    expect(plan.unmatchedRemovals).toEqual([{ page: 1, quads: qAt(500) }])
+  })
+
+  it('recreates a recorded note whose annotation has vanished from the file', () => {
+    // Another application rewrote the paper and dropped it. The note is still
+    // the user's, so it goes back in rather than being silently unrepresented.
+    const plan = planSync([{ ...want('n1', 100), embed: qAt(100) }], [])
+    expect(plan.create).toHaveLength(1)
+  })
+
+  it('an unrecorded note adopts an annotation that already says the same thing', () => {
+    // The backfill path for sidecars written before locations were recorded:
+    // this must NOT duplicate the annotation on every reopen.
+    const plan = planSync([want('n1', 100)], [ann('a1', 100)])
+    expect(plan.create).toEqual([])
+    expect(plan.unchanged).toBe(1)
+  })
+})
+
+describe('sameQuads — audit regressions', () => {
+  it('does not confuse a two-line run with a block covering the same box', () => {
+    // An L-shaped run over two lines has the same OUTER box as a solid block
+    // spanning both lines and the gap; comparing outer boxes said they were
+    // the same annotation.
+    const twoLines = [72, 700, 272, 700, 72, 688, 272, 688, 72, 688, 150, 688, 72, 676, 150, 676]
+    const block = [72, 700, 272, 700, 72, 676, 272, 676]
+    expect(sameQuads(twoLines, block)).toBe(false)
+  })
+
+  it('still matches the same two-line run', () => {
+    const run = [72, 700, 272, 700, 72, 688, 272, 688, 72, 688, 150, 688, 72, 676, 150, 676]
+    expect(sameQuads(run, [...run])).toBe(true)
+  })
+
+  it('matches when the file reordered the quads', () => {
+    const a = [72, 700, 272, 700, 72, 688, 272, 688, 72, 688, 150, 688, 72, 676, 150, 676]
+    const b = [72, 688, 150, 688, 72, 676, 150, 676, 72, 700, 272, 700, 72, 688, 272, 688]
+    expect(sameQuads(a, b)).toBe(true)
   })
 })
