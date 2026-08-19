@@ -48,6 +48,8 @@ These apply to every project. The key column is the name the value has in the gl
 | Auto-open reference PDF | `references.autoOpenPdf` | on | Selecting a reference that has a PDF opens it beside the list |
 | Contact email | `lit.mailto` | empty | Sent to Crossref and OpenAlex as a polite-pool contact, not a login |
 | AI CLI preference | `lit.cli` | Automatic | Which agent CLI the "AI search" literature provider spawns |
+| Model | `ai.model` | Sonnet | Model tier every AI call runs at — Opus, Sonnet or Haiku |
+| Effort | `ai.effort` | Low | How hard it thinks before answering — Low, Medium, High, Extra high or Max |
 
 The Shell setting applies to newly opened terminals only, and its basename becomes the default terminal tab title.
 
@@ -161,6 +163,23 @@ The row reports what it found: "Detected: …", or "Neither was found on PATH �
 
 Separately, **This project → AI mode** (`ai.mode`) sets how this project talks to an AI at all: **Agent CLI (uses your subscription)**, **API key**, or **Off**.
 
+## Model and effort
+
+**Model** and **Effort** decide how the AI runs, whichever entry point calls it — the palette's `?` ask, a directed edit, the Agent chat. The default is **Sonnet** at **Low** effort: the tier that answers a writing question quickly and cheaply. Reaching for Opus, or for more thinking, is a deliberate choice.
+
+| Setting | Choices | Default |
+| --- | --- | --- |
+| Model | Opus (most capable), Sonnet (balanced), Haiku (fastest) | Sonnet |
+| Effort | Low, Medium, High, Extra high, Max | Low |
+
+Both live at all three levels: globally under **Global → AI**, per project under **This project → AI** (written to `suna.json`), and in the editor's quick-settings popover (the gear on an editor tab) right under Vim motions. The popover writes the global level and shows which level the value came from — when a project overrides it, the control is disabled with a tooltip pointing at Settings → This project, exactly like Vim motions.
+
+The model is stored as a **tier**, not a dated model id, so a committed `suna.json` does not go stale when a new generation ships. Where it lands:
+
+- **Agent CLI mode** — `claude --model <tier> --effort <level>`.
+- **API mode** — the tier maps to the current model id (Sonnet → `claude-sonnet-5`) and the effort is sent as `output_config.effort`.
+- **Codex** — takes the effort only, as `model_reasoning_effort`, with Extra high and Max collapsing onto its top level (`high`). The tier names Anthropic models, so it is not passed to codex at all.
+
 ::: info Where API keys are entered
 Provider API keys for the in-app chat (Anthropic, OpenAI, Ollama) are entered in the Agent sidebar, not on the Settings page. The Settings page's only key field is OpenAlex's. See [AI overview](/ai/overview) and [AI in the app](/ai/in-app).
 :::
@@ -203,6 +222,8 @@ The **This project** section is empty until a project is open ("Open a project t
 | Python environment | `python.envPath` | null |
 | Literature provider | `literature.provider` | null (auto) |
 | AI mode | `ai.mode` | cli |
+| Model | `ai.model` | sonnet |
+| Effort | `ai.effort` | low |
 | — (no row; hand-edit only) | `ai.cliCommand` | null (auto-detect the installed CLI) |
 
 Figure width presets are `single`, `onehalf` and `double`, shown as **Single column**, **1.5 column** and **Double column**; the profile you export under decides what those measure. See [profiles](/publishing/profiles).
