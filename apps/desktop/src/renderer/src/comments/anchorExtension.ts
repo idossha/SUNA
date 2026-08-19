@@ -200,11 +200,15 @@ function notifyGeometry(): void {
 
 /**
  * The highlight extension. Clicking an anchored highlight fires
- * `onActivate(commentId)` — the reverse of clicking its rail card. No keymap
- * here: ⌘⇧M is owned solely by editor/keymap.ts's formatting keymap (the
- * duplicate registration is gone).
+ * `onActivate(commentId)` — the reverse of clicking its rail card — and
+ * clicking anywhere else in the text fires `onActivate(null)`, so the solid
+ * "you are in this thread" trail reverts to the dotted resting one as soon as
+ * the caret leaves. No keymap here: ⌘⇧M is owned solely by
+ * editor/keymap.ts's formatting keymap (the duplicate registration is gone).
  */
-export function commentHighlightExtension(onActivate: (commentId: string) => void): Extension {
+export function commentHighlightExtension(
+  onActivate: (commentId: string | null) => void
+): Extension {
   return [
     anchorsField,
     activeField,
@@ -224,13 +228,27 @@ export function commentHighlightExtension(onActivate: (commentId: string) => voi
       else if (update.geometryChanged) notifyGeometry()
     }),
     EditorView.domEventHandlers({
-      mousedown(event) {
+      mousedown(event, view) {
         if (event.button !== 0) return false
         const target = event.target as Element | null
         const el = target?.closest?.('[data-comment-id]')
         const id = el?.getAttribute('data-comment-id')
-        if (id === null || id === undefined || id === '') return false
-        onActivate(id)
+        if (id !== null && id !== undefined && id !== '') {
+          onActivate(id)
+          return false
+        }
+        // Clicking away from every anchor DEACTIVATES: the solid trail means
+        // "this is the thread you are in", so leaving it solid after the
+        // caret has moved elsewhere is a lie, and with several comments in a
+        // paragraph it points at the wrong one.
+        //
+        // Tooltips and panels are exempt. They live inside the editor's DOM
+        // but are chrome, not text — the AI-diff Accept/Reject popover in
+        // particular can sit inside a commented sentence, and using it must
+        // not drop the highlight of the comment being worked on.
+        if (target?.closest?.('.cm-tooltip, .cm-panel') != null) return false
+        if (view.state.field(activeField, false) == null) return false
+        onActivate(null)
         return false
       }
     })
