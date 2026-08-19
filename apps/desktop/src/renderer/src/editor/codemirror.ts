@@ -104,6 +104,40 @@ Vim.defineEx('title', 'title', (cm) => {
 // declared without a `this` — cannot express.
 Vim.defineMotion('moveByLines', moveByDocumentLines as unknown as Parameters<typeof Vim.defineMotion>[1])
 
+// Vim's unnamed register is mirrored into the system clipboard, so a plain `y`
+// (or `yy`, `Y`, a visual-mode yank, and — as with vim's own
+// `clipboard=unnamed` — `d`/`c`/`x`) can be pasted into any other app. The
+// engine only writes the clipboard for an explicit `"+y`; everything else stops
+// at its in-memory register. There is no option for this, so we wrap the
+// unnamed register's setText once, in place: the register object is the single
+// point every yank and delete funnels through (RegisterController.pushText
+// always finishes by setting it), which is exactly the semantics we want and
+// costs no key remapping.
+interface VimRegister {
+  setText(text?: string, linewise?: boolean, blockwise?: boolean): void
+  __sunaClipboard?: true
+}
+interface VimGlobalStateApi {
+  getVimGlobalState_?: () => { registerController?: { unnamedRegister?: VimRegister } }
+}
+
+/** Idempotent, and cheap enough to call on every vim install: the engine
+ *  rebuilds its global state (and with it the register) on reset. */
+function mirrorYanksToClipboard(): void {
+  const state = (Vim as unknown as VimGlobalStateApi).getVimGlobalState_?.()
+  const register = state?.registerController?.unnamedRegister
+  if (register === undefined || register.__sunaClipboard === true) return
+  const setText = register.setText.bind(register)
+  register.setText = (text, linewise, blockwise): void => {
+    setText(text, linewise, blockwise)
+    if (typeof text === 'string' && text.length > 0) {
+      // Fire-and-forget: a denied clipboard permission must never break a yank.
+      void navigator.clipboard?.writeText(text).catch(() => {})
+    }
+  }
+  register.__sunaClipboard = true
+}
+
 // Where a refusal ("no write since last change") is shown, and where `:help`
 // lands. Wired here because defineEx is process-wide, so the registry is too —
 // and so the ex commands above cannot exist without their destinations.
@@ -323,6 +357,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   const vimOwner = {}
   let detachVimMode: (() => void) | null = null
   const attachVimMode = (): void => {
+    mirrorYanksToClipboard()
     const report = options.onVimMode
     const cm = getCM(view)
     if (report === undefined || cm === null) return
