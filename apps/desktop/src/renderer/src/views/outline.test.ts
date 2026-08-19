@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OutlineSection } from '@suna/markdown'
-import { outlineRows } from './outline'
+import { activeRowKey, outlineRows, totalWords, visibleRows } from './outline'
 
 const sections: OutlineSection[] = [
   { level: 0, title: '', headingFrom: 0, from: 0, to: 10, words: 8 },
@@ -61,5 +61,64 @@ describe('outlineRows', () => {
 
   it('returns an empty list for an empty outline', () => {
     expect(outlineRows([])).toEqual([])
+  })
+})
+
+describe('visibleRows', () => {
+  it('hides a collapsed section\'s whole branch, to any depth', () => {
+    const rows = outlineRows(sections)
+    const visible = visibleRows(rows, new Set(['s1']))
+    expect(visible.map((r) => r.label)).toEqual([null, 'Results'])
+  })
+
+  it('keeps everything when nothing is collapsed', () => {
+    const rows = outlineRows(sections)
+    expect(visibleRows(rows, new Set())).toEqual(rows)
+  })
+
+  it('resumes at the next same-level heading after a collapsed branch', () => {
+    const rows = outlineRows([
+      { level: 1, title: 'Methods', headingFrom: 0, from: 10, to: 20, words: 2 },
+      { level: 2, title: 'Data', headingFrom: 20, from: 27, to: 40, words: 9 },
+      { level: 1, title: 'Results', headingFrom: 40, from: 50, to: 60, words: 4 }
+    ])
+    expect(visibleRows(rows, new Set(['s0'])).map((r) => r.label)).toEqual(['Methods', 'Results'])
+  })
+
+  it('marks only sections that actually have children', () => {
+    expect(outlineRows(sections).map((r) => r.hasChildren)).toEqual([false, true, true, false])
+  })
+})
+
+describe('totalWords', () => {
+  it('counts every section once, without double-counting nested ones', () => {
+    expect(totalWords(sections)).toBe(28)
+  })
+
+  it('is zero for an empty outline', () => {
+    expect(totalWords([])).toBe(0)
+  })
+})
+
+describe('activeRowKey', () => {
+  it('lights the active section itself when it is visible', () => {
+    const rows = outlineRows(sections)
+    expect(activeRowKey(rows, rows, 2)).toBe('s2')
+  })
+
+  it('rolls the highlight up to a collapsed ancestor', () => {
+    const rows = outlineRows(sections)
+    const visible = visibleRows(rows, new Set(['s1']))
+    expect(activeRowKey(rows, visible, 3)).toBe('s1')
+  })
+
+  it('rolls up past several collapsed levels to the nearest visible ancestor', () => {
+    const rows = outlineRows(sections)
+    const visible = visibleRows(rows, new Set(['s1', 's2']))
+    expect(activeRowKey(rows, visible, 3)).toBe('s1')
+  })
+
+  it('returns null when there is no active section', () => {
+    expect(activeRowKey(outlineRows(sections), [], -1)).toBeNull()
   })
 })

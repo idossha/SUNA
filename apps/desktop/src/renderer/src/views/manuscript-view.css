@@ -33,3 +33,44 @@
 .ms__row--active .ms__count {
   color: var(--s-ink-muted);
 }
+
+/* collapse twisty: a fixed-width gutter ahead of the chip so labels stay
+   aligned whether or not a section has children */
+.ms__twisty {
+  flex-shrink: 0;
+  width: 11px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--s-ink-faint);
+}
+
+.ms__twisty:not(.ms__twisty--empty):hover {
+  color: var(--s-ink);
+}
+
+.ms__twisty--empty {
+  pointer-events: none;
+}
+
+/* running total, sharing the outline's word-count column */
+.ms__row--total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  margin-top: 4px;
+  border-top: 1px solid var(--s-border);
+  color: var(--s-ink-muted);
+  cursor: default;
+}
+
+.ms__row--total .ms__row-label {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.ms__row--total .ms__count {
+  color: var(--s-ink);
+}

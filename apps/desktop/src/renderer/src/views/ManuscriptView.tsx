@@ -6,7 +6,7 @@ import { useManuscriptStore } from '../state/manuscript'
 import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openManuscriptTab } from '../state/dock'
 import { splitTexSpans } from '../manuscript/title-page'
-import { outlineRows } from './outline'
+import { activeRowKey, outlineRows, totalWords, visibleRows } from './outline'
 import './views.css'
 import './manuscript-view.css'
 
@@ -55,6 +55,7 @@ export function ManuscriptView(): JSX.Element {
   const tabMounted = useManuscriptDocStore((s) => s.tabMounted)
 
   const [diskOutline, setDiskOutline] = useState<OutlineSection[]>([])
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
 
   useEffect(() => {
     void refresh()
@@ -82,10 +83,22 @@ export function ManuscriptView(): JSX.Element {
     }
   }, [tabMounted, rootDir, manuscript, saveBump])
 
-  const rows = useMemo(
-    () => outlineRows(tabMounted ? liveOutline : diskOutline),
-    [tabMounted, liveOutline, diskOutline]
+  const sections = tabMounted ? liveOutline : diskOutline
+  const rows = useMemo(() => outlineRows(sections), [sections])
+  const visible = useMemo(() => visibleRows(rows, collapsed), [rows, collapsed])
+  const total = useMemo(() => totalWords(sections), [sections])
+  const activeKey = useMemo(
+    () => activeRowKey(rows, visible, activeSectionIndex),
+    [rows, visible, activeSectionIndex]
   )
+
+  const toggle = (key: string): void => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
+  }
 
   if (error !== null) {
     return (
@@ -122,8 +135,10 @@ export function ManuscriptView(): JSX.Element {
       <div>
         <div className="view__section-title">Outline</div>
         <div className="ms__outline">
-          {rows.map((row, index) => {
-            const active = tabActive && activeSectionIndex === index
+          {visible.map((row) => {
+            const index = rows.indexOf(row)
+            const active = tabActive && activeKey === row.key
+            const isCollapsed = collapsed.has(row.key)
             return (
               <button
                 key={row.key}
@@ -136,6 +151,23 @@ export function ManuscriptView(): JSX.Element {
                   useManuscriptDocStore.getState().requestScroll(index)
                 }}
               >
+                {row.hasChildren ? (
+                  <span
+                    className="ms__twisty"
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+                    aria-expanded={!isCollapsed}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggle(row.key)
+                    }}
+                  >
+                    {isCollapsed ? '\u203a' : '\u2304'}
+                  </span>
+                ) : (
+                  <span className="ms__twisty ms__twisty--empty" />
+                )}
                 {row.chip !== '' && <span className="chip">{row.chip}</span>}
                 <span
                   className={
@@ -150,6 +182,11 @@ export function ManuscriptView(): JSX.Element {
               </button>
             )
           })}
+          <div className="ms__row ms__row--total">
+            <span className="ms__twisty ms__twisty--empty" />
+            <span className="ms__row-label">Total</span>
+            <span className="ms__count">{total}</span>
+          </div>
         </div>
       </div>
 

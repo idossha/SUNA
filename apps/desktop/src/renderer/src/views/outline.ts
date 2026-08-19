@@ -16,6 +16,8 @@ export interface OutlineRow {
    * the whole branch rather than the few words before its first child.
    */
   words: number
+  /** True when at least one deeper section nests under this one — the collapse twisty. */
+  hasChildren: boolean
 }
 
 /** Typographic chip for a Markdown heading depth: 1 → 'A', 2 → 'B', 3+ → 'C'. */
@@ -39,8 +41,64 @@ export function outlineRows(sections: readonly OutlineSection[]): OutlineRow[] {
     chip: chipFor(section.level),
     depth: Math.max(0, section.level - 1),
     headingFrom: section.headingFrom,
-    words: rolledUpWords(sections, i)
+    words: rolledUpWords(sections, i),
+    hasChildren: hasChildren(sections, i)
   }))
+}
+
+/** Whether the section that follows `index` is nested under it. */
+function hasChildren(sections: readonly OutlineSection[], index: number): boolean {
+  const self = sections[index]
+  if (self === undefined || self.level === 0) return false
+  const next = sections[index + 1]
+  return next !== undefined && next.level > self.level
+}
+
+/**
+ * Rows left visible once the sections in `collapsed` (by row key) hide their
+ * branches. A collapsed row stays visible; everything indented under it, to
+ * any depth, drops out until the outline returns to that level.
+ */
+export function visibleRows(rows: readonly OutlineRow[], collapsed: ReadonlySet<string>): OutlineRow[] {
+  const out: OutlineRow[] = []
+  let hiddenBelow: number | null = null
+  for (const row of rows) {
+    if (hiddenBelow !== null) {
+      if (row.depth > hiddenBelow) continue
+      hiddenBelow = null
+    }
+    out.push(row)
+    if (row.hasChildren && collapsed.has(row.key)) hiddenBelow = row.depth
+  }
+  return out
+}
+
+/**
+ * Key of the row that should carry the active highlight, given the section the
+ * editor is currently in. Normally that section's own row — but when it is
+ * hidden inside a collapsed branch, the highlight rolls up to the nearest
+ * visible ancestor, so a collapsed "2. Methods" stays lit while you read 2.3.
+ */
+export function activeRowKey(
+  rows: readonly OutlineRow[],
+  visible: readonly OutlineRow[],
+  activeIndex: number
+): string | null {
+  const active = rows[activeIndex]
+  if (active === undefined) return null
+  const shown = new Set(visible.map((row) => row.key))
+  if (shown.has(active.key)) return active.key
+  for (let i = activeIndex - 1; i >= 0; i--) {
+    const row = rows[i]
+    if (row === undefined) continue
+    if (row.depth < active.depth && shown.has(row.key)) return row.key
+  }
+  return null
+}
+
+/** Total words across the whole outline — each section counted once. */
+export function totalWords(sections: readonly OutlineSection[]): number {
+  return sections.reduce((sum, section) => sum + section.words, 0)
 }
 
 /**
