@@ -677,6 +677,77 @@ export const CHANNELS = {
     response: z.object({}),
   },
 
+  /**
+   * `references/notes/<citekey>.json` (ADR-008). A missing file reads as
+   * `emptyReferenceNotes(citekey)`; the write validates with
+   * ReferenceNotesFileSchema and lands atomically, same discipline as
+   * comments.json. Separate from comments:* because reading notes are a
+   * different artifact with a different lifecycle, and because a per-paper
+   * file means one highlight does not rewrite the whole project's review data.
+   */
+  'refnotes:read': {
+    request: z.object({ dir: z.string().min(1), citekey: z.string().min(1) }),
+    response: z.object({ file: z.unknown() }),
+  },
+  'refnotes:write': {
+    request: z.object({
+      dir: z.string().min(1),
+      citekey: z.string().min(1),
+      file: z.unknown(),
+    }),
+    response: z.object({}),
+  },
+  /**
+   * Write SUNA's highlights into `references/<citekey>.pdf` as real PDF
+   * annotations (ADR-008, amended: native, in place, never a copy in output/).
+   *
+   * `bytes` is the whole regenerated file, produced in the renderer by loading
+   * the PRISTINE copy and saving it with every current highlight staged — the
+   * only way to remove one, since pdf.js cannot delete an annotation the
+   * loaded document already had (mozilla/pdf.js#18407).
+   *
+   * The main process is the last line of defence and re-derives the pristine
+   * prefix itself rather than trusting the renderer's word for it: it will not
+   * overwrite a PDF whose first `pristineBytes` no longer hash to
+   * `pristineSha256`, because that means another tool rewrote the file and the
+   * incoming bytes are built on a baseline that no longer exists.
+   */
+  'refnotes:embed': {
+    request: z.object({
+      dir: z.string().min(1),
+      citekey: z.string().min(1),
+      /** Base64 of the complete regenerated PDF. */
+      base64: z.string(),
+      /** Length of the pristine file the renderer built on. */
+      pristineBytes: z.number().int().nonnegative(),
+      /** sha256 of those first `pristineBytes`, as last recorded. */
+      pristineSha256: z.string().min(1),
+    }),
+    response: z.object({
+      /** sha256 of the file as written. */
+      sha256: z.string(),
+      bytesWritten: z.number().int().nonnegative(),
+    }),
+  },
+  /**
+   * The pristine baseline for a reference PDF: its length and hash with no
+   * SUNA annotations appended, plus the bytes to load. Called once when a
+   * paper is opened for annotating, so the renderer can regenerate from a
+   * known-clean copy without re-reading the annotated file.
+   */
+  'refnotes:pristine': {
+    request: z.object({ dir: z.string().min(1), citekey: z.string().min(1) }),
+    response: z.object({
+      base64: z.string(),
+      pristineBytes: z.number().int().nonnegative(),
+      pristineSha256: z.string(),
+      /** True when the file on disk is longer than the recorded baseline. */
+      hasEmbedded: z.boolean(),
+      /** Set when the baseline no longer matches — another tool rewrote it. */
+      conflict: z.string().nullable(),
+    }),
+  },
+
   /** Results are LitResult shaped; `error` is a human message, never swallowed. */
   'lit:search': {
     request: z.object({
