@@ -26,6 +26,10 @@ export async function commentsJsonPath(dir: string): Promise<string> {
   return join(await projectSubdir(dir, 'manuscript'), 'comments.json')
 }
 
+export async function revisionsJsonPath(dir: string): Promise<string> {
+  return join(await projectSubdir(dir, 'manuscript'), 'revisions.json')
+}
+
 export async function figureDirPath(dir: string, figureId: string): Promise<string> {
   return join(await projectSubdir(dir, 'figures'), figureId)
 }

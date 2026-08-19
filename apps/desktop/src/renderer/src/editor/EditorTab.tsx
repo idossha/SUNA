@@ -21,6 +21,10 @@ import { RailToggleButton } from '../comments/RailToggleButton'
 import '../comments/comments.css'
 import { createEditor, type EditorHandle } from './codemirror'
 import { DivergenceBanner } from './DivergenceBanner'
+import { ReviewBar } from './ReviewBar'
+import { revisionDiffExtension } from './revisionDiff'
+import { revisionReviewKeymap, syncRevisionBase } from './revisionReview'
+import { useRevision } from '../state/revisions'
 import { openCitationPicker } from './CitationPicker'
 import { openFigurePicker } from './FigurePicker'
 import { editorSurfaceStyle, useEditorSettings } from './settings'
@@ -149,6 +153,17 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
     }
   }, [metaDirty, api, fileName])
 
+  // The baseline reaches a live editor from two directions: a run finishing
+  // (the store changes) and the setting being toggled. Both land here, so the
+  // paint appears and disappears without reopening the tab.
+  const revision = useRevision(sectionPath)
+  const aiDiffs = useResolved('review.aiDiffs').value
+  useEffect(() => {
+    const view = handleRef.current?.view
+    if (view === undefined || sectionPath === null) return
+    syncRevisionBase(view, sectionPath, aiDiffs === 'inline')
+  }, [revision?.base, revision?.id, aiDiffs, sectionPath])
+
   useEffect(() => {
     let disposed = false
     let detach: (() => void) | null = null
@@ -221,10 +236,25 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
               // reverse direction (card click -> flash) and the flash watcher
               commentHighlightExtension((commentId: string) =>
                 useCommentsStore.getState().setActive(commentId)
-              )
+              ),
+              // AI-change review: word-level red/green over the baseline in
+              // manuscript/revisions.json, plus its accept/reject keys. Only
+              // manuscript prose has a baseline to diff against.
+              ...(sectionPathRef.current === null
+                ? []
+                : [revisionDiffExtension(), revisionReviewKeymap(sectionPathRef.current)])
             ])
           })
           applySectionComments(view, openCommentsForPathRef.current)
+          if (sectionPathRef.current !== null) {
+            // The tab may open with a run already unreviewed; the effect above
+            // only fires on later changes, so seed the baseline here.
+            syncRevisionBase(
+              view,
+              sectionPathRef.current,
+              getResolved('review.aiDiffs').value === 'inline'
+            )
+          }
           const sp = sectionPathRef.current
           if (sp !== null) {
             unregisterAnchors = registerLiveAnchorSource(sp, () => liveAnchors(view.state))
@@ -347,6 +377,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
         )}
       </div>
       <DivergenceBanner path={path} />
+      <ReviewBar sectionPath={sectionPath} getView={getEditorView} />
       <div className={`editor-tab__source${mode === 'reading' ? ' editor-tab__source--reading' : ''}`}>
         <div ref={hostRef} className="editor-tab__cm" />
         {sectionPath !== null && (

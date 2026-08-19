@@ -10,6 +10,7 @@ import {
   type ProjectSettings,
   type ResolvedSettingKey,
   type ResolvedSettings,
+  type ReviewAiDiffs,
   type SettingSource,
   type SettingsResolution,
   type SunaProjectManifest
@@ -89,6 +90,8 @@ export interface GlobalSettings {
   'lit.cli': LitCliPreference
   /** Auto-open a resolved reference PDF beside the References list. */
   'references.autoOpenPdf': boolean
+  /** Show the AI's unreviewed changes inline in the editor (feature-plan-11). */
+  'review.aiDiffs': ReviewAiDiffs
 }
 
 export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
@@ -100,7 +103,8 @@ export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
   'terminal.shell': '',
   'lit.mailto': '',
   'lit.cli': 'auto',
-  'references.autoOpenPdf': true
+  'references.autoOpenPdf': true,
+  'review.aiDiffs': 'inline'
 }
 
 export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
@@ -127,6 +131,8 @@ export function coerceSettings(raw: Record<string, unknown>): GlobalSettings {
   if (typeof raw['editor.autosave'] === 'boolean') {
     out['editor.autosave'] = raw['editor.autosave']
   }
+  const aiDiffs = raw['review.aiDiffs']
+  if (aiDiffs === 'inline' || aiDiffs === 'off') out['review.aiDiffs'] = aiDiffs
   const scale = raw['appearance.uiScale']
   if (typeof scale === 'number' && scale >= 0.75 && scale <= 1.5) {
     out['appearance.uiScale'] = scale

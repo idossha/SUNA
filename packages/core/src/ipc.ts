@@ -1153,6 +1153,16 @@ export const CHANNELS = {
     response: z.object({}),
   },
 
+  /** manuscript/revisions.json — the AI-diff baseline (feature-plan-11). */
+  'revisions:read': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ file: z.unknown() }),
+  },
+  'revisions:write': {
+    request: z.object({ dir: z.string().min(1), file: z.unknown() }),
+    response: z.object({}),
+  },
+
   /**
    * `references/notes/<citekey>.json` (ADR-008). A missing file reads as
    * `emptyReferenceNotes(citekey)`; the write validates with

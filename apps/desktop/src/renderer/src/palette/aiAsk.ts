@@ -11,6 +11,7 @@
  */
 
 import { flushDirtySessions } from '../state/docSessions'
+import { captureAiBaseline } from '../state/revisions'
 
 export interface AiAskOutcome {
   text: string | null
@@ -29,6 +30,8 @@ export interface AiAskRunOptions {
   useMcp?: boolean
   /** Deliver the prompt over stdin: no argv limit, and absent from `ps`. */
   viaStdin?: boolean
+  /** One line naming this run in the AI-diff review bar (feature-plan-11). */
+  label?: string
 }
 
 export async function startAiAsk(
@@ -42,6 +45,11 @@ export async function startAiAsk(
   // would be invisible to it — and a whole-file write would then erase it.
   // feature-plan-11 §11d.
   await flushDirtySessions(dir)
+  // Snapshot the manuscript AFTER that flush, so the diff the author reviews
+  // afterwards is against what they could actually see. A run that changes
+  // nothing leaves a baseline identical to the file, which renders as no
+  // hunks — harmless, and cleared by the first review action.
+  await captureAiBaseline(options?.label ?? 'AI edit')
   const { askId } = await window.suna.invoke('ai:ask', {
     prompt,
     dir,

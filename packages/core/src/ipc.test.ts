@@ -133,6 +133,8 @@ describe('CHANNELS', () => {
       'refnotes:list-all',
       'refnotes:read',
       'refnotes:write',
+      'revisions:read',
+      'revisions:write',
       'settings:get',
       'settings:set',
       'shell:open-path',

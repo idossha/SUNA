@@ -11,6 +11,7 @@ import { useDocSessionMeta } from '../state/docSessions'
 import { useUiStore } from '../state/ui'
 import { useEditorSettings } from '../editor/settings'
 import { DivergenceBanner } from '../editor/DivergenceBanner'
+import { ReviewBar } from '../editor/ReviewBar'
 import type { EditorViewMode } from '../editor/EditorTab'
 import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
@@ -346,6 +347,10 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
           {settingsOpen && <SettingsPopover onClose={() => setSettingsOpen(false)} />}
         </div>
         <DivergenceBanner path={absPath} />
+        <ReviewBar
+          sectionPath={manuscript?.manuscriptFile ?? null}
+          getView={getEditorView}
+        />
         <div className="msdoc__body">
           <div className="msdoc__page">
             {stale && (
