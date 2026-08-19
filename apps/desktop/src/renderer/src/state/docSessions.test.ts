@@ -5,6 +5,7 @@ import {
   AUTOSAVE_IDLE_MS,
   DocSessionCore,
   acquireDocSession,
+  flushDirtySessions,
   useDocSessionsStore,
   type SessionView
 } from './docSessions'
@@ -406,6 +407,112 @@ describe('autosave', () => {
     session.resolveDivergence('keepMine')
     await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS)
     expect(disk.writes).toEqual(['mine one'])
+    release()
+  })
+
+  /**
+   * The case the merge exists for, and the one that happens constantly during
+   * an AI run: the agent rewrites a paragraph the human is nowhere near. That
+   * used to raise the banner, where "reload" discarded the human's typing and
+   * "keep mine" discarded the agent's work. It must now be a non-event.
+   */
+  it('merges an agent edit elsewhere into a dirty buffer with no banner', async () => {
+    const disk = bridge('P1\n\nP2\n\nP3')
+    const { core, checkDisk, view, entry, release } = await liveSession('/p/m.md', 'P1\n\nP2\n\nP3')
+
+    view.edit(core, entry, { from: 0, to: 2, insert: 'MINE' })
+    disk.disk = 'P1\n\nP2\n\nTHEIRS'
+    await checkDisk()
+
+    const meta = useDocSessionsStore.getState().meta.get('/p/m.md')
+    expect(meta?.diverged).toBe(false)
+    expect(meta?.conflicts).toBe(0)
+    // both edits are live in the one buffer
+    expect(core.text()).toBe('MINE\n\nP2\n\nTHEIRS')
+    expect(view.text()).toBe('MINE\n\nP2\n\nTHEIRS')
+
+    // and the merged result gets written, rather than sitting apart from disk
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS)
+    expect(disk.writes).toEqual(['MINE\n\nP2\n\nTHEIRS'])
+    release()
+  })
+
+  it('flags only the paragraph both sides changed, and keeps ours in the buffer', async () => {
+    const disk = bridge('P1\n\nP2\n\nP3')
+    const { core, checkDisk, view, entry, release } = await liveSession('/p/c.md', 'P1\n\nP2\n\nP3')
+
+    view.edit(core, entry, { from: 0, to: 2, insert: 'MINE' })
+    disk.disk = 'OURCLASH\n\nP2\n\nTHEIRS'
+    await checkDisk()
+
+    const meta = useDocSessionsStore.getState().meta.get('/p/c.md')
+    expect(meta?.diverged).toBe(true)
+    expect(meta?.conflicts).toBe(1)
+    // ours survives the clash; their untouched-by-us edit still lands
+    expect(core.text()).toBe('MINE\n\nP2\n\nTHEIRS')
+    // nothing is written while the human has not answered
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS * 3)
+    expect(disk.writes).toEqual([])
+    release()
+  })
+
+  it('takeTheirs yields the clashing paragraph without dropping our other edits', async () => {
+    const disk = bridge('P1\n\nP2\n\nP3')
+    const { session, core, checkDisk, view, entry, release } = await liveSession(
+      '/p/t.md',
+      'P1\n\nP2\n\nP3'
+    )
+
+    // two of our edits: one that clashes (P1) and one that does not (P2)
+    view.edit(core, entry, { from: 0, to: 2, insert: 'MINE' })
+    view.edit(core, entry, { from: 6, to: 8, insert: 'ALSOMINE' })
+    disk.disk = 'THEIRCLASH\n\nP2\n\nP3'
+    await checkDisk()
+    expect(useDocSessionsStore.getState().meta.get('/p/t.md')?.conflicts).toBe(1)
+
+    session.resolveDivergence('takeTheirs')
+    // their version of P1 wins; our untouched-by-them edit to P2 is kept
+    expect(core.text()).toBe('THEIRCLASH\n\nALSOMINE\n\nP3')
+    const meta = useDocSessionsStore.getState().meta.get('/p/t.md')
+    expect(meta?.diverged).toBe(false)
+    expect(meta?.conflicts).toBe(0)
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_IDLE_MS)
+    expect(disk.writes).toEqual(['THEIRCLASH\n\nALSOMINE\n\nP3'])
+    release()
+  })
+
+  it('flushDirtySessions writes unsaved buffers before an agent reads the project', async () => {
+    const disk = bridge('base')
+    const { core, view, entry, release } = await liveSession('/p/proj/a.md', 'base')
+    view.edit(core, entry, { from: 0, insert: 'unsaved ' })
+    expect(disk.writes).toEqual([])
+
+    await flushDirtySessions('/p/proj')
+    expect(disk.writes).toEqual(['unsaved base'])
+    release()
+  })
+
+  it('flushDirtySessions leaves a conflicted session for the human to answer', async () => {
+    const disk = bridge('P1\n\nP2')
+    const { checkDisk, core, view, entry, release } = await liveSession('/p/proj/b.md', 'P1\n\nP2')
+    view.edit(core, entry, { from: 0, to: 2, insert: 'MINE' })
+    disk.disk = 'THEIRS\n\nP2'
+    await checkDisk()
+    expect(useDocSessionsStore.getState().meta.get('/p/proj/b.md')?.conflicts).toBe(1)
+
+    // Saving here would answer the banner "mine" on the author's behalf.
+    await flushDirtySessions('/p/proj')
+    expect(disk.writes).toEqual([])
+    release()
+  })
+
+  it('flushDirtySessions ignores buffers outside the directory it was given', async () => {
+    const disk = bridge('base')
+    const { core, view, entry, release } = await liveSession('/p/other/c.md', 'base')
+    view.edit(core, entry, { from: 0, insert: 'x' })
+    await flushDirtySessions('/p/proj')
+    expect(disk.writes).toEqual([])
     release()
   })
 

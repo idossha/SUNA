@@ -15,6 +15,12 @@
  * what the old single-span diff did to everything between the first and last
  * difference.
  *
+ * A second scenario covers the three-way merge (§11c): the author is typing
+ * — buffer dirty, nothing saved — when the file changes underneath. An edit in
+ * a paragraph they are not in must land silently, with their unsaved text
+ * untouched and no banner. Before the merge that combination stopped dead at
+ * an all-or-nothing prompt whose both answers destroyed somebody's work.
+ *
  * Run:  node scripts/e2e/drive.mjs --boot --example
  *       node scripts/e2e/drive.mjs scripts/e2e/probes/live-coedit.mjs
  */
@@ -158,6 +164,57 @@ export default async (ctx) => {
     check('the guard comment is still attached to its original quote',
       stillAttached !== null && stillAttached.detached === false && stillAttached.quote === guardQuote,
       JSON.stringify(stillAttached))
+    // ---- 2. three-way merge into a DIRTY buffer (§11c) -------------------
+    // Type into the editor without saving, so the buffer and disk genuinely
+    // disagree, then change a different paragraph on disk.
+    const caret = await ctx.evalJs(`(() => {
+      const line = [...document.querySelectorAll('.cm-content .cm-line')].find((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.top > 120 && r.bottom < window.innerHeight - 60 &&
+          el.textContent.includes(${JSON.stringify(guardQuote.slice(0, 20))})
+      })
+      if (!line) return null
+      const r = line.getBoundingClientRect()
+      return { x: r.left + 4, y: r.top + r.height / 2 }
+    })()`)
+    check('found the guard line to type into', caret !== null)
+    if (caret !== null) {
+      await ctx.click(caret.x, caret.y)
+      await ctx.insertText('UNSAVED ')
+      await ctx.sleep(200)
+
+      const dirty = await ctx.evalJs(
+        `window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(manuscriptPath)})?.dirty === true`
+      )
+      check('the buffer is dirty before the external write', dirty === true)
+
+      // A different paragraph changes on disk, the way an agent's write does.
+      const onDisk = readFileSync(manuscriptPath, 'utf8')
+      const merged = onDisk.replace(early, `${early} Added while the author was typing.`)
+      writeFileSync(manuscriptPath, merged, 'utf8')
+
+      await ctx.waitFor(
+        `window.__sunaDev.docSessions.peek(${JSON.stringify(manuscriptPath)})?.includes('while the author was typing')`,
+        { timeoutMs: 15000, desc: 'the merge reaching the dirty buffer' }
+      )
+      await ctx.sleep(600)
+
+      const after2 = await ctx.evalJs(
+        `window.__sunaDev.docSessions.peek(${JSON.stringify(manuscriptPath)})`
+      )
+      check('their edit merged into the dirty buffer', after2.includes('while the author was typing'))
+      check('our unsaved typing survived the merge', after2.includes('UNSAVED '),
+        'the human\'s in-progress text was lost')
+
+      const meta2 = await ctx.evalJs(
+        `JSON.stringify(window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(manuscriptPath)}) ?? null)`
+      )
+      check('a merge in a different paragraph raised no conflict banner',
+        meta2 !== null && JSON.parse(meta2).diverged === false, meta2)
+      check('no divergence banner is on screen',
+        (await ctx.evalJs(`!!document.querySelector('.editor-diverged')`)) === false)
+    }
+
   } finally {
     writeFileSync(manuscriptPath, original, 'utf8')
     writeFileSync(commentsPath, originalComments, 'utf8')

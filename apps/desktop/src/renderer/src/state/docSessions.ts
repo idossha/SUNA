@@ -1,7 +1,7 @@
 import { Annotation, ChangeSet, StateEffect, Text, Transaction } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { create } from 'zustand'
-import { diffSpans } from '@suna/core'
+import { diffSpans, merge3 } from '@suna/core'
 import { devSeam } from './devSeam'
 import { autosaveEnabled } from './autosave'
 import { useProjectStore } from './project'
@@ -50,8 +50,15 @@ function normalizeEol(text: string): string {
 
 export interface DocSessionMeta {
   dirty: boolean
-  /** Disk changed while the buffer was dirty; resolveDivergence() clears it. */
+  /**
+   * Disk changed under a dirty buffer in a way the three-way merge could NOT
+   * settle on its own; resolveDivergence() clears it. A merge with no
+   * conflicts never sets this — it is not news that the agent edited a
+   * paragraph you were not in.
+   */
   diverged: boolean
+  /** Paragraphs both sides changed. Zero unless `diverged`. */
+  conflicts: number
   views: number
 }
 
@@ -70,11 +77,12 @@ export function useDocSessionMeta(path: string | null): DocSessionMeta | undefin
 
 function setMeta(path: string, patch: Partial<DocSessionMeta>): void {
   useDocSessionsStore.setState((s) => {
-    const current = s.meta.get(path) ?? { dirty: false, diverged: false, views: 0 }
+    const current = s.meta.get(path) ?? { dirty: false, diverged: false, conflicts: 0, views: 0 }
     const next = { ...current, ...patch }
     if (
       next.dirty === current.dirty &&
       next.diverged === current.diverged &&
+      next.conflicts === current.conflicts &&
       next.views === current.views &&
       s.meta.has(path)
     ) {
@@ -224,7 +232,15 @@ export interface DocSession {
   save: () => Promise<boolean>
   /** Test seam: run any pending autosave now instead of waiting out the idle. */
   flushAutosave: () => Promise<boolean>
-  resolveDivergence: (choice: 'keepMine' | 'reloadDisk') => void
+  /**
+   * Answer the conflict banner. 'keepMine' accepts the merge as it stands
+   * (ours already won every conflicting paragraph); 'takeTheirs' re-runs the
+   * merge with the file winning those paragraphs, against the CURRENT buffer
+   * so nothing typed since the banner appeared is lost.
+   */
+  resolveDivergence: (choice: 'keepMine' | 'takeTheirs') => void
+  /** True while the merge left paragraphs for the human to decide. */
+  hasConflicts: () => boolean
   /** Revert the buffer to the last on-disk content (vim `:q!`'s contract). */
   discard: () => void
 }
@@ -238,6 +254,8 @@ class DocSessionImpl implements DocSession {
   /** Last content known to be on disk — the divergence baseline. */
   private diskText: string | null = null
   private divergedDiskText: string | null = null
+  /** The common ancestor at conflict time — 'takeTheirs' re-merges from it. */
+  private divergedBase: string | null = null
   private dirty = false
   private checkingDisk = false
 
@@ -329,6 +347,10 @@ class DocSessionImpl implements DocSession {
     return this.dirty
   }
 
+  hasConflicts(): boolean {
+    return this.divergedDiskText !== null
+  }
+
   viewCount(): number {
     return this.core?.entries.size ?? 0
   }
@@ -409,12 +431,13 @@ class DocSessionImpl implements DocSession {
       await window.suna.invoke('fs:write-text', { path: this.path, content })
       this.diskText = content
       this.divergedDiskText = null
+      this.divergedBase = null
       // edits that landed during the await keep the session dirty
       if (core.doc === savedDoc) {
         this.dirty = false
-        setMeta(this.path, { dirty: false, diverged: false })
+        setMeta(this.path, { dirty: false, diverged: false, conflicts: 0 })
       } else {
-        setMeta(this.path, { diverged: false })
+        setMeta(this.path, { diverged: false, conflicts: 0 })
       }
       devSeam.noteFileSaved(this.path)
       if (!quiet) useUiStore.getState().setStatusNote(`Saved ${this.fileName}`)
@@ -433,8 +456,15 @@ class DocSessionImpl implements DocSession {
   /**
    * Re-read the file after a project-tree change and reconcile. Equal content
    * (including the echo of our own save) is a no-op; a clean session applies
-   * the disk text as a minimal mapped change; a dirty session flags
-   * divergence and touches nothing.
+   * the disk text as a mapped multi-span change.
+   *
+   * A DIRTY session used to stop dead here and raise an all-or-nothing
+   * banner, which during an AI run is the common case — and both answers threw
+   * away somebody's work. It now three-way merges instead: `diskText` is the
+   * ancestor both sides descend from, so an edit the agent made in a paragraph
+   * the human is not in simply lands, silently, with the human's unsaved text
+   * untouched. Only a paragraph BOTH sides changed raises the banner, and even
+   * then ours is what stays in the buffer.
    */
   async checkDisk(): Promise<void> {
     if (this.core === null || this.checkingDisk) return
@@ -442,13 +472,34 @@ class DocSessionImpl implements DocSession {
     try {
       const { content } = await window.suna.invoke('fs:read-text', { path: this.path })
       const normalized = normalizeEol(content)
-      if (this.core === null || normalized === this.diskText) return
-      if (this.dirty) {
-        this.divergedDiskText = normalized
-        setMeta(this.path, { diverged: true })
+      const core = this.core
+      if (core === null || normalized === this.diskText) return
+      if (!this.dirty) {
+        this.applyDiskText(normalized)
         return
       }
-      this.applyDiskText(normalized)
+
+      const base = this.diskText ?? core.text()
+      const { merged, conflicts } = merge3(base, core.text(), normalized)
+      core.applyExternal(merged)
+      // Whatever happens next, disk holds `normalized` — recording it as the
+      // new ancestor is what stops the same change re-merging on every tick.
+      this.diskText = normalized
+
+      if (conflicts.length > 0) {
+        this.divergedBase = base
+        this.divergedDiskText = normalized
+        setMeta(this.path, { diverged: true, conflicts: conflicts.length })
+        return
+      }
+
+      this.divergedBase = null
+      this.divergedDiskText = null
+      this.dirty = merged !== normalized
+      setMeta(this.path, { dirty: this.dirty, diverged: false, conflicts: 0 })
+      // The merged buffer is ahead of disk; get it written rather than leaving
+      // the two silently apart until the human happens to type again.
+      if (this.dirty) this.scheduleAutosave()
     } catch {
       // unreadable (deleted mid-edit?) — keep the buffer; a save recreates it
     } finally {
@@ -464,8 +515,9 @@ class DocSessionImpl implements DocSession {
     core.applyExternal(content)
     this.diskText = content
     this.divergedDiskText = null
+    this.divergedBase = null
     this.dirty = false
-    setMeta(this.path, { dirty: false, diverged: false })
+    setMeta(this.path, { dirty: false, diverged: false, conflicts: 0 })
     fireDocExternallyReloaded(this.path, content)
   }
 
@@ -477,25 +529,34 @@ class DocSessionImpl implements DocSession {
     this.applyDiskText(this.diskText)
   }
 
-  resolveDivergence(choice: 'keepMine' | 'reloadDisk'): void {
-    const stash = this.divergedDiskText
-    if (stash === null) {
-      setMeta(this.path, { diverged: false })
+  resolveDivergence(choice: 'keepMine' | 'takeTheirs'): void {
+    const core = this.core
+    const theirs = this.divergedDiskText
+    const base = this.divergedBase
+    if (core === null || theirs === null || base === null) {
+      setMeta(this.path, { diverged: false, conflicts: 0 })
       return
     }
-    if (choice === 'reloadDisk') {
-      this.applyDiskText(stash)
-      return
+
+    if (choice === 'takeTheirs') {
+      // Re-merge with the sides swapped, against the CURRENT buffer rather
+      // than a snapshot: the file wins the paragraphs we clashed over, and
+      // anything typed since the banner appeared — which the merge sees as
+      // "theirs" this time round — is carried through untouched.
+      const { merged } = merge3(base, theirs, core.text())
+      core.applyExternal(merged)
+      this.dirty = merged !== theirs
     }
-    // keepMine: accept that disk now holds `stash` so the same content never
-    // re-flags; the buffer stays dirty and the next ⌘S overwrites it.
-    this.diskText = stash
+
+    // keepMine needs no edit: the merge already left ours in the buffer.
+    this.divergedBase = null
     this.divergedDiskText = null
-    setMeta(this.path, { diverged: false })
+    this.diskText = theirs
+    setMeta(this.path, { dirty: this.dirty, diverged: false, conflicts: 0 })
     // Autosave refuses to run while diverged, so the choice the user just
-    // made is what re-arms it — otherwise "keep mine" would sit unsaved
-    // until they happened to type again.
-    this.scheduleAutosave()
+    // made is what re-arms it — otherwise the answer would sit unsaved until
+    // they happened to type again.
+    if (this.dirty) this.scheduleAutosave()
   }
 
   /** True when nothing holds this session and nothing would be lost. */
@@ -547,6 +608,31 @@ export function acquireDocSession(path: string): { session: DocSession; release:
 
 export function getDocSession(path: string): DocSession | null {
   return sessions.get(path) ?? null
+}
+
+/**
+ * Write every dirty buffer under `dir` before an agent is let loose on the
+ * project (feature-plan-11 §11d).
+ *
+ * An agent reads files from DISK. Whatever the author has typed but not saved
+ * is invisible to it, so without this it reasons about — and rewrites — prose
+ * that is already out of date on screen. Autosave makes the window small, not
+ * absent: it is armed for a second after the last keystroke, and starting a
+ * run is exactly the moment someone stops typing.
+ *
+ * Sessions with an unresolved conflict are skipped on purpose. Saving one
+ * would answer the banner "mine" on the author's behalf, which is the one
+ * decision this whole layer exists to leave to them.
+ */
+export async function flushDirtySessions(dir: string): Promise<void> {
+  const prefix = `${dir}/`
+  const pending: Promise<boolean>[] = []
+  for (const session of sessions.values()) {
+    if (!session.path.startsWith(prefix)) continue
+    if (!session.isDirty() || session.hasConflicts()) continue
+    pending.push(session.save())
+  }
+  await Promise.all(pending)
 }
 
 /** Buffer truth for consumers without a view (the references block). */
