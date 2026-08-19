@@ -155,7 +155,12 @@ const diffTheme = EditorView.baseTheme({
     color: 'var(--s-err)',
     textDecoration: 'line-through',
     borderRadius: '2px',
-    padding: '0 1px',
+    padding: '0 2px',
+    // A replacement renders as removal-then-addition with nothing between
+    // them, and without this they read as one run-together word
+    // ("spectacularlydramatically"). Margin, not a text separator: whatever
+    // this widget shows must stay out of the document.
+    marginRight: '3px',
     // Never selectable: what this shows is not in the document, and it must
     // not reach an export, a word count or the clipboard.
     userSelect: 'none',
