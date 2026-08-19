@@ -98,6 +98,27 @@ const api = {
   },
 
   /**
+   * Subscribe to "the open project's git state moved" (EVENT_CHANNELS.
+   * gitChanged) — index, HEAD, refs, or an in-progress merge/rebase, whoever
+   * moved them: this app, the built-in terminal, an agent, another editor.
+   * Returns an unsubscribe function.
+   */
+  onGitChanged: (listener: (payload: { dir: string }) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.gitChanged
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      const dir =
+        typeof payload === 'object' && payload !== null && 'dir' in payload
+          ? (payload as { dir: unknown }).dir
+          : null
+      if (typeof dir === 'string') listener({ dir })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
    * Subscribe to status-line pushes for one 'lit:ai-search' run
    * (EVENT_CHANNELS.litProgress). Returns an unsubscribe function.
    */

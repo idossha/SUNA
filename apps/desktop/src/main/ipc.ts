@@ -67,7 +67,50 @@ import {
 import { appMcpInvocation, healProjectAgentLayer } from './services/agentLayer'
 import { updateManuscript } from './services/manuscript'
 import { migrateProject } from './services/migrate-manuscript'
-import { gitCommit, gitDiffFile, gitInit, gitLog, gitStatus } from './services/git'
+import {
+  gitApplyHunk,
+  gitCommit,
+  gitDiffFile,
+  gitDiscard,
+  gitInit,
+  gitLastCommitMessage,
+  gitLog,
+  gitStage,
+  gitStatus,
+  gitUndoCommit,
+  gitUnstage
+} from './services/git'
+import { gitFileHistory, gitGraph, gitShowCommit } from './services/git-graph'
+import {
+  gitBranches,
+  gitCreateBranch,
+  gitDeleteBranch,
+  gitMergeBranch,
+  gitSwitchBranch
+} from './services/git-branch'
+import {
+  gitAbort,
+  gitConflictState,
+  gitContinue,
+  gitFetch,
+  gitMarkResolved,
+  gitPull,
+  gitResolveConflict
+} from './services/git-sync'
+import {
+  githubSession,
+  githubSignOut,
+  pollDeviceFlow,
+  startDeviceFlow
+} from './services/github-auth'
+import {
+  gitCheckRemote,
+  gitPush,
+  gitRemote,
+  gitSetRemote,
+  sshStatus
+} from './services/git-remote'
+import { ghCreateRepo, githubOwners } from './services/github'
 import {
   checkScaffoldTarget,
   createProject,
@@ -79,6 +122,7 @@ import {
 } from './services/project'
 import { watchProjectManifest } from './services/projectWatch'
 import { watchProjectTree } from './services/projectTreeWatch'
+import { watchGitDir } from './services/gitWatch'
 import { allowRoot } from './services/roots'
 import { createEnvWithUv, detectEnvs, selectEnv, selectedEnv, uvAvailable } from './services/envs'
 import {
@@ -206,6 +250,11 @@ function followProjectManifest(dir: string): void {
   // never made — exports, agents, the terminal, Finder (nav-bar item 4).
   watchProjectTree(dir, (changed) => {
     broadcast(EVENT_CHANNELS.projectTreeChanged, { dir: changed })
+  })
+  // and `.git`, which the tree watch ignores — staging, committing, checking
+  // out or rebasing from a terminal or an agent moves nothing else.
+  watchGitDir(dir, (changed) => {
+    broadcast(EVENT_CHANNELS.gitChanged, { dir: changed })
   })
 }
 
@@ -492,12 +541,68 @@ export function registerIpcHandlers(): void {
 
   handle('git:status', ({ dir }) => gitStatus(dir))
   handle('git:log', ({ dir, limit }) => gitLog(dir, limit))
-  handle('git:commit', ({ dir, message, stageAll }) => gitCommit(dir, message, stageAll))
-  handle('git:diff-file', ({ dir, path }) => gitDiffFile(dir, path))
-  handle('git:init', async ({ dir }) => {
-    await gitInit(dir)
+  handle('git:commit', ({ dir, message, stageAll, amend }) =>
+    gitCommit(dir, message, stageAll, amend ?? false)
+  )
+  handle('git:undo-commit', ({ dir }) => gitUndoCommit(dir))
+  handle('git:last-message', ({ dir }) => gitLastCommitMessage(dir))
+  handle('git:graph', ({ dir, limit, scope }) => gitGraph(dir, limit, scope ?? 'all'))
+  handle('git:file-history', ({ dir, path, limit }) => gitFileHistory(dir, path, limit))
+  handle('git:show-commit', ({ dir, hash }) => gitShowCommit(dir, hash))
+  handle('git:diff-file', ({ dir, path, side }) => gitDiffFile(dir, path, side ?? 'both'))
+  handle('git:apply-hunk', async ({ dir, path, index, action }) => {
+    await gitApplyHunk(dir, path, index, action)
     return {}
   })
+  handle('git:stage', async ({ dir, paths }) => {
+    await gitStage(dir, paths)
+    return {}
+  })
+  handle('git:unstage', async ({ dir, paths }) => {
+    await gitUnstage(dir, paths)
+    return {}
+  })
+  handle('git:discard', ({ dir, paths, deleteUntracked }) =>
+    gitDiscard(dir, paths, deleteUntracked ?? false)
+  )
+  handle('git:init', ({ dir }) => gitInit(dir))
+  handle('git:remote', ({ dir }) => gitRemote(dir))
+  handle('git:set-remote', ({ dir, url, allowHttps }) => gitSetRemote(dir, url, allowHttps ?? false))
+  handle('git:check-remote', ({ dir }) => gitCheckRemote(dir))
+  handle('git:push', ({ dir }) => gitPush(dir))
+  handle('git:ssh-status', ({ host, probe }) => sshStatus(host ?? 'github.com', probe))
+
+  handle('git:branches', ({ dir }) => gitBranches(dir))
+  handle('git:create-branch', ({ dir, name }) => gitCreateBranch(dir, name))
+  handle('git:switch-branch', ({ dir, name }) => gitSwitchBranch(dir, name))
+  handle('git:delete-branch', ({ dir, name, force }) => gitDeleteBranch(dir, name, force ?? false))
+  handle('git:merge-branch', ({ dir, name }) => gitMergeBranch(dir, name))
+
+  handle('git:fetch', ({ dir }) => gitFetch(dir))
+  handle('git:pull', ({ dir, mode }) => gitPull(dir, mode ?? 'rebase'))
+  handle('git:conflict-state', ({ dir }) => gitConflictState(dir))
+  handle('git:resolve-conflict', async ({ dir, path, side }) => {
+    await gitResolveConflict(dir, path, side)
+    return {}
+  })
+  handle('git:mark-resolved', async ({ dir, path }) => {
+    await gitMarkResolved(dir, path)
+    return {}
+  })
+  handle('git:continue', ({ dir, setAside }) => gitContinue(dir, setAside ?? false))
+  handle('git:abort', ({ dir }) => gitAbort(dir))
+
+  handle('github:session', () => githubSession())
+  handle('github:device-start', () => startDeviceFlow())
+  handle('github:device-poll', ({ deviceCode, interval }) => pollDeviceFlow(deviceCode, interval))
+  handle('github:sign-out', async () => {
+    await githubSignOut()
+    return {}
+  })
+  handle('github:owners', () => githubOwners())
+  handle('github:create-repo', ({ dir, name, visibility, owner, description, useHttps }) =>
+    ghCreateRepo(dir, name, visibility, owner ?? null, description ?? null, useHttps ?? false)
+  )
 
   handle('agent:set-key', async ({ provider, key }) => {
     await setKey(provider, key)

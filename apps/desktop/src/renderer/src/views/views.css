@@ -668,6 +668,1180 @@
   color: var(--s-ink-faint);
 }
 
+.git__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.git__section-head .view__section-title {
+  margin-bottom: 0;
+}
+
+.git__file {
+  display: flex;
+  flex-direction: column;
+}
+
+.git__row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--s-radius);
+}
+
+.git__row-wrap:hover {
+  background: var(--s-bg-hover);
+}
+
+.git__row-wrap .git__row {
+  flex: 1;
+  min-width: 0;
+}
+
+.git__row-wrap .git__row:hover {
+  background: transparent;
+}
+
+.git__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.git__icon-btn {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--s-radius);
+  color: var(--s-ink-faint);
+}
+
+.git__icon-btn:hover:not(:disabled) {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.git__icon-btn:disabled {
+  opacity: 0.4;
+}
+
+.git__icon-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.git__hunk {
+  border-top: 1px solid var(--s-border);
+}
+
+.git__hunk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 2px 1px 0;
+  background: var(--s-bg-hover);
+}
+
+.git__hunk-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--s-accent);
+}
+
+.git__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  border: 1px solid var(--s-border-strong);
+  border-left: 2px solid var(--s-err);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+}
+
+.git__confirm-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.git__commit-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ---- remote + SSH setup ---------------------------------------------------- */
+
+.git__remote-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.git__proto {
+  flex-shrink: 0;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.git__proto--ssh {
+  color: var(--s-ok);
+}
+
+.git__proto--https,
+.git__proto--other {
+  color: var(--s-warn);
+}
+
+.git__remote-url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+  user-select: text;
+}
+
+.git__create {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.git__create-head {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+}
+
+.git__create-head strong {
+  font-weight: 600;
+}
+
+.git__create-row {
+  display: flex;
+  gap: 6px;
+}
+
+.git__create-vis {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.git__create a {
+  color: var(--s-accent);
+}
+
+.git__remote-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.git__warn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--s-border-strong);
+  border-left: 2px solid var(--s-warn);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+}
+
+.git__warn code {
+  font-family: var(--s-font-mono);
+  color: var(--s-ink);
+  user-select: text;
+}
+
+.git__warn .btn {
+  align-self: flex-start;
+}
+
+.git__push {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.git__guide-toggle {
+  align-self: flex-start;
+  padding: 2px 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.git__guide-toggle:hover {
+  color: var(--s-ink);
+}
+
+.git__guide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.git__guide a {
+  color: var(--s-accent);
+}
+
+.git__guide-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.git__step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.git__step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 0 16px;
+}
+
+.git__step-mark {
+  width: 10px;
+  text-align: center;
+  font-family: var(--s-font-mono);
+}
+
+.git__step-mark--ok {
+  color: var(--s-ok);
+}
+
+.git__step-mark--todo {
+  color: var(--s-warn);
+}
+
+.git__step-mark--unknown {
+  color: var(--s-ink-faint);
+}
+
+.git__cmd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git__cmd code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px 6px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink);
+  white-space: nowrap;
+  user-select: text;
+}
+
+.git__probe {
+  max-height: 120px;
+  overflow: auto;
+  padding: 6px 8px;
+  background: var(--s-bg-editor);
+  border-radius: var(--s-radius);
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink-muted);
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.git__ok {
+  font-size: var(--s-text-xs);
+  color: var(--s-ok);
+}
+
+/* ---- sync trail: where your work currently is ------------------------------ */
+
+.trail {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.trail__cell {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.trail__arrow {
+  flex: none;
+  width: 8px;
+  height: 16px;
+  color: var(--s-ink-faint);
+  opacity: 0.6;
+}
+
+.trail__stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--s-radius);
+  text-align: center;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.trail__stage:hover {
+  background: var(--s-bg-hover);
+}
+
+.trail__count {
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-md);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--s-ink-faint);
+}
+
+.trail__label {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--s-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* A stage with something in it earns its colour; empty ones stay quiet, so the
+   eye lands on the one place that is actually holding work. */
+.trail__stage--filled .trail__count {
+  color: var(--s-ink);
+}
+
+.trail__stage--filled .trail__label {
+  color: var(--s-ink-muted);
+}
+
+.trail__stage--filled.trail__stage--working .trail__count {
+  color: var(--s-warn);
+}
+
+.trail__stage--filled.trail__stage--staged .trail__count {
+  color: var(--s-accent);
+}
+
+.trail__stage--filled.trail__stage--local .trail__count {
+  color: var(--s-graph-2);
+}
+
+.trail__stage--remote .trail__count {
+  color: var(--s-ok);
+}
+
+/* No remote at all is the opposite of "safe", so it must not read as a tick. */
+.trail__stage--unsafe .trail__count {
+  color: var(--s-warn);
+}
+
+.trail__stage--unsafe .trail__label {
+  color: var(--s-warn);
+  opacity: 0.85;
+}
+
+.trail__stage--active {
+  border-color: var(--s-border-strong);
+  background: var(--s-bg-hover);
+}
+
+.trail__behind {
+  flex: 1 0 100%;
+  margin-top: 6px;
+  padding: 3px 6px;
+  border-radius: var(--s-radius);
+  background: var(--s-bg-active);
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  text-align: center;
+}
+
+/* ---- fetch / pull / push --------------------------------------------------- */
+
+.git__sync-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.git__sync-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.git__sync-btn svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.git__commit-extra {
+  display: flex;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.git__link-btn {
+  padding: 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.git__link-btn:hover:not(:disabled) {
+  color: var(--s-ink);
+}
+
+.git__link-btn:disabled {
+  opacity: 0.5;
+}
+
+/* ---- branch bar ------------------------------------------------------------ */
+
+.gb {
+  margin-bottom: 8px;
+}
+
+.gb__bar {
+  display: flex;
+}
+
+.gb__toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--s-radius);
+  margin-bottom: 0;
+}
+
+.gb__toggle:hover {
+  background: var(--s-bg-hover);
+  border-color: var(--s-border);
+}
+
+.gb__current {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.gb__caret {
+  flex: none;
+  font-size: 9px;
+  color: var(--s-ink-faint);
+}
+
+.gb__ahead,
+.gb__behind {
+  flex: none;
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+}
+
+.gb__ahead {
+  color: var(--s-graph-2);
+}
+
+.gb__behind {
+  color: var(--s-warn);
+}
+
+.gb__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 4px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.gb__new {
+  align-self: flex-start;
+}
+
+.gb__create {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gb__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.gb__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--s-radius);
+}
+
+.gb__row:hover {
+  background: var(--s-bg-hover);
+}
+
+.gb__row--current {
+  background: var(--s-bg-active);
+}
+
+.gb__pick {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  grid-template-areas: 'mark name meta' '. subject subject';
+  align-items: center;
+  gap: 0 6px;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.gb__mark {
+  grid-area: mark;
+  font-size: 8px;
+  color: var(--s-ink-faint);
+}
+
+.gb__row--current .gb__mark {
+  color: var(--s-accent);
+}
+
+.gb__name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.gb__tag {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: var(--s-bg-raised);
+  font-size: 9px;
+  color: var(--s-ink-faint);
+}
+
+.gb__meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gb__when {
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.gb__subject {
+  grid-area: subject;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+/* ---- conflicts ------------------------------------------------------------- */
+
+.gc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-warn);
+  border-radius: var(--s-radius);
+}
+
+.gc__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gc__badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--s-warn);
+  color: var(--s-bg-shell);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gc__title {
+  font-size: var(--s-text-sm);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.gc__incoming {
+  margin: 0;
+}
+
+.gc__files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gc__file {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--s-bg-panel);
+  border-radius: var(--s-radius);
+}
+
+.gc__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+}
+
+.gc__path:hover {
+  color: var(--s-accent);
+  text-decoration: underline;
+}
+
+.gc__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gc__actions .btn {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.gc__foot {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---- timeline -------------------------------------------------------------- */
+
+.gt {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.gt__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gt__scope {
+  padding: 1px 6px;
+  border: 1px solid var(--s-border);
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.gt__scope:hover {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+.gt__scope--on {
+  color: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.gt__rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The rule that separates "only here" from "on the server". */
+.gt__boundary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.gt__boundary::before,
+.gt__boundary::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--s-border);
+}
+
+.gt__row {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  gap: 6px;
+  border-radius: var(--s-radius);
+  text-align: left;
+}
+
+.gt__row:hover {
+  background: var(--s-bg-hover);
+}
+
+.gt__row--open {
+  background: var(--s-bg-active);
+}
+
+.gt__lanes {
+  flex: none;
+  overflow: visible;
+}
+
+.gt__edge {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.gt__dot {
+  stroke-width: 2;
+}
+
+/* Filled = on the remote. Hollow = this machine only. */
+.gt__dot--local {
+  fill: var(--s-bg-panel);
+}
+
+.gt__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 4px 3px 0;
+}
+
+.gt__subject-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.gt__subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.gt__row--local .gt__subject {
+  font-style: italic;
+}
+
+.gt__ref {
+  flex: none;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-family: var(--s-font-mono);
+}
+
+.gt__ref--head {
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-weight: 600;
+}
+
+.gt__ref--local {
+  background: var(--s-bg-raised);
+  color: var(--s-ink-muted);
+}
+
+.gt__ref--remote {
+  background: transparent;
+  border: 1px solid var(--s-border-strong);
+  color: var(--s-ink-faint);
+}
+
+.gt__ref--tag {
+  background: var(--s-ok);
+  color: var(--s-bg-shell);
+}
+
+.gt__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.gt__avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--s-bg-chrome);
+}
+
+.gt__author {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt__time {
+  flex: none;
+}
+
+.gt__hash {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--s-font-mono);
+  opacity: 0.7;
+}
+
+.gt__more {
+  align-self: flex-start;
+  padding: 4px 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+}
+
+.gt__more:hover {
+  color: var(--s-ink);
+}
+
+.gt__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 8px 8px;
+  border-left: 1px solid var(--s-border);
+  margin-left: 6px;
+}
+
+.gt__detail-hint {
+  padding-left: 14px;
+}
+
+.gt__files {
+  display: flex;
+  flex-direction: column;
+}
+
+.gt__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--s-text-xs);
+}
+
+.gt__file-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-family: var(--s-font-mono);
+  color: var(--s-ink-muted);
+}
+
+.gt__file-stat {
+  flex: none;
+  display: flex;
+  gap: 5px;
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+}
+
+.gt__plus {
+  color: var(--s-ok);
+}
+
+.gt__minus {
+  color: var(--s-err);
+}
+
+.gt__diff {
+  max-height: 320px;
+}
+
+/* Lane palette. `s` strokes an edge, `f` fills a dot, `c` tints an avatar. */
+.gt__s0 { stroke: var(--s-graph-0); }
+.gt__s1 { stroke: var(--s-graph-1); }
+.gt__s2 { stroke: var(--s-graph-2); }
+.gt__s3 { stroke: var(--s-graph-3); }
+.gt__s4 { stroke: var(--s-graph-4); }
+.gt__s5 { stroke: var(--s-graph-5); }
+.gt__s6 { stroke: var(--s-graph-6); }
+.gt__s7 { stroke: var(--s-graph-7); }
+
+.gt__f0 { fill: var(--s-graph-0); stroke: var(--s-graph-0); }
+.gt__f1 { fill: var(--s-graph-1); stroke: var(--s-graph-1); }
+.gt__f2 { fill: var(--s-graph-2); stroke: var(--s-graph-2); }
+.gt__f3 { fill: var(--s-graph-3); stroke: var(--s-graph-3); }
+.gt__f4 { fill: var(--s-graph-4); stroke: var(--s-graph-4); }
+.gt__f5 { fill: var(--s-graph-5); stroke: var(--s-graph-5); }
+.gt__f6 { fill: var(--s-graph-6); stroke: var(--s-graph-6); }
+.gt__f7 { fill: var(--s-graph-7); stroke: var(--s-graph-7); }
+
+.gt__c0 { background: var(--s-graph-0); }
+.gt__c1 { background: var(--s-graph-1); }
+.gt__c2 { background: var(--s-graph-2); }
+.gt__c3 { background: var(--s-graph-3); }
+.gt__c4 { background: var(--s-graph-4); }
+.gt__c5 { background: var(--s-graph-5); }
+.gt__c6 { background: var(--s-graph-6); }
+.gt__c7 { background: var(--s-graph-7); }
+
+/* ---- GitHub account -------------------------------------------------------- */
+
+.git__remote-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gh {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+
+.gh__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh__mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--s-ink-muted);
+}
+
+.gh__title {
+  flex: 1;
+  font-size: var(--s-text-sm);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.gh__avatar {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--s-bg-raised);
+}
+
+.gh__who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.gh__login {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--s-text-sm);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.gh__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.gh__signin,
+.gh__signout {
+  flex: none;
+}
+
+.gh__flow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gh__flow a {
+  color: var(--s-accent);
+}
+
+.gh__code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--s-bg-panel);
+  border: 1px dashed var(--s-border-strong);
+  border-radius: var(--s-radius);
+}
+
+.gh__code-text {
+  font-family: var(--s-font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--s-accent);
+  user-select: text;
+}
+
+.gh__code-copy {
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.gh__code:hover .gh__code-copy {
+  color: var(--s-ink);
+}
+
+.gh__waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.gh__spinner {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--s-border-strong);
+  border-top-color: var(--s-accent);
+  border-radius: 50%;
+  animation: gh-spin 0.8s linear infinite;
+}
+
+@keyframes gh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh__spinner {
+    animation-duration: 2.4s;
+  }
+}
+
 /* ---- agent view ------------------------------------------------------------ */
 
 .agent {
@@ -1065,4 +2239,12 @@
   font-size: var(--s-text-xs);
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+.gc__blocked {
+  margin: 0;
+  padding-left: 18px;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
 }

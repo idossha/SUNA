@@ -454,8 +454,16 @@ button {
   color: var(--s-ink);
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   background: var(--s-bg-hover);
+}
+
+/* A disabled button has to LOOK disabled — Source Control shows Fetch, Pull
+   and Push permanently, and an unreachable action that still reads as
+   available is a button people press and then wonder about. */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .btn--primary {
@@ -465,8 +473,20 @@ button {
   font-weight: 600;
 }
 
-.btn--primary:hover {
+.btn--primary:hover:not(:disabled) {
   background: #f0c274;
+}
+
+/* Destructive confirmation (discard changes) — never the default action. */
+.btn--danger {
+  border-color: var(--s-err);
+  color: var(--s-err);
+  font-weight: 600;
+}
+
+.btn--danger:hover {
+  background: var(--s-err);
+  color: var(--s-bg-shell);
 }
 
 /* ---- explorer tree ------------------------------------------------------- */

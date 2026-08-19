@@ -75,6 +75,23 @@ async function getSlot(slot: string): Promise<string | null> {
   return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
 }
 
+/**
+ * A named slot for a secret that is not a provider key — currently the GitHub
+ * OAuth token. Namespace the slot (`github:token`) so it cannot collide with
+ * an agent provider id, which is stored under its bare name.
+ */
+export async function setSecret(slot: string, value: string): Promise<void> {
+  await setSlot(slot, value)
+}
+
+export async function getSecret(slot: string): Promise<string | null> {
+  return getSlot(slot)
+}
+
+export async function hasSecret(slot: string): Promise<boolean> {
+  return hasSlot(slot)
+}
+
 /** Store a provider key (encrypted). An empty key clears the stored entry. */
 export async function setKey(provider: AgentProviderId, key: string): Promise<void> {
   await setSlot(provider, key)
