@@ -116,6 +116,66 @@ describe('DocSessionCore', () => {
     expect(caretAfter).toBe('start middle (RPS) end'.length)
   })
 
+  it('applies a two-place external edit as two changes, not one big one', () => {
+    // The regression this guards: a single-span diff would have run from the
+    // first difference to the last, deleting and reinserting every paragraph
+    // between them — which collapses the comment anchors living in there and
+    // throws the caret to the end of the replaced region.
+    const paras = Array.from({ length: 9 }, (_, i) => `Paragraph ${i} of the section.`)
+    const core = new DocSessionCore(paras.join('\n\n'))
+    const a = new FakeView(core.text())
+    core.addView(a)
+    let applied: ChangeSet | null = null
+    const original = a.applyRemote.bind(a)
+    a.applyRemote = (changes) => {
+      applied = changes
+      original(changes)
+    }
+
+    const edited = [...paras]
+    edited[1] = 'Paragraph 1 of the section, revised.'
+    edited[7] = 'Paragraph 7 of the appendix.'
+    core.applyExternal(edited.join('\n\n'))
+
+    expect(a.text()).toBe(edited.join('\n\n'))
+    expect(applied).not.toBeNull()
+
+    let changeCount = 0
+    applied!.iterChanges(() => {
+      changeCount += 1
+    })
+    expect(changeCount).toBe(2)
+
+    // A comment anchor sitting on paragraph 4 is untouched and keeps its text.
+    const before = paras.join('\n\n')
+    const from = before.indexOf('Paragraph 4')
+    const to = from + 'Paragraph 4 of the section.'.length
+    expect(applied!.touchesRange(from, to)).toBe(false)
+    const mappedFrom = applied!.mapPos(from, 1)
+    const mappedTo = applied!.mapPos(to, -1)
+    expect(mappedTo).toBeGreaterThan(mappedFrom)
+    expect(a.text().slice(mappedFrom, mappedTo)).toBe('Paragraph 4 of the section.')
+  })
+
+  it('keeps an external edit down to the words that changed', () => {
+    const core = new DocSessionCore('The result was significant at the 3-sigma level.')
+    const a = new FakeView(core.text())
+    core.addView(a)
+    let applied: ChangeSet | null = null
+    const original = a.applyRemote.bind(a)
+    a.applyRemote = (changes) => {
+      applied = changes
+      original(changes)
+    }
+    core.applyExternal('The result was marginal at the 3-sigma level.')
+
+    const touched: { from: number; to: number; insert: string }[] = []
+    applied!.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+      touched.push({ from: fromA, to: toA, insert: inserted.toString() })
+    })
+    expect(touched).toEqual([{ from: 15, to: 26, insert: 'marginal' }])
+  })
+
   it('queues remote changes for a composing view and flushes on compositionend', () => {
     const core = new DocSessionCore('shared text')
     const a = new FakeView(core.text())
