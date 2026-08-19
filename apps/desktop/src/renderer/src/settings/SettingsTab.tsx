@@ -1,6 +1,8 @@
 import { useEffect, useState, type JSX } from 'react'
 import {
   AI_CLI_LABEL,
+  AI_EFFORTS,
+  AI_MODELS,
   AI_MODES,
   DOWNLOAD_POLICIES,
   EDITOR_FONT_FAMILIES,
@@ -13,7 +15,9 @@ import {
   LIT_PROVIDER_META,
   SETTINGS_LIMITS,
   UI_LIT_PROVIDER_IDS,
+  type AiEffort,
   type AiMode,
+  type AiModel,
   type DownloadPolicy,
   type EditorFontFamily,
   type FigureWidthPreset,
@@ -28,6 +32,7 @@ import {
   type UiLitProviderId
 } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, PICKER_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
+import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from './aiChoice'
 import { GitHubAccount } from '../views/GitHubAccount'
 import { openFileTab } from '../state/dock'
 import { profileLabel } from '../state/renderProfile'
@@ -555,6 +560,8 @@ type ProjectSelectKey =
   | 'editor.fontFamily'
   | 'figures.defaultWidthPreset'
   | 'ai.mode'
+  | 'ai.model'
+  | 'ai.effort'
   | 'review.aiDiffs'
 
 type ProjectNullableKey = 'previewProfileId' | 'literature.provider'
@@ -955,6 +962,22 @@ function ProjectSettingsSection(): JSX.Element {
         options={AI_MODES}
         labelFor={(mode) => AI_MODE_LABELS[mode]}
       />
+      <ProjectSelectRow
+        settingKey="ai.model"
+        id="proj-ai-model"
+        label="Model"
+        hint="Model tier every AI call in this project runs at."
+        options={AI_MODELS}
+        labelFor={(model) => AI_MODEL_LABELS[model]}
+      />
+      <ProjectSelectRow
+        settingKey="ai.effort"
+        id="proj-ai-effort"
+        label="Effort"
+        hint="How hard it thinks before answering. Higher costs more and takes longer."
+        options={AI_EFFORTS}
+        labelFor={(effort) => AI_EFFORT_LABELS[effort]}
+      />
 
       <div className="settings__footer">
         <p className="settings__footer-note">
@@ -1047,6 +1070,67 @@ function GlobalFontFamilyField(): JSX.Element {
         ))}
       </select>
     </div>
+  )
+}
+
+/**
+ * A global-scope select over one resolved key. Shows the RESOLVED value and
+ * writes the GLOBAL level, so a project override makes the control read back
+ * the project's value — the badge says which level won, the same honesty the
+ * quick-settings popover applies to vim motions.
+ */
+function GlobalAiChoiceFields(): JSX.Element {
+  const { value: model, source: modelSource } = useResolved('ai.model')
+  const { value: effort, source: effortSource } = useResolved('ai.effort')
+  const setGlobal = useSettingsStore((s) => s.setGlobal)
+
+  return (
+    <>
+      <div className="settings-tab__row">
+        <label htmlFor="set-ai-model">
+          Model
+          <span className="settings-tab__hint">
+            Model tier for every AI call. A project can override it in suna.json.
+          </span>
+        </label>
+        <div className="settings__control">
+          <select
+            id="set-ai-model"
+            value={model}
+            onChange={(e) => void setGlobal('ai.model', e.target.value as AiModel)}
+          >
+            {AI_MODELS.map((id) => (
+              <option key={id} value={id}>
+                {AI_MODEL_LABELS[id]}
+              </option>
+            ))}
+          </select>
+          <SourceBadge source={modelSource} />
+        </div>
+      </div>
+      <div className="settings-tab__row">
+        <label htmlFor="set-ai-effort">
+          Effort
+          <span className="settings-tab__hint">
+            How hard it thinks before answering. Higher costs more and takes longer.
+          </span>
+        </label>
+        <div className="settings__control">
+          <select
+            id="set-ai-effort"
+            value={effort}
+            onChange={(e) => void setGlobal('ai.effort', e.target.value as AiEffort)}
+          >
+            {AI_EFFORTS.map((id) => (
+              <option key={id} value={id}>
+                {AI_EFFORT_LABELS[id]}
+              </option>
+            ))}
+          </select>
+          <SourceBadge source={effortSource} />
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -1268,6 +1352,9 @@ export function SettingsTab(): JSX.Element {
               onChange={(e) => void update('references.autoOpenPdf', e.target.checked)}
             />
           </div>
+
+          <h3 className="settings-tab__section">AI</h3>
+          <GlobalAiChoiceFields />
 
           <h3 className="settings-tab__section">Literature providers</h3>
           <div className="settings-tab__row">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type JSX } from 'react'
+import { AI_EFFORTS, AI_MODELS, type AiEffort, type AiModel } from '@suna/core'
 import { useResolved, useSettingsStore } from '../state/settings'
-import { sourceLabel } from '../settings/sourceLabel'
+import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from '../settings/aiChoice'
 import {
   EDITOR_SETTINGS_LIMITS,
   EDITOR_THEME_LABELS,
@@ -40,6 +41,10 @@ export function SettingsPopover({
   // popover owns a value a project may be overriding. The checkbox still
   // writes the global level; the project level is the Settings tab's job.
   const { value: vimMotions, source: vimSource } = useResolved('editor.vimMotions')
+  // Same story for the AI's model and effort: resolved value shown, global
+  // level written, locked while a project overrides.
+  const { value: aiModel, source: aiModelSource } = useResolved('ai.model')
+  const { value: aiEffort, source: aiEffortSource } = useResolved('ai.effort')
   const setGlobal = useSettingsStore((s) => s.setGlobal)
   const overriddenByProject = vimSource === 'project'
 
@@ -141,14 +146,13 @@ export function SettingsPopover({
         </select>
       </div>
       <div className="editor-settings__row editor-settings__row--toggle">
-        <label htmlFor="ed-set-vim">
-          Vim motions <span className="editor-settings__value">{sourceLabel(vimSource)}</span>
-        </label>
+        <label htmlFor="ed-set-vim">Vim motions</label>
         {/* Disabled while a project override is in force. The control shows
             the RESOLVED value but writes the GLOBAL level, so with an override
             present every click re-resolves back to the project's value and the
-            box visibly snaps back — a checkbox that cannot be checked. Saying
-            where to change it is the honest answer. */}
+            box visibly snaps back — a checkbox that cannot be checked. The
+            tooltip says where to change it; which level a value came from is
+            Settings-page detail, not something this popover spells out. */}
         <input
           id="ed-set-vim"
           type="checkbox"
@@ -161,6 +165,47 @@ export function SettingsPopover({
           }
           onChange={(event) => void setGlobal('editor.vimMotions', event.target.checked)}
         />
+      </div>
+      <div className="editor-settings__group">AI</div>
+      <div className="editor-settings__row editor-settings__row--select">
+        <label htmlFor="ed-set-ai-model">Model</label>
+        <select
+          id="ed-set-ai-model"
+          value={aiModel}
+          disabled={aiModelSource === 'project'}
+          title={
+            aiModelSource === 'project'
+              ? 'Set by this project — change it in Settings → This project'
+              : undefined
+          }
+          onChange={(event) => void setGlobal('ai.model', event.target.value as AiModel)}
+        >
+          {AI_MODELS.map((id) => (
+            <option key={id} value={id}>
+              {AI_MODEL_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="editor-settings__row editor-settings__row--select">
+        <label htmlFor="ed-set-ai-effort">Effort</label>
+        <select
+          id="ed-set-ai-effort"
+          value={aiEffort}
+          disabled={aiEffortSource === 'project'}
+          title={
+            aiEffortSource === 'project'
+              ? 'Set by this project — change it in Settings → This project'
+              : undefined
+          }
+          onChange={(event) => void setGlobal('ai.effort', event.target.value as AiEffort)}
+        >
+          {AI_EFFORTS.map((id) => (
+            <option key={id} value={id}>
+              {AI_EFFORT_LABELS[id]}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="editor-settings__footer">
         <button
