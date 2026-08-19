@@ -25,11 +25,11 @@ Under **API providers**, a dropdown picks Anthropic, OpenAI or Ollama. Anthropic
 
 | Provider | Model used | Endpoint |
 | --- | --- | --- |
-| Anthropic | `claude-sonnet-5`, max 4096 output tokens | Messages API, `/v1/messages` |
+| Anthropic | the model tier from **Settings → AI**, max 4096 output tokens | Messages API, `/v1/messages` |
 | OpenAI | `gpt-4o` | `/v1/chat/completions` |
 | Ollama | `llama3.2` | `http://127.0.0.1:11434/api/chat` |
 
-There is no model picker. The request type carries model and token fields, but neither the panel nor the main process ever sets them, so you get the defaults above.
+The model picker is not in this panel — it is **Settings → AI → Model / Effort** (`ai.model` / `ai.effort`), which also drives the palette ask and directed actions. The tier maps to a model id on the way out (Opus → `claude-opus-5`, Sonnet → `claude-sonnet-5`, Haiku → `claude-haiku-4-5`) and the effort is sent as `output_config.effort`. OpenAI and Ollama keep the fixed models above: the tier names Anthropic models, so it is not sent to them. See [settings](/guide/settings#model-and-effort).
 
 ### The chat
 
