@@ -217,6 +217,12 @@ export const CaptureRectSchema = z.object({
 });
 export type CaptureRect = z.infer<typeof CaptureRectSchema>;
 
+/** One path on one side of the repository, as `git:status` reports it. */
+const GIT_CHANGE = z.object({
+  path: z.string().min(1),
+  status: z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked', 'conflicted']),
+});
+
 export const CHANNELS = {
   'project:create': {
     request: z.object({
@@ -513,17 +519,61 @@ export const CHANNELS = {
     request: z.object({ path: z.string().min(1) }),
     response: z.object({ error: z.string().nullable() }),
   },
+  /**
+   * The index and the working tree as separate lists — the split VS Code and
+   * GitHub Desktop show. A path may appear in both (staged, then edited
+   * again), so one merged list could not describe the repository truthfully.
+   */
   'git:status': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({
       isRepo: z.boolean(),
       branch: z.string().nullable(),
-      changes: z.array(
-        z.object({
-          path: z.string().min(1),
-          status: z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked', 'conflicted']),
-        }),
-      ),
+      staged: z.array(GIT_CHANGE),
+      unstaged: z.array(GIT_CHANGE),
+    }),
+  },
+  /**
+   * Stage, unstage, or discard ONE hunk of one file — partial staging, as in
+   * VS Code. `index` is the position of the hunk in the diff for the side
+   * implied by the action (unstage reads the staged diff, the others the
+   * working-tree diff), which the main process re-computes before applying, so
+   * a stale index fails loudly instead of patching the wrong place.
+   */
+  'git:apply-hunk': {
+    request: z.object({
+      dir: z.string().min(1),
+      path: z.string().min(1),
+      index: z.number().int().nonnegative(),
+      action: z.enum(['stage', 'unstage', 'discard']),
+    }),
+    response: z.object({}),
+  },
+  /** `git add` for exactly these paths (untracked and deleted included). */
+  'git:stage': {
+    request: z.object({ dir: z.string().min(1), paths: z.array(z.string().min(1)).min(1) }),
+    response: z.object({}),
+  },
+  /** Take these paths out of the index; the working tree is left alone. */
+  'git:unstage': {
+    request: z.object({ dir: z.string().min(1), paths: z.array(z.string().min(1)).min(1) }),
+    response: z.object({}),
+  },
+  /**
+   * Throw away working-tree changes — the one destructive git call the app
+   * makes. Tracked paths are restored from the index; untracked paths are
+   * DELETED, and only when `deleteUntracked` is set, which the caller must
+   * have confirmed with the user first.
+   */
+  'git:discard': {
+    request: z.object({
+      dir: z.string().min(1),
+      paths: z.array(z.string().min(1)).min(1),
+      deleteUntracked: z.boolean().optional(),
+    }),
+    response: z.object({
+      reverted: z.array(z.string()),
+      deleted: z.array(z.string()),
     }),
   },
   'git:log': {
@@ -539,21 +589,434 @@ export const CHANNELS = {
       ),
     }),
   },
+  /** `amend` replaces the previous commit; only offered before it is pushed. */
   'git:commit': {
     request: z.object({
       dir: z.string().min(1),
       message: z.string().min(1),
       stageAll: z.boolean(),
+      amend: z.boolean().optional(),
     }),
     response: z.object({ hash: z.string().min(1) }),
   },
+  /** One file's diff, on the side asked for: index, working tree, or both. */
   'git:diff-file': {
-    request: z.object({ dir: z.string().min(1), path: z.string().min(1) }),
+    request: z.object({
+      dir: z.string().min(1),
+      path: z.string().min(1),
+      side: z.enum(['staged', 'unstaged', 'both']).optional(),
+    }),
     response: z.object({ diff: z.string() }),
   },
   'git:init': {
     request: z.object({ dir: z.string().min(1) }),
+    /** The repo always exists on success; `warning` says why no first commit. */
+    response: z.object({ committed: z.boolean(), warning: z.string().nullable() }),
+  },
+  /**
+   * The project's `origin`, if it has one, plus how far the branch has drifted
+   * from its last-known upstream. `sshUrl` is non-null only when the stored url
+   * is HTTPS and converts, i.e. exactly when the UI can offer the swap.
+   */
+  'git:remote': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      name: z.string().nullable(),
+      url: z.string().nullable(),
+      protocol: z.enum(['ssh', 'https', 'other']).nullable(),
+      host: z.string().nullable(),
+      sshUrl: z.string().nullable(),
+      slug: z.string().nullable(),
+      upstream: z.string().nullable(),
+      ahead: z.number().int(),
+      behind: z.number().int(),
+      hasCommits: z.boolean(),
+      branch: z.string().nullable(),
+    }),
+  },
+  /**
+   * Set `origin`. HTTPS urls are rewritten to SSH unless `allowHttps` is set:
+   * a windowless app cannot answer a password prompt, so SSH is the default
+   * that actually works (`converted` reports when the rewrite happened).
+   */
+  'git:set-remote': {
+    request: z.object({
+      dir: z.string().min(1),
+      url: z.string().min(1),
+      allowHttps: z.boolean().optional(),
+    }),
+    response: z.object({
+      url: z.string().min(1),
+      protocol: z.enum(['ssh', 'https', 'other']),
+      converted: z.boolean(),
+    }),
+  },
+  /**
+   * Ask the remote whether it exists (`git ls-remote`). `missing` marks the
+   * fixable case — the host answered, but there is no such repository — which
+   * is what a hand-typed remote for a repository never created looks like.
+   */
+  'git:check-remote': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      reachable: z.boolean(),
+      missing: z.boolean(),
+      message: z.string(),
+    }),
+  },
+  /** Push the current branch to origin, setting upstream on the first push. */
+  'git:push': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      branch: z.string().min(1),
+      remote: z.string().min(1),
+      setUpstream: z.boolean(),
+      output: z.string(),
+    }),
+  },
+  /**
+   * What the machine already has for SSH pushing: public keys in ~/.ssh (never
+   * private ones), ssh-agent identities, git's commit identity, and — only when
+   * `probe` is set — a live `ssh -T git@host` handshake.
+   */
+  'git:ssh-status': {
+    request: z.object({ host: z.string().min(1).optional(), probe: z.boolean() }),
+    response: z.object({
+      host: z.string(),
+      sshDir: z.string(),
+      keys: z.array(
+        z.object({
+          file: z.string(),
+          type: z.string(),
+          comment: z.string(),
+          publicKey: z.string(),
+        }),
+      ),
+      agentKeys: z.number().int().nullable(),
+      authenticated: z.boolean().nullable(),
+      probeMessage: z.string().nullable(),
+      identity: z.object({ name: z.string().nullable(), email: z.string().nullable() }),
+    }),
+  },
+  /**
+   * The commit graph behind the timeline: commits with their parents and
+   * decorations, plus the lane placement already computed, so the renderer
+   * draws SVG rather than re-deriving ancestry.
+   */
+  'git:graph': {
+    request: z.object({
+      dir: z.string().min(1),
+      limit: z.number().int().positive().max(500),
+      scope: z.enum(['current', 'all']).optional(),
+    }),
+    response: z.object({
+      commits: z.array(
+        z.object({
+          hash: z.string().min(1),
+          parents: z.array(z.string()),
+          author: z.string(),
+          email: z.string(),
+          date: z.string(),
+          subject: z.string(),
+          refs: z.array(
+            z.object({
+              kind: z.enum(['head', 'local', 'remote', 'tag']),
+              name: z.string(),
+            }),
+          ),
+          /** Reachable from a remote-tracking ref, i.e. already on the server. */
+          pushed: z.boolean(),
+        }),
+      ),
+      rows: z.array(
+        z.object({
+          hash: z.string().min(1),
+          lane: z.number().int(),
+          color: z.number().int(),
+          /** -1 on either end means "the commit dot on this row". */
+          edges: z.array(
+            z.object({
+              fromLane: z.number().int(),
+              toLane: z.number().int(),
+              color: z.number().int(),
+            }),
+          ),
+        }),
+      ),
+      laneCount: z.number().int().positive(),
+      truncated: z.boolean(),
+    }),
+  },
+  /** The commits that touched one path, newest first (`git log --follow`). */
+  'git:file-history': {
+    request: z.object({
+      dir: z.string().min(1),
+      path: z.string().min(1),
+      limit: z.number().int().positive().max(200),
+    }),
+    response: z.object({
+      entries: z.array(
+        z.object({
+          hash: z.string().min(1),
+          subject: z.string(),
+          author: z.string(),
+          date: z.string(),
+        }),
+      ),
+    }),
+  },
+  /** One commit's patch and per-file line counts, for clicking a timeline row. */
+  'git:show-commit': {
+    request: z.object({ dir: z.string().min(1), hash: z.string().min(4) }),
+    response: z.object({
+      diff: z.string(),
+      files: z.array(
+        z.object({
+          path: z.string(),
+          added: z.number().int().nonnegative(),
+          removed: z.number().int().nonnegative(),
+        }),
+      ),
+    }),
+  },
+  /** Local branches plus remote-only ones, each with its drift from upstream. */
+  'git:branches': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      current: z.string().nullable(),
+      detached: z.boolean(),
+      branches: z.array(
+        z.object({
+          name: z.string().min(1),
+          current: z.boolean(),
+          upstream: z.string().nullable(),
+          ahead: z.number().int(),
+          behind: z.number().int(),
+          subject: z.string(),
+          date: z.string(),
+          remote: z.boolean(),
+        }),
+      ),
+    }),
+  },
+  'git:create-branch': {
+    request: z.object({ dir: z.string().min(1), name: z.string().min(1) }),
+    response: z.object({ branch: z.string().min(1), created: z.boolean() }),
+  },
+  /**
+   * Switch branches. A remote-only name ('origin/revision-2') becomes a local
+   * branch tracking it, rather than a detached HEAD the user cannot leave.
+   */
+  'git:switch-branch': {
+    request: z.object({ dir: z.string().min(1), name: z.string().min(1) }),
+    response: z.object({ branch: z.string().min(1), created: z.boolean() }),
+  },
+  /** Delete a local branch; `force` discards commits on no other branch. */
+  'git:delete-branch': {
+    request: z.object({
+      dir: z.string().min(1),
+      name: z.string().min(1),
+      force: z.boolean().optional(),
+    }),
+    response: z.object({ branch: z.string().min(1) }),
+  },
+  /** Merge a branch in. Conflicts come back as `clean: false`, not an error. */
+  'git:merge-branch': {
+    request: z.object({ dir: z.string().min(1), name: z.string().min(1) }),
+    response: z.object({
+      clean: z.boolean(),
+      conflicted: z.array(z.string()),
+      output: z.string(),
+    }),
+  },
+  /**
+   * Update remote-tracking refs and re-read the drift. Without this the
+   * ahead/behind counts describe whenever someone last ran git in a terminal.
+   */
+  'git:fetch': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      fetched: z.boolean(),
+      ahead: z.number().int(),
+      behind: z.number().int(),
+      upstream: z.string().nullable(),
+      error: z.string().nullable(),
+    }),
+  },
+  /** Bring the remote's commits down; conflicts are a result, not an error. */
+  'git:pull': {
+    request: z.object({
+      dir: z.string().min(1),
+      mode: z.enum(['rebase', 'merge']).optional(),
+    }),
+    response: z.object({
+      clean: z.boolean(),
+      alreadyUpToDate: z.boolean(),
+      mode: z.enum(['rebase', 'merge']),
+      conflicted: z.array(z.string()),
+      output: z.string(),
+    }),
+  },
+  /** Which multi-step operation the repo is mid-way through, and what is stuck. */
+  'git:conflict-state': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      operation: z.enum(['merge', 'rebase', 'cherry-pick', 'revert', 'none']),
+      paths: z.array(z.string()),
+      incoming: z.string().nullable(),
+    }),
+  },
+  /**
+   * Resolve one conflicted file by taking one side whole. Note that git's
+   * 'ours' and 'theirs' swap meaning during a rebase; the UI labels them from
+   * the operation rather than passing these words through.
+   */
+  'git:resolve-conflict': {
+    request: z.object({
+      dir: z.string().min(1),
+      path: z.string().min(1),
+      side: z.enum(['ours', 'theirs']),
+    }),
     response: z.object({}),
+  },
+  /** Stage a hand-edited file as resolved; refuses if markers remain. */
+  'git:mark-resolved': {
+    request: z.object({ dir: z.string().min(1), path: z.string().min(1) }),
+    response: z.object({}),
+  },
+  /**
+   * Finish the operation. `setAside` stashes unrelated unstaged edits first —
+   * git's `rebase --continue` refuses while ANY file has them, conflict or
+   * not, which `blocked` reports so the UI can offer that rather than relay
+   * git's misleading "you must edit all merge conflicts".
+   */
+  'git:continue': {
+    request: z.object({ dir: z.string().min(1), setAside: z.boolean().optional() }),
+    response: z.object({
+      done: z.boolean(),
+      paths: z.array(z.string()),
+      blocked: z.array(z.string()),
+      output: z.string(),
+    }),
+  },
+  'git:abort': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      operation: z.enum(['merge', 'rebase', 'cherry-pick', 'revert', 'none']),
+    }),
+  },
+  /**
+   * Undo the last commit, keeping its changes staged. Refused once the commit
+   * is on the remote, where undoing it locally only creates a divergence.
+   */
+  'git:undo-commit': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ subject: z.string(), wasPushed: z.boolean() }),
+  },
+  /** The last commit's message, for pre-filling an amend. */
+  'git:last-message': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ message: z.string() }),
+  },
+  /**
+   * Whether SUNA can act on GitHub right now. `configured: false` means this
+   * build carries no OAuth App client id, so sign-in is impossible and the
+   * panel says so instead of offering a button that cannot work.
+   */
+  'github:session': {
+    request: z.object({}),
+    response: z.object({
+      configured: z.boolean(),
+      signedIn: z.boolean(),
+      needsReauth: z.boolean(),
+      message: z.string().nullable(),
+      account: z
+        .object({
+          login: z.string(),
+          name: z.string().nullable(),
+          avatarUrl: z.string().nullable(),
+          htmlUrl: z.string(),
+          scopes: z.array(z.string()),
+        })
+        .nullable(),
+    }),
+  },
+  /**
+   * Begin the OAuth device flow: GitHub returns a short code the user types at
+   * `verificationUri`. No client secret is involved — the device flow exists
+   * for apps that cannot keep one.
+   */
+  'github:device-start': {
+    request: z.object({}),
+    response: z.object({
+      userCode: z.string().min(1),
+      verificationUri: z.string().min(1),
+      deviceCode: z.string().min(1),
+      expiresIn: z.number().int().positive(),
+      interval: z.number().int().positive(),
+    }),
+  },
+  /**
+   * ONE poll of the device flow. The renderer owns the timer, so closing the
+   * dialog ends the flow rather than leaving main polling GitHub forever.
+   */
+  'github:device-poll': {
+    request: z.object({
+      deviceCode: z.string().min(1),
+      interval: z.number().int().positive(),
+    }),
+    response: z.object({
+      status: z.enum(['pending', 'authorized', 'denied', 'expired']),
+      interval: z.number().int().positive(),
+      persisted: z.boolean(),
+      message: z.string().nullable(),
+      account: z
+        .object({
+          login: z.string(),
+          name: z.string().nullable(),
+          avatarUrl: z.string().nullable(),
+          htmlUrl: z.string(),
+          scopes: z.array(z.string()),
+        })
+        .nullable(),
+    }),
+  },
+  'github:sign-out': {
+    request: z.object({}),
+    response: z.object({}),
+  },
+  /** Accounts the signed-in user may create a repository under. */
+  'github:owners': {
+    request: z.object({}),
+    response: z.object({
+      owners: z.array(
+        z.object({
+          login: z.string().min(1),
+          kind: z.enum(['user', 'org']),
+          avatarUrl: z.string().nullable(),
+        }),
+      ),
+    }),
+  },
+  /**
+   * Create an empty repository on GitHub and point `origin` at it — SSH by
+   * default, HTTPS when `useHttps` says the signed-in credential will carry
+   * the push. Creates only; the first push stays an explicit user action.
+   */
+  'github:create-repo': {
+    request: z.object({
+      dir: z.string().min(1),
+      name: z.string().min(1),
+      visibility: z.enum(['private', 'public', 'internal']),
+      owner: z.string().nullable().optional(),
+      description: z.string().nullable().optional(),
+      useHttps: z.boolean().optional(),
+    }),
+    response: z.object({
+      slug: z.string().min(1),
+      htmlUrl: z.string().min(1),
+      remoteUrl: z.string().min(1),
+    }),
   },
   'agent:set-key': {
     request: z.object({ provider: z.enum(['anthropic', 'openai', 'ollama']), key: z.string() }),
@@ -1158,6 +1621,16 @@ export const EVENT_CHANNELS = {
    * path unreliable.
    */
   projectTreeChanged: 'project:tree-changed',
+  /**
+   * The open project's git state moved — index, HEAD, refs, or an in-progress
+   * merge/rebase. Payload: `{ dir: string }`, the project root, so a stale
+   * push for a project the renderer already closed can be ignored.
+   *
+   * Separate from `projectTreeChanged` because the two watch disjoint things:
+   * the tree watch ignores `.git` (it churns constantly and the explorer never
+   * shows it), which is precisely where staging and committing happen.
+   */
+  gitChanged: 'git:changed',
 } as const;
 
 export type ChannelName = keyof typeof CHANNELS;

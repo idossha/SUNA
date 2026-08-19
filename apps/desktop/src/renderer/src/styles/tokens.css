@@ -34,6 +34,19 @@
   --s-border: #2a2a33;
   --s-border-strong: #3a3a45;
 
+  /* commit-graph lanes. Eight hues that stay distinguishable side by side at
+     2px, muted enough that a busy history does not shout over the prose next
+     to it. Lane 0 is the accent, because the branch you are on is lane 0
+     nearly always. The three dark themes share these; suna-light overrides. */
+  --s-graph-0: #e8b45c;
+  --s-graph-1: #7fb8a4;
+  --s-graph-2: #8fa8d9;
+  --s-graph-3: #d9915b;
+  --s-graph-4: #b89ad9;
+  --s-graph-5: #d97b6c;
+  --s-graph-6: #9fbf7f;
+  --s-graph-7: #c9a9c9;
+
   /* type */
   --s-font-ui:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -88,6 +101,16 @@ body[data-suna-theme='suna-light'] {
 
   --s-border: #d8cfbf;
   --s-border-strong: #c2b8a5;
+
+  /* Darkened lanes: the dark-theme hues are near-invisible on warm paper. */
+  --s-graph-0: #8a6a2f;
+  --s-graph-1: #2f6b57;
+  --s-graph-2: #415a94;
+  --s-graph-3: #a05c22;
+  --s-graph-4: #6b4a94;
+  --s-graph-5: #b0503f;
+  --s-graph-6: #4f7030;
+  --s-graph-7: #8a4a76;
 
   color-scheme: light;
 }
