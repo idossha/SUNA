@@ -4,6 +4,8 @@ export * from './authors';
 export * from './manuscript';
 export * from './anchor';
 export * from './comments';
+export * from './pdftext';
+export * from './refnotes';
 export * from './lit';
 export * from './library';
 export * from './figure';
