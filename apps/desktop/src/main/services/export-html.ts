@@ -741,6 +741,52 @@ ${references}
 </body></html>`
 }
 
+/**
+ * Internal links (citations, figure/table cross-references, the reference
+ * list) land the target in the MIDDLE of the viewport rather than jamming it
+ * against the top edge. The anchors are zero-height <span>s that sit before
+ * the thing they name, so a native hash jump scrolls the figure or table
+ * itself out of view above the fold. We resolve the anchor to its enclosing
+ * block, centre that, and let the browser clamp at the document ends (a
+ * reference near the bottom simply stays wherever it lands, in view).
+ */
+function readerScript(): string {
+  return [
+    '(function(){',
+    'function box(el){',
+    "  if (el.classList.contains('ms-anchor')) {",
+    "    return el.closest('figure, .table-block, .ms-ref, li, table, p') || el.parentElement || el;",
+    '  }',
+    '  return el;',
+    '}',
+    'function centre(id){',
+    '  var el = document.getElementById(id);',
+    '  if (!el) return false;',
+    '  var b = box(el);',
+    '  var r = b.getBoundingClientRect();',
+    '  var top = window.pageYOffset + r.top - Math.max(0, (window.innerHeight - r.height) / 2);',
+    '  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });',
+    '  return true;',
+    '}',
+    "document.addEventListener('click', function(e){",
+    "  var a = e.target && e.target.closest ? e.target.closest('a[href^=\"#\"]') : null;",
+    '  if (!a) return;',
+    "  var id = decodeURIComponent(a.getAttribute('href').slice(1));",
+    '  if (!id || !document.getElementById(id)) return;',
+    '  e.preventDefault();',
+    "  location.hash = '#' + id;",
+    '  centre(id);',
+    '});',
+    "window.addEventListener('hashchange', function(){",
+    '  if (location.hash.length > 1) centre(decodeURIComponent(location.hash.slice(1)));',
+    '});',
+    "window.addEventListener('load', function(){",
+    '  if (location.hash.length > 1) centre(decodeURIComponent(location.hash.slice(1)));',
+    '});',
+    '})();',
+  ].join('\n')
+}
+
 /* ------------------------------------------------------------------ */
 /* Standalone web-page export ('export:html')                           */
 /* ------------------------------------------------------------------ */
@@ -1098,6 +1144,7 @@ ${readerTablesHtml(content, resolveImage)}
 ${readerReferencesHtml(content)}
 </main>
 </div>
+<script>${readerScript()}</script>
 </body></html>`
 }
 
