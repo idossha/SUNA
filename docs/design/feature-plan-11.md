@@ -296,8 +296,8 @@ accumulated meanwhile.
 | --- | --- | --- |
 | **11a** ✅ | `@suna/core/word-diff.ts` + fuzz/snapshot tests | round-trip property holds on 10k random edit pairs |
 | **11b** ✅ | `applyExternal` uses multi-span `wordDiff` | comment anchors survive a two-place agent edit (currently they do not) |
-| **11c** | `merge3` + `checkDisk` three-way; banner shows conflict count | typing while an agent edits elsewhere loses nothing on either side |
-| **11d** | Layer 5 write safety | a whole-file write during a dirty buffer is refused, not silently destructive |
+| **11c** ✅ | `merge3` + `checkDisk` three-way; banner shows conflict count | typing while an agent edits elsewhere loses nothing on either side |
+| **11d** ✅ | Layer 5 write safety | a whole-file write during a dirty buffer is refused, not silently destructive |
 | **11e** | `revisions.json` capture around AI runs | a directed action leaves a closed revision with a correct pre-image |
 | **11f** | `revisionDiff.ts` decorations, both themes, both modes | word-level red/green matching the reference; nothing leaks into export |
 | **11g** | `review.aiDiffs` setting + Settings pane row | project override beats global, both beat the `'inline'` default |
@@ -332,5 +332,42 @@ middle paragraph **vanishes** (its anchor collapsed); with the multi-span
 diff it survives intact. `probes/comment-reanchor.mjs` — the existing
 agent-edit-into-open-buffer probe — stays green.
 
-Not started: 11c (three-way merge), 11d (write safety), 11e–11g (the diff
-view). A dirty buffer still hits the all-or-nothing divergence banner.
+**11c — three-way merge.** `packages/core/src/merge3.ts` (not
+`state/merge3.ts` as sketched above — it is pure, and it belongs beside
+word-diff, which it is built on). `checkDisk` merges instead of blocking:
+`diskText` is the ancestor, so an agent edit in a paragraph the human is not
+in lands silently and the merged buffer is autosaved.
+
+One design decision changed during the build, and it matters. The plan said
+"clash" would be decided at word resolution. **It is decided per paragraph
+instead**, while changes still APPLY at word resolution. Word-grain conflict
+detection was caught inventing prose: a human rewriting `outside-in` to
+`inside-out` and an agent rewriting it to `from the outside in` share no word
+token — the human replaced two word tokens, the agent inserted three and
+changed a hyphen — so a word-grain merge accepted both and produced
+`from the inside out`. Text neither party wrote is worse than an extra prompt,
+because nobody catches it by reviewing their own diff. Paragraphs are the
+right unit: Markdown already defines them, they are unambiguous to compute
+(sentences fracture on `6563.3`, `[@gunn1972]` and inline math), and they
+match the case the feature is for. `merge3.test.ts` has a test named for that
+case.
+
+Ours always wins a conflict — the human's text is live and possibly
+mid-thought. `takeTheirs` re-merges from the ancestor against the CURRENT
+buffer, so anything typed since the banner appeared survives that too.
+
+**11d — write safety.** `startAiAsk` flushes dirty buffers under the run's
+directory before spawning (skipping conflicted sessions, whose banner is the
+human's to answer). `write_manuscript` fingerprints what it reads and refuses
+a write when the file moved underneath, naming `edit_manuscript` as the
+recovery; its own writes and `edit_manuscript`'s do not count as someone
+else's.
+
+`probes/live-coedit.mjs` gained a second scenario — type without saving, then
+change a different paragraph on disk — and was verified adversarially again:
+with `checkDisk` reverted to the old blocking behaviour the agent's edit never
+reaches the dirty buffer and the probe times out.
+
+Not started: 11e–11g (the diff view). Nothing is captured to
+`revisions.json` yet, there are no decorations, and `review.aiDiffs` does not
+exist.
