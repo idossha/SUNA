@@ -4,6 +4,7 @@ import {
   offsetsForRun,
   type PageText
 } from '@suna/core'
+import type { ForeignHighlight } from './pdfGeometry'
 
 /**
  * Turning a drag across a PDF page into anchors (ADR-008 M1).
@@ -217,6 +218,8 @@ export interface RenderedPage {
    * page.
    */
   viewport: PdfViewportLike
+  /** `/Highlight` annotations the FILE carries, as page-relative rectangles. */
+  annotations: ForeignHighlight[]
 }
 
 /** The part of pdf.js's `PageViewport` this module needs. */

@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import type { PdfNote } from '@suna/core'
-import type { HighlightRect } from './pdfGeometry'
+import type { ForeignHighlight, HighlightRect } from './pdfGeometry'
 import type { ResolvedNotes } from './useNoteRects'
 
 /**
@@ -21,6 +21,13 @@ interface HighlightLayerProps {
   resolved: ResolvedNotes
   activeNoteId: string | null
   onActivate: (noteId: string, rect: HighlightRect) => void
+  /**
+   * Highlights the FILE carries that SUNA did not make. Painted read-only,
+   * with their own colour, so a paper annotated in Preview or Zotero opens
+   * looking the way its owner left it — the canvas used to draw these for
+   * free, until `annotationMode: DISABLE` stopped it double-painting ours.
+   */
+  foreign?: readonly ForeignHighlight[]
 }
 
 export function HighlightLayer({
@@ -28,17 +35,38 @@ export function HighlightLayer({
   notes,
   resolved,
   activeNoteId,
-  onActivate
+  onActivate,
+  foreign
 }: HighlightLayerProps): JSX.Element | null {
   const drawn: { note: PdfNote; rects: HighlightRect[] }[] = []
   for (const note of notes) {
     const rects = resolved.byNote.get(note.id)?.get(page)
     if (rects !== undefined && rects.length > 0) drawn.push({ note, rects })
   }
-  if (drawn.length === 0) return null
+  const foreignRuns = foreign ?? []
+  if (drawn.length === 0 && foreignRuns.length === 0) return null
 
   return (
     <div className="pdfhl">
+      {foreignRuns.map((highlight, i) =>
+        highlight.rects.map((rect, j) => (
+          <div
+            key={`foreign-${i}-${j}`}
+            className="pdfhl__rect pdfhl__rect--foreign"
+            title={
+              highlight.contents ??
+              (highlight.author === null ? 'Highlight in this PDF' : `Highlight by ${highlight.author}`)
+            }
+            style={{
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+              ...(highlight.color === null ? {} : { background: highlight.color, opacity: 0.4 })
+            }}
+          />
+        ))
+      )}
       {drawn.map(({ note, rects }) =>
         rects.map((rect, index) => (
           <div
