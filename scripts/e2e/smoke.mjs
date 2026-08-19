@@ -190,6 +190,19 @@ const showView = (view) =>
     `window.__sunaDev.uiStore.setState({ activeView: ${JSON.stringify(view)}, sidebarVisible: true })`
   )
 
+/**
+ * The sync trail's four stages, as a reader sees them. Source Control's whole
+ * claim is that these numbers answer "where is my work" without opening
+ * anything, so the tests read the rendered counts rather than the store.
+ */
+const syncTrail = () =>
+  evalJs(`[...document.querySelectorAll('.trail__stage')].map((s) => ({
+    count: s.querySelector('.trail__count')?.textContent ?? null,
+    label: s.querySelector('.trail__label')?.textContent ?? null,
+    unsafe: s.classList.contains('trail__stage--unsafe'),
+    active: s.classList.contains('trail__stage--active')
+  }))`)
+
 /** Set a React-controlled <input>/<textarea>/<select> the way a user would. */
 const setFieldJs = (selectorJs, value, tag = 'HTMLInputElement') =>
   `(() => {
@@ -2056,6 +2069,12 @@ try {
     )
   })
 
+  /**
+   * Source Control, end to end: the sync trail's four resting places, staging,
+   * committing, and the timeline. The trail is the feature's whole premise —
+   * "where is my work right now" answered by looking — so every assertion here
+   * reads the numbers a user would read, not the store behind them.
+   */
   await step('git-view', async () => {
     // dirty the copy through the app's own fs channel, then open the view
     await evalJs(`(async () => {
@@ -2068,12 +2087,13 @@ try {
       return true;
     })()`)
     await activateView('Source Control')
-    await sleep(900)
+    await sleep(1200)
+
     const state = await evalJs(`({
-      branch: document.querySelector('.git__branch')?.textContent?.trim() ?? null,
+      branch: document.querySelector('.gb__current')?.textContent?.trim() ?? null,
       changes: [...document.querySelectorAll('.git__row .git__path')].map((e) => e.textContent),
       letters: [...document.querySelectorAll('.git__letter')].map((e) => e.textContent),
-      history: document.querySelectorAll('.git__log-row').length
+      timeline: document.querySelectorAll('.gt__row').length
     })`)
     assert(state.branch === 'main', `branch label: ${state.branch}`)
     assert(
@@ -2081,7 +2101,32 @@ try {
       `expected exactly the README.md change, got: ${state.changes.join(', ')}`
     )
     assert(state.letters[0] === 'M', `README change letter: ${state.letters[0]} (want M)`)
-    assert(state.history === 1, `fresh copy should have 1 commit, got ${state.history}`)
+    assert(state.timeline === 1, `fresh copy should have 1 commit, got ${state.timeline}`)
+
+    // --- the sync trail ----------------------------------------------------
+    const dirty = await syncTrail()
+    assert(dirty.length === 4, `the trail should have four stages, got ${dirty.length}`)
+    assert(
+      dirty[0].count === '1' && dirty[0].label === 'edited file',
+      `working stage: ${JSON.stringify(dirty[0])}`
+    )
+    assert(dirty[1].count === '—', `staged stage should be empty: ${JSON.stringify(dirty[1])}`)
+    assert(dirty[2].count === '—', `push stage should be empty: ${JSON.stringify(dirty[2])}`)
+    // The edited file is the leftmost thing holding work, so it is the active one.
+    assert(dirty[0].active, 'the edited-files stage is not marked active')
+    // A project with no remote is the LEAST safe state; it must never show a tick.
+    assert(
+      dirty[3].unsafe && dirty[3].count === '!',
+      `no-remote stage should read unsafe, got ${JSON.stringify(dirty[3])}`
+    )
+
+    // Fetch/Pull/Push are all unreachable without a remote, and must look it.
+    const syncButtons = await evalJs(`[...document.querySelectorAll('.git__sync-btn')]
+      .map((b) => ({ text: b.textContent.trim(), disabled: b.disabled }))`)
+    assert(
+      syncButtons.length === 3 && syncButtons.every((b) => b.disabled),
+      `sync buttons without a remote: ${JSON.stringify(syncButtons)}`
+    )
 
     // row click shows the colored diff
     await evalJs(`document.querySelector('.git__row').click()`)
@@ -2092,23 +2137,322 @@ try {
     assert(diffAdds.includes('Smoke-edit marker'), `diff missing added line: ${diffAdds.slice(0, 120)}`)
     await screenshot('views-git.png')
 
-    // commit all → tree clean, history grows
+    // --- stage it: the trail's first stage must hand over to the second ----
+    await evalJs(`[...document.querySelectorAll('.git__icon-btn')]
+      .find((b) => b.getAttribute('aria-label') === 'Stage README.md').click()`)
+    await sleep(1000)
+    const staged = await syncTrail()
+    assert(
+      staged[0].count === '—' && staged[1].count === '1' && staged[1].label === 'staged file',
+      `trail after staging: ${JSON.stringify(staged.map((s) => s.count))}`
+    )
+    assert(staged[1].active, 'the staged stage did not become the active one')
+
+    // --- commit: the trail's third stage takes it, and the timeline grows --
     await evalJs(`document.querySelector('.view__textarea').focus()`)
     await insertText('smoke: annotate readme')
     await sleep(200)
-    await evalJs(`[...document.querySelectorAll('button')]
-      .find((b) => b.textContent === 'Commit all').click()`)
-    await sleep(1200)
+    await evalJs(`[...document.querySelectorAll('.git__commit-actions .btn')]
+      .find((b) => b.textContent === 'Commit').click()`)
+    await sleep(1500)
+
     const committed = await evalJs(`({
       clean: [...document.querySelectorAll('.view__hint')]
         .some((e) => e.textContent.includes('Working tree clean')),
-      history: [...document.querySelectorAll('.git__log-row .git__subject')].map((e) => e.textContent)
+      timeline: [...document.querySelectorAll('.gt__row .gt__subject')].map((e) => e.textContent),
+      local: document.querySelectorAll('.gt__dot--local').length
     })`)
-    assert(committed.clean, 'working tree not clean after Commit all')
+    assert(committed.clean, 'working tree not clean after Commit')
     assert(
-      committed.history.length === 2 && committed.history[0] === 'smoke: annotate readme',
-      `history after commit: ${committed.history.join(' | ')}`
+      committed.timeline.length === 2 && committed.timeline[0] === 'smoke: annotate readme',
+      `timeline after commit: ${committed.timeline.join(' | ')}`
     )
+    // Nothing has a remote, so every commit is local-only: hollow dots.
+    assert(
+      committed.local === 2,
+      `all ${committed.timeline.length} commits should be unpushed, ${committed.local} are`
+    )
+  })
+
+  /**
+   * Publishing, against a real bare repository standing in for GitHub.
+   *
+   * This is the chain the "Publish branch" button and the wizard's publish
+   * substep both run. GitHub's API is not involved — that half is stubbed in
+   * github-create-repo.test.ts — but everything from "paste a remote" to
+   * "the commits are on the server" is genuine here.
+   */
+  await step('git-publish-to-remote', async () => {
+    const bare = join(mkdtempSync(join(tmpdir(), 'suna-smoke-remote-')), 'origin.git')
+    execSync(`git init --bare -b main ${JSON.stringify(bare)}`, { stdio: 'pipe' })
+
+    await showView('git')
+    await sleep(600)
+
+    // With no remote, the panel offers the URL field straight away.
+    await evalJs(setFieldJs(`document.querySelector('.git__remote-edit .view__input')`, bare))
+    await sleep(400)
+    await evalJs(`[...document.querySelectorAll('.git__remote-edit .btn')]
+      .find((b) => b.textContent === 'Add remote').click()`)
+    await sleep(1500)
+
+    const wired = await evalJs(`({
+      url: document.querySelector('.git__remote-url')?.textContent ?? null,
+      proto: document.querySelector('.git__proto')?.textContent ?? null,
+      push: [...document.querySelectorAll('.git__sync-btn')]
+        .map((b) => ({ text: b.textContent.trim(), disabled: b.disabled }))
+    })`)
+    assert(wired.url === bare, `stored remote: ${wired.url}`)
+    // A filesystem path is neither SSH nor HTTPS — it needs no credentials.
+    assert(wired.proto === 'local', `protocol chip: ${wired.proto}`)
+    const publish = wired.push.find((b) => b.text.startsWith('Publish'))
+    assert(publish && !publish.disabled, `Publish not offered: ${JSON.stringify(wired.push)}`)
+
+    // Nothing is on the remote until the user says so — adding a remote must
+    // never push by itself.
+    const beforeLog = execSync(`git -C ${JSON.stringify(bare)} log --oneline main 2>&1 || true`, {
+      encoding: 'utf8'
+    })
+    assert(/does not have any commits|unknown revision|^\s*$/.test(beforeLog),
+      `the remote already had commits before Publish: ${beforeLog}`)
+
+    // --- publish -----------------------------------------------------------
+    await evalJs(`[...document.querySelectorAll('.git__sync-btn')]
+      .find((b) => b.textContent.trim().startsWith('Publish')).click()`)
+    await sleep(3500)
+
+    const remoteLog = execSync(`git -C ${JSON.stringify(bare)} log --oneline main`, {
+      encoding: 'utf8'
+    }).trim().split('\n').filter(Boolean)
+    assert(remoteLog.length === 2, `the remote should hold 2 commits, has ${remoteLog.length}`)
+
+    const after = await evalJs(`({
+      trail: [...document.querySelectorAll('.trail__stage')].map((s) => ({
+        count: s.querySelector('.trail__count')?.textContent ?? null,
+        label: s.querySelector('.trail__label')?.textContent ?? null,
+        unsafe: s.classList.contains('trail__stage--unsafe')
+      })),
+      local: document.querySelectorAll('.gt__dot--local').length,
+      rows: document.querySelectorAll('.gt__row').length,
+      buttons: [...document.querySelectorAll('.git__sync-btn')]
+        .map((b) => ({ text: b.textContent.trim(), disabled: b.disabled }))
+    })`)
+
+    // The whole point of the trail: it now says the work is off this machine.
+    assert(
+      after.trail[3].count === '✓' && after.trail[3].label === 'Backed up' && !after.trail[3].unsafe,
+      `remote stage after publish: ${JSON.stringify(after.trail[3])}`
+    )
+    assert(after.trail[2].count === '—', `nothing should be left to push: ${JSON.stringify(after.trail[2])}`)
+    // Every commit is on the server now, so no hollow dots remain.
+    assert(
+      after.local === 0 && after.rows === 2,
+      `after publish ${after.local} of ${after.rows} commits still read as local-only`
+    )
+    // Push has nothing to send; Fetch stays available.
+    const fetchBtn = after.buttons.find((b) => b.text === 'Fetch')
+    assert(fetchBtn && !fetchBtn.disabled, `Fetch should be live with a remote: ${JSON.stringify(after.buttons)}`)
+    await screenshot('views-git-published.png')
+
+    // --- a co-author pushes; Fetch must report it --------------------------
+    const clone = mkdtempSync(join(tmpdir(), 'suna-smoke-coauthor-'))
+    execSync(`git clone -q ${JSON.stringify(bare)} ${JSON.stringify(clone)}`, { stdio: 'pipe' })
+    const gitIn = (args) =>
+      execSync(`git -C ${JSON.stringify(clone)} ${args}`, { stdio: 'pipe', encoding: 'utf8' })
+    gitIn('config user.name "Ben Collaborator"')
+    gitIn('config user.email "ben@cosmic.uk"')
+    writeFileSync(join(clone, 'README.md'), 'A co-author rewrote this.\n')
+    gitIn('commit -qam "A co-author edit"')
+    gitIn('push -q origin main')
+
+    await evalJs(`[...document.querySelectorAll('.git__sync-btn')]
+      .find((b) => b.textContent.trim() === 'Fetch').click()`)
+    await sleep(3000)
+
+    const behind = await evalJs(`({
+      incoming: document.querySelector('.trail__behind')?.textContent?.trim() ?? null,
+      pull: [...document.querySelectorAll('.git__sync-btn')]
+        .filter((b) => b.textContent.trim().startsWith('Pull'))
+        .map((b) => ({ text: b.textContent.trim(), disabled: b.disabled }))[0] ?? null
+    })`)
+    assert(
+      behind.incoming !== null && behind.incoming.includes('1'),
+      `fetch did not surface the co-author's commit: ${JSON.stringify(behind.incoming)}`
+    )
+    assert(
+      behind.pull && !behind.pull.disabled && behind.pull.text.includes('1'),
+      `Pull did not become available: ${JSON.stringify(behind.pull)}`
+    )
+
+    // --- pull it down ------------------------------------------------------
+    await evalJs(`[...document.querySelectorAll('.git__sync-btn')]
+      .find((b) => b.textContent.trim().startsWith('Pull')).click()`)
+    await sleep(3500)
+
+    const settled = await evalJs(`({
+      incoming: document.querySelector('.trail__behind'),
+      subjects: [...document.querySelectorAll('.gt__row .gt__subject')].map((e) => e.textContent),
+      conflict: !!document.querySelector('.gc')
+    })`)
+    assert(settled.incoming === null, 'the incoming marker survived a clean pull')
+    assert(!settled.conflict, 'a clean pull reported a conflict')
+    assert(
+      settled.subjects.includes('A co-author edit'),
+      `the co-author's commit is not in the timeline: ${settled.subjects.join(' | ')}`
+    )
+
+    rmSync(dirname(bare), { recursive: true, force: true })
+    rmSync(clone, { recursive: true, force: true })
+  })
+
+  /**
+   * Version control in Settings. The GitHub sign-in lives here because it is a
+   * property of the machine, not of one manuscript — and the commit identity
+   * beside it is the single most common reason a first commit fails.
+   */
+  await step('settings-version-control', async () => {
+    await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
+    await sleep(1200)
+
+    const sections = await evalJs(
+      `[...document.querySelectorAll('.settings-tab__section')].map((e) => e.textContent)`
+    )
+    assert(
+      sections.includes('Version control'),
+      `Settings has no Version control section: ${sections.join(', ')}`
+    )
+
+    const vcs = await evalJs(`(() => {
+      const head = [...document.querySelectorAll('.settings-tab__section')]
+        .find((e) => e.textContent === 'Version control');
+      const rows = [];
+      let node = head.nextElementSibling;
+      while (node && !node.classList.contains('settings-tab__section')) {
+        rows.push(node.textContent);
+        node = node.nextElementSibling;
+      }
+      return {
+        rows,
+        github: !!document.querySelector('.settings__vcs .gh'),
+        identity: document.querySelector('.settings__vcs-status .git__ok')?.textContent ?? null
+      };
+    })()`)
+
+    assert(vcs.github, 'the GitHub sign-in card is not in Settings')
+    const joined = vcs.rows.join(' ')
+    assert(joined.includes('Commit identity'), `no commit-identity row: ${joined.slice(0, 200)}`)
+    assert(joined.includes('SSH keys'), `no SSH keys row: ${joined.slice(0, 200)}`)
+
+    // The identity shown must be the one git would actually record.
+    const realName = execSync('git config --get user.name || true', { encoding: 'utf8' }).trim()
+    const realEmail = execSync('git config --get user.email || true', { encoding: 'utf8' }).trim()
+    if (realName !== '' && realEmail !== '') {
+      assert(
+        vcs.identity !== null && vcs.identity.includes(realName) && vcs.identity.includes(realEmail),
+        `Settings shows "${vcs.identity}", git config says "${realName} <${realEmail}>"`
+      )
+    } else {
+      assert(
+        joined.includes('Not set'),
+        'no git identity on this machine, but Settings did not say so'
+      )
+    }
+
+    // Without an OAuth App this build cannot sign in, and must say so rather
+    // than offering a button that can only fail.
+    const ghCard = await evalJs(`document.querySelector('.settings__vcs .gh')?.textContent ?? ''`)
+    const hasSignIn = await evalJs(
+      `!!document.querySelector('.settings__vcs .gh__signin, .settings__vcs .gh__signout')`
+    )
+    assert(
+      hasSignIn || /no GitHub OAuth App configured/i.test(ghCard),
+      `the GitHub card neither offers sign-in nor explains why: ${ghCard.slice(0, 160)}`
+    )
+    await screenshot('settings-version-control.png')
+  })
+
+  /**
+   * Version control on the wizard's Review step. The local repository is never
+   * optional — the assertion that matters is that the summary says so, and
+   * that the publish substep stays out of the way until it is asked for.
+   */
+  await step('onboarding-version-control', async () => {
+    const parent = mkdtempSync(join(tmpdir(), 'suna-smoke-vcswizard-'))
+    await evalJs(`window.__sunaDev.dock.openOnboardingTab({ mode: 'create' })`)
+    await sleep(1000)
+    await evalJs(`window.__sunaDev.onboarding.patch({
+      parentDir: ${JSON.stringify(parent)},
+      name: 'vcs-paper',
+      targetExists: false,
+      targetParentWritable: true,
+      step: 7
+    })`)
+    await sleep(1200)
+
+    const review = await evalJs(`({
+      vcs: document.querySelector('.onboard__vcs')?.textContent ?? null,
+      summary: document.querySelector('.onboard__review-summary')?.textContent ?? '',
+      repoName: window.__sunaDev.onboarding.getState()?.githubRepoName ?? null,
+      publish: window.__sunaDev.onboarding.getState()?.publishToGitHub ?? null,
+      visibility: window.__sunaDev.onboarding.getState()?.githubVisibility ?? null
+    })`)
+
+    assert(review.vcs !== null, 'the Review step has no version-control block')
+    assert(
+      /git repository is created here either way/i.test(review.vcs),
+      `the block does not promise a local repository: ${review.vcs.slice(0, 160)}`
+    )
+    assert(
+      /Version control/.test(review.summary) &&
+        /git repository on this machine/.test(review.summary),
+      `the review summary omits version control: ${review.summary.slice(0, 300)}`
+    )
+
+    // The repository name is seeded from the project name, so publishing is
+    // one click rather than a re-typed name.
+    assert(review.repoName === 'vcs-paper', `repo name not seeded: ${review.repoName}`)
+    // Publishing is opt-in; nothing leaves the machine by default.
+    assert(review.publish === false, 'the wizard defaults to publishing to GitHub')
+    assert(review.visibility === 'private', `default visibility: ${review.visibility}`)
+
+    // The publish substep is hidden while nobody asked to publish, and the
+    // five that always run are listed.
+    await evalJs(`window.__sunaDev.onboarding.patch({ progress: {
+      dirs: 'active', files: 'pending', git: 'pending',
+      publish: 'pending', env: 'pending', mcp: 'pending'
+    } })`)
+    await sleep(500)
+    const hidden = await evalJs(
+      `[...document.querySelectorAll('.onboard__progress-row')].map((e) => e.textContent)`
+    )
+    assert(
+      hidden.length === 5 && !hidden.some((r) => /Publishing/.test(r)),
+      `publish substep shown without opting in: ${hidden.join(' | ')}`
+    )
+
+    // Opting in adds it, so the user can watch it happen.
+    await evalJs(`window.__sunaDev.onboarding.patch({ publishToGitHub: true })`)
+    await sleep(500)
+    const shown = await evalJs(
+      `[...document.querySelectorAll('.onboard__progress-row')].map((e) => e.textContent)`
+    )
+    assert(
+      shown.length === 6 && shown.some((r) => /Publishing to GitHub/.test(r)),
+      `publish substep missing after opting in: ${shown.join(' | ')}`
+    )
+    const summaryOn = await evalJs(
+      `document.querySelector('.onboard__review-summary')?.textContent ?? ''`
+    )
+    assert(
+      /published to GitHub as vcs-paper \(private\)/.test(summaryOn),
+      `summary did not follow the publish choice: ${summaryOn.slice(0, 300)}`
+    )
+    await screenshot('onboarding-version-control.png')
+
+    await evalJs(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+    await sleep(700)
+    assert(!existsSync(join(parent, 'vcs-paper')), 'the wizard wrote a project it never created')
+    rmSync(parent, { recursive: true, force: true })
   })
 
   await step('agent-view', async () => {
