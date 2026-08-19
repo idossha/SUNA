@@ -58,6 +58,15 @@ interface RefNotesState {
   pendingRemovals: { page: number; rects: { left: number; top: number; width: number; height: number }[] }[]
   noteRemoved: (regions: { page: number; rects: { left: number; top: number; width: number; height: number }[] }[]) => void
   clearPendingRemovals: () => void
+  /**
+   * The printed page number minus the page index, set once per document.
+   *
+   * Needed because `getPageLabels()` answers null for arXiv and CVPR — exactly
+   * the preprints researchers read most — so `p. 3` is the third sheet, which
+   * on a paper whose body starts at 108 is a citation error nobody catches
+   * until proof stage.
+   */
+  setPageLabelOffset: (offset: number, pageCount: number) => Promise<void>
 }
 
 export const useRefNotesStore = create<RefNotesState>((set, get) => ({
@@ -142,8 +151,30 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
     set({ pendingRemovals: [...get().pendingRemovals, ...regions] })
   },
 
-  clearPendingRemovals: () => set({ pendingRemovals: [] })
+  clearPendingRemovals: () => set({ pendingRemovals: [] }),
+
+  setPageLabelOffset: async (offset, pageCount) => {
+    const { file, citekey } = get()
+    if (file === null || citekey === null) return
+    const existing = file.source
+    const source = {
+      path: existing?.path ?? `references/${citekey}.pdf`,
+      sha256: existing?.sha256 ?? '',
+      pageCount: existing?.pageCount ?? Math.max(1, pageCount),
+      pageLabelOffset: offset,
+      extractor: existing?.extractor ?? { pdfjs: PDFJS_VERSION, pageText: 1 },
+      sweptAt: new Date().toISOString()
+    }
+    await persist(set, get, { ...file, source })
+  }
 }))
+
+/**
+ * The extractor version stamped into the sidecar. Bumping pdfjs-dist can
+ * change how a page's text comes out, which is exactly when stored quotes
+ * deserve re-checking rather than trusting.
+ */
+const PDFJS_VERSION = '6.2.108'
 
 /**
  * Optimistic in-memory update, then the atomic write. A failed write rolls the

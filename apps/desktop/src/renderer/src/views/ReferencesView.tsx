@@ -8,9 +8,10 @@ import {
   type BibEntry,
   type Run
 } from '@suna/bib'
+import { REFERENCE_NOTES_DIR } from '@suna/core'
 import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { orderedReferences } from '../manuscript/citations'
-import { openViewerInSide } from '../state/dock'
+import { openReadingNotesTab, openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
 import { useReferencePdfs } from '../state/referencePdfs'
 import { profileLabel, usePreviewProfileId, useRenderProfileStore } from '../state/renderProfile'
@@ -294,6 +295,18 @@ export function ReferencesView(): JSX.Element {
         }
       }
 
+      // The reading notes go with the paper. Left behind they are invisible:
+      // nothing lists `references/notes/`, so an orphaned sidecar would sit
+      // there until someone opened the folder, and would silently re-attach if
+      // the same citekey were ever added again (ADR-008).
+      try {
+        await window.suna.invoke('fs:delete', {
+          path: `${rootDir}/${REFERENCE_NOTES_DIR}/${entry.key}.json`
+        })
+      } catch {
+        // No notes for this paper, which is the common case.
+      }
+
       setEntries((current) => current.filter((e) => e.key !== entry.key))
       if (selectedKey === entry.key) setSelectedKey(null)
       referencePdfs.rescan()
@@ -330,6 +343,16 @@ export function ReferencesView(): JSX.Element {
           onClick={() => setActiveTab('search')}
         >
           Search
+        </button>
+        <button
+          className="refs__notesbtn"
+          title="Every highlight across every paper"
+          disabled={rootDir === null}
+          onClick={() => {
+            if (rootDir !== null) openReadingNotesTab(rootDir)
+          }}
+        >
+          Notes
         </button>
       </div>
 

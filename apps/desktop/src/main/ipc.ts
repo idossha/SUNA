@@ -26,6 +26,7 @@ import { captureRect, devInfo, repairBundle } from './services/capture'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
 import {
   embedHighlightsIntoPdf,
+  listAllReferenceNotes,
   readReferenceNotes,
   writeReferenceNotes
 } from './services/refnotes'
@@ -340,6 +341,7 @@ export function registerIpcHandlers(): void {
     await writeReferenceNotes(dir, citekey, file)
     return {}
   })
+  handle('refnotes:list-all', async ({ dir }) => ({ papers: await listAllReferenceNotes(dir) }))
   handle('refnotes:embed', async ({ dir, citekey, base64 }) =>
     embedHighlightsIntoPdf(dir, citekey, base64)
   )

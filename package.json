@@ -2,7 +2,7 @@
   "name": "suna",
   "private": true,
   "version": "0.1.0",
-  "description": "SUNA — academic co-writing platform: manuscripts, figures, references, and publisher-ready output",
+  "description": "SUNA \u2014 academic co-writing platform: manuscripts, figures, references, and publisher-ready output",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -19,6 +19,7 @@
   "scripts": {
     "dev": "pnpm --filter @suna/agent build:mcp && pnpm --filter @suna/desktop dev",
     "smoke": "node scripts/e2e/smoke.mjs",
+    "probes:pdf": "node scripts/e2e/pdf-probes.mjs",
     "build": "pnpm -r --filter=!@suna/website build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

@@ -1023,3 +1023,27 @@
   display: inline-block;
   text-decoration: none;
 }
+
+/* Cross-paper reading notes (ADR-008): the entry point sits with the
+   References tabs, because that is where the papers are. */
+.refs__notesbtn {
+  margin-left: auto;
+  padding: 3px 10px;
+  color: var(--s-ink-muted);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+}
+
+.refs__notesbtn:hover:not(:disabled) {
+  color: var(--s-accent);
+  border-color: var(--s-border-strong);
+}
+
+.refs__notesbtn:disabled {
+  color: var(--s-ink-faint);
+  cursor: default;
+}

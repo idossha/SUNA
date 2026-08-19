@@ -698,6 +698,18 @@ export const CHANNELS = {
     response: z.object({}),
   },
   /**
+   * Every paper's reading notes at once, for the cross-paper view. Notes are
+   * stored per paper so a highlight is a small write; reading across them is
+   * the other half of that trade and needs one call rather than N.
+   */
+  'refnotes:list-all': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      /** `{ citekey, file }` per paper that has a notes file, citekey-sorted. */
+      papers: z.array(z.object({ citekey: z.string(), file: z.unknown() })),
+    }),
+  },
+  /**
    * Write SUNA's highlights into `references/<citekey>.pdf` as real PDF
    * annotations (ADR-008, amended: native, in place, never a copy in output/).
    *

@@ -143,6 +143,23 @@ export function openSettingsTab(): void {
   dockApi.addPanel({ id: 'settings', component: 'settings', title: 'Settings' })
 }
 
+/** Open (or focus) the cross-paper reading notes tab (ADR-008). */
+export function openReadingNotesTab(rootDir: string): void {
+  if (!dockApi) return
+  const id = `reading-notes:${rootDir}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'reading-notes',
+    title: 'Reading notes',
+    params: { rootDir }
+  })
+}
+
 /** Open (or focus) the combined manuscript document tab for a project. */
 export function openManuscriptTab(rootDir: string): void {
   if (!dockApi) return
@@ -428,6 +445,7 @@ export const dockDevSeam = {
    * already active, so a driver cannot use it idempotently.
    */
   openManuscriptTab,
+  openReadingNotesTab,
   /** feature-plan-7 §3: close every tab scoped to a project directory. */
   closeProjectTabs,
   sideGroupId,

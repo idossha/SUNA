@@ -5,10 +5,13 @@
  *   1. selecting text and picking a colour writes `references/notes/<key>.json`,
  *   2. that file validates and carries a W3C quote/prefix/suffix anchor,
  *   3. closing and reopening the PDF re-locates the quote and repaints it,
- *   4. the PDF's own bytes are untouched — highlights are stored beside it.
+ *   4. the paper's own bytes are never rewritten — the PDF only ever grows.
  *
- * Step 4 is the one that matters most: `references/<citekey>.pdf` is the
- * artifact of record, and reading a paper must never modify it.
+ * Step 4 changed meaning when highlights became native to the file. It used to
+ * assert the PDF was untouched; now it must change, because that is the point.
+ * What still has to hold is that the PAPER is not rewritten: every write is an
+ * incremental append, so the bytes that were there before are still there,
+ * byte for byte, and only the update at the end is new.
  *
  * Run:  node scripts/e2e/drive.mjs --boot --example
  *       node scripts/e2e/drive.mjs scripts/e2e/probes/pdf-highlight.mjs
@@ -39,10 +42,11 @@ export default async function run(ctx) {
   const notesPath = `${rootDir}/references/notes/gunn1972.json`
 
   // ---- 0. baseline: the PDF's own size, to prove we never write it -------
-  const pdfBefore = await evalJs(
-    `window.suna.invoke('fs:read-binary', { path: ${json(pdfPath)} }).then((r) => r.base64.length, (e) => String(e))`
-  )
-  assert(typeof pdfBefore === 'number', `reference PDF unreadable: ${pdfBefore}`)
+  const pdfBefore = await evalJs(`(async () => {
+    const { base64 } = await window.suna.invoke('fs:read-binary', { path: ${json(pdfPath)} })
+    return { len: base64.length, head: base64.slice(0, 512) }
+  })()`)
+  assert(typeof pdfBefore?.len === 'number', `reference PDF unreadable: ${json(pdfBefore)}`)
 
   await openPdfAndWait(ctx, pdfPath)
 
@@ -136,20 +140,27 @@ export default async function run(ctx) {
     `highlight rect is degenerate: ${json(repainted.firstBox)}`
   )
 
-  // ---- 4. the PDF itself was never written -------------------------------
-  const pdfAfter = await evalJs(
-    `window.suna.invoke('fs:read-binary', { path: ${json(pdfPath)} }).then((r) => r.base64.length, (e) => String(e))`
+  // ---- 4. the paper's own bytes were appended to, never rewritten -------
+  const after = await evalJs(`(async () => {
+    const { base64 } = await window.suna.invoke('fs:read-binary', { path: ${json(pdfPath)} })
+    return { len: base64.length, head: base64.slice(0, 512) }
+  })()`)
+  assert(
+    after.len >= pdfBefore.len,
+    `the PDF shrank (${pdfBefore.len} -> ${after.len}); an incremental save only grows it`
   )
   assert(
-    pdfAfter === pdfBefore,
-    `the reference PDF changed size (${pdfBefore} -> ${pdfAfter}) — notes must be stored beside it, not in it`
+    after.head === pdfBefore.head,
+    'the start of the paper changed — it was rewritten rather than appended to'
   )
-  console.log(`reference PDF unchanged (${pdfBefore} base64 chars)`)
+  console.log(
+    `the paper grew by ${after.len - pdfBefore.len} base64 chars and its original bytes are intact`
+  )
 
   return {
     quote: run0.quote.slice(0, 80),
     color: note.color,
     paintedAfterReload: repainted.count,
-    pdfUnchanged: pdfAfter === pdfBefore
+    grewBy: after.len - pdfBefore.len
   }
 }

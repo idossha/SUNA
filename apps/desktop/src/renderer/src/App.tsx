@@ -14,6 +14,7 @@ import { DocxImportTab } from './import/DocxImportTab'
 import { ExportDialog } from './export/ExportDialog'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
 import { OnboardingTab } from './onboarding/OnboardingTab'
+import { ReadingNotesTab } from './viewer/ReadingNotesTab'
 import { SettingsTab } from './settings/SettingsTab'
 import { TerminalPanel } from './terminal/TerminalPanel'
 import { PdfTab } from './viewer/PdfTab'
@@ -40,6 +41,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   'docx-import': DocxImportTab,
   export: ExportDialog,
   settings: SettingsTab,
+  'reading-notes': ReadingNotesTab,
   pdf: PdfTab,
   image: ImageTab
 }

@@ -260,6 +260,8 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const pendingRemovals = useRefNotesStore((s) => s.pendingRemovals)
   const noteRemoved = useRefNotesStore((s) => s.noteRemoved)
   const clearPendingRemovals = useRefNotesStore((s) => s.clearPendingRemovals)
+  const setPageLabelOffset = useRefNotesStore((s) => s.setPageLabelOffset)
+  const pageLabelOffset = notesFile?.source?.pageLabelOffset ?? 0
   const notesCitekey = useRefNotesStore((s) => s.citekey)
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
 
@@ -601,7 +603,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     pickedNoteObject !== null
       ? notePage(pickedNoteObject)
       : (selection?.runs[0]?.page ?? null)
-  const popoverPageLabel = popoverPage === null ? null : citedPageLabel(popoverPage, pageLabels)
+  const popoverPageLabel = popoverPage === null ? null : citedPageLabel(popoverPage, pageLabels, pageLabelOffset)
 
   const copyQuote = useCallback((): void => {
     if (popoverQuote === '') return
@@ -619,7 +621,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     (noteId: string): void => {
       const target = notes.find((n) => n.id === noteId)
       if (target === undefined) return
-      const label = citedPageLabel(notePage(target), pageLabels)
+      const label = citedPageLabel(notePage(target), pageLabels, pageLabelOffset)
       void navigator.clipboard.writeText(quoteWithCitation(noteQuote(target), quoteCitekey, label)).then(
         () => setNote('Passage and citation copied.'),
         () => setNote('Could not write to the clipboard.')
@@ -814,6 +816,25 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           >
             +
           </button>
+          {notesCitekey !== null && pageLabels === null && (
+            <label className="pdfview__pagelabel" title={
+              'This PDF declares no printed page numbers, so a citation uses the sheet number. ' +
+              'Set what page 1 is actually printed as.'
+            }>
+              p.1 =
+              <input
+                className="pdfview__pagejump"
+                type="number"
+                defaultValue={1 + pageLabelOffset}
+                aria-label="Printed number of the first page"
+                onBlur={(event) => {
+                  const printed = Number(event.currentTarget.value)
+                  if (!Number.isFinite(printed)) return
+                  void setPageLabelOffset(Math.round(printed) - 1, numPages)
+                }}
+              />
+            </label>
+          )}
           <button
             className="pdfview__fitwidth pdfview__notesbtn"
             aria-pressed={railOpen}

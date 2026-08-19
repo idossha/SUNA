@@ -1,3 +1,4 @@
+import { listReferenceNotes, listReferenceNotesInput } from './refnotes'
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -464,6 +465,12 @@ export const TOOLS = [
     schema: checkManuscriptInput
   },
   { name: 'list_comments', description: 'List review comments, optionally filtered by resolved status or section path', schema: listCommentsInput },
+  {
+    name: 'list_reference_notes',
+    description:
+      "List the reader's highlights and notes on reference PDFs, grouped by paper and joined to its bibliography entry, so a quote can be cited as [@citekey, p. N] — optionally filtered by citekey, colour, tag, or to notes that carry written text",
+    schema: listReferenceNotesInput
+  },
   { name: 'add_comment', description: 'Add a review comment anchored to an exact quote in a manuscript section', schema: addCommentInput },
   { name: 'reply_comment', description: 'Reply to an existing review comment thread (resolving is human-only, in the app)', schema: replyCommentInput },
   { name: 'search_literature', description: 'Search a literature provider (default Crossref, keyless)', schema: searchLiteratureInput },
@@ -540,6 +547,8 @@ export async function callTool(
       return checkManuscriptCompliance(ctx)
     case 'list_comments':
       return listComments(ctx, listCommentsInput.parse(args))
+    case 'list_reference_notes':
+      return listReferenceNotes(ctx, listReferenceNotesInput.parse(args))
     case 'add_comment':
       return addComment(ctx, addCommentInput.parse(args))
     case 'reply_comment':
