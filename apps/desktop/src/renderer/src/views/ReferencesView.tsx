@@ -494,15 +494,7 @@ export function ReferencesView(): JSX.Element {
                       // wider pill, so it costs one row of height and leaves
                       // .refs__row-main exactly the width it had when "Attach
                       // PDF…" stood there alone.
-                      <span
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-end',
-                          flexShrink: 0,
-                          gap: 3
-                        }}
-                      >
+                      <span className="refs__row-pdf">
                         <span
                           className="refs__attach-pdf"
                           role="button"
