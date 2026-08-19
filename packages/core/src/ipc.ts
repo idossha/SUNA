@@ -7,6 +7,7 @@ import {
   PdfMatchSchema,
 } from './library';
 import { LitCliIdSchema, LitProviderIdSchema, LitResultSchema } from './lit';
+import { NoteColorSchema } from './refnotes';
 import {
   ProjectDirKeySchema,
   ProjectSettingsSchema,
@@ -1582,6 +1583,53 @@ export const CHANNELS = {
       figurePngPaths: z.record(z.string(), z.string()),
       options: ExportOptionsSchema,
       target: z.enum(['manuscript', 'supplement']).default('manuscript'),
+    }),
+    response: z.object({ path: z.string().min(1) }),
+  },
+  /**
+   * Reading-notes export: the literature note as a document, in the ONE shape
+   * the Reading Notes tab already shows on screen — the filtered selection,
+   * grouped by paper, quote + written note + page.
+   *
+   * Deliberately not the manuscript exporter. There is no profile, no figure
+   * rasterization, no submission options and no target: a literature note is
+   * not a submission, and every knob that pipeline carries would be a knob
+   * with no meaning here. The renderer sends the rendered strings it is
+   * already displaying (page labels included, so the printed-page correction
+   * is applied exactly once, in the one place that knows the offset) and main
+   * only lays them out. Writes to `<dir>/output/notes/<outputName>.<format>` —
+   * its own folder, so a literature note is never mistaken for a draft of the
+   * manuscript sitting beside the real exports.
+   */
+  'export:notes': {
+    request: z.object({
+      dir: z.string().min(1),
+      format: z.enum(['pdf', 'docx', 'html']),
+      outputName: z.string().min(1),
+      /** Document title, e.g. "Reading notes". */
+      title: z.string().min(1),
+      /** A one-line provenance caption under the title (project, filters, date). */
+      subtitle: z.string().default(''),
+      papers: z.array(
+        z.object({
+          citekey: z.string().min(1),
+          /** "Author et al. (2021)" as the notes tab prints it. */
+          label: z.string(),
+          /** The paper's title, or '' when the bibliography has no entry. */
+          title: z.string(),
+          notes: z.array(
+            z.object({
+              /** Already corrected to the printed page — main never re-derives it. */
+              page: z.string(),
+              quote: z.string(),
+              body: z.string(),
+              color: NoteColorSchema,
+              tags: z.array(z.string()),
+              detached: z.boolean().default(false),
+            }),
+          ),
+        }),
+      ),
     }),
     response: z.object({ path: z.string().min(1) }),
   },

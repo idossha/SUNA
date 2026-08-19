@@ -470,7 +470,20 @@ export function ReferencesView(): JSX.Element {
                       <span className="refs__title">{entry.title}</span>
                     </span>
                     {resolution ? (
-                      <span className="refs__pdf-badge" title={pdfBadgeTitle(resolution.how)}>
+                      // A button, not a label: a row that HAS a PDF was the
+                      // one place the library could not open it. Selecting the
+                      // row only opens the paper when the autoOpenPdf
+                      // preference is on, which leaves everyone else looking
+                      // at a badge that says a PDF exists and does nothing.
+                      <span
+                        className="refs__pdf-badge"
+                        role="button"
+                        title={pdfBadgeTitle(resolution.how)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openViewerInSide(resolution.path)
+                        }}
+                      >
                         {PDF_BADGE_LABEL}
                       </span>
                     ) : (

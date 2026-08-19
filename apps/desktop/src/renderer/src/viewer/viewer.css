@@ -793,6 +793,74 @@ button.pdfnotes__dot:hover {
   color: var(--s-ink-faint);
 }
 
+/* The export toast carries its own actions, so it is a row rather than a
+   line of text: message, then Open / Show in folder, then dismiss. */
+.rnotes__note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rnotes__notebtn {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 4px;
+  background: none;
+  color: var(--s-ink);
+  font: inherit;
+  font-size: var(--s-text-xs);
+  cursor: pointer;
+}
+
+.rnotes__notebtn:hover {
+  background: var(--s-bg-hover);
+}
+
+/* The export control: a menu anchored to its own button, so the format list
+   opens under the icon instead of over the notes. */
+.rnotes__export {
+  position: relative;
+  display: inline-flex;
+}
+
+.rnotes__exportbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+}
+
+.rnotes__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  background: var(--s-bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.rnotes__menuitem {
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--s-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rnotes__menuitem:hover {
+  background: var(--s-bg-hover);
+}
+
 .rnotes__body {
   flex: 1;
   min-height: 0;
