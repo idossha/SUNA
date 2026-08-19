@@ -160,6 +160,48 @@ export default async (ctx) => {
         anchorStyle.line.includes('underline') &&
         (anchorStyle.bg === 'rgba(0, 0, 0, 0)' || anchorStyle.bg === 'transparent'),
       JSON.stringify(anchorStyle))
+    // The trail is a two-state signal: dotted at rest, solid for "you are in
+    // this thread". Solid has to REVERT, or with several comments in a
+    // paragraph it keeps pointing at the one you left.
+    const trailStyle = () => ctx.evalJs(`(() => {
+      const el = document.querySelector('.cm-content .cmt-anchor')
+      return el === null ? null : getComputedStyle(el).textDecorationStyle
+    })()`)
+    check('the resting trail is dotted', (await trailStyle()) === 'dotted', await trailStyle())
+
+    const anchorBox = await ctx.evalJs(`(() => {
+      const el = document.querySelector('.cm-content .cmt-anchor')
+      if (!el) return null
+      el.scrollIntoView({ block: 'center' })
+      const r = el.getBoundingClientRect()
+      return { x: r.left + 8, y: r.top + r.height / 2 }
+    })()`)
+    if (anchorBox !== null) {
+      await ctx.click(anchorBox.x, anchorBox.y)
+      await ctx.sleep(500)
+      check('clicking the anchor makes the trail solid', (await trailStyle()) === 'solid', await trailStyle())
+
+      const elsewhere = await ctx.evalJs(`(() => {
+        const l = [...document.querySelectorAll('.cm-content .cm-line')].find((el) => {
+          const r = el.getBoundingClientRect()
+          return !el.querySelector('.cmt-anchor') && el.textContent.trim().length > 30 &&
+            r.top > 140 && r.bottom < window.innerHeight - 60 && r.width > 0
+        })
+        if (!l) return null
+        const r = l.getBoundingClientRect()
+        return { x: r.left + 20, y: r.top + r.height / 2 }
+      })()`)
+      check('there is plain prose on screen to click away onto', elsewhere !== null)
+      if (elsewhere !== null) {
+        await ctx.click(elsewhere.x, elsewhere.y)
+        await ctx.sleep(500)
+        check('clicking elsewhere reverts the trail to dotted',
+          (await trailStyle()) === 'dotted', await trailStyle())
+        check('and the store forgot the active thread',
+          (await ctx.evalJs(`window.__sunaDev.commentsStore.getState().activeId`)) === null)
+      }
+    }
+
     check('the diff marks keep their own background under the comment',
       (await ctx.evalJs(`(() => {
         const el = document.querySelector('.cm-content .cm-sunaDiff-ins')
@@ -190,6 +232,23 @@ export default async (ctx) => {
       check('clicking a change opens its Accept/Reject popover',
         pop !== null && pop.buttons.includes('Accept') && pop.buttons.includes('Reject'),
         JSON.stringify(pop))
+
+      // The popover lives inside the editor's DOM but is chrome, not text:
+      // clicking it must not drop the comment being worked on.
+      await ctx.evalJs(`window.__sunaDev.commentsStore.getState().setActive(${JSON.stringify('CID')})`.replace(JSON.stringify('CID'), JSON.stringify(commentId)))
+      await ctx.sleep(400)
+      const chrome = await ctx.evalJs(`(() => {
+        const el = document.querySelector('.cm-sunaDiff-actions')
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return { x: r.left + 2, y: r.top + 2 }
+      })()`)
+      if (chrome !== null) {
+        await ctx.click(chrome.x, chrome.y)
+        await ctx.sleep(400)
+        check('clicking the popover chrome does not clear the active comment',
+          (await ctx.evalJs(`window.__sunaDev.commentsStore.getState().activeId`)) === commentId)
+      }
 
       const beforePopover = await ctx.evalJs(
         `window.__sunaDev.docSessions.peek(${JSON.stringify(manuscriptPath)})`

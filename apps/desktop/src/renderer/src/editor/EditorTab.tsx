@@ -234,7 +234,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
             effects: StateEffect.appendConfig.of([
               // highlight decorations + click-to-activate; the rail owns the
               // reverse direction (card click -> flash) and the flash watcher
-              commentHighlightExtension((commentId: string) =>
+              commentHighlightExtension((commentId: string | null) =>
                 useCommentsStore.getState().setActive(commentId)
               ),
               // AI-change review: word-level red/green over the baseline in
