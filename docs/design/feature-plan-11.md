@@ -298,9 +298,9 @@ accumulated meanwhile.
 | **11b** ✅ | `applyExternal` uses multi-span `wordDiff` | comment anchors survive a two-place agent edit (currently they do not) |
 | **11c** ✅ | `merge3` + `checkDisk` three-way; banner shows conflict count | typing while an agent edits elsewhere loses nothing on either side |
 | **11d** ✅ | Layer 5 write safety | a whole-file write during a dirty buffer is refused, not silently destructive |
-| **11e** | `revisions.json` capture around AI runs | a directed action leaves a closed revision with a correct pre-image |
-| **11f** | `revisionDiff.ts` decorations, both themes, both modes | word-level red/green matching the reference; nothing leaks into export |
-| **11g** | `review.aiDiffs` setting + Settings pane row | project override beats global, both beat the `'inline'` default |
+| **11e** ✅ | `revisions.json` capture around AI runs | a directed action leaves a closed revision with a correct pre-image |
+| **11f** ✅ | `revisionDiff.ts` decorations, both themes, both modes | word-level red/green matching the reference; nothing leaks into export |
+| **11g** ✅ | `review.aiDiffs` setting + Settings pane row | project override beats global, both beat the `'inline'` default |
 
 11a–11d are the MUST (live co-editing) and are independently valuable —
 they fix real current data-loss and anchor-collapse behaviour whether or not
@@ -368,6 +368,39 @@ change a different paragraph on disk — and was verified adversarially again:
 with `checkDisk` reverted to the old blocking behaviour the agent's edit never
 reaches the dirty buffer and the probe times out.
 
-Not started: 11e–11g (the diff view). Nothing is captured to
-`revisions.json` yet, there are no decorations, and `review.aiDiffs` does not
-exist.
+**11e — `manuscript/revisions.json`.** Schema in `@suna/core/revisions.ts`,
+main-process service and `revisions:read`/`revisions:write` mirroring
+comments.json exactly, store in `state/revisions.ts`. The baseline is captured
+in `startAiAsk` — the single choke point every AI run passes through — right
+after the §11d flush, so what the author reviews is a diff against what they
+could actually see. A second run before the first is reviewed keeps the OLDER
+base, because "everything the AI changed since I last looked" is the question
+a reviewer is asking.
+
+**11f — `editor/revisionDiff.ts` + `editor/revisionReview.ts`.** Additions are
+mark decorations over live text; removals are inert widgets
+(`contenteditable=false`, unselectable, not document text) so nothing they
+show can reach an export, a word count or the clipboard. Wired into both prose
+surfaces — the raw editor tab and the combined manuscript document.
+
+Accept and reject came out asymmetric, and the asymmetry is the good part:
+the document already holds the AI's text, so REJECT edits the prose back (an
+ordinary undoable edit that saves normally) while ACCEPT only advances the
+baseline and cannot alter the file at all. Either way the hunk stops existing
+because base and document then agree there — no hunk bookkeeping anywhere.
+`Alt-]`/`Alt-[` walk, `Alt-y`/`Alt-n` take or drop the one at the cursor, and
+`ReviewBar` does all-or-nothing with a live count.
+
+The plan sketched a muted whole-line tint under the saturated word. Dropped on
+sight: with the line tint a one-word change reads as a whole-line rewrite. The
+word alone carries it.
+
+**11g — `review.aiDiffs`.** `'inline' | 'off'`, default `'inline'`, resolved
+project ?? global ?? default, with rows on both settings surfaces. `'off'`
+hides the paint AND the review bar (an Accept-all for invisible changes would
+be a trap), but does not stop capture — turning it back on shows everything
+that accumulated.
+
+`probes/ai-diff-review.mjs` drives all of it against the real app: 17 checks
+including "removed text is not in the document" and "the manuscript on disk
+carries no diff markers".
