@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   NOTE_COLORS,
   ReferenceNotesFileSchema,
@@ -10,6 +10,7 @@ import {
   type PdfNote,
   type ReferenceNotesFile
 } from '@suna/core'
+import type { RequestOf } from '@suna/core'
 import { parseBibtex, type BibEntry } from '@suna/bib'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openViewerInSide } from '../state/dock'
@@ -34,7 +35,7 @@ import './viewer.css'
  * the whole context.
  */
 
-interface PaperGroup {
+export interface PaperGroup {
   citekey: string
   entry: BibEntry | undefined
   notes: PdfNote[]
@@ -80,6 +81,76 @@ export function notesAsMarkdown(groups: readonly PaperGroup[]): string {
   return out.join('\n').trimEnd() + '\n'
 }
 
+/** The three documents a literature note can leave as. */
+export const NOTES_EXPORT_FORMATS = [
+  { id: 'pdf', label: 'PDF' },
+  { id: 'docx', label: 'Word (.docx)' },
+  { id: 'html', label: 'Web page (.html)' }
+] as const
+export type NotesExportFormat = (typeof NOTES_EXPORT_FORMATS)[number]['id']
+
+/** What the export is called on disk. One name, overwritten each time: a
+ *  literature note is a current view of the reading, not a dated archive —
+ *  git already keeps the older ones. */
+export const NOTES_EXPORT_BASENAME = 'reading-notes'
+
+/** Where the file lands, as the panel says it. Mirrors export-notes.ts's
+ *  NOTES_OUTPUT_SUBDIR — a literature note gets its own folder rather than
+ *  sitting among the manuscript exports. */
+export const NOTES_OUTPUT_DIR = 'output/notes/'
+
+/**
+ * The on-screen selection as an export request.
+ *
+ * Every string main receives is the string this tab is already showing —
+ * above all the page label, which is the ONE number that has to be computed
+ * where the paper's `pageLabelOffset` is known. Main lays out; it never
+ * re-derives anything, so an exported note and the panel cannot disagree.
+ */
+export function notesExportRequest(
+  groups: readonly PaperGroup[],
+  input: { dir: string; format: NotesExportFormat; subtitle: string }
+): RequestOf<'export:notes'> {
+  return {
+    dir: input.dir,
+    format: input.format,
+    outputName: NOTES_EXPORT_BASENAME,
+    title: 'Reading notes',
+    subtitle: input.subtitle,
+    papers: groups.map((group) => ({
+      citekey: group.citekey,
+      label: paperLabel(group.citekey, group.entry),
+      title: group.entry?.title.trim() ?? '',
+      notes: group.notes.map((note) => ({
+        page: citedPageLabel(notePage(note), null, group.pageLabelOffset),
+        quote: noteQuote(note),
+        body: note.body.trim(),
+        color: note.color,
+        tags: [...note.tags],
+        detached: isDetached(note)
+      }))
+    }))
+  }
+}
+
+/** The provenance line under the title: what was exported, and whether it was
+ *  the whole reading or a filtered slice of it. Saying "filtered" matters —
+ *  a note that silently dropped half the highlights would be read as complete. */
+export function notesExportSubtitle(input: {
+  notes: number
+  papers: number
+  filtered: boolean
+  exportedOn: string
+}): string {
+  const parts = [
+    `${input.notes} note${input.notes === 1 ? '' : 's'}`,
+    `${input.papers} paper${input.papers === 1 ? '' : 's'}`
+  ]
+  if (input.filtered) parts.push('filtered selection')
+  parts.push(`exported ${input.exportedOn}`)
+  return parts.join(' · ')
+}
+
 /**
  * Turn an IPC failure into something a person can act on.
  *
@@ -108,6 +179,32 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
   const [colorFilter, setColorFilter] = useState<NoteColor | null>(null)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [withBodyOnly, setWithBodyOnly] = useState(false)
+
+  // Export is a menu because the format is the only choice it offers: no
+  // profile, no figures, no submission options — the manuscript exporter's
+  // dialog would be three dropdowns of questions a literature note cannot
+  // answer.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [exporting, setExporting] = useState<NotesExportFormat | null>(null)
+  const [writtenPath, setWrittenPath] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  // A menu that outlives a click elsewhere is a menu stuck open over the list.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent): void => {
+      if (menuRef.current !== null && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   // A highlight made while this tab is open must show up here without being
   // asked for. `revision` catches every write this renderer makes; `saveBump`
@@ -185,6 +282,60 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
     )
   }
 
+  const filtered =
+    query.trim() !== '' || colorFilter !== null || tagFilter !== null || withBodyOnly
+
+  const exportAll = async (format: NotesExportFormat): Promise<void> => {
+    setMenuOpen(false)
+    setExporting(format)
+    try {
+      const { path } = await window.suna.invoke(
+        'export:notes',
+        notesExportRequest(groups, {
+          dir: rootDir,
+          format,
+          subtitle: notesExportSubtitle({
+            notes: total,
+            papers: groups.length,
+            filtered,
+            exportedOn: new Date().toISOString().slice(0, 10)
+          })
+        })
+      )
+      setWrittenPath(path)
+      setNote(`Wrote ${NOTES_EXPORT_BASENAME}.${format} to ${NOTES_OUTPUT_DIR}`)
+    } catch (err) {
+      setWrittenPath(null)
+      setNote(describeIpcFailure(err))
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  const dismissNote = (): void => {
+    setWrittenPath(null)
+    setNote(null)
+  }
+
+  /**
+   * The two things anyone does with a file they just wrote: read it, or go to
+   * where it is. Both, because neither substitutes for the other — opening the
+   * PDF is the point of exporting it, and the folder is how it gets attached
+   * to an email or dropped into a shared drive.
+   */
+  const openWritten = (mode: 'file' | 'folder'): void => {
+    const path = writtenPath
+    if (path === null) return
+    setWrittenPath(null)
+    setNote(null)
+    void window.suna
+      .invoke(mode === 'file' ? 'shell:open-path' : 'shell:reveal', { path })
+      .then(({ error }) => {
+        if (error !== null) setNote(error)
+      })
+      .catch((err: unknown) => setNote(describeIpcFailure(err)))
+  }
+
   if (error !== null) {
     return (
       <div className="rnotes">
@@ -245,6 +396,55 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
         <button className="cmt__btn" onClick={copyAll} disabled={total === 0}>
           Copy as Markdown
         </button>
+        <div className="rnotes__export" ref={menuRef}>
+          <button
+            className="cmt__btn rnotes__exportbtn"
+            title="Export these notes as a document"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="Export notes"
+            disabled={total === 0 || exporting !== null || rootDir === ''}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {exporting === null ? (
+              // A tray with an arrow leaving it — the export mark used
+              // throughout, drawn inline so it themes with the button.
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                <path
+                  d="M8 1.5v8m0-8L5.2 4.3M8 1.5l2.8 2.8"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2.5 9.5v3.2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V9.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : (
+              'Exporting…'
+            )}
+          </button>
+          {menuOpen && (
+            <div className="rnotes__menu" role="menu">
+              {NOTES_EXPORT_FORMATS.map((format) => (
+                <button
+                  key={format.id}
+                  role="menuitem"
+                  className="rnotes__menuitem"
+                  onClick={() => void exportAll(format.id)}
+                >
+                  {format.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rnotes__body">
@@ -299,8 +499,21 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
       </div>
 
       {note !== null && (
-        <div className="pdfview__note" role="status" onClick={() => setNote(null)}>
-          {note}
+        <div className="pdfview__note rnotes__note" role="status">
+          <span>{note}</span>
+          {writtenPath !== null && (
+            <>
+              <button className="rnotes__notebtn" onClick={() => openWritten('file')}>
+                Open
+              </button>
+              <button className="rnotes__notebtn" onClick={() => openWritten('folder')}>
+                Show in folder
+              </button>
+            </>
+          )}
+          <button className="rnotes__notebtn" aria-label="Dismiss" onClick={dismissNote}>
+            ✕
+          </button>
         </div>
       )}
     </div>

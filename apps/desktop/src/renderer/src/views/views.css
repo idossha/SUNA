@@ -454,6 +454,12 @@
 .refs__pdf-badge {
   color: var(--s-accent);
   border-color: var(--s-accent);
+  cursor: pointer;
+}
+
+.refs__pdf-badge:hover {
+  background: var(--s-accent);
+  color: var(--s-bg);
 }
 
 .refs__attach-pdf {
