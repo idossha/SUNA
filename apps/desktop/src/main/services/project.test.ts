@@ -275,7 +275,7 @@ describe('scaffoldProject', () => {
     })
     expect(result.warnings).toEqual([])
     const prose = await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')
-    expect(prose).toContain('Galaxies falling into dense cluster environments')
+    expect(prose).toContain('Hello, SUNA')
     // One file, three sections: an unheaded intro plus two Markdown headings.
     expect(outlineFromMarkdown(prose).map((s) => [s.level, s.title])).toEqual([
       [0, ''],
@@ -286,6 +286,38 @@ describe('scaffoldProject', () => {
       JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
     )
     expect(manuscript.manuscriptFile).toBe('manuscript.md')
+  })
+
+  it('starter: every embed and citation in the prose has something real behind it', async () => {
+    await scaffoldProject({
+      dir: target,
+      name: 'Starter Paper',
+      activeProfileId: 'suna',
+      scaffold: 'starter',
+      importDir: null,
+      settings: {}
+    })
+    const read = (...parts: string[]): Promise<string> => readFile(join(target, ...parts), 'utf8')
+    const prose = await read('manuscript', 'manuscript.md')
+    const manuscript = ManuscriptSchema.parse(JSON.parse(await read('manuscript', 'manuscript.json')))
+
+    // The figure the prose embeds is registered AND present on disk — a
+    // starter that ships a dangling ![[fig:…]] teaches the wrong lesson.
+    expect(prose).toContain('![[fig:hello]]')
+    expect(manuscript.figures.map((f) => f.id)).toEqual(['hello'])
+    const svg = await read(manuscript.figures[0]!.canvasRef)
+    expect(svg).toContain('<svg')
+    const figureDoc = JSON.parse(await read('figures', 'hello', 'figure.json')) as { id: string }
+    expect(figureDoc.id).toBe('hello')
+
+    // Same for the table and both citations.
+    expect(prose).toContain('![[tbl:hello]]')
+    expect(manuscript.tables.map((t) => t.id)).toEqual(['hello'])
+    const bib = await read('manuscript', 'references.bib')
+    for (const key of ['knuth1984', 'wong2011']) {
+      expect(prose).toContain(`@${key}`)
+      expect(bib).toContain(`{${key},`)
+    }
   })
 
   it('writes the requested project-level settings block onto the manifest', async () => {
