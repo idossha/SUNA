@@ -17,9 +17,34 @@ import {
   type PDFDocumentProxy,
   type PDFPageProxy
 } from 'pdfjs-dist'
+import {
+  buildPageText,
+  noteQuote,
+  notePage,
+  sortNotes,
+  type NoteColor,
+  type PdfTextItemLike
+} from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
+import { readLocalAuthorName } from '../state/comments'
+import { useProjectStore } from '../state/project'
+import { useReferencePdfsStore } from '../state/referencePdfs'
+import { useRefNotesStore } from '../state/refnotes'
 import { base64ToUint8Array } from './binary'
+import { embedHighlights } from './embedRunner'
+import { HighlightLayer } from './HighlightLayer'
+import { NotesRail } from './NotesRail'
+import { useNoteRects } from './useNoteRects'
 import { currentPageIndex, layoutPages, type PageBox } from './pdf-layout'
+import { citekeyForPdfPath, type PdfCitekeyMatch } from './pdfCitekey'
+import {
+  citedPageLabel,
+  quoteWithCitation,
+  readPdfSelection,
+  type PdfSelectionResult,
+  type RenderedPage
+} from './pdfSelection'
+import { QuotePopover } from './QuotePopover'
 import { clampZoom, fitWidthScale, zoomIn, zoomOut } from './zoom'
 import './viewer.css'
 
@@ -49,7 +74,20 @@ interface LoadedDoc {
 }
 
 /** One lazily-rendered page: canvas + selectable text layer, both cancelled on scale change/unmount. */
-function PdfPageCanvas({ page, scale }: { page: PDFPageProxy; scale: number }): JSX.Element {
+function PdfPageCanvas({
+  page,
+  pageNumber,
+  scale,
+  onTextReady,
+  onTextGone
+}: {
+  page: PDFPageProxy
+  pageNumber: number
+  scale: number
+  /** Reports the rendered text layer up so selections can be read against it. */
+  onTextReady: (entry: RenderedPage) => void
+  onTextGone: (pageNumber: number) => void
+}): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textLayerRef = useRef<HTMLDivElement>(null)
   const [renderError, setRenderError] = useState<string | null>(null)
@@ -75,24 +113,43 @@ function PdfPageCanvas({ page, scale }: { page: PDFPageProxy; scale: number }): 
 
     const textLayerEl = textLayerRef.current
     let textLayer: TextLayer | null = null
+    let cancelled = false
+
     if (textLayerEl) {
-      textLayerEl.replaceChildren()
-      textLayer = new TextLayer({
-        textContentSource: page.streamTextContent(),
-        container: textLayerEl,
-        viewport
-      })
-      // Selection is best-effort: a text-layer failure never takes the page render down with it.
-      textLayer.render().catch((error: unknown) => {
-        if (error instanceof AbortException) return
-      })
+      // getTextContent() rather than streamTextContent(): the SAME items array
+      // both feeds the layer and builds the page text an anchor is measured
+      // against, so `textDivs[i]` and `itemStarts[i]` cannot describe different
+      // items (ADR-008). Streaming would give the layer its items and leave us
+      // fetching a second, independently-ordered copy.
+      void (async () => {
+        try {
+          const content = await page.getTextContent()
+          if (cancelled || textLayerRef.current === null) return
+          textLayerEl.replaceChildren()
+          textLayer = new TextLayer({ textContentSource: content, container: textLayerEl, viewport })
+          await textLayer.render()
+          if (cancelled) return
+          onTextReady({
+            page: pageNumber,
+            pageText: buildPageText(content.items as PdfTextItemLike[]),
+            textDivs: textLayer.textDivs as HTMLElement[],
+            viewport
+          })
+        } catch (error: unknown) {
+          // Selection is best-effort: a text-layer failure never takes the
+          // page render down with it.
+          if (error instanceof AbortException) return
+        }
+      })()
     }
 
     return () => {
+      cancelled = true
       renderTask.cancel()
       textLayer?.cancel()
+      onTextGone(pageNumber)
     }
-  }, [page, scale])
+  }, [page, pageNumber, scale, onTextReady, onTextGone])
 
   return (
     <>
@@ -117,11 +174,21 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const [renderSet, setRenderSet] = useState<ReadonlySet<number>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
 
+  const [pageLabels, setPageLabels] = useState<string[] | null>(null)
+  const [selection, setSelection] = useState<PdfSelectionResult | null>(null)
+  const [note, setNote] = useState<string | null>(null)
+  /** The stored highlight the popover is over, and where to anchor it. */
+  const [pickedNote, setPickedNote] = useState<{ id: string; rect: DOMRect } | null>(null)
+  const [railOpen, setRailOpen] = useState(false)
+  const [composingFor, setComposingFor] = useState<string | null>(null)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const pageElsRef = useRef(new Map<number, HTMLDivElement>())
   const refCallbacksRef = useRef(new Map<number, (el: HTMLDivElement | null) => void>())
   const rafRef = useRef<number | null>(null)
+  /** Rendered text layers by page number — the substrate a selection is read against. */
+  const renderedRef = useRef(new Map<number, RenderedPage>())
 
   const numPages = loaded?.pages.length ?? 0
   const firstPageWidth = loaded?.naturalSizes[0]?.width ?? 0
@@ -132,6 +199,117 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     () => (loaded ? layoutPages(loaded.naturalSizes.map((s) => s.height * effectiveScale), PAGE_GAP) : []),
     [loaded, effectiveScale]
   )
+
+  // ---- which reference is this? -----------------------------------------
+  const rootDir = useProjectStore((s) => s.rootDir)
+  const referenceMap = useReferencePdfsStore((s) => s.map)
+
+  const citekeyMatch: PdfCitekeyMatch = useMemo(
+    () => citekeyForPdfPath(referenceMap, path),
+    [referenceMap, path]
+  )
+
+  // Rendered pages live in a ref (they change on every scroll and re-render,
+  // and nothing should re-render the whole viewer for that) but highlights
+  // must repaint when one arrives — so the epoch is the render signal.
+  const [textEpoch, setTextEpoch] = useState(0)
+  const registerPageText = useCallback((entry: RenderedPage): void => {
+    renderedRef.current.set(entry.page, entry)
+    setTextEpoch((n) => n + 1)
+  }, [])
+  const forgetPageText = useCallback((pageNumber: number): void => {
+    renderedRef.current.delete(pageNumber)
+    setTextEpoch((n) => n + 1)
+  }, [])
+  const renderedPages = useMemo(
+    () => [...renderedRef.current.values()].sort((a, b) => a.page - b.page),
+    [textEpoch]
+  )
+
+  // ---- reading notes for this paper -------------------------------------
+  const notesFile = useRefNotesStore((s) => s.file)
+  const loadNotes = useRefNotesStore((s) => s.load)
+  const clearNotes = useRefNotesStore((s) => s.clear)
+  const addNote = useRefNotesStore((s) => s.addNote)
+  const updateNote = useRefNotesStore((s) => s.updateNote)
+  const deleteNote = useRefNotesStore((s) => s.deleteNote)
+  const recordEmbed = useRefNotesStore((s) => s.recordEmbed)
+  const notesCitekey = useRefNotesStore((s) => s.citekey)
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
+
+  const notes = useMemo(
+    () => (notesFile === null ? [] : sortNotes(notesFile.notes)),
+    [notesFile]
+  )
+
+  useEffect(() => {
+    if (rootDir === null || citekeyMatch.kind !== 'one') {
+      clearNotes()
+      return
+    }
+    void loadNotes(rootDir, citekeyMatch.citekey)
+  }, [rootDir, citekeyMatch, loadNotes, clearNotes])
+
+  // Every note's rectangles, resolved ONCE and shared by the overlay and by
+  // the code that writes /QuadPoints into the PDF — so what is painted and
+  // what is embedded cannot drift apart.
+  const pageElFor = useCallback(
+    (page: number): HTMLElement | null => pageElsRef.current.get(page - 1) ?? null,
+    []
+  )
+  const resolvedNotes = useNoteRects(notes, renderedPages, pageElFor, effectiveScale, textEpoch)
+
+  // ---- keep the PDF's own annotations in step with the sidecar ----------
+  // Debounced, because a burst of highlighting should cost one regeneration,
+  // not one per colour click: each regeneration re-parses and re-serialises
+  // the whole document.
+  const embedTimerRef = useRef<number | null>(null)
+  const lastEmbedKeyRef = useRef<string>('')
+  useEffect(() => {
+    if (rootDir === null || notesCitekey === null || notesFile === null) return
+    // Nothing to do until the notes have geometry: rectangles come from
+    // rendered pages, and embedding before page 1 has painted would write an
+    // empty annotation layer over a file that has highlights.
+    if (notes.length > 0 && resolvedNotes.byNote.size === 0) return
+
+    const key = JSON.stringify(
+      notes.map((n) => [n.id, n.color, n.body, [...(resolvedNotes.byNote.get(n.id)?.keys() ?? [])]])
+    )
+    if (key === lastEmbedKeyRef.current) return
+
+    if (embedTimerRef.current !== null) window.clearTimeout(embedTimerRef.current)
+    embedTimerRef.current = window.setTimeout(() => {
+      embedTimerRef.current = null
+      lastEmbedKeyRef.current = key
+      const viewports = new Map(renderedPages.map((entry) => [entry.page, entry.viewport]))
+      void embedHighlights({
+        rootDir,
+        citekey: notesCitekey,
+        notes,
+        rectsByNote: resolvedNotes.byNote,
+        viewports,
+        author: readLocalAuthorName()
+      }).then((outcome) => {
+        if (!outcome.ok) {
+          setNote(`Highlights are saved, but the PDF was not updated: ${outcome.error ?? 'unknown'}`)
+          return
+        }
+        // Restamp the baseline so the next open does not read SUNA's own
+        // write as "this PDF changed" and run the re-anchor sweep.
+        void recordEmbed({
+          pristineBytes: outcome.pristineBytes ?? 0,
+          pristineSha256: outcome.pristineSha256 ?? '',
+          sha256: outcome.sha256 ?? '',
+          pageCount: numPages,
+          noteIds: notes.map((n) => n.id)
+        })
+      })
+    }, 700)
+
+    return () => {
+      if (embedTimerRef.current !== null) window.clearTimeout(embedTimerRef.current)
+    }
+  }, [rootDir, notesCitekey, notesFile, notes, resolvedNotes, renderedPages, numPages, recordEmbed])
 
   // ---- load the document -----------------------------------------------
   useEffect(() => {
@@ -144,6 +322,10 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     setCurrentPage(1)
     setScaleMode('fit-width')
     setManualScale(1)
+    setPageLabels(null)
+    setSelection(null)
+    setNote(null)
+    renderedRef.current.clear()
 
     void (async () => {
       try {
@@ -163,6 +345,12 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           return { width: vp.width, height: vp.height }
         })
         setLoaded({ doc, pages, naturalSizes })
+
+        // Declared page labels, when the PDF has them. Nature and Frontiers
+        // do; arXiv and CVPR answer null — exactly the preprints researchers
+        // read most — so `citedPageLabel` falls back to the index.
+        const labels = await doc.getPageLabels().catch(() => null)
+        if (!cancelled && labels !== null) setPageLabels(labels)
       } catch (error) {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : String(error))
       }
@@ -262,6 +450,150 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     []
   )
 
+  // ---- selection -> quote popover ---------------------------------------
+  // Read on mouseup/keyup rather than `selectionchange`: the latter fires for
+  // every pixel of a drag, and each read walks the selected spans.
+  const refreshSelection = useCallback((): void => {
+    const rendered = [...renderedRef.current.values()].sort((a, b) => a.page - b.page)
+    setSelection(readPdfSelection(window.getSelection(), rendered))
+  }, [])
+
+  useEffect(() => {
+    const root = scrollRef.current
+    if (!root) return
+    const onUp = (): void => {
+      // Let the browser finish updating the selection before reading it.
+      window.setTimeout(refreshSelection, 0)
+    }
+    root.addEventListener('mouseup', onUp)
+    root.addEventListener('keyup', onUp)
+    return () => {
+      root.removeEventListener('mouseup', onUp)
+      root.removeEventListener('keyup', onUp)
+    }
+  }, [refreshSelection])
+
+  // A new selection supersedes the last notice, and supersedes a highlight
+  // popover — you cannot be acting on both at once.
+  useEffect(() => {
+    if (selection !== null) {
+      setNote(null)
+      setPickedNote(null)
+    }
+  }, [selection])
+
+  const dismissQuote = useCallback((): void => {
+    setSelection(null)
+    setPickedNote(null)
+  }, [])
+
+  const quoteCitekey = citekeyMatch.kind === 'one' ? citekeyMatch.citekey : null
+
+  /** The note the popover is currently over, when it is over one. */
+  const pickedNoteObject = pickedNote === null ? null : (notes.find((n) => n.id === pickedNote.id) ?? null)
+
+  /** Page and text the popover is about — a fresh selection, or a stored note. */
+  const popoverQuote = pickedNoteObject !== null ? noteQuote(pickedNoteObject) : (selection?.quote ?? '')
+  const popoverPage =
+    pickedNoteObject !== null
+      ? notePage(pickedNoteObject)
+      : (selection?.runs[0]?.page ?? null)
+  const popoverPageLabel = popoverPage === null ? null : citedPageLabel(popoverPage, pageLabels)
+
+  const copyQuote = useCallback((): void => {
+    if (popoverQuote === '') return
+    const text = quoteWithCitation(popoverQuote, quoteCitekey, popoverPageLabel)
+    void navigator.clipboard.writeText(text).then(
+      () => setNote(quoteCitekey === null ? 'Passage copied.' : 'Passage and citation copied.'),
+      () => setNote('Could not write to the clipboard.')
+    )
+    setSelection(null)
+    setPickedNote(null)
+  }, [popoverQuote, quoteCitekey, popoverPageLabel])
+
+  /** Copy one note's passage straight from the rail. */
+  const copyNote = useCallback(
+    (noteId: string): void => {
+      const target = notes.find((n) => n.id === noteId)
+      if (target === undefined) return
+      const label = citedPageLabel(notePage(target), pageLabels)
+      void navigator.clipboard.writeText(quoteWithCitation(noteQuote(target), quoteCitekey, label)).then(
+        () => setNote('Passage and citation copied.'),
+        () => setNote('Could not write to the clipboard.')
+      )
+    },
+    [notes, pageLabels, quoteCitekey]
+  )
+
+  /**
+   * Colour click: create a highlight from the selection, or recolour the one
+   * the popover is over.
+   */
+  const applyColor = useCallback(
+    (color: NoteColor): void => {
+      if (pickedNote !== null) {
+        void updateNote(pickedNote.id, { color })
+        setPickedNote(null)
+        return
+      }
+      if (selection === null) return
+      if (notesCitekey === null) {
+        setNote('This PDF is not a reference in this project, so there is nowhere to keep notes.')
+        setSelection(null)
+        return
+      }
+      const runs = selection.anchors.map((anchor) => ({
+        page: anchor.page,
+        quote: anchor.quote,
+        prefix: anchor.prefix,
+        suffix: anchor.suffix,
+        detached: false
+      }))
+      void addNote(runs, color).then((created) => {
+        if (created !== null) setActiveNoteId(created.id)
+      })
+      window.getSelection()?.removeAllRanges()
+      setSelection(null)
+    },
+    [pickedNote, selection, notesCitekey, addNote, updateNote]
+  )
+
+  /** Note button: highlight (if needed) and open the rail composer on it. */
+  const startNote = useCallback((): void => {
+    if (pickedNote !== null) {
+      setRailOpen(true)
+      setComposingFor(pickedNote.id)
+      setActiveNoteId(pickedNote.id)
+      setPickedNote(null)
+      return
+    }
+    if (selection === null || notesCitekey === null) return
+    const runs = selection.anchors.map((anchor) => ({
+      page: anchor.page,
+      quote: anchor.quote,
+      prefix: anchor.prefix,
+      suffix: anchor.suffix,
+      detached: false
+    }))
+    void addNote(runs, 'yellow').then((created) => {
+      if (created === null) return
+      setActiveNoteId(created.id)
+      setRailOpen(true)
+      setComposingFor(created.id)
+    })
+    window.getSelection()?.removeAllRanges()
+    setSelection(null)
+  }, [pickedNote, selection, notesCitekey, addNote])
+
+  const removeHighlight = useCallback(
+    (noteId: string): void => {
+      void deleteNote(noteId)
+      setPickedNote(null)
+      setActiveNoteId((current) => (current === noteId ? null : current))
+    },
+    [deleteNote]
+  )
+
   // ---- zoom + page jump ---------------------------------------------------
   const beginManual = (next: number): void => {
     setScaleMode('manual')
@@ -288,6 +620,19 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (!(event.metaKey || event.ctrlKey)) return
+    // ⌘⇧Q: quote the live selection into the manuscript without reaching for
+    // the popover — the gesture that makes skim-reading a paper one keypress
+    // per passage rather than three clicks.
+    if (event.shiftKey && (event.key === 'h' || event.key === 'H')) {
+      event.preventDefault()
+      if (selection !== null) applyColor('yellow')
+      return
+    }
+    if (event.altKey && (event.key === 'm' || event.key === 'µ')) {
+      event.preventDefault()
+      setRailOpen((open) => !open)
+      return
+    }
     if (event.key === '=' || event.key === '+') {
       event.preventDefault()
       handleZoomIn()
@@ -359,6 +704,14 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
             +
           </button>
           <button
+            className="pdfview__fitwidth pdfview__notesbtn"
+            aria-pressed={railOpen}
+            title="Notes (⌥M)"
+            onClick={() => setRailOpen((open) => !open)}
+          >
+            Notes{notes.length > 0 ? ` ${notes.length}` : ''}
+          </button>
+          <button
             className="pdfview__fitwidth"
             aria-pressed={scaleMode === 'fit-width'}
             disabled={numPages === 0}
@@ -368,6 +721,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           </button>
         </span>
       </div>
+      <div className="pdfview__body">
       <div className="pdfview__scroll" ref={scrollRef} onScroll={onScroll}>
         {loaded === null ? (
           <div className="pdfview__loading">Loading {fileName}…</div>
@@ -395,7 +749,38 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
                          canvas zooms (see viewer.css). */
                       style={{ '--total-scale-factor': effectiveScale } as CSSProperties}
                     >
-                      <PdfPageCanvas page={page} scale={effectiveScale} />
+                      <PdfPageCanvas
+                        page={page}
+                        pageNumber={idx + 1}
+                        scale={effectiveScale}
+                        onTextReady={registerPageText}
+                        onTextGone={forgetPageText}
+                      />
+                      {/* Between the canvas and the text layer on purpose:
+                          highlights sit UNDER the selectable text, so a
+                          highlighted passage is still the passage you can
+                          select and quote. */}
+                      <HighlightLayer
+                        page={idx + 1}
+                        notes={notes}
+                        resolved={resolvedNotes}
+                        activeNoteId={activeNoteId}
+                        onActivate={(noteId, rect) => {
+                          const host = pageElsRef.current.get(idx)
+                          const origin = host?.getBoundingClientRect()
+                          setSelection(null)
+                          setActiveNoteId(noteId)
+                          setPickedNote({
+                            id: noteId,
+                            rect: new DOMRect(
+                              (origin?.left ?? 0) + rect.left,
+                              (origin?.top ?? 0) + rect.top,
+                              rect.width,
+                              rect.height
+                            )
+                          })
+                        }}
+                      />
                     </div>
                   ) : (
                     <div className="pdfview__placeholder" />
@@ -406,6 +791,61 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           </div>
         )}
       </div>
+
+      {railOpen && (
+        <NotesRail
+          notes={notes}
+          activeNoteId={activeNoteId}
+          ambiguous={resolvedNotes.ambiguous}
+          detached={resolvedNotes.detached}
+          composingFor={composingFor}
+          citekey={notesCitekey}
+          onActivate={(noteId) => {
+            setActiveNoteId(noteId)
+            const target = notes.find((n) => n.id === noteId)
+            if (target !== undefined) goToPage(notePage(target))
+          }}
+          onSaveBody={(noteId, body) => void updateNote(noteId, { body })}
+          onRecolor={(noteId, color) => void updateNote(noteId, { color })}
+          onDelete={removeHighlight}
+          onCopy={copyNote}
+          onCloseComposer={() => setComposingFor(null)}
+          onHide={() => setRailOpen(false)}
+        />
+      )}
+      </div>
+
+      {(selection !== null || pickedNoteObject !== null) && (
+        <QuotePopover
+          rect={pickedNote !== null ? pickedNote.rect : selection!.rect}
+          quoteLength={popoverQuote.length}
+          match={citekeyMatch}
+          pageLabel={popoverPageLabel}
+          pageSpan={
+            pickedNoteObject !== null
+              ? new Set(pickedNoteObject.runs.map((run) => run.page)).size
+              : new Set(selection!.runs.map((run) => run.page)).size
+          }
+          existing={
+            pickedNoteObject === null
+              ? undefined
+              : { color: pickedNoteObject.color, hasBody: pickedNoteObject.body.trim() !== '' }
+          }
+          onCopy={copyQuote}
+          onDismiss={dismissQuote}
+          onHighlight={notesCitekey === null ? undefined : applyColor}
+          onNote={notesCitekey === null ? undefined : startNote}
+          onRemove={
+            pickedNoteObject === null ? undefined : () => removeHighlight(pickedNoteObject.id)
+          }
+        />
+      )}
+
+      {note !== null && (
+        <div className="pdfview__note" role="status" onClick={() => setNote(null)}>
+          {note}
+        </div>
+      )}
     </div>
   )
 }

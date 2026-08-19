@@ -314,3 +314,347 @@
   user-select: none;
   -webkit-user-drag: none;
 }
+
+/* --------------------------------------------------------------------------
+   Quote popover (ADR-008 M1) — appears at the end of a drag over a page.
+   Deliberately flat and quiet: it sits ON a document the reader is reading,
+   so it announces the citation it will produce and gets out of the way.
+   -------------------------------------------------------------------------- */
+
+.pdfquote {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 6px;
+  background: var(--s-bg-raised);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    0 8px 22px rgba(0, 0, 0, 0.22);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.pdfquote__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pdfquote__cite {
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdfquote__cite--none {
+  color: var(--s-ink-faint);
+}
+
+.pdfquote__len {
+  flex: none;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-faint);
+}
+
+.pdfquote__warn {
+  margin: 0;
+  font-size: var(--s-text-xs);
+  line-height: 1.45;
+  color: var(--s-ink-muted);
+}
+
+.pdfquote__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pdfquote__btn {
+  flex: 1 1 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 4px;
+  background: var(--s-bg-panel);
+  color: var(--s-ink);
+  font-family: inherit;
+  font-size: var(--s-text-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pdfquote__btn:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+}
+
+.pdfquote__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pdfquote__btn--primary {
+  flex-basis: 100%;
+  border-color: var(--s-accent);
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-weight: 600;
+}
+
+.pdfquote__btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* Transient confirmation, bottom-centre of the viewer. Click to dismiss. */
+.pdfview__note {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 39;
+  max-width: 68%;
+  padding: 7px 13px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 5px;
+  background: var(--s-bg-raised);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   Painted highlights (ADR-008 M2). The layer sits between the canvas and the
+   text layer so a highlighted passage stays selectable — an overlay that ate
+   pointer events would make the one passage you cannot quote the one you
+   already cared about.
+
+   Colours are Zotero's exact eight, so an imported annotation maps one-to-one
+   and muscle memory carries over. They are stored by NAME; these values are
+   the theme's rendering of that name.
+   -------------------------------------------------------------------------- */
+
+.pdfhl {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pdfhl__rect {
+  position: absolute;
+  border-radius: 1px;
+  pointer-events: auto;
+  cursor: pointer;
+  mix-blend-mode: multiply;
+  background: var(--hl, rgba(255, 212, 0, 0.42));
+  transition: filter 90ms ease-out;
+}
+
+.pdfhl__rect:hover {
+  filter: brightness(0.94);
+}
+
+.pdfhl__rect--active {
+  outline: 1px solid rgba(0, 0, 0, 0.42);
+  outline-offset: 0;
+}
+
+/* A run that matched several equally-good places: painted, but marked, because
+   we will not silently pick one (ADR-008). */
+.pdfhl__rect--ambiguous {
+  outline: 1px dashed rgba(180, 40, 30, 0.85);
+}
+
+.pdfhl__rect[data-color='yellow']  { --hl: rgba(255, 212, 0, 0.42); }
+.pdfhl__rect[data-color='red']     { --hl: rgba(255, 102, 102, 0.42); }
+.pdfhl__rect[data-color='green']   { --hl: rgba(95, 178, 54, 0.40); }
+.pdfhl__rect[data-color='blue']    { --hl: rgba(46, 168, 229, 0.40); }
+.pdfhl__rect[data-color='purple']  { --hl: rgba(162, 138, 229, 0.42); }
+.pdfhl__rect[data-color='magenta'] { --hl: rgba(229, 110, 238, 0.40); }
+.pdfhl__rect[data-color='orange']  { --hl: rgba(241, 152, 55, 0.42); }
+.pdfhl__rect[data-color='gray']    { --hl: rgba(170, 170, 170, 0.45); }
+
+/* ---- colour swatches in the quote popover --------------------------------- */
+
+.pdfquote__colors {
+  display: flex;
+  gap: 5px;
+}
+
+.pdfquote__swatch {
+  width: 22px;
+  height: 22px;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.32);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--sw, #ffd400);
+}
+
+.pdfquote__swatch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.pdfquote__swatch:focus-visible {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 1px;
+}
+
+.pdfquote__swatch[data-color='yellow']  { --sw: #ffd400; }
+.pdfquote__swatch[data-color='red']     { --sw: #ff6666; }
+.pdfquote__swatch[data-color='green']   { --sw: #5fb236; }
+.pdfquote__swatch[data-color='blue']    { --sw: #2ea8e5; }
+.pdfquote__swatch[data-color='purple']  { --sw: #a28ae5; }
+.pdfquote__swatch[data-color='magenta'] { --sw: #e56eee; }
+.pdfquote__swatch[data-color='orange']  { --sw: #f19837; }
+.pdfquote__swatch[data-color='gray']    { --sw: #aaaaaa; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pdfhl__rect,
+  .pdfquote__swatch {
+    transition: none;
+  }
+  .pdfquote__swatch:hover {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Notes rail (ADR-008 M3) — the manuscript comments rail's clothes on reading
+   notes' body, so a researcher who has used one already knows this one. The
+   card internals reuse the `cmt-*` vocabulary from comments.css verbatim;
+   only the container is new, because a PDF has no editor height map to
+   position against and the list simply scrolls in document order.
+   -------------------------------------------------------------------------- */
+
+.pdfview__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.pdfview__body .pdfview__scroll {
+  flex: 1;
+  min-width: 0;
+}
+
+.pdfnotes {
+  flex: none;
+  width: 300px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--s-border);
+  background: var(--s-bg-panel);
+  overflow: hidden;
+}
+
+.pdfnotes__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: none;
+  padding: 8px 10px 8px 12px;
+  border-bottom: 1px solid var(--s-border);
+  font-family: var(--s-font-ui);
+}
+
+.pdfnotes__title {
+  font-size: var(--s-text-sm);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.pdfnotes__count {
+  margin-right: auto;
+  font-size: var(--s-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-faint);
+}
+
+.pdfnotes__hide {
+  padding: 0 6px;
+  border-radius: var(--s-radius);
+  color: var(--s-ink-faint);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.pdfnotes__hide:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.pdfnotes__empty {
+  margin: 0;
+  padding: 16px 14px;
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-sm);
+  line-height: 1.55;
+  color: var(--s-ink-faint);
+}
+
+.pdfnotes__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+/* The card's own colour, so the rail and the page agree at a glance. */
+.pdfnotes__dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  background: var(--sw, #ffd400);
+}
+
+.pdfnotes__dot[data-color='yellow']  { --sw: #ffd400; }
+.pdfnotes__dot[data-color='red']     { --sw: #ff6666; }
+.pdfnotes__dot[data-color='green']   { --sw: #5fb236; }
+.pdfnotes__dot[data-color='blue']    { --sw: #2ea8e5; }
+.pdfnotes__dot[data-color='purple']  { --sw: #a28ae5; }
+.pdfnotes__dot[data-color='magenta'] { --sw: #e56eee; }
+.pdfnotes__dot[data-color='orange']  { --sw: #f19837; }
+.pdfnotes__dot[data-color='gray']    { --sw: #aaaaaa; }
+
+/* A highlight carrying a note reads differently from a bare one. */
+.pdfhl__rect--noted {
+  box-shadow: inset 0 -2px 0 0 rgba(0, 0, 0, 0.32);
+}
+
+.pdfquote__swatch--on {
+  outline: 2px solid var(--s-ink);
+  outline-offset: 1px;
+}
+
+.pdfquote__btn--danger {
+  color: var(--s-err);
+  border-color: color-mix(in srgb, var(--s-err) 45%, var(--s-border-strong));
+}
+
+.pdfquote__btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--s-err) 16%, var(--s-bg-panel));
+}
+
+.pdfview__notesbtn {
+  margin-left: 0;
+}
