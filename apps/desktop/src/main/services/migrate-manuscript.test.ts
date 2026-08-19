@@ -58,7 +58,6 @@ const AFFILIATIONS = [
 function legacyManuscript(): Record<string, unknown> {
   return {
     title: 'A demo paper',
-    shortTitle: 'Demo',
     articleType: 'article',
     doi: null,
     openAccess: null,

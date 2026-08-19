@@ -111,7 +111,6 @@ export function apjProfile(): PublisherProfile {
 export function makeManuscript(): Manuscript {
   return ManuscriptSchema.parse({
     title: 'Star formation in dwarf galaxies',
-    shortTitle: 'Dwarf star formation',
     articleType: 'article',
     doi: null,
     openAccess: null,

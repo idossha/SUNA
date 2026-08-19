@@ -4,7 +4,6 @@ import { ManuscriptSchema, type Manuscript } from './manuscript';
 
 const fixture = {
   title: 'A massive protocluster at $z = 2.51$ traced by ram-pressure stripping',
-  shortTitle: 'Protocluster at z = 2.51',
   articleType: 'article',
   doi: null,
   openAccess: {

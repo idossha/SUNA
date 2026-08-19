@@ -150,7 +150,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   // Default output names per document target: <slug> for the manuscript,
   // <slug>-supplement for the supplement. Switching targets swaps the default
   // in place, but never clobbers a name the user typed themselves.
-  const baseSlug = manuscript !== null ? slugify(manuscript.shortTitle || manuscript.title) : ''
+  const baseSlug = manuscript !== null ? slugify(manuscript.title) : ''
   const defaultNameFor = (t: ExportTarget): string => (t === 'supplement' ? `${baseSlug}-supplement` : baseSlug)
   useEffect(() => {
     if (manuscript === null) return

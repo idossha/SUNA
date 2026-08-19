@@ -178,7 +178,6 @@ describe('checkManuscriptCompliance', () => {
   /** Minimal schema-valid manuscript.json, the starter scaffold's shape. */
   const meta = {
     title: 'T',
-    shortTitle: 'T',
     articleType: 'article',
     doi: null,
     openAccess: null,

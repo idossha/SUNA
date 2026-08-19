@@ -19,7 +19,6 @@ import {
   removeAuthorById,
   removeHighlight,
   reorderHighlight,
-  shortTitlePatch,
   significancePatch,
   titlePatch,
   toggleAffiliationRef,
@@ -53,7 +52,6 @@ function affiliation(overrides: Partial<Affiliation> = {}): Affiliation {
 describe('scalar field patches', () => {
   it('builds the smallest patch for each top-level field', () => {
     expect(titlePatch('New title')).toEqual({ title: 'New title' })
-    expect(shortTitlePatch('Running')).toEqual({ shortTitle: 'Running' })
     expect(articleTypePatch('review')).toEqual({ articleType: 'review' })
     expect(abstractPatch('Body text')).toEqual({ abstract: { content: 'Body text' } })
   })
