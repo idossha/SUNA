@@ -13,19 +13,37 @@
 
 /* ---- in-editor anchor decorations ----------------------------------------- */
 
+/* A dotted TRAIL under the quoted text, never a background wash.
+   The background layer belongs to the AI-diff decorations
+   (editor/revisionDiff.ts) — an amber wash mixed into their red and green
+   turned every marked word the same muddy olive, so a commented sentence
+   containing AI changes became unreadable. Underline and background are
+   different layers, so a commented sentence and a changed word now compose
+   instead of fighting: amber trail below, red/green behind the words.
+   text-decoration rather than border-bottom so it follows the baseline,
+   wraps per line, and adds nothing to the box. */
 .cmt-anchor {
-  background: rgba(232, 180, 92, 0.1);
-  border-bottom: 2px solid color-mix(in srgb, var(--s-accent) 55%, transparent);
-  border-radius: 2px;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in srgb, var(--s-accent) 70%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
   cursor: pointer;
 }
 
 .cmt-anchor--active {
-  background: rgba(232, 180, 92, 0.22);
+  text-decoration-style: solid;
+  text-decoration-color: var(--s-accent);
+  text-decoration-thickness: 2px;
 }
 
+/* The one place a wash is still right: a 900 ms "it is over here" pulse when
+   a card is clicked. Transient and never more than one at a time, so it
+   cannot be mistaken for a diff mark. */
 .cmt-anchor--flash {
-  background: rgba(232, 180, 92, 0.4);
+  background: color-mix(in srgb, var(--s-accent) 30%, transparent);
+  border-radius: 2px;
   transition: background 900ms ease;
 }
 

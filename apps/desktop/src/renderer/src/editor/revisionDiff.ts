@@ -144,6 +144,38 @@ const diffField = StateField.define<DecorationSet>({
 })
 
 const diffTheme = EditorView.baseTheme({
+  // Both marks are click targets — clicking one opens its accept/reject
+  // popover (editor/revisionReview.ts), which is the whole discoverability
+  // story for per-hunk review.
+  '.cm-sunaDiff-ins, .cm-sunaDiff-del': { cursor: 'pointer' },
+  '.cm-sunaDiff-actions': {
+    display: 'flex',
+    gap: '4px',
+    padding: '3px',
+    borderRadius: 'var(--s-radius, 4px)',
+    border: '1px solid var(--s-border-strong)',
+    background: 'var(--s-bg-raised)',
+    fontFamily: 'var(--s-font-ui)',
+    fontSize: 'var(--s-text-xs, 11px)',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.28)'
+  },
+  '.cm-sunaDiff-action': {
+    padding: '2px 8px',
+    border: '1px solid var(--s-border-strong)',
+    borderRadius: 'var(--s-radius, 4px)',
+    background: 'transparent',
+    color: 'var(--s-ink)',
+    cursor: 'pointer',
+    font: 'inherit'
+  },
+  '.cm-sunaDiff-action--accept:hover': {
+    borderColor: 'var(--s-ok)',
+    color: 'var(--s-ok)'
+  },
+  '.cm-sunaDiff-action--reject:hover': {
+    borderColor: 'var(--s-err)',
+    color: 'var(--s-err)'
+  },
   '.cm-sunaDiff-ins': {
     // The word itself carries the saturated tint; the surrounding line is left
     // alone so a one-word change does not read as a whole-line rewrite.

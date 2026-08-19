@@ -1,7 +1,6 @@
 import { applyDiffSpans } from '@suna/core'
-import { EditorView } from '@codemirror/view'
-import { keymap } from '@codemirror/view'
-import type { Extension } from '@codemirror/state'
+import { EditorView, keymap, showTooltip, type Tooltip } from '@codemirror/view'
+import { StateEffect, StateField, type Extension } from '@codemirror/state'
 import { useRevisionsStore, peekRevision } from '../state/revisions'
 import { revisionBaseField, revisionHunks, setRevisionBase, type DiffHunk } from './revisionDiff'
 
@@ -23,6 +22,25 @@ import { revisionBaseField, revisionHunks, setRevisionBase, type DiffHunk } from
  * When nothing is left to review the revision is closed, which is what removes
  * it from manuscript/revisions.json.
  */
+
+/** The hunk covering `pos`, or the nearest one — a removal widget reports a
+ *  position just outside the zero-width hunk it belongs to. */
+function hunkNear(view: EditorView, pos: number): DiffHunk | null {
+  const hunks = revisionHunks(view)
+  const inside = hunks.find((h) => pos >= h.from && pos <= h.to)
+  if (inside !== undefined) return inside
+  let best: DiffHunk | null = null
+  let bestDistance = Infinity
+  for (const hunk of hunks) {
+    const distance = pos < hunk.from ? hunk.from - pos : pos - hunk.to
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = hunk
+    }
+  }
+  // Only claim a hunk the click was plausibly on, never one across the page.
+  return bestDistance <= 2 ? best : null
+}
 
 /** The hunk the cursor sits in or touches, else the next one after it. */
 export function hunkAtCursor(view: EditorView): DiffHunk | null {
@@ -95,6 +113,106 @@ export function gotoHunk(view: EditorView, dir: 1 | -1): boolean {
   return true
 }
 
+/* ---- the per-hunk popover ------------------------------------------------- */
+
+/** Show the accept/reject popover at a position, or dismiss it with null. */
+const setActiveHunk = StateEffect.define<number | null>()
+
+function actionsTooltip(path: string, pos: number): Tooltip {
+  return {
+    pos,
+    above: false,
+    strictSide: false,
+    arrow: false,
+    create: (view) => {
+      const dom = document.createElement('div')
+      dom.className = 'cm-sunaDiff-actions'
+      const hunk = hunkNear(view, pos)
+      if (hunk === null) return { dom }
+
+      const button = (
+        label: string,
+        title: string,
+        cls: string,
+        run: () => Promise<void>
+      ): HTMLButtonElement => {
+        const el = document.createElement('button')
+        el.type = 'button'
+        el.className = `cm-sunaDiff-action ${cls}`
+        el.textContent = label
+        el.title = title
+        el.addEventListener('mousedown', (event) => {
+          // Keep the click off the document: a selection change here would
+          // dismiss this popover before the handler below ever ran.
+          event.preventDefault()
+          event.stopPropagation()
+        })
+        el.addEventListener('click', (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          void run().then(() => {
+            view.dispatch({ effects: setActiveHunk.of(null) })
+            view.focus()
+          })
+        })
+        return el
+      }
+
+      dom.appendChild(
+        button('Accept', 'Keep the AI wording (Alt-y)', 'cm-sunaDiff-action--accept', () =>
+          acceptHunk(view, path, hunk)
+        )
+      )
+      dom.appendChild(
+        button('Reject', 'Put the original wording back (Alt-n)', 'cm-sunaDiff-action--reject', () =>
+          rejectHunk(view, path, hunk)
+        )
+      )
+      return { dom }
+    }
+  }
+}
+
+function hunkTooltipField(path: string): Extension {
+  const field = StateField.define<Tooltip | null>({
+    create: () => null,
+    update: (value, tr) => {
+      for (const effect of tr.effects) {
+        if (effect.is(setActiveHunk)) {
+          return effect.value === null ? null : actionsTooltip(path, effect.value)
+        }
+      }
+      // Any edit — including the accept/reject itself — invalidates it.
+      if (tr.docChanged) return null
+      return value
+    },
+    provide: (f) => showTooltip.from(f)
+  })
+
+  return [
+    field,
+    EditorView.domEventHandlers({
+      mousedown: (event, view) => {
+        const target = event.target as Element | null
+        // Clicks inside the popover are its own business.
+        if (target?.closest?.('.cm-sunaDiff-actions') != null) return false
+        const mark = target?.closest?.('.cm-sunaDiff-ins, .cm-sunaDiff-del')
+        if (mark == null) {
+          if (view.state.field(field, false) != null) {
+            view.dispatch({ effects: setActiveHunk.of(null) })
+          }
+          return false
+        }
+        // A removal is a widget, so ask CodeMirror where its DOM sits rather
+        // than trusting the mouse coordinates.
+        const pos = view.posAtDOM(mark)
+        view.dispatch({ effects: setActiveHunk.of(pos) })
+        return false
+      }
+    })
+  ]
+}
+
 /**
  * Alt-based, so nothing collides with vim motions or the formatting keymap.
  * `path` is the manuscript-relative file this editor shows; it is fixed for
@@ -107,12 +225,22 @@ export function revisionReviewKeymap(path: string): Extension {
     void fn(view, hunk)
     return true
   }
-  return keymap.of([
-    { key: 'Alt-]', run: (view) => gotoHunk(view, 1) },
-    { key: 'Alt-[', run: (view) => gotoHunk(view, -1) },
-    { key: 'Alt-y', run: withHunk((view, hunk) => acceptHunk(view, path, hunk)) },
-    { key: 'Alt-n', run: withHunk((view, hunk) => rejectHunk(view, path, hunk)) }
-  ])
+  return [
+    hunkTooltipField(path),
+    keymap.of([
+      { key: 'Alt-]', run: (view) => gotoHunk(view, 1) },
+      { key: 'Alt-[', run: (view) => gotoHunk(view, -1) },
+      { key: 'Alt-y', run: withHunk((view, hunk) => acceptHunk(view, path, hunk)) },
+      { key: 'Alt-n', run: withHunk((view, hunk) => rejectHunk(view, path, hunk)) },
+      {
+        key: 'Escape',
+        run: (view) => {
+          view.dispatch({ effects: setActiveHunk.of(null) })
+          return false
+        }
+      }
+    ])
+  ]
 }
 
 /** Re-apply the current baseline to a live editor (setting toggled, run finished). */
