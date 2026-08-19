@@ -63,6 +63,22 @@ export const AI_MODES = ['cli', 'api', 'none'] as const;
 export const AiModeSchema = z.enum(AI_MODES);
 export type AiMode = z.infer<typeof AiModeSchema>;
 
+/**
+ * Which model tier the AI runs at. Tiers, not exact model ids: the same
+ * choice has to mean something to `claude --model` (where these three ARE the
+ * aliases) and to the Messages API (mapped to a dated id in @suna/agent), and
+ * an id pinned in a committed suna.json goes stale the week the next model
+ * ships.
+ */
+export const AI_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+export const AiModelSchema = z.enum(AI_MODELS);
+export type AiModel = z.infer<typeof AiModelSchema>;
+
+/** How hard it thinks — exactly the levels `claude --effort` accepts. */
+export const AI_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export const AiEffortSchema = z.enum(AI_EFFORTS);
+export type AiEffort = z.infer<typeof AiEffortSchema>;
+
 const boundedNumber = (limits: { min: number; max: number }): z.ZodNumber =>
   z.number().min(limits.min).max(limits.max);
 
@@ -111,6 +127,10 @@ export const ProjectSettingsSchema = z.object({
       mode: AiModeSchema.nullish(),
       /** Explicit CLI to spawn ('claude', 'codex'); null = auto-detect. */
       cliCommand: z.string().min(1).nullish(),
+      /** Model tier every AI call in this project runs at. */
+      model: AiModelSchema.nullish(),
+      /** Reasoning effort every AI call in this project runs at. */
+      effort: AiEffortSchema.nullish(),
     })
     .nullish(),
 });

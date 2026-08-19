@@ -312,3 +312,37 @@ describe('applySettingsPatch', () => {
     expect(() => applySettingsPatch([1, 2, 3], {})).toThrow(/JSON object/);
   });
 });
+
+describe("the AI's model tier and effort (ai.model / ai.effort)", () => {
+  it('defaults to Sonnet at low effort', () => {
+    const { value, sources } = resolveSettings({}, undefined);
+    expect(value['ai.model']).toBe('sonnet');
+    expect(value['ai.effort']).toBe('low');
+    expect(sources['ai.model']).toBe('default');
+    expect(sources['ai.effort']).toBe('default');
+  });
+
+  it('lets a project override the global choice, key by key', () => {
+    const global = { 'ai.model': 'haiku', 'ai.effort': 'high' };
+    const { value, sources } = resolveSettings(global, { ai: { model: 'opus' } });
+    expect(value['ai.model']).toBe('opus');
+    expect(sources['ai.model']).toBe('project');
+    expect(value['ai.effort']).toBe('high');
+    expect(sources['ai.effort']).toBe('global');
+  });
+
+  it('falls through a hand-typed value that is not a real tier or level', () => {
+    const { value, sources } = resolveSettings(
+      { 'ai.model': 'gpt-4' },
+      { ai: { effort: 'blazing' } } as never,
+    );
+    expect(value['ai.model']).toBe('sonnet');
+    expect(sources['ai.model']).toBe('default');
+    expect(value['ai.effort']).toBe('low');
+  });
+
+  it('writes the project patch at settings.ai.<key>', () => {
+    expect(projectSettingPatch('ai.model', 'opus')).toEqual({ ai: { model: 'opus' } });
+    expect(projectSettingPatch('ai.effort', 'max')).toEqual({ ai: { effort: 'max' } });
+  });
+});

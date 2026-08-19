@@ -4,12 +4,16 @@ import {
   EditorFontFamilySchema,
   EditorThemeIdSchema,
   EditorViewModeSchema,
+  AiEffortSchema,
   AiModeSchema,
+  AiModelSchema,
   FigureWidthPresetSchema,
   ProjectSettingsSchema,
   ReviewAiDiffsSchema,
   SETTINGS_LIMITS,
+  type AiEffort,
   type AiMode,
+  type AiModel,
   type EditorFontFamily,
   type EditorThemeId,
   type EditorViewMode,
@@ -56,6 +60,10 @@ export interface ResolvedSettings {
   'review.aiDiffs': ReviewAiDiffs;
   /** null = auto-detect the installed CLI. */
   'ai.cliCommand': string | null;
+  /** Model tier every AI call runs at — a tier, not a dated model id. */
+  'ai.model': AiModel;
+  /** Reasoning effort every AI call runs at. */
+  'ai.effort': AiEffort;
 }
 
 export type ResolvedSettingKey = keyof ResolvedSettings;
@@ -81,6 +89,10 @@ export const SETTINGS_DEFAULTS: ResolvedSettings = {
   // this whole feature exists to prevent.
   'review.aiDiffs': 'inline',
   'ai.cliCommand': null,
+  // Sonnet at low effort: the tier that answers a writing question fast and
+  // cheap. Reaching for Opus, or for more thinking, is a deliberate choice.
+  'ai.model': 'sonnet',
+  'ai.effort': 'low',
 };
 
 interface SettingKeyMeta<T> {
@@ -171,6 +183,16 @@ export const SETTING_KEYS: {
     projectPath: ['ai', 'cliCommand'],
     globalKeys: ['ai.cliCommand'],
     schema: z.string().min(1),
+  },
+  'ai.model': {
+    projectPath: ['ai', 'model'],
+    globalKeys: ['ai.model'],
+    schema: AiModelSchema,
+  },
+  'ai.effort': {
+    projectPath: ['ai', 'effort'],
+    globalKeys: ['ai.effort'],
+    schema: AiEffortSchema,
   },
   'review.aiDiffs': {
     projectPath: ['review', 'aiDiffs'],
