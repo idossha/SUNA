@@ -37,21 +37,12 @@ export function agentStub(): string {
 
 # Agents: read the context folders
 
-This is a SUNA project — an academic manuscript with managed figures,
-references, and review comments, all plain text. Agent instructions, user
-context, and project memory live in two places:
+This is a SUNA project — an academic manuscript with managed figures, references, and review comments, all plain text. Agent instructions, user context, and project memory live in two places:
 
-1. **Machine level:** \`~/SunaConfig/Context/\` (or \`$SUNA_CONFIG_DIR/Context/\`
-   when that variable is set) — who the user is (\`UserContext/\`) and how to
-   work with SUNA projects (\`SunaContext/\` — start with its \`README.md\`; the
-   session playbook is \`SunaContext/WORKFLOW.md\`).
-2. **Project level:** \`context/\` in this folder — the mission
-   (\`MISSION.md\`), the running notebook (\`NOTEBOOK.md\`), and this project's
-   rules (\`RULES.md\`). Read all three before working.
+1. **Machine level:** \`~/SunaConfig/Context/\` (or \`$SUNA_CONFIG_DIR/Context/\` when that variable is set) — who the user is (\`UserContext/\`) and how to work with SUNA projects (\`SunaContext/\` — start with its \`README.md\`; the session playbook is \`SunaContext/WORKFLOW.md\`).
+2. **Project level:** \`context/\` in this folder — the mission (\`MISSION.md\`), the running notebook (\`NOTEBOOK.md\`), and this project's rules (\`RULES.md\`). Read all three before working.
 
-SUNA's manuscript tools reach agents via \`.mcp.json\` in this folder
-(machine-local, not committed; the verb reference is \`SunaContext/MCP.md\`).
-If \`.mcp.json\` is missing, open the project in SUNA once — it heals on open.
+SUNA's manuscript tools reach agents via \`.mcp.json\` in this folder (machine-local, not committed; the verb reference is \`SunaContext/MCP.md\`). If \`.mcp.json\` is missing, open the project in SUNA once — it heals on open.
 `
 }
 
@@ -62,10 +53,7 @@ export function missionTemplate(projectName: string): string {
   const name = projectName.trim() === '' ? 'this project' : projectName.trim()
   return `# Mission — ${name}
 
-${MANAGED_COMMENT_OPEN} The project charter: what we are doing and why. Co-owned by the user
-     and the agent — an agent may draft from the user's answers; the user
-     corrects in place or via comments and has final say. Agents read this
-     before working. -->
+${MANAGED_COMMENT_OPEN} The project charter: what we are doing and why. Co-owned by the user and the agent — an agent may draft from the user's answers; the user corrects in place or via comments and has final say. Agents read this before working. -->
 
 ## Question
 
@@ -77,13 +65,11 @@ What data exists, where it lives, and what shape it is in.
 
 ## Prior work
 
-What has already been done (analyses, code, figures, drafts) before this
-project.
+What has already been done (analyses, code, figures, drafts) before this project.
 
 ## Deliverable
 
-What we are producing (paper, report), for what venue and audience, and what
-"done" looks like.
+What we are producing (paper, report), for what venue and audience, and what "done" looks like.
 
 ## Scope and non-goals
 
@@ -95,10 +81,7 @@ What is explicitly in and out of scope.
 export function notebookTemplate(): string {
   return `# Project notebook
 
-${MANAGED_COMMENT_OPEN} The agent's memory of this project. Agent-owned: agents write; the
-     user reads and leaves comments. Body = current truth, edited in place
-     with surgical anchored edits — never a whole-file rewrite. Session log =
-     append-only history, newest last. -->
+${MANAGED_COMMENT_OPEN} The agent's memory of this project. Agent-owned: agents write; the user reads and leaves comments. Body = current truth, edited in place with surgical anchored edits — never a whole-file rewrite. Session log = append-only history, newest last. -->
 
 ## State
 
@@ -128,10 +111,7 @@ ${MANAGED_COMMENT_OPEN} The agent's memory of this project. Agent-owned: agents 
 export function rulesTemplate(): string {
   return `# Project rules
 
-${MANAGED_COMMENT_OPEN} Standing rules for THIS project only. Co-owned: the user writes rules
-     here, and an agent promotes the user's recurring feedback into rules
-     here. Global rules (all projects) live in
-     ~/SunaConfig/Context/UserContext/RULES.md. -->
+${MANAGED_COMMENT_OPEN} Standing rules for THIS project only. Co-owned: the user writes rules here, and an agent promotes the user's recurring feedback into rules here. Global rules (all projects) live in ~/SunaConfig/Context/UserContext/RULES.md. -->
 
 - *(none yet)*
 `
@@ -140,9 +120,7 @@ ${MANAGED_COMMENT_OPEN} Standing rules for THIS project only. Co-owned: the user
 /** UserContext/WHO-AM-I.md — seeded once, user-owned forever after. */
 export const WHO_AM_I_SEED = `# Who am I
 
-${MANAGED_COMMENT_OPEN} Yours to fill in — agents read this before working for you: your
-     background, field, position, expertise, interests, and taste; whatever an
-     agent should know to write and plot the way you would. -->
+${MANAGED_COMMENT_OPEN} Yours to fill in — agents read this before working for you: your background, field, position, expertise, interests, and taste; whatever an agent should know to write and plot the way you would. -->
 
 *(not filled out yet)*
 `
@@ -150,10 +128,7 @@ ${MANAGED_COMMENT_OPEN} Yours to fill in — agents read this before working for
 /** UserContext/RULES.md — seeded once, user-owned forever after. */
 export const USER_RULES_SEED = `# Standing rules — all SUNA projects
 
-${MANAGED_COMMENT_OPEN} Yours to edit; agents may PROPOSE additions but never write here
-     unasked. Rules that apply to every project: writing style, figure
-     conventions, workflow preferences. Project-specific rules live in each
-     project's context/RULES.md. -->
+${MANAGED_COMMENT_OPEN} Yours to edit; agents may PROPOSE additions but never write here unasked. Rules that apply to every project: writing style, figure conventions, workflow preferences. Project-specific rules live in each project's context/RULES.md. -->
 
 - *(none yet)*
 `

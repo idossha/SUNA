@@ -1,34 +1,13 @@
 # demo-paper — the SUNA example project
 
-A small but complete SUNA research project: a synthetic study of
-ram-pressure stripping in a $z = 1.7$ cluster, built so that **every
-workspace view has real content** and every artifact can be regenerated
-from the files beside it.
+A small but complete SUNA research project: a synthetic study of ram-pressure stripping in a $z = 1.7$ cluster, built so that **every workspace view has real content** and every artifact can be regenerated from the files beside it.
 
 ## What this project demonstrates
 
-- **Manuscript as data** — `manuscript/` is flat and holds exactly four
-  files: `manuscript.md` (the entire prose — sections are Markdown
-  headings, and the introduction is deliberately unheaded),
-  `manuscript.json` (journal-agnostic metadata, validated by `@suna/core`'s
-  `ManuscriptSchema`), `authors.json` (byline + affiliations,
-  `AuthorsFileSchema`) and `references.bib`. The outline is DERIVED from the
-  Markdown, and numbering of figures, tables, equations, and references is
-  never stored — only derived from order plus the active publisher profile
-  (`suna.json` → `nature-astronomy`).
-- **Reproducible figures** — each figure directory holds `figure.svg`, its
-  `figure.json` document (caption, panels, provenance), and the generating
-  script under `source/`. Exports via `suna_mpl` are byte-deterministic,
-  carry stable element ids (`ax0.title.left`, `ax1.line.quenching-threshold`,
-  ...) that the SUNA canvas addresses, and write a `figure.svg.suna.json`
-  manifest mapping data coordinates to SVG coordinates.
-- **A real analysis chain** — raw inputs in `data/` are processed by
-  `analysis/fit_spectrum.py` into `results/spectrum_fit.json`; the values
-  quoted in the manuscript's Results section come from that file. Reusable
-  model code (the Gunn–Gott stripping radius) lives in `code/`.
-- **Citations from BibTeX** — `manuscript/references.bib` mixes `@article`,
-  `@book`, `@software`, and `@misc` entries, cited from the prose with
-  `[@key]` syntax.
+- **Manuscript as data** — `manuscript/` is flat and holds exactly four files: `manuscript.md` (the entire prose — sections are Markdown headings, and the introduction is deliberately unheaded), `manuscript.json` (journal-agnostic metadata, validated by `@suna/core`'s `ManuscriptSchema`), `authors.json` (byline + affiliations, `AuthorsFileSchema`) and `references.bib`. The outline is DERIVED from the Markdown, and numbering of figures, tables, equations, and references is never stored — only derived from order plus the active publisher profile (`suna.json` → `nature-astronomy`).
+- **Reproducible figures** — each figure directory holds `figure.svg`, its `figure.json` document (caption, panels, provenance), and the generating script under `source/`. Exports via `suna_mpl` are byte-deterministic, carry stable element ids (`ax0.title.left`, `ax1.line.quenching-threshold`, ...) that the SUNA canvas addresses, and write a `figure.svg.suna.json` manifest mapping data coordinates to SVG coordinates.
+- **A real analysis chain** — raw inputs in `data/` are processed by `analysis/fit_spectrum.py` into `results/spectrum_fit.json`; the values quoted in the manuscript's Results section come from that file. Reusable model code (the Gunn–Gott stripping radius) lives in `code/`.
+- **Citations from BibTeX** — `manuscript/references.bib` mixes `@article`, `@book`, `@software`, and `@misc` entries, cited from the prose with `[@key]` syntax.
 
 ## Directory map
 
@@ -44,8 +23,7 @@ from the files beside it.
 
 ## Regenerating everything
 
-All commands run from this directory (`examples/demo-paper/`) and use the
-`suna_mpl` environment via [uv](https://docs.astral.sh/uv/):
+All commands run from this directory (`examples/demo-paper/`) and use the `suna_mpl` environment via [uv](https://docs.astral.sh/uv/):
 
 ```bash
 # 1. analysis products (results/spectrum_fit.json)
@@ -59,10 +37,6 @@ uv run --project ../../python/suna_mpl python figures/fig-velocity-map/source/pl
 uv run --project ../../python/suna_mpl python code/stripping_model.py
 ```
 
-Every step is deterministic: rerunning it reproduces the committed files
-byte for byte.
+Every step is deterministic: rerunning it reproduces the committed files byte for byte.
 
-The project is agent-ready (adr-004): `AGENTS.md`/`CLAUDE.md` point coding
-agents at the machine context layer, `context/` holds the mission, notebook,
-and rules, and opening the project in SUNA writes a machine-local `.mcp.json`
-wiring its manuscript tools.
+The project is agent-ready (adr-004): `AGENTS.md`/`CLAUDE.md` point coding agents at the machine context layer, `context/` holds the mission, notebook, and rules, and opening the project in SUNA writes a machine-local `.mcp.json` wiring its manuscript tools.
