@@ -9,7 +9,7 @@ SciMark (see MANUSCRIPT.md); comment handling is COMMENTS.md.
 Read before you touch anything:
 
 1. Everything in `~/SunaConfig/Context/UserContext/` (WHO-AM-I.md, RULES.md).
-2. The project's `context/` files: MISSION.md, NOTEBOOK.md, RULES.md.
+2. The project's `context/` files: PROJECT.md, MEMORY.md, RULES.md.
 3. Then over MCP:
 
 ```
@@ -19,7 +19,7 @@ list_outline            {}
 list_comments           {"resolved": false}
 ```
 
-Open with a short standup: current state (from NOTEBOOK.md + outline), open comments,
+Open with a short standup: current state (from MEMORY.md + outline), open comments,
 and what you plan to do this session. Then do it.
 
 ## 1. References
@@ -138,9 +138,9 @@ add_comment  {"path": "manuscript.md", "quote": "the exact text", "body": "Quest
 
 ## 5. Log
 
-Write the notebook as you work, not at the end. Append a session entry to
-`context/NOTEBOOK.md` under `## Session log` with your own file tools (no MCP verb for
-context files): `### YYYY-MM-DD HH:MM — title`, newest last. The notebook law (see
+Write the memory file as you work, not at the end. Append a session entry to
+`context/MEMORY.md` under `## Session log` with your own file tools (no MCP verb for
+context files): `### YYYY-MM-DD HH:MM — title`, newest last. The memory law (see
 PROJECT-GUIDE.md): body-section updates (State / Decisions / Tried / Open questions)
 are surgical, anchored, in-place edits — never a whole-file rewrite; a rewrite from a
 stale read destroys concurrent work.
@@ -156,4 +156,4 @@ Cite: a DOI -> add_reference -> `[@key]`; a mention -> find_study, ask when conf
 is low, then cite_study; verify the echoed metadata either way.
 Edit: anchored edit_manuscript; cross-references, never stored numbers.
 Check and review: compliance verbs, then the comment loop — reply; the user resolves.
-Log: append to the notebook surgically; promote recurring feedback to RULES.md.
+Log: append to the memory file surgically; promote recurring feedback to RULES.md.

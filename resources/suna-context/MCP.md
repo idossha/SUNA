@@ -137,5 +137,5 @@ The file is the API: every source of truth is plain text (JSON / Markdown / BibT
 SVG), so when MCP is unavailable you may read and edit the files directly with the
 same discipline — anchored edits, comments only in the `manuscript/comments.json`
 sidecar, never touch `figures/*/figure.svg` or `output/`. Edit `context/` files
-(NOTEBOOK.md, RULES.md, MISSION.md) with your own file tools regardless — there is no
+(MEMORY.md, RULES.md, PROJECT.md) with your own file tools regardless — there is no
 MCP verb for them.

@@ -1,4 +1,4 @@
-# Project notebook
+# Project memory
 
 <!-- The agent's memory of this project. Agent-owned: agents write; the user reads and leaves comments. Body = current truth, edited in place with surgical anchored edits — never a whole-file rewrite. Session log = append-only history, newest last. -->
 

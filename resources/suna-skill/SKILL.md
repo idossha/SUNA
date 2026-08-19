@@ -24,7 +24,7 @@ installed app). This skill is only the trigger.
    map), then `WORKFLOW.md` (the session playbook). The complete references
    (`PROJECT-GUIDE.md`, `MANUSCRIPT.md`, `COMMENTS.md`, `FIGURES.md`,
    `MCP.md`) are siblings.
-4. In a project, read `context/MISSION.md`, `context/NOTEBOOK.md`, and
+4. In a project, read `context/PROJECT.md`, `context/MEMORY.md`, and
    `context/RULES.md` before working, and check open review comments
    (`list_comments` over MCP, or `manuscript/comments.json`).
 

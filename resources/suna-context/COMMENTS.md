@@ -63,7 +63,7 @@ of your reading order, see README.md):
    only the user resolves it, in the app, after reviewing your change.
 
 If a fix fails or a comment cannot be addressed, reply saying so and leave the thread
-open. Honest reporting: dead ends go in the reply and the notebook, not under the rug.
+open. Honest reporting: dead ends go in the reply and the memory file, not under the rug.
 
 ## Asking the user questions
 

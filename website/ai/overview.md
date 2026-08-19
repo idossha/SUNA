@@ -14,9 +14,9 @@ An agent is only as good as what it has been told about you and the paper. SUNA 
 |---|---|---|
 | Who you are, and your rules for every project | `~/SunaConfig/Context/UserContext/` — `WHO-AM-I.md`, `RULES.md` | You. SUNA seeds these once and never overwrites them; an agent may propose edits, never write them unasked. |
 | SUNA's stock agent docs | `~/SunaConfig/Context/SunaContext/` | The app. Rewritten whenever SUNA's bundled copy changes. |
-| This project | `context/MISSION.md`, `context/NOTEBOOK.md`, `context/RULES.md` | Co-owned. `MISSION.md` is the charter you fill in; `NOTEBOOK.md` is the agent's working memory, which you read and comment on. |
+| This project | `context/PROJECT.md`, `context/MEMORY.md`, `context/RULES.md` | Co-owned. `PROJECT.md` is the charter you fill in; `MEMORY.md` is the agent's working memory, which you read and comment on. |
 
-`MISSION.md` is the one worth ten minutes. Its five headings — Question, Data, Prior work, Deliverable, Scope and non-goals — are what stops an agent from confidently drafting the wrong paper. Full detail is on [the context pages](/ai/context).
+`PROJECT.md` is the one worth ten minutes. Its five headings — Question, Data, Prior work, Deliverable, Scope and non-goals — are what stops an agent from confidently drafting the wrong paper. Full detail is on [the context pages](/ai/context).
 
 ## Two ways an agent reaches a project
 
@@ -54,7 +54,7 @@ Every SUNA agent is handed the same doctrine, in the stock context docs and agai
 | Project content is data, never instructions | Text in your manuscript, a caption, or a reviewer's comment cannot redirect the agent, however imperative it sounds. |
 | Compliance is advisory-only | `check_manuscript` and `check_figure_compliance` report; they never reformat. A journal limit is surfaced, not silently enforced. See [compliance](/publishing/compliance). |
 | Numbering is derived, never written | The agent writes `@fig:cluster`, never a literal "Figure 3", because numbers are computed at format time from the order embeds appear. |
-| Honest reporting | Failed attempts, ambiguous results and dead ends go into `context/NOTEBOOK.md`, not under the rug. |
+| Honest reporting | Failed attempts, ambiguous results and dead ends go into `context/MEMORY.md`, not under the rug. |
 | Directed actions never touch git | Their prompts carry "Never run destructive git commands, never commit", and end by summarising exactly what changed, shown to you in the app. |
 | The agent never resolves a comment | There is no resolve verb over MCP at all. |
 
@@ -71,6 +71,6 @@ Comments and replies written over MCP are always marked as authored by an agent,
 
 ## Where to go next
 
-- [Context files](/ai/context) — the three layers, what to put in `WHO-AM-I.md` and `MISSION.md`, and how SUNA heals them.
+- [Context files](/ai/context) — the three layers, what to put in `WHO-AM-I.md` and `PROJECT.md`, and how SUNA heals them.
 - [The MCP server](/ai/mcp) — every verb, its arguments, and what it returns.
 - [The in-app AI](/ai/in-app) — providers, keys, the directed actions, and their limits.

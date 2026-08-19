@@ -66,7 +66,7 @@ running Electron process. See TESTING.md → *Flat-layout coverage*.
 | Environments | uv/.venv/conda detection, per-project selection |
 | Settings | App-wide settings tab persisted to userData |
 | AI | Provider adapters (Anthropic/OpenAI/Ollama) + API-key chat; MCP server exposing 23 manuscript verbs (incl. `edit_manuscript` anchored edits, `check_manuscript` compliance and the four study-acquisition verbs); "Open Claude Code here" launches a subscription-billed CLI wired to it |
-| Agent context layer | adr-004: machine-level `~/SunaConfig/Context/` (UserContext seeds + 7 hash-synced SunaContext docs teaching the SUNA contract), per-project marker-tagged `AGENTS.md`/`CLAUDE.md` stubs + `context/` memory files (MISSION/NOTEBOOK/RULES), machine-local gitignored `.mcp.json`, `~/.claude/skills/suna` pointer skill — written by every scaffold, healed on every project open and MCP boot, drift-gated against the verb registry in `pnpm test` |
+| Agent context layer | adr-004: machine-level `~/SunaConfig/Context/` (UserContext seeds + 7 hash-synced SunaContext docs teaching the SUNA contract), per-project marker-tagged `AGENTS.md`/`CLAUDE.md` stubs + `context/` memory files (PROJECT/MEMORY/RULES), machine-local gitignored `.mcp.json`, `~/.claude/skills/suna` pointer skill — written by every scaffold, healed on every project open and MCP boot, drift-gated against the verb registry in `pnpm test` |
 | Python | suna_mpl: semantic gids, journal presets, deterministic SVG, anchor manifests, auto-rasterization |
 
 ## In progress

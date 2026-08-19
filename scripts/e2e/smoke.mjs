@@ -2515,7 +2515,7 @@ try {
         config: JSON.parse(content),
         agents: await read('AGENTS.md'),
         claude: await read('CLAUDE.md'),
-        notebook: await read('context/NOTEBOOK.md'),
+        notebook: await read('context/MEMORY.md'),
         gitignore: await read('.gitignore')
       };
     })()`)
@@ -2529,7 +2529,7 @@ try {
     // adr-004: the write heals the whole agent layer, not just .mcp.json
     assert(written.agents.includes('suna:agent-stub'), 'AGENTS.md stub missing after heal')
     assert(written.claude.includes('suna:agent-stub'), 'CLAUDE.md stub missing after heal')
-    assert(written.notebook.includes('Session log'), 'context/NOTEBOOK.md missing after heal')
+    assert(written.notebook.includes('Session log'), 'context/MEMORY.md missing after heal')
     assert(
       written.gitignore.split('\n').some((l) => l.trim() === '.mcp.json'),
       '.gitignore does not ignore .mcp.json after heal'
@@ -6096,7 +6096,7 @@ try {
     )
     for (const relative of ['manuscript/manuscript.json', 'manuscript/references.bib',
       'manuscript/manuscript.md', 'manuscript/authors.json',
-      'AGENTS.md', 'CLAUDE.md', 'context/MISSION.md', 'context/NOTEBOOK.md',
+      'AGENTS.md', 'CLAUDE.md', 'context/PROJECT.md', 'context/MEMORY.md',
       'context/RULES.md', '.mcp.json']) {
       assert(existsSync(join(WIZARD_DIR, relative)), `missing ${relative}`)
     }

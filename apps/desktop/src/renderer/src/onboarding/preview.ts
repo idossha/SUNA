@@ -14,8 +14,8 @@ export function projectTreeLines(state: WizardState): string[] {
   lines.push('  AGENTS.md')
   lines.push('  CLAUDE.md')
   lines.push('  context/')
-  lines.push('    MISSION.md')
-  lines.push('    NOTEBOOK.md')
+  lines.push('    PROJECT.md')
+  lines.push('    MEMORY.md')
   lines.push('    RULES.md')
   // Flat manuscript directory (feature-plan-7 §1) — one prose file, sections
   // are its Markdown headings, and the byline lives in authors.json. Mirrors
