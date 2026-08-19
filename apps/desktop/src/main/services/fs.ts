@@ -54,6 +54,14 @@ export async function readBinary(path: string): Promise<{ base64: string; bytes:
   return { base64: buffer.toString('base64'), bytes: buffer.byteLength }
 }
 
+/** A file's size in bytes — stat only, so a huge export costs nothing to measure. */
+export async function fileSize(path: string): Promise<number> {
+  const abs = assertInsideAllowedRoot(path)
+  const info = await stat(abs)
+  if (!info.isFile()) throw new Error(`not a file: ${path}`)
+  return info.size
+}
+
 /**
  * Copy a file INTO the project ("Attach PDF…"). `from` deliberately escapes
  * the allowed roots — the user picks it anywhere on disk — while `to` is

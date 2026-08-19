@@ -44,6 +44,7 @@ import {
   makeDir,
   moveEntries,
   readBinary,
+  fileSize,
   readText,
   renameEntry,
   trashEntry,
@@ -299,6 +300,7 @@ export function registerIpcHandlers(): void {
     bytesWritten: await writeText(path, content)
   }))
   handle('fs:read-binary', ({ path }) => readBinary(path))
+  handle('fs:file-size', async ({ path }) => ({ bytes: await fileSize(path) }))
   handle('fs:copy-file', async ({ from, to }) => ({ path: await copyFileInto(from, to) }))
   handle('fs:list', async ({ dir }) => ({ root: await listTree(dir) }))
   handle('fs:rename', async ({ path, newName }) => ({

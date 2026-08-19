@@ -201,6 +201,48 @@
   word-break: break-all;
 }
 
+.export-dialog__compressed-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--s-ink);
+  opacity: 0.7;
+}
+
+/* Post-export offer: shown only for a PDF / web page big enough to be worth
+   re-embedding its figures at a lower resolution. */
+.export-dialog__compress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.export-dialog__compress-btn {
+  background: transparent;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  color: var(--s-ink);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.export-dialog__compress-btn:hover:not(:disabled) {
+  border-color: var(--ed-accent, #4a7dfc);
+}
+
+.export-dialog__compress-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.export-dialog__compress .export-dialog__hint {
+  flex: 1 1 240px;
+  font-size: 12px;
+}
+
 .export-dialog__error {
   margin-top: 12px;
   color: #e5484d;
