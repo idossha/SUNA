@@ -38,14 +38,6 @@
   text-decoration-thickness: 2px;
 }
 
-/* The one place a wash is still right: a 900 ms "it is over here" pulse when
-   a card is clicked. Transient and never more than one at a time, so it
-   cannot be mistaken for a diff mark. */
-.cmt-anchor--flash {
-  background: color-mix(in srgb, var(--s-accent) 30%, transparent);
-  border-radius: 2px;
-  transition: background 900ms ease;
-}
 
 /* ---- shared card internals ------------------------------------------------- */
 

@@ -21,7 +21,7 @@ import { useCommentsStore } from '../state/comments'
 import { useProjectStore } from '../state/project'
 import { locate, makeAnchor } from './anchor'
 import {
-  flashAnchorById,
+  revealAnchorById,
   getAnchorsEpoch,
   liveAnchors,
   setActiveInView,
@@ -159,7 +159,7 @@ function DraftComposer(): JSX.Element | null {
  * Is there a text selection INSIDE this element? The card suppresses
  * activation while the user is selecting its text to copy — but the test has
  * to be local. A bare `getSelection().toString() !== ''` also sees the
- * EDITOR's selection, and jumping to a comment leaves one there (flashAnchor
+ * EDITOR's selection, and jumping to a comment leaves one there (revealAnchor
  * selects the anchored range, which a focused editor mirrors into the DOM).
  * That made the next card click a no-op: click one comment, click another,
  * nothing happens until you click again.
@@ -413,7 +413,7 @@ export function CommentsRail({
   const visible = useUiStore((s) => s.commentsRailVisible)
   const width = useUiStore((s) => s.commentsRailWidth)
   const activeId = useCommentsStore((s) => s.activeId)
-  const flashRequest = useCommentsStore((s) => s.flashRequest)
+  const revealRequest = useCommentsStore((s) => s.revealRequest)
   const draft = useCommentsStore((s) => s.draft)
   const railRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -676,15 +676,15 @@ export function CommentsRail({
     if (view !== null) setActiveInView(view, activeId)
   }, [activeId, getView])
 
-  // "scroll to and flash the anchor" — one watcher for both surfaces, each
+  // "scroll to the anchor" — one watcher for both surfaces, each
   // nonce consumed exactly once.
-  const lastFlashNonceRef = useRef(0)
+  const lastRevealNonceRef = useRef(0)
   useEffect(() => {
-    if (flashRequest === null || flashRequest.nonce === lastFlashNonceRef.current) return
-    lastFlashNonceRef.current = flashRequest.nonce
+    if (revealRequest === null || revealRequest.nonce === lastRevealNonceRef.current) return
+    lastRevealNonceRef.current = revealRequest.nonce
     const view = getView()
-    if (view !== null) flashAnchorById(view, flashRequest.commentId)
-  }, [flashRequest, getView])
+    if (view !== null) revealAnchorById(view, revealRequest.commentId)
+  }, [revealRequest, getView])
 
   if (!visible) return null
 
@@ -694,7 +694,7 @@ export function CommentsRail({
     store.setActive(next)
     if (next !== null) {
       const view = getView()
-      if (view !== null) flashAnchorById(view, comment.id)
+      if (view !== null) revealAnchorById(view, comment.id)
     }
   }
 

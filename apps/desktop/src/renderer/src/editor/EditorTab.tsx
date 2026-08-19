@@ -233,7 +233,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           view.dispatch({
             effects: StateEffect.appendConfig.of([
               // highlight decorations + click-to-activate; the rail owns the
-              // reverse direction (card click -> flash) and the flash watcher
+              // reverse direction (card click -> reveal) and the reveal watcher
               commentHighlightExtension((commentId: string | null) =>
                 useCommentsStore.getState().setActive(commentId)
               ),
@@ -333,7 +333,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
 
   // push comment-list changes into this editor's live anchor decorations —
   // resolving/adding/removing a comment changes the set even when the
-  // document itself hasn't changed. (The rail owns flash + active mirror.)
+  // document itself hasn't changed. (The rail owns reveal + active mirror.)
   useEffect(() => {
     const view = handleRef.current?.view
     if (view) applySectionComments(view, openCommentsForPath)

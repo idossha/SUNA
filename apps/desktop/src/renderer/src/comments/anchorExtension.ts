@@ -103,31 +103,6 @@ const decorationsField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field)
 })
 
-/** Effect: briefly highlight one range (rail "scroll to and flash"). */
-export const setFlashRange = StateEffect.define<{ from: number; to: number } | null>()
-
-const flashField = StateField.define<{ from: number; to: number } | null>({
-  create: () => null,
-  update: (value, tr) => {
-    for (const effect of tr.effects) {
-      if (effect.is(setFlashRange)) value = effect.value
-    }
-    if (value !== null && tr.docChanged) value = null
-    return value
-  }
-})
-
-const flashMark = Decoration.mark({ class: 'cmt-anchor--flash' })
-
-const flashDecorationField = StateField.define<DecorationSet>({
-  create: () => Decoration.none,
-  update: (_deco, tr) => {
-    const flash = tr.state.field(flashField)
-    return flash === null ? Decoration.none : Decoration.set([flashMark.range(flash.from, flash.to)])
-  },
-  provide: (field) => EditorView.decorations.from(field)
-})
-
 /* ---- live-anchor registry + change epoch ----------------------------------
    The save-time re-anchoring in state/comments needs the EDITOR's mapped
    ranges (locate() against saved text would wrongly detach a comment whose
@@ -213,8 +188,6 @@ export function commentHighlightExtension(
     anchorsField,
     activeField,
     decorationsField,
-    flashField,
-    flashDecorationField,
     EditorView.updateListener.of((update) => {
       // anchors move on doc changes AND get rebuilt by setSectionComments
       // (a pure-effect transaction) — the rail's document-order sort must
@@ -322,8 +295,8 @@ function stickyInsetOf(scrollport: HTMLElement): number {
   return inset
 }
 
-/** How long the flash — and the pin that holds the anchor in place — last. */
-const FLASH_MS = 1200
+/** How long the pin holds the anchor in place after a jump. */
+const PIN_MS = 1200
 /** Corrections below this are invisible; chasing them would only churn. */
 const PIN_EPSILON_PX = 1
 
@@ -343,9 +316,6 @@ export function anchorScrollDelta(
 
 /** The pin currently holding an anchor in place, if any — at most one. */
 let activePin: (() => void) | null = null
-/** The pending "put the flash out" timer — at most one, see flashAnchor. */
-let flashTimer = 0
-
 /**
  * What makes the pin let go. USER GESTURES only, deliberately: a scrollTop we
  * did not write is not evidence of the user, because CodeMirror corrects the
@@ -369,7 +339,7 @@ const ABORT_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
  *
  * So the target is re-derived from live geometry every frame and the anchor
  * is pulled back onto it — the document settles AROUND a fixed anchor rather
- * than sliding it away. The pin holds only as long as the flash, and any user
+ * than sliding it away. The pin holds for PIN_MS, and any user
  * gesture on the scrollport ends it immediately (see ABORT_EVENTS).
  */
 function pinAnchor(view: EditorView, pos: number, commentId: string | null): void {
@@ -419,7 +389,7 @@ function pinAnchor(view: EditorView, pos: number, commentId: string | null): voi
   activePin = stop
   // the first correction is synchronous: the jump must not cost a frame
   correct()
-  const deadline = performance.now() + FLASH_MS
+  const deadline = performance.now() + PIN_MS
   const frame = (): void => {
     frameId = 0
     if (stopped) return
@@ -440,32 +410,27 @@ export function cancelAnchorPin(): void {
 }
 
 /**
- * Select, scroll to, and briefly highlight an anchored range. `commentId`
- * lets the pin track the anchor through document changes.
+ * Scroll an anchored range into view. `commentId` lets the pin track the
+ * anchor through document changes.
+ *
+ * It deliberately does NOT touch the text. It used to select the range — and
+ * to pulse a background over it — which meant clicking a card left the quote
+ * sitting in a persistent selection wash. The anchor's trail going solid is
+ * the whole signal now; a second, heavier one over the same words only
+ * competed with the AI-diff colours underneath it.
+ *
+ * The selection was also what nudged CodeMirror into revealing the range, but
+ * pinAnchor never needed the help: it positions from the height map
+ * (`lineBlockAt`), which answers for text that has never been rendered.
  */
-export function flashAnchor(view: EditorView, from: number, to: number, commentId?: string): void {
-  view.dispatch({
-    selection: { anchor: from, head: to },
-    effects: [setFlashRange.of({ from, to })]
-  })
-  // AFTER the dispatch, so the reveal reflow that selecting a rendered span
-  // triggers is already in the geometry the first correction measures
+export function revealAnchor(view: EditorView, from: number, commentId?: string): void {
   pinAnchor(view, from, commentId ?? null)
-  // One timer for the whole app, replaced on every flash. Scheduling a fresh
-  // one per flash meant the PREVIOUS flash's timer put out the current one:
-  // jump to a comment, jump to another within the second, and the second
-  // highlight died a few hundred ms after it lit.
-  if (flashTimer !== 0) window.clearTimeout(flashTimer)
-  flashTimer = window.setTimeout(() => {
-    flashTimer = 0
-    view.dispatch({ effects: setFlashRange.of(null) })
-  }, FLASH_MS)
 }
 
-/** Flash a comment's CURRENT live range; false when it has none (detached). */
-export function flashAnchorById(view: EditorView, commentId: string): boolean {
+/** Reveal a comment's CURRENT live range; false when it has none (detached). */
+export function revealAnchorById(view: EditorView, commentId: string): boolean {
   const anchor = liveAnchors(view.state).find((a) => a.id === commentId)
   if (anchor === undefined) return false
-  flashAnchor(view, anchor.from, anchor.to, commentId)
+  revealAnchor(view, anchor.from, commentId)
   return true
 }

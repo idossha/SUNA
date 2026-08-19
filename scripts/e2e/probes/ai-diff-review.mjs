@@ -27,6 +27,15 @@ export default async (ctx) => {
   assert(rootDir, 'no project open — boot with: node scripts/e2e/drive.mjs --boot --example')
   const manuscriptPath = join(rootDir, 'manuscript', 'manuscript.md')
   const revisionsPath = join(rootDir, 'manuscript', 'revisions.json')
+  // A run killed mid-way leaves a baseline behind, and `open` deliberately
+  // keeps the OLDER one — so a stale file would silently change what this
+  // probe measures rather than failing loudly. Clear it before reading.
+  rmSync(revisionsPath, { force: true })
+  await ctx.evalJs(`(async () => {
+    await window.__sunaDev.revisionsStore.getState().load(
+      window.__sunaDev.projectStore.getState().rootDir
+    )
+  })()`)
   const original = readFileSync(manuscriptPath, 'utf8')
 
   let commentId = null
@@ -201,6 +210,21 @@ export default async (ctx) => {
           (await ctx.evalJs(`window.__sunaDev.commentsStore.getState().activeId`)) === null)
       }
     }
+
+    // Jumping to a comment scrolls to its anchor and nothing more. It used to
+    // SELECT the quote, which left a persistent selection wash over the very
+    // words the diff colours live on.
+    await ctx.evalJs(`window.__sunaDev.commentsStore.getState().requestReveal(${JSON.stringify('CID')})`.replace(JSON.stringify('CID'), JSON.stringify(commentId)))
+    await ctx.sleep(1600)
+    const afterReveal = await ctx.evalJs(`({
+      selection: (window.getSelection()?.toString() ?? '').length,
+      wash: !!document.querySelector('.cmt-anchor--flash'),
+      onScreen: !!document.querySelector('.cm-content .cmt-anchor')
+    })`)
+    check('jumping to a comment leaves the prose unselected',
+      afterReveal.selection === 0, `${afterReveal.selection} chars selected`)
+    check('and paints no wash over it', afterReveal.wash === false)
+    check('while still bringing the anchor on screen', afterReveal.onScreen === true)
 
     check('the diff marks keep their own background under the comment',
       (await ctx.evalJs(`(() => {
