@@ -229,6 +229,8 @@ export interface PdfViewportLike {
   scale: number
   rotation: number
   convertToPdfPoint: (x: number, y: number) => number[]
+  /** The inverse — used to place the file's own annotations on the page. */
+  convertToViewportPoint: (x: number, y: number) => number[]
 }
 
 export interface PdfSelectionResult {

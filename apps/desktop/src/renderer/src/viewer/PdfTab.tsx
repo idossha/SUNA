@@ -32,7 +32,7 @@ import { useProjectStore } from '../state/project'
 import { useReferencePdfsStore } from '../state/referencePdfs'
 import { useRefNotesStore } from '../state/refnotes'
 import { base64ToUint8Array } from './binary'
-import { embedHighlights } from './embedRunner'
+import { syncHighlights } from './embedRunner'
 import { HighlightLayer } from './HighlightLayer'
 import { NotesRail } from './NotesRail'
 import { useNoteRects } from './useNoteRects'
@@ -257,7 +257,9 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const addNote = useRefNotesStore((s) => s.addNote)
   const updateNote = useRefNotesStore((s) => s.updateNote)
   const deleteNote = useRefNotesStore((s) => s.deleteNote)
-  const recordEmbed = useRefNotesStore((s) => s.recordEmbed)
+  const pendingRemovals = useRefNotesStore((s) => s.pendingRemovals)
+  const noteRemoved = useRefNotesStore((s) => s.noteRemoved)
+  const clearPendingRemovals = useRefNotesStore((s) => s.clearPendingRemovals)
   const notesCitekey = useRefNotesStore((s) => s.citekey)
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
 
@@ -307,56 +309,62 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   }, [renderedPages, resolvedNotes])
 
   // ---- keep the PDF's own annotations in step with the sidecar ----------
-  // Debounced, because a burst of highlighting should cost one regeneration,
-  // not one per colour click: each regeneration re-parses and re-serialises
-  // the whole document.
-  const embedTimerRef = useRef<number | null>(null)
-  const lastEmbedKeyRef = useRef<string>('')
+  // Debounced, because a burst of highlighting should cost one reconcile
+  // rather than one per colour click. The reconcile itself is stateless: it
+  // reads the file as it is and issues the minimum edit, so a foreign change
+  // between two runs is simply the new starting point.
+  const syncTimerRef = useRef<number | null>(null)
+  const syncKeyRef = useRef<string>('')
   useEffect(() => {
     if (rootDir === null || notesCitekey === null || notesFile === null) return
     // Nothing to do until the notes have geometry: rectangles come from
-    // rendered pages, and embedding before page 1 has painted would write an
-    // empty annotation layer over a file that has highlights.
+    // rendered pages, and reconciling before page 1 has painted would look
+    // like every note had vanished.
     if (notes.length > 0 && resolvedNotes.byNote.size === 0) return
 
-    const key = JSON.stringify(
-      notes.map((n) => [n.id, n.color, n.body, [...(resolvedNotes.byNote.get(n.id)?.keys() ?? [])]])
-    )
-    if (key === lastEmbedKeyRef.current) return
+    const key = JSON.stringify([
+      notes.map((n) => [n.id, n.color, n.body, [...(resolvedNotes.byNote.get(n.id)?.keys() ?? [])]]),
+      pendingRemovals.length
+    ])
+    if (key === syncKeyRef.current) return
 
-    if (embedTimerRef.current !== null) window.clearTimeout(embedTimerRef.current)
-    embedTimerRef.current = window.setTimeout(() => {
-      embedTimerRef.current = null
-      lastEmbedKeyRef.current = key
+    if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
+    syncTimerRef.current = window.setTimeout(() => {
+      syncTimerRef.current = null
+      syncKeyRef.current = key
       const viewports = new Map(renderedPages.map((entry) => [entry.page, entry.viewport]))
-      void embedHighlights({
+      void syncHighlights({
         rootDir,
         citekey: notesCitekey,
         notes,
         rectsByNote: resolvedNotes.byNote,
         viewports,
-        author: readLocalAuthorName()
+        author: readLocalAuthorName(),
+        removedRegions: pendingRemovals
       }).then((outcome) => {
         if (!outcome.ok) {
           setNote(`Highlights are saved, but the PDF was not updated: ${outcome.error ?? 'unknown'}`)
+          // Let the next change try again rather than latching the failure.
+          syncKeyRef.current = ''
           return
         }
-        // Restamp the baseline so the next open does not read SUNA's own
-        // write as "this PDF changed" and run the re-anchor sweep.
-        void recordEmbed({
-          pristineBytes: outcome.pristineBytes ?? 0,
-          pristineSha256: outcome.pristineSha256 ?? '',
-          sha256: outcome.sha256 ?? '',
-          pageCount: numPages,
-          noteIds: notes.map((n) => n.id)
-        })
+        if (pendingRemovals.length > 0) clearPendingRemovals()
       })
     }, 700)
 
     return () => {
-      if (embedTimerRef.current !== null) window.clearTimeout(embedTimerRef.current)
+      if (syncTimerRef.current !== null) window.clearTimeout(syncTimerRef.current)
     }
-  }, [rootDir, notesCitekey, notesFile, notes, resolvedNotes, renderedPages, numPages, recordEmbed])
+  }, [
+    rootDir,
+    notesCitekey,
+    notesFile,
+    notes,
+    resolvedNotes,
+    renderedPages,
+    pendingRemovals,
+    clearPendingRemovals
+  ])
 
   // ---- load the document -----------------------------------------------
   useEffect(() => {
@@ -682,11 +690,19 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
 
   const removeHighlight = useCallback(
     (noteId: string): void => {
+      // Capture where it WAS before the note goes: once it is out of the
+      // sidecar, the annotation left in the PDF is indistinguishable from one
+      // made in Preview, and the reconcile refuses to delete what it cannot
+      // attribute.
+      const byPage = resolvedRef.current.byNote.get(noteId)
+      if (byPage !== undefined) {
+        noteRemoved([...byPage.entries()].map(([page, rects]) => ({ page, rects: [...rects] })))
+      }
       void deleteNote(noteId)
       setPickedNote(null)
       setActiveNoteId((current) => (current === noteId ? null : current))
     },
-    [deleteNote]
+    [deleteNote, noteRemoved]
   )
 
   // ---- zoom + page jump ---------------------------------------------------

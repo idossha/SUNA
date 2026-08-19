@@ -68,6 +68,17 @@ describe('highlightRectsFromAnnotations', () => {
     // spec order: upper-left, upper-right, lower-left, lower-right
     [x0, y1, x1, y1, x0, y0, x1, y0]
 
+  it('carries each annotation own ref, since several can share every other field', () => {
+    const found = highlightRectsFromAnnotations(
+      [
+        { id: '10R', subtype: 'Highlight', quadPoints: quad(100, 700, 300, 720) },
+        { id: '11R', subtype: 'Highlight', quadPoints: quad(100, 600, 300, 620) }
+      ],
+      viewport
+    )
+    expect(found.map((f) => f.id)).toEqual(['10R', '11R'])
+  })
+
   it('maps QuadPoints through the viewport, flipping the y axis', () => {
     const [found] = highlightRectsFromAnnotations(
       [{ subtype: 'Highlight', quadPoints: quad(100, 700, 300, 720), color: [255, 102, 102] }],
@@ -135,6 +146,7 @@ describe('highlightRectsFromAnnotations', () => {
 
 describe('foreignOnly', () => {
   const make = (rects: HighlightRect[]): ForeignHighlight => ({
+    id: '0R',
     rects,
     color: null,
     contents: null,

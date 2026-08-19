@@ -5,32 +5,30 @@ import type { PdfViewportLike } from './pdfSelection'
 /**
  * Writing SUNA's highlights into the PDF as REAL annotations (ADR-008, amended
  * 2026-08-18 on user direction: "the highlighting functionality should be
- * native to the pdf as if we were highlighting in Preview App").
+ * native to the pdf as if we were highlighting in Preview App", then "keep it
+ * simple and robust ... make sure everything is updated even if users make
+ * changes via preview or Zotero").
  *
- * ## Why the file is regenerated rather than appended to
+ * ## The file is reconciled, not regenerated
  *
- * pdf.js can create annotations but **cannot delete or edit one that already
- * existed in the document it loaded** (mozilla/pdf.js#18407). Appending on
- * every change would therefore duplicate every highlight forever, and removing
- * one would be impossible — which is exactly the second thing the user asked
- * for.
+ * An earlier version of this rebuilt the PDF from a recorded pristine baseline
+ * on every change, because pdf.js was believed unable to delete an annotation
+ * the loaded document already had (mozilla/pdf.js#18407 is about editing one).
+ * That worked, and it was a trap: the moment another application rewrote the
+ * file — Preview rewrites rather than appends — the baseline stopped matching
+ * and SUNA could never write to that paper again.
  *
- * What makes the way out exact is a measured property: `saveDocument()` is a
- * strict incremental append, so the original bytes remain a byte-for-byte
- * prefix of the output. Verified here against the example PDF —
- * 447,218 -> 448,289 bytes, `sha256` of the first 447,218 bytes identical, and
- * truncating back reproduced the source exactly.
+ * pdf.js CAN delete. Staging `{ id: '<ref>', deleted: true, pageIndex }` under
+ * a `pdfjs_internal_editor_*` key drops the annotation from the page's
+ * `/Annots` on save. Measured: two highlights (119R, 120R), delete 119R, save
+ * — 120R survives, 119R is gone, and the result is still a byte-exact append.
+ * The missing prefix on the storage key was the whole reason it looked
+ * impossible.
  *
- * So the PDF's annotation layer is DERIVED, never edited in place:
- *
- *   truncate to the pristine length -> verify its hash -> load it -> write
- *   every current note -> save.
- *
- * Two highlights then one gives one annotation, not three. The sidecar stays
- * the source of truth because the PDF cannot hold what the rail needs:
- * pdf.js writes no `/NM`, so an annotation has no stable identity, and
- * `/QuadPoints` is absolute page coordinates, so nothing in the file can
- * re-anchor when the PDF is replaced.
+ * So there is no baseline and nothing to invalidate. Every write is an
+ * ordinary incremental append over WHATEVER the file is right now, which makes
+ * a foreign edit a non-event: we add the annotations our notes need, remove
+ * the ones they no longer need, and touch nothing else in the document.
  */
 
 /** pdf.js `AnnotationEditorType.HIGHLIGHT`. Inlined so this module stays pure. */
@@ -53,6 +51,16 @@ export const NOTE_COLOR_RGB: Record<NoteColor, [number, number, number]> = {
   magenta: [229, 110, 238],
   orange: [241, 152, 55],
   gray: [170, 170, 170]
+}
+
+/** Removing an annotation the document already has, by its object ref. */
+export interface DeleteAnnotationSpec {
+  /** `id` from `getAnnotations()`, e.g. "119R". */
+  id: string
+  deleted: true
+  /** Deleting the popup with it, so no orphan `/Popup` is left behind. */
+  popupRef?: string
+  pageIndex: number
 }
 
 /** One annotation, in the shape pdf.js's worker serialises. */
@@ -169,17 +177,126 @@ export function annotationsForNote(
 }
 
 /**
- * Load the specs into a document's `annotationStorage` under the keys pdf.js's
- * save path looks for.
+ * Load creates and deletes into a document's `annotationStorage`.
  *
- * The document MUST be a freshly loaded pristine copy: this writes new
- * annotations and cannot remove ones the loaded file already had.
+ * The `pdfjs_internal_editor_` prefix is not cosmetic: `getNewAnnotationsMap`
+ * skips every key without it, so an entry stored under any other name is
+ * silently ignored and the save appears to do nothing. That is exactly how
+ * deleting looked impossible.
  */
 export function stageAnnotations(
-  storage: { setValue: (key: string, value: HighlightAnnotationSpec) => void },
-  specs: readonly HighlightAnnotationSpec[]
+  storage: { setValue: (key: string, value: HighlightAnnotationSpec | DeleteAnnotationSpec) => void },
+  creates: readonly HighlightAnnotationSpec[],
+  deletes: readonly DeleteAnnotationSpec[] = []
 ): void {
-  specs.forEach((spec, index) => {
-    storage.setValue(`pdfjs_internal_editor_${index}`, spec)
-  })
+  let index = 0
+  for (const spec of deletes) storage.setValue(`pdfjs_internal_editor_${index++}`, spec)
+  for (const spec of creates) storage.setValue(`pdfjs_internal_editor_${index++}`, spec)
+}
+
+/** What one page of the file currently carries, as the sync sees it. */
+export interface FileAnnotation {
+  id: string
+  popupRef?: string
+  page: number
+  rects: readonly HighlightRect[]
+  color: string | null
+  contents: string | null
+}
+
+/** What a note wants the file to say about it. */
+export interface DesiredHighlight {
+  noteId: string
+  page: number
+  rects: readonly HighlightRect[]
+  /** CSS `rgb(r, g, b)`, so it compares directly with what was read back. */
+  color: string
+  contents: string
+}
+
+export interface SyncPlan {
+  /** Notes that have no annotation in the file yet. */
+  create: DesiredHighlight[]
+  /** Annotations to drop: stale representations, plus explicitly removed notes. */
+  remove: FileAnnotation[]
+  /** Notes already represented correctly — nothing to do. */
+  unchanged: number
+}
+
+/** Same region, within a couple of pixels. */
+function sameRegion(a: readonly HighlightRect[], b: readonly HighlightRect[]): boolean {
+  if (a.length === 0 || b.length === 0) return false
+  return a.some((one) => b.some((other) => overlapsRect(one, other)))
+}
+
+/** Local copy of the overlap test, so this module stays free of DOM helpers. */
+function overlapsRect(a: HighlightRect, b: HighlightRect, slack = 2): boolean {
+  return (
+    a.left < b.left + b.width + slack &&
+    b.left < a.left + a.width + slack &&
+    a.top < b.top + b.height + slack &&
+    b.top < a.top + a.height + slack
+  )
+}
+
+/**
+ * Work out the minimum edit that makes the PDF agree with the notes.
+ *
+ * Identity is GEOMETRY, resolved fresh every time, and that is the whole
+ * robustness argument. Nothing is remembered between runs — no baseline, no
+ * stored object ref, no hash — so a file rewritten by Preview or re-downloaded
+ * by ADR-007's ladder is simply read as it now is. An annotation covering a
+ * region one of our notes covers IS that note's; one covering a region no note
+ * covers belongs to somebody else and is never touched.
+ *
+ * `removedRegions` carries the rectangles of notes the user has just deleted,
+ * which is the one thing geometry alone cannot infer: an annotation over a
+ * region no note claims is indistinguishable from a highlight made in Preview,
+ * and guessing would delete a stranger's work. So a deletion is only ever
+ * performed for a region the caller explicitly names.
+ */
+export function planSync(
+  desired: readonly DesiredHighlight[],
+  inFile: readonly FileAnnotation[],
+  removedRegions: readonly { page: number; rects: readonly HighlightRect[] }[] = []
+): SyncPlan {
+  const create: DesiredHighlight[] = []
+  const remove: FileAnnotation[] = []
+  const claimed = new Set<FileAnnotation>()
+  let unchanged = 0
+
+  for (const want of desired) {
+    const match = inFile.find(
+      (annotation) =>
+        !claimed.has(annotation) &&
+        annotation.page === want.page &&
+        sameRegion(annotation.rects, want.rects)
+    )
+    if (match === undefined) {
+      create.push(want)
+      continue
+    }
+    claimed.add(match)
+    // Present but saying the wrong thing — a recolour or an edited note body.
+    // Replace rather than edit: pdf.js can add and remove, and #18407 is
+    // precisely the inability to modify one in place.
+    if (match.color !== want.color || (match.contents ?? '') !== want.contents) {
+      remove.push(match)
+      create.push(want)
+    } else {
+      unchanged += 1
+    }
+  }
+
+  for (const gone of removedRegions) {
+    for (const annotation of inFile) {
+      if (claimed.has(annotation)) continue
+      if (annotation.page !== gone.page) continue
+      if (!sameRegion(annotation.rects, gone.rects)) continue
+      claimed.add(annotation)
+      remove.push(annotation)
+    }
+  }
+
+  return { create, remove, unchanged }
 }
