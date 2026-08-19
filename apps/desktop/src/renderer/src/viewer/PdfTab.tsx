@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type JSX,
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
@@ -385,7 +386,15 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
                   style={{ width, height }}
                 >
                   {renderSet.has(idx) ? (
-                    <div className="pdfview__pagesurface">
+                    <div
+                      className="pdfview__pagesurface"
+                      /* pdf.js sizes the text layer as
+                         `--total-scale-factor * rawDims.pageWidth` off the
+                         UNSCALED page box, so this must track the live render
+                         scale or the layer stays at natural size while the
+                         canvas zooms (see viewer.css). */
+                      style={{ '--total-scale-factor': effectiveScale } as CSSProperties}
+                    >
                       <PdfPageCanvas page={page} scale={effectiveScale} />
                     </div>
                   ) : (

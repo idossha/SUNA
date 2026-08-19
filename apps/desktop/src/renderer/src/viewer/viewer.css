@@ -187,10 +187,15 @@
   position: relative;
   width: 100%;
   height: 100%;
-  /* The TextLayer constructor sizes itself with `--total-scale-factor` and
-     `--scale-round-*` (pdfjs setLayerDimensions). Our canvas/text-layer
-     viewport is already at the exact CSS-pixel scale we want, so "no extra
-     scaling" (1) and 1px rounding granularity is the correct pair here. */
+  /* `--total-scale-factor` is set INLINE by PdfTab to the live render scale;
+     this is only the fallback for a surface rendered before that lands.
+     It must never be pinned to 1: TextLayer sizes itself off
+     `viewport.rawDims` — the UNSCALED page box — and multiplies by this
+     variable (pdfjs `setLayerDimensions`, build/pdf.mjs:1509), so a hardcoded
+     1 leaves the text layer at 612x792 while the canvas renders at the zoomed
+     size. Measured before the fix: canvas 1480x1916 against a 612x792 layer at
+     fit-width, an 868px disagreement, which every selection-derived rectangle
+     inherits. See scripts/e2e/probes/pdf-textlayer-scale.mjs. */
   --total-scale-factor: 1;
   --scale-round-x: 1px;
   --scale-round-y: 1px;
@@ -237,12 +242,34 @@
   transform-origin: 0% 0%;
 }
 
-.pdfview__textlayer .endOfContent {
-  position: absolute;
-  inset: 100% 0 0;
-  display: block;
-  cursor: default;
+/* The rest of pdf.js's own textLayer contract, ported verbatim from
+   pdfjs-dist/web/pdf_viewer.css. Without it every span inherits one font-size
+   regardless of the `--font-height` pdf.js writes on it (measured: 60 spans
+   all computing to 13px against declared heights of 6.52-16.58px), so a
+   selection Range measures glyph boxes that do not exist on the canvas. */
+.pdfview__textlayer {
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.pdfview__textlayer > :not(.markedContent),
+.pdfview__textlayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.pdfview__textlayer .markedContent {
+  display: contents;
+}
+
+.pdfview__textlayer span[role='img'] {
   user-select: none;
+  cursor: default;
 }
 
 .pdfview__textlayer ::selection {
