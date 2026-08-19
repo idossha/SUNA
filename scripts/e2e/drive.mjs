@@ -143,12 +143,8 @@ async function openExample(ctx) {
     timeoutMs: 20000,
     desc: 'welcome screen'
   })
-  await ctx.evalJs(`(() => {
-    const btn = [...document.querySelectorAll('.welcome__actions button')]
-      .find((b) => b.textContent.includes('example'));
-    if (!btn) throw new Error('Open example button missing');
-    btn.click();
-  })()`)
+  await ctx.waitFor(`!!window.__sunaDev`, { timeoutMs: 20000, desc: 'window.__sunaDev' })
+  await ctx.evalJs(`window.__sunaDev.projectStore.getState().openExampleProject()`)
   const rootDir = await ctx.waitFor(
     `window.__sunaDev ? window.__sunaDev.projectStore.getState().rootDir : null`,
     { timeoutMs: 20000, desc: 'project rootDir after open-example' }

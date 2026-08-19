@@ -344,9 +344,11 @@ export const CHANNELS = {
       dir: z.string().min(1),
       name: z.string().min(1),
       activeProfileId: z.string().min(1),
-      scaffold: z.enum(['blank', 'starter', 'import']),
+      scaffold: z.enum(['blank', 'starter', 'import', 'document']),
       /** Source folder for 'import'; ignored otherwise. */
       importDir: z.string().min(1).nullable(),
+      /** Source .docx/.pdf/.html manuscript for 'document'; ignored otherwise. */
+      documentPath: z.string().min(1).nullable().default(null),
       settings: ProjectSettingsSchema,
     }),
     response: z.object({

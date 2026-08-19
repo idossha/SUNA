@@ -24,6 +24,7 @@ import {
   writeStarterFigure
 } from './starter-scaffold'
 import { allowRoot, assertInsideAllowedRoot } from './roots'
+import { importDocumentIntoProject } from './document-import'
 
 const run = promisify(execFile)
 
@@ -76,7 +77,6 @@ into this file — nothing was auto-linked.
 function blankManuscript(name: string, bibliography = 'references.bib'): Manuscript {
   return ManuscriptSchema.parse({
     title: name,
-    shortTitle: name,
     articleType: 'article',
     doi: null,
     openAccess: null,
@@ -333,8 +333,10 @@ export interface ScaffoldRequest {
   dir: string
   name: string
   activeProfileId: string
-  scaffold: 'blank' | 'starter' | 'import'
+  scaffold: 'blank' | 'starter' | 'import' | 'document'
   importDir: string | null
+  /** Source .docx/.pdf/.html manuscript when `scaffold` is 'document'. */
+  documentPath?: string | null
   settings: ProjectSettings
 }
 
@@ -359,6 +361,7 @@ export async function scaffoldProject(
   agent?: McpInvocation
 ): Promise<ScaffoldResult> {
   const { dir, name, activeProfileId, scaffold, importDir, settings } = req
+  const documentPath = req.documentPath ?? null
   if (await exists(join(dir, 'suna.json'))) {
     throw new Error(`already a SUNA project: ${dir}`)
   }
@@ -387,6 +390,22 @@ export async function scaffoldProject(
     await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
   } else if (scaffold === 'blank') {
     await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
+  } else if (scaffold === 'document') {
+    // A blank manuscript first, so the project is valid even when the
+    // document turns out to be unreadable — the import writes over it.
+    await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
+    if (documentPath === null) {
+      warnings.push('No source document was chosen — the manuscript was left blank.')
+    } else {
+      try {
+        const result = await importDocumentIntoProject(documentPath, dir, name)
+        warnings.push(...result.warnings)
+      } catch (error) {
+        warnings.push(
+          `Could not import ${documentPath}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
   } else {
     let bibliography: string | null = null
     if (importDir !== null) {

@@ -20,6 +20,12 @@ function gateStep1(state: WizardState): StepGate {
 }
 
 function gateStep3(state: WizardState): StepGate {
+  if (state.scaffold === 'document') {
+    if (state.documentPath === null) {
+      return { canAdvance: false, reason: 'Choose a .docx, .pdf or .html manuscript to start from.' }
+    }
+    return OK
+  }
   if (state.scaffold !== 'import') return OK
   if (state.importDir === null) {
     return { canAdvance: false, reason: 'Choose a folder to import files from.' }
