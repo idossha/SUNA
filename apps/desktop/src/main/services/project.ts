@@ -17,6 +17,12 @@ import {
 } from '@suna/core'
 import { ensureProjectAgentLayer, type McpInvocation } from '@suna/agent'
 import { writeFileAtomic } from './atomic'
+import {
+  STARTER_BIB,
+  STARTER_MANUSCRIPT_MD,
+  starterManuscript,
+  writeStarterFigure
+} from './starter-scaffold'
 import { allowRoot, assertInsideAllowedRoot } from './roots'
 
 const run = promisify(execFile)
@@ -29,55 +35,6 @@ async function exists(path: string): Promise<boolean> {
     return false
   }
 }
-
-const STARTER_INTRO = `Galaxies falling into dense cluster environments experience ram pressure
-from the intracluster medium [@gunn1972]. Recent JWST observations suggest
-this process operates even at cosmic noon (see @fig:overview).
-
-The stripping condition can be written as
-
-$$ {#eq:stripping}
-P_\\mathrm{ram} = \\rho_\\mathrm{ICM} v^2 > 2\\pi G \\Sigma_\\ast \\Sigma_\\mathrm{gas}
-$$
-
-Replace this starter text with your introduction. SciMark supports inline
-math ($z = 2.51$), citations like [@gunn1972], cross-references like
-@eq:stripping, and raw LaTeX escape blocks when you need them.
-`
-
-const STARTER_RESULTS = `# Results
-
-Present your results here. Embed managed figures with:
-
-![[fig:overview]]
-
-Panel references render as cross-references: @fig:overview{a}.
-`
-
-const STARTER_METHODS = `# Methods
-
-Describe observations, data reduction, and analysis here. Methods
-sub-headings become run-in heads (bold, ending with a period) in
-Nature-family output profiles.
-`
-
-/**
- * The whole starter manuscript in ONE file (feature-plan-7 §1): sections are
- * Markdown headings, and the introduction is deliberately unheaded — the
- * derived outline shows it as the untitled leading section.
- */
-const STARTER_MANUSCRIPT_MD = `${STARTER_INTRO}\n${STARTER_RESULTS}\n${STARTER_METHODS}`
-
-const STARTER_BIB = `@article{gunn1972,
-  author  = {Gunn, James E. and Gott, J. Richard},
-  title   = {On the infall of matter into clusters of galaxies and some effects on their evolution},
-  journal = {The Astrophysical Journal},
-  volume  = {176},
-  pages   = {1--19},
-  year    = {1972},
-  doi     = {10.1086/151605}
-}
-`
 
 const PROJECT_GITIGNORE = `output/
 .DS_Store
@@ -109,31 +66,6 @@ function starterAuthors(): AuthorsFile {
     ],
     affiliations: [{ id: 'af1', text: 'Your Institution, City, Country' }]
   } satisfies AuthorsFile)
-}
-
-function starterManuscript(name: string): Manuscript {
-  return ManuscriptSchema.parse({
-    title: name,
-    shortTitle: name,
-    articleType: 'article',
-    doi: null,
-    openAccess: null,
-    history: { received: null, accepted: null, publishedOnline: null },
-    abstract: { content: 'Replace this with your abstract.' },
-    manuscriptFile: 'manuscript.md',
-    figures: [],
-    tables: [],
-    availability: { data: '', code: '' },
-    backMatter: {
-      acknowledgements: null,
-      authorContributions: null,
-      funding: [],
-      competingInterests: null,
-      peerReview: null,
-      supplementaryInfo: null
-    },
-    bibliography: 'references.bib'
-  } satisfies Manuscript)
 }
 
 const IMPORT_PLACEHOLDER = `Imported files are in manuscript/imported/. Copy the prose you want to keep
@@ -207,6 +139,7 @@ export async function createProject(
 
   await writeFile(join(dir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
   await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
+  await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
 
   // Agent layer before git init so the stubs + context/ land in the initial
@@ -451,6 +384,7 @@ export async function scaffoldProject(
 
   if (scaffold === 'starter') {
     await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
+    await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
   } else if (scaffold === 'blank') {
     await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
   } else {
