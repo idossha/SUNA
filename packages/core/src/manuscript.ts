@@ -120,7 +120,6 @@ export type BackMatter = z.infer<typeof BackMatterSchema>;
 
 export const ManuscriptSchema = z.object({
   title: z.string().min(1),
-  shortTitle: z.string().min(1),
   articleType: ArticleTypeSchema,
   doi: DoiSchema.nullable(),
   openAccess: OpenAccessSchema.nullable(),

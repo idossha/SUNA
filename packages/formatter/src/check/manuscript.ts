@@ -395,20 +395,6 @@ export function checkManuscript(
     });
   }
 
-  // Running head (short title) length.
-  if (
-    rules.runningHeadLimitChars !== null &&
-    manuscript.shortTitle.length > rules.runningHeadLimitChars
-  ) {
-    out.push({
-      id: 'ms.running-head',
-      severity: limitSeverity('error'),
-      surface: 'manuscript',
-      message: `Running head is ${manuscript.shortTitle.length} characters, over the ${rules.runningHeadLimitChars}-character limit${src}`,
-      target: { sectionPath: 'shortTitle' },
-    });
-  }
-
   // Required sections.
   const headings = collectHeadings(sectionTexts);
   for (const rs of rules.requiredSections) {

@@ -21,7 +21,6 @@ const ONE_PIXEL_PNG_BASE64 =
 
 export const FIXTURE_MANUSCRIPT = {
   title: 'Fixture study of $z=1$ stripping',
-  shortTitle: 'Fixture stripping',
   articleType: 'article',
   doi: null,
   openAccess: null,

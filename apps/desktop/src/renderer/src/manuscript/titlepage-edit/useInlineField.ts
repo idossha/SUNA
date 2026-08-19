@@ -25,7 +25,7 @@ export interface InlineFieldController {
 }
 
 /**
- * One scalar manuscript.json field (title, shortTitle, abstract.content,
+ * One scalar manuscript.json field (title, abstract.content,
  * significance) edited in place. The contentEditable DOM itself is
  * uncontrolled (see EditableBlock) — this hook only tracks editing/error
  * state and drives commits through `commitManuscriptPatch`.

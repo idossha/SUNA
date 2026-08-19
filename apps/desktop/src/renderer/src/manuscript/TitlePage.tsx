@@ -7,7 +7,7 @@ import { AuthorsEditor } from './titlepage-edit/AuthorsEditor'
 import { EditableBlock } from './titlepage-edit/EditableBlock'
 import { EditableGroup } from './titlepage-edit/EditableGroup'
 import { HighlightsEditor } from './titlepage-edit/HighlightsEditor'
-import { abstractPatch, shortTitlePatch, significancePatch, titlePatch } from './titlepage-edit/patches'
+import { abstractPatch, significancePatch, titlePatch } from './titlepage-edit/patches'
 import { TexText } from './titlepage-edit/TexText'
 import { useInlineField } from './titlepage-edit/useInlineField'
 
@@ -31,7 +31,7 @@ interface TitlePageProps {
  * markers, numbered affiliations, then Abstract / Significance / Highlights.
  * All numbering derives from array order (never stored).
  *
- * When `editable`, each scalar field (title/shortTitle/abstract/significance/
+ * When `editable`, each scalar field (title/abstract/significance/
  * each highlight) becomes click-to-edit in place — same typography, no modal,
  * no layout jump (see titlepage-edit/EditableBlock) — while authors and
  * affiliations switch to a compact row editor (titlepage-edit/AuthorsEditor,
@@ -60,18 +60,13 @@ export function TitlePage({
     .filter((e): e is string => e !== null)
 
   const highlights = manuscript.highlights ?? null
+  const keywords = manuscript.keywords ?? []
 
   const titleField = useInlineField({
     rootDir,
     value: manuscript.title,
     validate: (raw) => (raw.trim() === '' ? 'Title cannot be empty.' : null),
     buildPatch: titlePatch
-  })
-  const shortTitleField = useInlineField({
-    rootDir,
-    value: manuscript.shortTitle,
-    validate: (raw) => (raw.trim() === '' ? 'Running title cannot be empty.' : null),
-    buildPatch: shortTitlePatch
   })
   const abstractField = useInlineField({
     rootDir,
@@ -121,12 +116,6 @@ export function TitlePage({
 
       {editable && (
         <div className="tp__meta-row">
-          <div className="tp__meta-field">
-            <span className="tp__meta-label">Running title</span>
-            <EditableBlock className="tp__short-title" field={shortTitleField} ariaLabel="running title">
-              <TexText text={manuscript.shortTitle} />
-            </EditableBlock>
-          </div>
           <ArticleTypeField rootDir={rootDir} value={manuscript.articleType} />
         </div>
       )}
@@ -181,6 +170,16 @@ export function TitlePage({
           </p>
         )}
       </section>
+
+      {/* Keywords sit where the exporters put them — straight after the
+          abstract — and are read-only here: they come from manuscript.json,
+          which the Manuscript view's own JSON editing covers. */}
+      {keywords.length > 0 && (
+        <section>
+          <div className="msdoc__label">Keywords</div>
+          <p className="msdoc__front-text tp__keywords">{keywords.join('; ')}</p>
+        </section>
+      )}
 
       {(editable || manuscript.significance != null) && (
         <section>

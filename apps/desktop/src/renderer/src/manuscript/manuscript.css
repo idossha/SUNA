@@ -380,10 +380,9 @@
   cursor: text;
 }
 
-/* static (click-to-edit) targets: title/shortTitle/abstract/significance/
+/* static (click-to-edit) targets: title/abstract/significance/
    highlight text, and the affiliation-text/author-name inputs' row wrapper */
 [role='button'].msdoc__title,
-[role='button'].tp__short-title,
 [role='button'].msdoc__front-text,
 [role='button'].tp__highlight-text {
   cursor: pointer;
@@ -392,14 +391,12 @@
 }
 
 [role='button'].msdoc__title:hover,
-[role='button'].tp__short-title:hover,
 [role='button'].msdoc__front-text:hover,
 [role='button'].tp__highlight-text:hover {
   background: var(--s-bg-hover);
 }
 
 [role='button'].msdoc__title:focus-visible,
-[role='button'].tp__short-title:focus-visible,
 [role='button'].msdoc__front-text:focus-visible,
 [role='button'].tp__highlight-text:focus-visible {
   outline: 1px solid var(--s-accent);
@@ -421,8 +418,8 @@
   line-height: 1.5;
 }
 
-/* title-page meta row: running title (editable, previously unshown) +
-   article type select — only rendered when editable, so it never disturbs
+/* title-page meta row: the article type select — only rendered when
+   editable, so it never disturbs
    the read-only look. `text-align: left` opts out of the centred title block:
    these are form rows, not typeset front matter. */
 .tp__meta-row {
@@ -452,8 +449,8 @@
   color: var(--ed-ink-faint, var(--s-ink-faint));
 }
 
-.tp__short-title {
-  color: var(--ed-ink-muted, var(--s-ink-muted));
+.tp__keywords {
+  font-style: italic;
 }
 
 .tp__article-type {

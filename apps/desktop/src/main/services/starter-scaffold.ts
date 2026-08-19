@@ -216,7 +216,6 @@ function starterTableEntry(): unknown {
 export function starterManuscript(name: string): Manuscript {
   return ManuscriptSchema.parse({
     title: name,
-    shortTitle: name,
     articleType: 'article',
     doi: null,
     openAccess: null,

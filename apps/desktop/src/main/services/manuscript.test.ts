@@ -9,7 +9,6 @@ import { allowRoot } from './roots'
 function fixtureManuscript(): Manuscript {
   return ManuscriptSchema.parse({
     title: 'Ram pressure at cosmic noon',
-    shortTitle: 'Ram pressure',
     articleType: 'article',
     doi: null,
     openAccess: null,
@@ -112,11 +111,11 @@ describe('updateManuscript', () => {
   })
 
   it('re-reads the file so a concurrent agent edit is never overwritten', async () => {
-    const agentEdited = { ...fixtureManuscript(), shortTitle: 'Agent short title' }
+    const agentEdited = { ...fixtureManuscript(), keywords: ['agent keyword'] }
     await writeFile(manuscriptFile, JSON.stringify(agentEdited, null, 2) + '\n', 'utf8')
     await updateManuscript(dir, { title: 'Human title' })
     const file = await onDisk()
-    expect(file['shortTitle']).toBe('Agent short title')
+    expect(file['keywords']).toEqual(['agent keyword'])
     expect(file['title']).toBe('Human title')
   })
 
@@ -156,6 +155,6 @@ describe('updateManuscript', () => {
 
   it('reads the manuscript back validated', async () => {
     const read = await readManuscript(dir)
-    expect(read['shortTitle']).toBe('Ram pressure')
+    expect(read['title']).toBe('Ram pressure at cosmic noon')
   })
 })

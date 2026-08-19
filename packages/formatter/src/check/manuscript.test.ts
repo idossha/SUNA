@@ -117,7 +117,7 @@ describe('checkManuscript — total word limit (RNAAS-style, references included
   });
 });
 
-describe('checkManuscript — title and running head', () => {
+describe('checkManuscript — title', () => {
   it('flags a title over the stated character limit', () => {
     const profile = apjProfile();
     const articleType = profile.manuscript.articleTypes[0];
@@ -131,21 +131,6 @@ describe('checkManuscript — title and running head', () => {
     expect(title[0]?.message).toContain('20');
   });
 
-  it('flags a running head over the limit and skips when unstated', () => {
-    const profile = apjProfile();
-    profile.manuscript.runningHeadLimitChars = 10;
-    const diags = checkManuscript(makeInput(), profile, 'apj-article');
-    const rh = byId(diags, 'ms.running-head');
-    expect(rh).toHaveLength(1);
-    // 'Dwarf star formation' is 20 characters.
-    expect(rh[0]?.message).toContain('20');
-    expect(rh[0]?.message).toContain('10');
-
-    profile.manuscript.runningHeadLimitChars = null;
-    expect(byId(checkManuscript(makeInput(), profile, 'apj-article'), 'ms.running-head')).toEqual(
-      [],
-    );
-  });
 });
 
 describe('checkManuscript — required sections', () => {

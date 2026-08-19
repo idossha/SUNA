@@ -20,10 +20,6 @@ export function titlePatch(value: string): ManuscriptPatch {
   return { title: value }
 }
 
-export function shortTitlePatch(value: string): ManuscriptPatch {
-  return { shortTitle: value }
-}
-
 export function articleTypePatch(value: ArticleType): ManuscriptPatch {
   return { articleType: value }
 }
