@@ -24,6 +24,12 @@ import {
 } from './services/agent-keys'
 import { captureRect, devInfo, repairBundle } from './services/capture'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
+import {
+  embedHighlightsIntoPdf,
+  readPristinePdf,
+  readReferenceNotes,
+  writeReferenceNotes
+} from './services/refnotes'
 import { analyzeDocx, commitDocxAnalysis } from './services/docx-import'
 import { exportDocx } from './services/export-docx'
 import { exportHtml } from './services/export-html'
@@ -326,6 +332,31 @@ export function registerIpcHandlers(): void {
     await writeCommentsFile(dir, file)
     return {}
   })
+
+  // references/notes/<citekey>.json — reading notes on a reference PDF (ADR-008).
+  handle('refnotes:read', async ({ dir, citekey }) => ({
+    file: await readReferenceNotes(dir, citekey)
+  }))
+  handle('refnotes:write', async ({ dir, citekey, file }) => {
+    await writeReferenceNotes(dir, citekey, file)
+    return {}
+  })
+  handle('refnotes:pristine', async ({ dir, citekey }) => {
+    // The recorded baseline comes from the sidecar, which is the only place
+    // that remembers what the file looked like before SUNA appended anything.
+    const notes = await readReferenceNotes(dir, citekey)
+    const recorded =
+      notes.source === null
+        ? null
+        : {
+            pristineBytes: notes.source.pristineBytes,
+            pristineSha256: notes.source.pristineSha256
+          }
+    return readPristinePdf(dir, citekey, recorded)
+  })
+  handle('refnotes:embed', async ({ dir, citekey, base64, pristineBytes, pristineSha256 }) =>
+    embedHighlightsIntoPdf(dir, citekey, base64, { pristineBytes, pristineSha256 })
+  )
 
   handle('lit:search', async ({ provider, query, limit }) =>
     searchLiterature(provider, query, {
