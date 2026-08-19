@@ -41,7 +41,8 @@ describe('notesAsMarkdown', () => {
         author: { kind: 'human' as const, name: 'You' },
         createdAt: '2026-08-18T10:00:00.000Z',
         updatedAt: '2026-08-18T10:00:00.000Z',
-        ambiguous: false
+        ambiguous: false,
+        embed: []
       }
     ]
   }

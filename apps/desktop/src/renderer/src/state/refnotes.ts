@@ -66,9 +66,17 @@ interface RefNotesState {
    * performed for a region named here, and the list is cleared once the file
    * agrees.
    */
-  pendingRemovals: { page: number; rects: { left: number; top: number; width: number; height: number }[] }[]
-  noteRemoved: (regions: { page: number; rects: { left: number; top: number; width: number; height: number }[] }[]) => void
+  pendingRemovals: { page: number; quads: number[] }[]
+  noteRemoved: (regions: { page: number; quads: number[] }[]) => void
   clearPendingRemovals: () => void
+  /**
+   * Record where each note's annotation ended up in the PDF, in user space.
+   *
+   * Written after every sync, for notes that were already correct as well as
+   * ones just created, so a sidecar predating this backfills the moment its
+   * page is viewed — and a later removal never has to consult the DOM.
+   */
+  recordEmbeds: (located: readonly { noteId: string; page: number; quads: readonly number[] }[]) => Promise<void>
   /**
    * The printed page number minus the page index, set once per document.
    *
@@ -117,7 +125,8 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
       author: { kind: 'human', name: readLocalAuthorName() },
       createdAt: now,
       updatedAt: now,
-      ambiguous: false
+      ambiguous: false,
+      embed: []
     }
     await persist(set, get, { ...file, notes: [...file.notes, note] })
     return note
@@ -164,6 +173,29 @@ export const useRefNotesStore = create<RefNotesState>((set, get) => ({
   },
 
   clearPendingRemovals: () => set({ pendingRemovals: [] }),
+
+  recordEmbeds: async (located) => {
+    const { file } = get()
+    if (file === null || located.length === 0) return
+    const byNote = new Map<string, { page: number; quads: number[] }[]>()
+    for (const one of located) {
+      const list = byNote.get(one.noteId) ?? []
+      list.push({ page: one.page, quads: [...one.quads] })
+      byNote.set(one.noteId, list)
+    }
+    let changed = false
+    const notes = file.notes.map((note) => {
+      const embed = byNote.get(note.id)
+      if (embed === undefined) return note
+      if (JSON.stringify(embed) === JSON.stringify(note.embed)) return note
+      changed = true
+      return { ...note, embed }
+    })
+    // Reading a paper must never produce a git-modified file: when the record
+    // already matches, nothing is written.
+    if (!changed) return
+    await persist(set, get, { ...file, notes })
+  },
 
   setPageLabelOffset: async (offset, pageCount) => {
     const { file, citekey } = get()

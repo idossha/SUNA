@@ -32,6 +32,7 @@ import { useProjectStore } from '../state/project'
 import { useReferencePdfsStore } from '../state/referencePdfs'
 import { useRefNotesStore } from '../state/refnotes'
 import { base64ToUint8Array } from './binary'
+import { toUserRect } from './embedHighlights'
 import { syncHighlights } from './embedRunner'
 import { HighlightLayer } from './HighlightLayer'
 import { NotesRail } from './NotesRail'
@@ -260,6 +261,7 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const pendingRemovals = useRefNotesStore((s) => s.pendingRemovals)
   const noteRemoved = useRefNotesStore((s) => s.noteRemoved)
   const clearPendingRemovals = useRefNotesStore((s) => s.clearPendingRemovals)
+  const recordEmbeds = useRefNotesStore((s) => s.recordEmbeds)
   const setPageLabelOffset = useRefNotesStore((s) => s.setPageLabelOffset)
   const pageLabelOffset = notesFile?.source?.pageLabelOffset ?? 0
   const notesCitekey = useRefNotesStore((s) => s.citekey)
@@ -351,6 +353,9 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
           return
         }
         if (pendingRemovals.length > 0) clearPendingRemovals()
+        // Remember where the file put each highlight, so removing it later
+        // never depends on its page being on screen.
+        if (outcome.located.length > 0) void recordEmbeds(outcome.located)
       })
     }, 700)
 
@@ -365,7 +370,8 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
     resolvedNotes,
     renderedPages,
     pendingRemovals,
-    clearPendingRemovals
+    clearPendingRemovals,
+    recordEmbeds
   ])
 
   // ---- load the document -----------------------------------------------
@@ -696,15 +702,39 @@ export function PdfTab({ params }: DockPanelProps): JSX.Element {
       // sidecar, the annotation left in the PDF is indistinguishable from one
       // made in Preview, and the reconcile refuses to delete what it cannot
       // attribute.
-      const byPage = resolvedRef.current.byNote.get(noteId)
-      if (byPage !== undefined) {
-        noteRemoved([...byPage.entries()].map(([page, rects]) => ({ page, rects: [...rects] })))
+      //
+      // Prefer the note's own record of where SUNA put it, in PDF user space.
+      // The rail lists notes on every page, so this is routinely called for a
+      // page that is not rendered — and a screen rectangle does not exist for
+      // a page nobody is looking at. Reading `resolvedRef` alone silently
+      // recorded nothing and orphaned the highlight in the file forever.
+      const note = notes.find((n) => n.id === noteId)
+      const recorded = note?.embed ?? []
+      if (recorded.length > 0) {
+        noteRemoved(recorded.map((e) => ({ page: e.page, quads: [...e.quads] })))
+      } else {
+        // Nothing recorded yet — a note made before this existed, or one whose
+        // sync has not run. Fall back to converting what is painted, which
+        // works only while the page is rendered.
+        const byPage = resolvedRef.current.byNote.get(noteId)
+        const regions: { page: number; quads: number[] }[] = []
+        for (const [page, rects] of byPage ?? []) {
+          const viewport = renderedRef.current.get(page)?.viewport
+          if (viewport === undefined) continue
+          const quads: number[] = []
+          for (const rect of rects) {
+            const { x0, y0, x1, y1 } = toUserRect(rect, viewport)
+            quads.push(x0, y1, x1, y1, x0, y0, x1, y0)
+          }
+          if (quads.length > 0) regions.push({ page, quads })
+        }
+        if (regions.length > 0) noteRemoved(regions)
       }
       void deleteNote(noteId)
       setPickedNote(null)
       setActiveNoteId((current) => (current === noteId ? null : current))
     },
-    [deleteNote, noteRemoved]
+    [notes, deleteNote, noteRemoved]
   )
 
   // ---- zoom + page jump ---------------------------------------------------

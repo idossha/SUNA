@@ -29,7 +29,10 @@ const PROBES = [
   'pdf-textlayer-scale.mjs',
   'pdf-quote.mjs',
   'pdf-highlight.mjs',
-  'pdf-native-highlight.mjs'
+  'pdf-native-highlight.mjs',
+  // The lifecycle suite runs last and resets itself between scenarios, so it
+  // is unaffected by whatever the earlier probes left behind.
+  'pdf-notes-suite.mjs'
 ]
 
 const keep = process.argv.includes('--keep')
