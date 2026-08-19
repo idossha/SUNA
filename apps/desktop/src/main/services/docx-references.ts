@@ -87,10 +87,12 @@ export interface ParsedReference {
   raw: string
   style: DocxReferenceStyle
   number: number | null
+  /** Family-first ("Tononi, G."), whatever order the source wrote them in. */
   authors: string[]
   year: string | null
   title: string | null
   journal: string | null
+  doi: string | null
 }
 
 const LEADING_NUMBER_RE = /^\s*(?:\[(\d+)\]|(\d+)[.)])\s+(.*)$/s
@@ -134,6 +136,105 @@ function splitTitleAndVenue(rest: string): { title: string | null; journal: stri
   return { title: title === '' ? null : title, journal: journal === '' ? null : journal }
 }
 
+const DOI_RE = /\b(?:doi:\s*|https?:\/\/(?:dx\.)?doi\.org\/)(10\.\d{4,9}\/\S+?)(?:[.,;)\]]\s*$|\s|$)/i
+
+function extractDoi(body: string): string | null {
+  const match = DOI_RE.exec(body)
+  return match === null ? null : (match[1] as string).replace(/[.,;)\]]+$/, '')
+}
+
+/**
+ * "G. Tononi" → "Tononi, G." — the family-first form the rest of this module
+ * (cite keys, author-year index, BibTeX authors) assumes. An author already
+ * written family-first, or one that is a single token or an organization, is
+ * returned unchanged: reordering "World Health Organization" would be worse
+ * than leaving it alone.
+ */
+export function normalizeGivenFirstAuthor(author: string): string {
+  const trimmed = author.trim().replace(/\s*\bet\s+al\.?$/i, '').trim()
+  if (trimmed === '' || trimmed.includes(',')) return trimmed
+  const parts = trimmed.split(/\s+/)
+  if (parts.length < 2) return trimmed
+  const family = parts[parts.length - 1] as string
+  const given = parts.slice(0, -1).join(' ')
+  // Given names here are initials or capitalized words; a lowercase particle
+  // ("van der Berg") belongs to the family name, so keep those untouched.
+  if (!/^[A-Z]/.test(family) || parts.slice(0, -1).some((p) => /^[a-z]/.test(p))) return trimmed
+  return `${family}, ${given}`
+}
+
+/** Authors of an IEEE-style entry: "G. Tononi, C. Cirelli, and R. Foster". */
+function splitGivenFirstAuthors(segment: string): string[] {
+  return segment
+    .replace(/\s*\bet\s+al\.?\s*$/i, '')
+    .split(/,\s*|\s+and\s+|\s*&\s*/i)
+    // ", and R. Foster" splits on the comma first, leaving the conjunction
+    // attached to the last author's given name.
+    .map((a) => normalizeGivenFirstAuthor(a.replace(/^(?:and|&)\s+/i, '')))
+    .filter((a) => a !== '')
+}
+
+/**
+ * The publication year: the last four-digit year in the entry, ignoring the
+ * DOI — `10.1016/j.neuron.2013.12.025` ends in digits that read as a year and
+ * is almost always the last thing in an IEEE entry, so scanning the raw
+ * string dates half a bibliography to the DOI's registration year.
+ */
+function publicationYear(body: string): string | null {
+  const withoutDoi = body.replace(/\b(?:doi:\s*|https?:\/\/)\S+/gi, ' ')
+  let year: string | null = null
+  for (const m of withoutDoi.matchAll(new RegExp(YEAR_RE.source, 'g'))) year = m[0]
+  return year
+}
+
+/** A quoted title, straight or curly: "Sleep and the price of plasticity," */
+const QUOTED_TITLE_RE = /[\u201c"]([^\u201d"]{4,})[\u201d"]/
+
+/**
+ * IEEE/Nature-style entries — the shape Word's own reference manager and most
+ * neuroscience journals produce:
+ *
+ *   G. Tononi and C. Cirelli, "Sleep and the price of plasticity," Neuron,
+ *   vol. 81, pp. 12-34, 2014, doi: 10.1016/j.neuron.2013.12.025
+ *
+ * The quoted title is the anchor: everything before it is the author list,
+ * everything after it the venue. Parsing these by the generic
+ * "authors end at the first period" rule instead turns "G. Tononi" into an
+ * author named "G" and the rest of the citation into a title, which is how a
+ * whole bibliography ends up keyed `g2014tononi`.
+ */
+function parseQuotedTitleEntry(
+  raw: string,
+  body: string,
+  number: number | null
+): ParsedReference | null {
+  const quoted = QUOTED_TITLE_RE.exec(body)
+  if (quoted === null || quoted.index === 0) return null
+
+  const authorsSeg = body.slice(0, quoted.index).replace(/[,;.]\s*$/, '').trim()
+  const after = body.slice(quoted.index + quoted[0].length).replace(/^[,.;]\s*/, '')
+  const title = (quoted[1] as string).replace(/[,.;]\s*$/, '').trim()
+  if (title === '') return null
+
+  const year = publicationYear(body)
+
+  // The venue runs from the end of the title to the first bibliographic
+  // detail (volume/issue/pages/year/doi), whichever comes first.
+  const venueEnd = after.search(/,?\s*(?:vol\.|no\.|pp?\.|\b(?:19|20)\d{2}\b|doi:)/i)
+  const journal = (venueEnd === -1 ? after : after.slice(0, venueEnd)).replace(/[,.;]\s*$/, '').trim()
+
+  return {
+    raw,
+    style: number !== null ? 'numbered' : 'unknown',
+    number,
+    authors: splitGivenFirstAuthors(authorsSeg),
+    year,
+    title,
+    journal: journal === '' ? null : journal,
+    doi: extractDoi(body)
+  }
+}
+
 /**
  * Tolerant three-way matcher (numbered / vancouver / author-year), per
  * spec §2.4. Never drops an entry: when the body defies every pattern, the
@@ -147,9 +248,21 @@ export function parseReferenceEntry(raw: string, listNumber: number | null): Par
   const number = explicitNumber ?? listNumber
   const isNumberedSource = number !== null
 
+  const quoted = parseQuotedTitleEntry(raw, body, number)
+  if (quoted !== null) return quoted
+
   const yearMatch = YEAR_RE.exec(body)
   if (yearMatch === null) {
-    return { raw, style: 'unknown', number, authors: [], year: null, title: body || null, journal: null }
+    return {
+      raw,
+      style: 'unknown',
+      number,
+      authors: [],
+      year: null,
+      title: body || null,
+      journal: null,
+      doi: extractDoi(body)
+    }
   }
 
   const year = yearMatch[0]
@@ -184,7 +297,7 @@ export function parseReferenceEntry(raw: string, listNumber: number | null): Par
 
   const authors = splitReferenceAuthors(authorsSeg, vancouver)
   const { title, journal } = splitTitleAndVenue(rest)
-  return { raw, style, number, authors, year, title, journal }
+  return { raw, style, number, authors, year, title, journal, doi: extractDoi(body) }
 }
 
 /* ------------------------------------------------------------------ */

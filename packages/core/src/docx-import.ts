@@ -59,6 +59,8 @@ export const DocxReferenceDraftSchema = z.object({
   year: z.string().nullable(),
   title: z.string().nullable(),
   journal: z.string().nullable(),
+  /** Parsed out of the entry text when it carries one; never fetched. */
+  doi: z.string().min(1).nullable().default(null),
   citeKey: z.string().min(1),
 });
 export type DocxReferenceDraft = z.infer<typeof DocxReferenceDraftSchema>;
@@ -91,6 +93,16 @@ export const DocxAnalysisSchema = z.object({
   affiliations: z.array(DocxAffiliationDraftSchema),
   affiliationsReason: z.string(),
   abstract: z.object({ value: z.string().nullable(), reason: z.string() }),
+  /** Title-page fields the manuscript stores separately from the prose. */
+  significance: z
+    .object({ value: z.string().nullable(), reason: z.string() })
+    .default({ value: null, reason: 'not detected' }),
+  highlights: z
+    .object({ value: z.array(z.string().min(1)), reason: z.string() })
+    .default({ value: [], reason: 'not detected' }),
+  keywords: z
+    .object({ value: z.array(z.string().min(1)), reason: z.string() })
+    .default({ value: [], reason: 'not detected' }),
   sections: z.array(DocxSectionDraftSchema),
   references: z.array(DocxReferenceDraftSchema),
   citationReport: DocxCitationReportSchema,
