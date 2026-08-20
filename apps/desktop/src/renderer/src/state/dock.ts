@@ -566,6 +566,12 @@ export const dockDevSeam = {
    */
   openManuscriptTab,
   openReadingNotesTab,
+  /**
+   * feature-plan-12 §6: open the reviewer-import screen. Its UI route is a
+   * menu item behind a "+" button that is not mounted in every project view,
+   * so a driver cannot reach the screen at all without this seam.
+   */
+  openReviewImportTab,
   /** feature-plan-7 §3: close every tab scoped to a project directory. */
   closeProjectTabs,
   sideGroupId,
