@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "id": "r2-nature-astronomy",
+  "kind": "external",
+  "label": "Round 1 — Nature Astronomy",
+  "venue": "Nature Astronomy",
+  "state": "returned",
+  "createdAt": "2026-04-11T08:30:00.000Z",
+  "freeze": {
+    "tag": null,
+    "commit": null,
+    "at": "2026-04-11T08:30:00.000Z",
+    "dirty": true,
+    "files": [],
+    "hashes": []
+  },
+  "recipients": [],
+  "pointStates": [
+    {
+      "pointId": "r1.1",
+      "status": "done",
+      "assignee": "a1",
+      "reply": "We thank the reviewer for the careful reading, and we agree that the error budget was the gap. It is now the first thing the revision fixes.",
+      "links": []
+    },
+    {
+      "pointId": "r1.2",
+      "status": "done",
+      "assignee": "a1",
+      "reply": "We agree, and this was the most important thing to fix. We now propagate the uncertainties on the ICM density, the relative velocity and both surface-density profiles through @eq:stripping by Monte Carlo, and report the stripping radius as $8.4^{+2.1}_{-1.6}\\,\\mathrm{kpc}$. The Discussion now states explicitly that the outside-in interpretation holds across the full interval, because even at the upper end the inner disk remains inside the stripping radius.",
+      "links": [
+        {
+          "documentId": "manuscript",
+          "quote": "A stripping radius of 8.4 kpc with an intact inner disk",
+          "prefix": "",
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "pointId": "r1.3",
+      "status": "done",
+      "assignee": "a1",
+      "reply": "The reviewer is right that the line-of-sight velocity is a lower limit. We now say so where the velocity is introduced, and note that a statistical deprojection by $\\sqrt{3}$ would raise the ram pressure by a factor of three and push the stripping radius inward — that is, our quoted radius is conservative with respect to this bias.",
+      "links": []
+    },
+    {
+      "pointId": "r1.4",
+      "status": "drafted",
+      "assignee": "a1",
+      "reply": "We have re-derived the comparison sample's stellar masses with the same calibration used for the cluster members, and the offset persists. The revised @fig:fig-spectrum{b} shows the matched sample; the systematic difference between the two calibrations is now quoted in the caption so the reader can see that the offset exceeds it.",
+      "links": [
+        {
+          "documentId": "manuscript",
+          "quote": "Cluster members scatter about the",
+          "prefix": "",
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "pointId": "r1.5",
+      "status": "rebutted",
+      "assignee": "a1",
+      "reply": "We would rather keep the citation than soften the claim, and we think the extrapolation is defensible — but we have made the difference explicit rather than leaving it implicit. Jachym et al. (2019) is cited as evidence that molecular gas *can* survive in a stripped tail, which is a statement about the physics of the surviving phase and not about the ICM pressure at which stripping begins. The Discussion now says this in one sentence and no longer implies that the z = 0 pressures carry over.",
+      "links": []
+    },
+    {
+      "pointId": "r1.6",
+      "status": "done",
+      "assignee": "a1",
+      "reply": "Added: the colour bar in @fig:fig-velocity-map is now annotated with the systemic velocity of $1450\\,\\mathrm{km\\,s^{-1}}$, and the tick at that value is labelled.",
+      "links": []
+    },
+    {
+      "pointId": "r1.7",
+      "status": "done",
+      "assignee": "a1",
+      "reply": "Corrected. The centroid is now quoted as $6563\\,\\mathrm{\\AA}$ in @tbl:tab-observed, consistent with the fitted line width.",
+      "links": []
+    },
+    {
+      "pointId": "r1.8",
+      "status": "done",
+      "assignee": "a1",
+      "reply": "Moderated. The sentence now reads that the galaxy is \"consistent with\" the outside-in quenching regime.",
+      "links": [
+        {
+          "documentId": "manuscript",
+          "quote": "places the demo\ngalaxy squarely in the outside-in quenching regime",
+          "prefix": "",
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "pointId": "r2.1",
+      "status": "done",
+      "assignee": "a2",
+      "reply": "We thank the reviewer for the kind words on the figures, and we have taken the reproducibility points seriously — the fit setup is now documented rather than merely traceable.",
+      "links": []
+    },
+    {
+      "pointId": "r2.2",
+      "status": "drafted",
+      "assignee": "a2",
+      "reply": "We have derived the timescale rather than removing the claim. The crossing time implied by @eq:stripping at the stripping radius is quoted in the Results, and the abstract now names that number instead of the vaguer phrase.",
+      "links": []
+    },
+    {
+      "pointId": "r2.3",
+      "status": "done",
+      "assignee": "a2",
+      "reply": "A fit-setup table has been added to the supplement, listing each parameter as free or fixed together with its bounds. `analysis/fit_spectrum.py` writes those bounds into `results/spectrum_fit.json`, so the table is generated rather than transcribed.",
+      "links": []
+    },
+    {
+      "pointId": "r2.4",
+      "status": "unaddressed",
+      "assignee": "a2",
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r2.5",
+      "status": "done",
+      "assignee": "a2",
+      "reply": "Specified: we use the mass-quenching relation of Peng et al. (2010, their equation 20), evaluated at the cluster redshift. This is now named in the Discussion rather than left to the reader.",
+      "links": []
+    },
+    {
+      "pointId": "r2.6",
+      "status": "done",
+      "assignee": "a2",
+      "reply": "Fixed — the abbreviation is expanded at first use only.",
+      "links": []
+    }
+  ],
+  "decision": "major-revision",
+  "decidedAt": "2026-06-19T16:05:00.000Z",
+  "responseDocumentId": "response-r2"
+}

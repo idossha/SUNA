@@ -3,3 +3,4 @@ output/
 __pycache__/
 .venv/
 .mcp.json
+manuscript/**/*.private.json

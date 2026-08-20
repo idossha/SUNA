@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "r1-internal",
+  "kind": "internal",
+  "label": "Internal circulation — co-authors",
+  "venue": null,
+  "state": "closed",
+  "createdAt": "2026-03-02T09:00:00.000Z",
+  "freeze": {
+    "tag": null,
+    "commit": null,
+    "at": "2026-03-02T09:00:00.000Z",
+    "dirty": true,
+    "files": [],
+    "hashes": []
+  },
+  "recipients": [
+    "a2"
+  ],
+  "pointStates": [],
+  "decision": null,
+  "decidedAt": null,
+  "responseDocumentId": null
+}

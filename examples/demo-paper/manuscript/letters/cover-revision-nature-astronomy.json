@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "cover-letter",
+  "letterKind": "revision",
+  "targetProfileId": "nature-astronomy",
+  "salutation": "Dear Editor,",
+  "identityId": null,
+  "signerIds": [],
+  "covers": [
+    {
+      "documentId": "manuscript",
+      "siblingProjectPath": null,
+      "title": "Rapid quenching by ram-pressure stripping in a young cluster at $z = 1.7$",
+      "articleType": "article",
+      "authorsLine": "Ada Researcher and Ben Collaborator"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "revisionSummary",
+      "placement": "directive",
+      "text": "The stripping radius now carries a propagated confidence interval, the comparison sample has been re-derived on a matched stellar-mass calibration, and the quenching timescale claimed in the abstract is now derived in the Results rather than asserted.",
+      "reason": null
+    },
+    {
+      "id": "dualPublication",
+      "placement": "directive",
+      "text": "The revised manuscript remains under consideration at Nature Astronomy alone.",
+      "reason": null
+    },
+    {
+      "id": "competingInterests",
+      "placement": "directive",
+      "text": "The authors continue to declare no competing interests.",
+      "reason": null
+    }
+  ],
+  "dataLocations": [
+    {
+      "repository": "Example Science Archive",
+      "accession": "ESA-2026-0042",
+      "restrictions": null,
+      "availableAt": "on-publication"
+    }
+  ],
+  "abbreviatedSummary": null,
+  "priorSubmissions": [],
+  "reviewRoundId": "r2-nature-astronomy"
+}
