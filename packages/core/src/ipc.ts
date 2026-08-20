@@ -1918,6 +1918,46 @@ export const CHANNELS = {
     response: z.object({ path: z.string().min(1) }),
   },
   /**
+   * Live export preview: the SAME build the real exporters run, rendered to
+   * bytes IN MEMORY instead of written to <dir>/output/. Nothing reaches the
+   * disk, so a preview can re-run on every styling change without littering
+   * the project or racing a real export's output file.
+   *
+   * `format` picks the fidelity, not a separate renderer:
+   *  - 'html'  -> the exact self-contained page 'export:html' writes.
+   *  - 'pdf'   -> the exact bytes 'export:pdf' writes (same HTML, same
+   *               printToPDF, same page geometry and footers).
+   *  - 'docx'  -> the PDF render of the SAME resolved document style the
+   *               DOCX writer uses (export-style.ts is shared), so page size,
+   *               margins, point sizes and spacing are the Word document's.
+   *               Word does its own line breaking, so a page count near a
+   *               boundary can differ by one — the UI says so; this response
+   *               marks it with `approximate: true`.
+   *
+   * `figurePngPaths` has the same contract as 'export:docx' — the caller may
+   * legitimately pass compressed rasters here, since a preview is a picture
+   * of the layout, not the submission copy.
+   */
+  'export:preview': {
+    request: z.object({
+      dir: z.string().min(1),
+      profileId: z.string().min(1),
+      format: z.enum(['docx', 'pdf', 'html']),
+      figurePngPaths: z.record(z.string(), z.string()),
+      options: ExportOptionsSchema,
+      target: z.enum(['manuscript', 'supplement']).default('manuscript'),
+    }),
+    response: z.object({
+      /** How `data` must be rendered: base64 PDF bytes, or an HTML document source. */
+      kind: z.enum(['pdf', 'html']),
+      data: z.string(),
+      /** True when the preview stands in for a format it cannot render natively (docx). */
+      approximate: z.boolean(),
+      /** Server-side render time in ms — drives nothing, but makes a slow preview legible. */
+      ms: z.number().int().nonnegative(),
+    }),
+  },
+  /**
    * Reading-notes export: the literature note as a document, in the ONE shape
    * the Reading Notes tab already shows on screen — the filtered selection,
    * grouped by paper, quote + written note + page.

@@ -4,6 +4,7 @@ import { ensureSunaConfig } from '@suna/agent'
 import { registerIpcHandlers } from './ipc'
 import { appMcpInvocation } from './services/agentLayer'
 import { cancelAllAiAsks } from './services/ai-ask'
+import { disposePreviewWindow } from './services/export-preview'
 import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
 
@@ -58,6 +59,14 @@ function createWindow(): void {
     }
   })
 
+  // The export preview keeps a hidden BrowserWindow alive between renders.
+  // It must die with the app window it serves: Electron counts it in
+  // getAllWindows(), so a survivor would keep 'window-all-closed' from ever
+  // firing and leave the dock's 'activate' believing a window still exists.
+  win.on('closed', () => {
+    disposePreviewWindow()
+  })
+
   // External links open in the system browser, never inside the app shell.
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
@@ -88,6 +97,7 @@ app.whenReady().then(() => {
 })
 
 app.on('will-quit', () => {
+  disposePreviewWindow()
   killAllTerminals()
   cancelAllAiCliSearches()
   cancelAllAiAsks()
