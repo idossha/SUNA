@@ -4,6 +4,7 @@ import { getBundledProfile } from '@suna/formatter'
 import { useProjectStore } from '../state/project'
 import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { openRoundTab } from '../state/dock'
+import { Sheet } from './Sheet'
 import './documents.css'
 
 /**
@@ -59,70 +60,68 @@ export function NewRoundSheet({ onClose }: { onClose: () => void }): JSX.Element
   }
 
   return (
-    <div className="sheet__scrim" onClick={onClose} role="presentation">
-      <div className="sheet sheet--narrow" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="New round">
-        <header className="sheet__head">
-          <h2>New round</h2>
-          <button className="sheet__close" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
+    <Sheet label="New round" narrow onClose={onClose}>
+      <header className="sheet__head">
+        <h2>New round</h2>
+        <button className="sheet__close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+      </header>
 
-        <div className="sheet__body">
-          <fieldset className="sheet__field">
-            <legend>Kind</legend>
-            <label className="sheet__radio">
-              <input
-                type="radio"
-                name="round-kind"
-                checked={kind === 'external'}
-                onChange={() => setKind('external')}
-              />
-              <span>
-                External
-                <em>A submission, its reviewer reports, and the revision that answers them</em>
-              </span>
-            </label>
-            <label className="sheet__radio">
-              <input
-                type="radio"
-                name="round-kind"
-                checked={kind === 'internal'}
-                onChange={() => setKind('internal')}
-              />
-              <span>
-                Internal
-                <em>A draft circulated to co-authors, and what comes back</em>
-              </span>
-            </label>
-          </fieldset>
-
-          <div className="sheet__field">
-            <label htmlFor="round-label">Label</label>
+      <div className="sheet__body">
+        <fieldset className="sheet__field">
+          <legend>Kind</legend>
+          <label className="sheet__radio">
             <input
-              id="round-label"
-              type="text"
-              value={label}
-              placeholder={defaultLabel}
-              onChange={(e) => setLabel(e.target.value)}
+              type="radio"
+              name="round-kind"
+              checked={kind === 'external'}
+              onChange={() => setKind('external')}
             />
-          </div>
+            <span>
+              External
+              <em>A submission, its reviewer reports, and the revision that answers them</em>
+            </span>
+          </label>
+          <label className="sheet__radio">
+            <input
+              type="radio"
+              name="round-kind"
+              checked={kind === 'internal'}
+              onChange={() => setKind('internal')}
+            />
+            <span>
+              Internal
+              <em>A draft circulated to co-authors, and what comes back</em>
+            </span>
+          </label>
+        </fieldset>
 
-          {error !== null && <p className="sheet__error">{error}</p>}
+        <div className="sheet__field">
+          <label htmlFor="round-label">Label</label>
+          <input
+            id="round-label"
+            type="text"
+            value={label}
+            placeholder={defaultLabel}
+            onChange={(e) => setLabel(e.target.value)}
+          />
         </div>
 
-        <footer className="sheet__foot">
-          <span className="sheet__path">rounds/{id}/</span>
-          <div className="sheet__actions">
-            <button onClick={onClose} disabled={busy}>
-              Cancel
-            </button>
-            <button className="is-primary" onClick={() => void create()} disabled={busy || rootDir === null}>
-              {busy ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </footer>
+        {error !== null && <p className="sheet__error">{error}</p>}
       </div>
-    </div>
+
+      <footer className="sheet__foot">
+        <span className="sheet__path">rounds/{id}/</span>
+        <div className="sheet__actions">
+          <button onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button className="is-primary" onClick={() => void create()} disabled={busy || rootDir === null}>
+            {busy ? 'Creating…' : 'Create'}
+          </button>
+        </div>
+      </footer>
+    </Sheet>
   )
 }

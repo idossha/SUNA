@@ -75,7 +75,7 @@
 }
 
 .sheet__field > legend,
-.sheet__field > label {
+.sheet__field > label:not(.sheet__radio) {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -236,8 +236,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-family: var(--s-font-mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .reqs__dot {
@@ -381,6 +380,12 @@ button:disabled {
 
 .docs__row:hover {
   background: var(--s-bg-hover);
+}
+
+/* The document whose tab is frontmost — the one the outline below describes. */
+.docs__row--current {
+  background: var(--s-bg-active);
+  box-shadow: inset 2px 0 0 var(--s-accent);
 }
 
 .docs__badge {
@@ -1139,9 +1144,9 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 0 0 12px;
   border-bottom: 1px solid var(--s-border);
-  flex-shrink: 0;
+  margin-bottom: 20px;
 }
 
 .letter__head h2 {
@@ -1154,26 +1159,24 @@ button:disabled {
   color: var(--s-ink-muted);
 }
 
-.letter__body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
+/* The letter now uses the manuscript document's own shell (.mstab > .msdoc,
+   manuscript/manuscript.css): same scroller, same page measure, same
+   typography settings, same theme. What is left here is only what is
+   particular to a letter. */
 .letter__editor {
-  flex: 1;
   min-width: 0;
-  overflow-y: auto;
-  padding: 24px 32px;
 }
 
+/* The assertions panel is a column of .mstab, beside the scroller — the same
+   place the comments rail sits, so neither scrolls the page away. */
 .assert {
   width: 310px;
   flex-shrink: 0;
+  height: 100%;
   border-left: 1px solid var(--s-border);
   overflow-y: auto;
   padding: 14px 14px 24px;
+  background: var(--s-bg-panel);
 }
 
 .assert > header {
@@ -1568,5 +1571,237 @@ button:disabled {
   margin: 0;
   font-size: var(--s-text-xs);
   line-height: 1.5;
+  color: var(--s-ink-faint);
+}
+
+/* --------------------------------------------- the letters list */
+
+/*
+ * Taller than an outline row on purpose: a letter is identified by two facts,
+ * its name and the journal it is aimed at, and stacking them is what lets the
+ * list answer "which of these goes to Science?" without opening anything.
+ */
+.letters__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--s-ink-muted);
+  font: inherit;
+  text-align: left;
+  padding: 8px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.letters__row:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.letters__row.is-active {
+  color: var(--s-ink);
+  background: var(--s-bg-active);
+  box-shadow: inset 2px 0 0 var(--s-accent);
+}
+
+.letters__row:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.letters__row-title {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.letters__row-sub {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------- export-with-unanswered acknowledgement -
+   Anchored under the letter toolbar's Export button, over the same scrim the
+   "+" menu uses, so dismissing works the way every other menu here does. */
+.lxconfirm {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 80;
+  width: 300px;
+  padding: 12px 13px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 6px;
+  background: var(--s-bg-panel);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 24%);
+  text-align: left;
+}
+
+.lxconfirm__lead {
+  margin: 0 0 4px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.lxconfirm__ids {
+  margin: 0 0 8px;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-warn);
+  word-break: break-word;
+}
+
+.lxconfirm__note {
+  margin: 0 0 12px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+}
+
+.lxconfirm__row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lxconfirm__cancel,
+.lxconfirm__go {
+  border: 1px solid var(--s-border-strong);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: var(--s-text-xs);
+  cursor: pointer;
+  background: transparent;
+  color: var(--s-ink);
+}
+
+.lxconfirm__go {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+}
+
+.lxconfirm__cancel:hover,
+.lxconfirm__go:hover {
+  background: var(--s-bg-hover);
+}
+
+/* ------------------------------------------------------------------ */
+/* Logged versions                                                      */
+/* ------------------------------------------------------------------ */
+
+/* The Versions disclosure and the rows it opens.
+   The twisty sits in the gutter, out of flow, so "Versions" lines up with
+   "Manuscript" and "Letters" instead of being pushed in by an arrow the
+   other rows do not have. */
+.docs__row-disclosure {
+  position: relative;
+}
+
+.docs__twisty {
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--s-ink-faint);
+  transition: transform 120ms ease;
+}
+
+.docs__twisty.is-open {
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.docs__versions {
+  flex-shrink: 0;
+  border-top: 1px solid var(--s-border);
+  padding: 4px 6px 6px;
+}
+
+/* Expanded, the list takes what it needs and no more — the outline above
+   keeps the rest of the panel. */
+.docs__versions-list {
+  max-height: 30vh;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.docs__row--nested {
+  padding-left: 24px;
+}
+
+/* The version the working copy carries, beside the document's name. */
+.docs__version {
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--s-ink-muted);
+  padding: 1px 5px;
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.docs__row-action {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--s-border);
+  border-radius: 5px;
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.docs__row-action:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.docs__row-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sheet__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--s-ink-muted);
+}
+
+/* The read-only version tab: the manuscript surface, plus what it is. */
+.version__id {
+  font-weight: 600;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.version__stage {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  margin-right: auto;
+}
+
+.version__lock {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-muted);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
+.version__meta {
+  margin: 0 0 16px;
+  font-size: var(--s-text-xs);
   color: var(--s-ink-faint);
 }
