@@ -1885,6 +1885,37 @@ export const CHANNELS = {
     }),
     response: z.object({ path: z.string().min(1) }),
   },
+  /**
+   * Cover-letter export: the letter itself as a PDF, Word file or web page.
+   *
+   * Deliberately not the manuscript pipeline, for the same reason
+   * 'export:notes' is not: a letter has no figures to rasterize, no
+   * cross-references to number and no submission format to satisfy — the
+   * questions that pipeline asks ("double spaced? line numbers? which
+   * article type?") have no answer for a letter. What it does carry, and the
+   * manuscript does not, is the assertions: `::assert{id}` directives are
+   * replaced by the author's own words from the sidecar.
+   *
+   * An unanswered assertion stops the export ONCE, by name, and
+   * `acknowledgeUnanswered` is the author saying they know and want the file
+   * anyway — a draft to circulate, a letter whose declarations go in the
+   * submission portal instead. The unanswered directive contributes nothing
+   * to the exported document either way: SUNA does not write those sentences,
+   * so the choice is between an export without them and no export at all,
+   * never between a true letter and a fabricated one.
+   * Writes to `<dir>/output/letters/<outputName>.<format>`.
+   */
+  'export:letter': {
+    request: z.object({
+      dir: z.string().min(1),
+      documentId: z.string().min(1),
+      format: z.enum(['pdf', 'docx', 'html']),
+      outputName: z.string().min(1),
+      /** The author has seen the unanswered list and wants the file regardless. */
+      acknowledgeUnanswered: z.boolean().default(false),
+    }),
+    response: z.object({ path: z.string().min(1) }),
+  },
 } as const satisfies Record<string, ChannelContract>;
 
 /**

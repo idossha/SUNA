@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
-import type { EditorView } from '@codemirror/view'
+import { EditorView } from '@codemirror/view'
 import type { CoverLetterMeta, DocumentEntry, LetterAssertion } from '@suna/core'
 import { assertionAnswered, assertionFor } from '@suna/core'
 import { getBundledProfile, type Diagnostic } from '@suna/formatter'
@@ -12,7 +12,29 @@ import { useCommentsStore } from '../state/comments'
 import { docSlice, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useAiActionsStore } from '../state/aiActions'
 import { letterRunKey } from '../ai/directedActions'
+import { useDocSessionMeta } from '../state/docSessions'
+import { useUiStore } from '../state/ui'
+import { useEditorSettings } from '../editor/settings'
+import { DivergenceBanner } from '../editor/DivergenceBanner'
+import { ReviewBar } from '../editor/ReviewBar'
+import type { EditorViewMode } from '../editor/EditorTab'
+import { getResolved, useResolved } from '../state/settings'
+import { EDITOR_THEME_CLASS } from '../editor/themes'
+import { SettingsPopover } from '../editor/SettingsPopover'
+import { GearIcon } from '../editor/GearIcon'
+import { NewDocumentMenu } from './NewDocumentMenu'
+import { manuscriptStyleVars } from '../manuscript/msdocStyle'
+import '../editor/editor.css'
+import '../manuscript/manuscript.css'
 import './documents.css'
+
+/** Same labels as the manuscript tab's toolbar, so the two read alike. */
+const MODE_LABEL: Record<EditorViewMode, string> = {
+  source: 'Source',
+  reading: 'Reading'
+}
+/** .msdoc__toolbar's height — kept clear when scrolling to a heading. */
+const TOOLBAR_HEIGHT_PX = 40
 
 /**
  * The letter tab (document-kinds-ux.md §A.5).
@@ -39,6 +61,58 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
   // hidden panels), so the working state is read from the store rather than
   // held here.
   const draftRun = useAiActionsStore((s) => s.runs[letterRunKey(documentId)])
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [settled, setSettled] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // A letter is prose, and it is written with the same instrument as the
+  // manuscript: the same typography settings, the same reading/source
+  // toggle, the same theme. Subscribed field-by-field so a change in the
+  // popover reflows this tab live (manuscript/ManuscriptTab does the same).
+  const contentWidthCh = useEditorSettings((s) => s.contentWidthCh)
+  const fontSizePx = useEditorSettings((s) => s.fontSizePx)
+  const fontFamily = useEditorSettings((s) => s.fontFamily)
+  const lineHeight = useEditorSettings((s) => s.lineHeight)
+  const editorTheme = useEditorSettings((s) => s.editorTheme)
+
+  const defaultMode = useResolved('editor.defaultMode').value as EditorViewMode
+  const [mode, setMode] = useState<EditorViewMode>(() => getResolved('editor.defaultMode').value)
+  const userPickedModeRef = useRef(false)
+
+  const toggleMode = useCallback((): void => {
+    userPickedModeRef.current = true
+    setMode((current) => {
+      const next: EditorViewMode = current === 'source' ? 'reading' : 'source'
+      editorRef.current?.setLive(next === 'reading')
+      return next
+    })
+  }, [])
+
+  // adopt the persisted default until the user picks a mode with ⌘E
+  useEffect(() => {
+    if (userPickedModeRef.current) return
+    setMode(defaultMode)
+    editorRef.current?.setLive(defaultMode === 'reading')
+  }, [defaultMode])
+
+  // ⌘E reading ⇄ source, ⌘⌥M the comments rail — the manuscript tab's keys.
+  useEffect(() => {
+    const node = wrapRef.current
+    if (!node) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey)) return
+      if (event.key === 'e') {
+        event.preventDefault()
+        toggleMode()
+      }
+      if (event.altKey && (event.key === 'm' || event.code === 'KeyM')) {
+        event.preventDefault()
+        useUiStore.getState().toggleCommentsRail()
+      }
+    }
+    node.addEventListener('keydown', onKey)
+    return () => node.removeEventListener('keydown', onKey)
+  }, [toggleMode])
 
   const [doc, setDoc] = useState<DocumentEntry | null>(null)
   const [meta, setMeta] = useState<CoverLetterMeta | null>(null)
@@ -81,23 +155,25 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
     }
   }, [api, documentId])
 
-  // Outline-click -> scroll, the same request the manuscript tab consumes.
+  // Outline-click -> scroll, through CodeMirror's own ancestor-aware
+  // scrollIntoView (the manuscript tab's mechanism), held until the editor
+  // has settled — scrolling earlier targets a view that does not exist yet.
   const scrollRequest = useManuscriptDocStore((s) => docSlice(s, documentId).scrollRequest)
   useEffect(() => {
-    if (scrollRequest === null) return
+    if (scrollRequest === null || !settled) return
     const view = editorRef.current?.getView()
     const slice = docSlice(useManuscriptDocStore.getState(), documentId)
     const section = slice.outline[scrollRequest.index]
     if (view !== null && view !== undefined && section !== undefined) {
-      view.dispatch({ effects: [], selection: { anchor: Math.min(section.from, view.state.doc.length) } })
-      const coords = view.coordsAtPos(Math.min(section.from, view.state.doc.length))
-      const scroller = rootRef.current
-      if (coords !== null && scroller !== null) {
-        scroller.scrollTop += coords.top - scroller.getBoundingClientRect().top - 24
-      }
+      view.dispatch({
+        effects: EditorView.scrollIntoView(section.headingFrom, {
+          y: 'start',
+          yMargin: TOOLBAR_HEIGHT_PX + 16
+        })
+      })
     }
     useManuscriptDocStore.getState().consumeScrollRequest(documentId, scrollRequest.nonce)
-  }, [scrollRequest, documentId])
+  }, [scrollRequest, settled, documentId])
 
   const save = async (next: CoverLetterMeta): Promise<void> => {
     if (doc?.meta == null) return
@@ -116,79 +192,285 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
     [meta]
   )
 
+  // The shared doc session's dirty flag — one source of truth with the raw
+  // editor tab on the same file, exactly as the manuscript tab reads it.
+  const dirty = useDocSessionMeta(doc?.file == null ? '' : `${rootDir}/manuscript/${doc.file}`)?.dirty ?? false
+
+  const settingsStyle = manuscriptStyleVars({
+    contentWidthCh,
+    fontSizePx,
+    fontFamily,
+    lineHeight,
+    editorTheme
+  })
+
   if (error !== null && doc === null) return <div className="letter letter--empty">{error}</div>
   if (doc === null || meta === null) return <div className="letter letter--empty">Loading…</div>
 
   return (
-    <div className="letter">
-      <header className="letter__head">
-        <div>
-          <h2>{doc.title}</h2>
-          <span className="letter__sub">
-            {meta.letterKind} · addressed to {profile?.journalName ?? meta.targetProfileId}
-          </span>
-        </div>
-        <div className="letter__tools">
-          <RailToggleButton docPath={doc.file} />
-        </div>
-      </header>
-
-      {draftRun !== undefined && (
-        <div className="letter__drafting" role="status" aria-live="polite">
-          <span className="letter__drafting-pulse" aria-hidden="true" />
-          <span className="letter__drafting-body">
-            <strong>Drafting the letter…</strong>
-            <span className="letter__drafting-note">{draftRun.note}</span>
-          </span>
-          <span className="letter__drafting-hint">
-            The agent is reading the manuscript first. The draft arrives in one piece,
-            as a change you review.
-          </span>
-          <button className="letter__drafting-cancel" onClick={() => draftRun.cancel()}>
-            Cancel
+    <div ref={wrapRef} className="mstab">
+      <div
+        ref={rootRef}
+        className={`msdoc msdoc--${mode} editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
+        style={settingsStyle}
+      >
+        <div className="msdoc__toolbar">
+          {dirty && <span className="msdoc__dirty" aria-hidden="true" />}
+          <button
+            className="editor-tab__mode"
+            onClick={toggleMode}
+            title="Toggle reading / source (⌘E)"
+          >
+            {MODE_LABEL[mode]}
           </button>
-        </div>
-      )}
-
-      <div className="letter__body" ref={rootRef}>
-        <div className={`letter__editor${draftRun === undefined ? '' : ' is-drafting'}`}>
-          {doc.file !== null && (
-            <ManuscriptEditor
-              ref={editorRef}
-              rootDir={rootDir}
-              documentId={doc.id}
-              contentPath={doc.file}
-              live
-              onSettled={() => undefined}
-              onOutlineChange={(outline) =>
-                useManuscriptDocStore.getState().setOutline(documentId, outline)
-              }
-            />
-          )}
-        </div>
-
-        <AssertionsPanel
-          meta={meta}
-          requirements={profile?.letters?.assertions ?? []}
-          journalName={profile?.journalName ?? meta.targetProfileId}
-          hasRules={profile?.letters !== undefined}
-          diagnostics={diagnostics}
-          onChange={(next) => void save(next)}
-        />
-
-        {doc.file !== null && (
-          <CommentsRail
-            comments={allComments.filter(
-              (c) => c.target.kind === 'section' && c.target.path === doc.file
-            )}
-            docPath={doc.file}
-            getView={getEditorView}
-            getScrollElement={getScrollElement}
+          <RailToggleButton docPath={doc.file} />
+          <LetterExportButton
+            rootDir={rootDir}
+            documentId={documentId}
+            outputName={outputNameFor(doc)}
+            // Required only, matching what the exporter refuses over: an
+            // optional assertion the author left alone is a choice, not a gap.
+            unanswered={(profile?.letters?.assertions ?? [])
+              .filter((req) => req.stance === 'required')
+              .map((req) => req.id)
+              .filter((id) => !assertionAnswered(assertionFor(meta, id)))}
           />
-        )}
+          <button
+            className="editor-tab__gear"
+            onClick={() => setSettingsOpen((open) => !open)}
+            title="Letter appearance"
+            aria-label="Letter appearance settings"
+          >
+            <GearIcon />
+          </button>
+          {settingsOpen && <SettingsPopover onClose={() => setSettingsOpen(false)} />}
+        </div>
+        {doc.file !== null && <DivergenceBanner path={`${rootDir}/manuscript/${doc.file}`} />}
+        <ReviewBar sectionPath={doc.file} getView={getEditorView} />
+
+        <div className="msdoc__body">
+          <div className="msdoc__page">
+            <header className="letter__head">
+              <div>
+                <h2>{doc.title}</h2>
+                <span className="letter__sub">
+                  {meta.letterKind} · addressed to {profile?.journalName ?? meta.targetProfileId}
+                </span>
+              </div>
+            </header>
+
+            {draftRun !== undefined && (
+              <div className="letter__drafting" role="status" aria-live="polite">
+                <span className="letter__drafting-pulse" aria-hidden="true" />
+                <span className="letter__drafting-body">
+                  <strong>Drafting the letter…</strong>
+                  <span className="letter__drafting-note">{draftRun.note}</span>
+                </span>
+                <span className="letter__drafting-hint">
+                  The agent is reading the manuscript first. The draft arrives in one piece,
+                  as a change you review.
+                </span>
+                <button className="letter__drafting-cancel" onClick={() => draftRun.cancel()}>
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            <div className={`letter__editor${draftRun === undefined ? '' : ' is-drafting'}`}>
+              {doc.file !== null && (
+                <ManuscriptEditor
+                  ref={editorRef}
+                  rootDir={rootDir}
+                  documentId={doc.id}
+                  contentPath={doc.file}
+                  live={mode === 'reading'}
+                  onSettled={setSettled}
+                  onOutlineChange={(outline) =>
+                    useManuscriptDocStore.getState().setOutline(documentId, outline)
+                  }
+                />
+              )}
+            </div>
+          </div>
+        </div>
       </div>
+
+      <AssertionsPanel
+        meta={meta}
+        requirements={profile?.letters?.assertions ?? []}
+        journalName={profile?.journalName ?? meta.targetProfileId}
+        hasRules={profile?.letters !== undefined}
+        diagnostics={diagnostics}
+        onChange={(next) => void save(next)}
+      />
+
+      {doc.file !== null && (
+        <CommentsRail
+          comments={allComments.filter(
+            (c) => c.target.kind === 'section' && c.target.path === doc.file
+          )}
+          docPath={doc.file}
+          getView={getEditorView}
+          getScrollElement={getScrollElement}
+        />
+      )}
     </div>
   )
+}
+
+/**
+ * The letter's own Export — the manuscript's button, in the manuscript's
+ * place on the toolbar, wired to the letter exporter rather than the journal
+ * pipeline (main/services/export-letter.ts). A letter has no figures to
+ * rasterize and no submission format to satisfy, so this asks the one
+ * question that has an answer: which file type.
+ *
+ * A refusal is a real outcome here, not a failure: the exporter will not
+ * write a letter that still carries an unanswered assertion, and that
+ * sentence is what the status note shows.
+ */
+function LetterExportButton({
+  rootDir,
+  documentId,
+  outputName,
+  unanswered
+}: {
+  rootDir: string
+  documentId: string
+  outputName: string
+  /** Assertion ids this venue requires that the sidecar has no answer for. */
+  unanswered: readonly string[]
+}): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  // The format the author picked while assertions are still unanswered —
+  // held until they say whether to export anyway.
+  const [confirming, setConfirming] = useState<'pdf' | 'docx' | 'html' | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const run = async (format: 'pdf' | 'docx' | 'html', acknowledge: boolean): Promise<void> => {
+    setConfirming(null)
+    setBusy(true)
+    try {
+      const { path } = await window.suna.invoke('export:letter', {
+        dir: rootDir,
+        documentId,
+        format,
+        outputName,
+        acknowledgeUnanswered: acknowledge
+      })
+      // The status note, not a Finder window: exporting is often the second
+      // of three (pdf, docx, html), and a popped folder per format is noise.
+      useUiStore
+        .getState()
+        .setStatusNote(
+          acknowledge && unanswered.length > 0
+            ? `Wrote the letter to ${path} — ${unanswered.length} assertion${unanswered.length === 1 ? '' : 's'} still unanswered`
+            : `Wrote the letter to ${path}`
+        )
+    } catch (err) {
+      useUiStore
+        .getState()
+        .setStatusNote(`Letter export failed — ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pick = (format: 'pdf' | 'docx' | 'html'): void => {
+    if (unanswered.length > 0) {
+      setConfirming(format)
+      return
+    }
+    void run(format, false)
+  }
+
+  return (
+    <span className="docs__new-wrap">
+      <button
+        ref={btnRef}
+        className="msdoc__export-btn"
+        onClick={() => setOpen((v) => !v)}
+        disabled={busy || rootDir === ''}
+        title="Export this letter as PDF, Word or a web page"
+      >
+        {busy ? 'Exporting…' : 'Export…'}
+      </button>
+      {open && confirming === null && btnRef.current !== null && (
+        <NewDocumentMenu
+          anchorEl={btnRef.current}
+          onClose={() => setOpen(false)}
+          items={[
+            { label: 'PDF', onSelect: () => pick('pdf') },
+            { label: 'Word (.docx)', onSelect: () => pick('docx') },
+            { label: 'Web page (.html)', onSelect: () => pick('html') }
+          ]}
+        />
+      )}
+      {confirming !== null && (
+        <LetterExportConfirm
+          unanswered={unanswered}
+          onCancel={() => {
+            setConfirming(null)
+            setOpen(false)
+          }}
+          onConfirm={() => {
+            setOpen(false)
+            void run(confirming, true)
+          }}
+        />
+      )}
+    </span>
+  )
+}
+
+/**
+ * The acknowledgement.
+ *
+ * An unanswered assertion is a real gap, so it is named rather than counted
+ * away — but it is not a reason to withhold the author's own file. A draft
+ * for a co-author, or a letter whose declarations go in the submission
+ * portal, is a legitimate thing to export; what SUNA will not do is write the
+ * missing sentence, so the exported letter simply goes without it.
+ */
+function LetterExportConfirm({
+  unanswered,
+  onCancel,
+  onConfirm
+}: {
+  unanswered: readonly string[]
+  onCancel: () => void
+  onConfirm: () => void
+}): JSX.Element {
+  return (
+    <>
+      <div className="docs__menu-scrim" onClick={onCancel} role="presentation" />
+      <div className="lxconfirm" role="dialog" aria-label="Export with unanswered assertions">
+        <p className="lxconfirm__lead">
+          {unanswered.length} assertion{unanswered.length === 1 ? '' : 's'} still unanswered:
+        </p>
+        <p className="lxconfirm__ids">{unanswered.join(', ')}</p>
+        <p className="lxconfirm__note">
+          The exported letter will simply go without {unanswered.length === 1 ? 'it' : 'them'} —
+          SUNA never writes an assertion for you.
+        </p>
+        <div className="lxconfirm__row">
+          <button className="lxconfirm__cancel" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="lxconfirm__go" onClick={onConfirm}>
+            Export anyway
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** `letters/cover-letter-science.md` -> `cover-letter-science`. */
+function outputNameFor(doc: DocumentEntry): string {
+  const base = doc.file === null ? doc.id : (doc.file.split('/').pop() ?? doc.id)
+  return base.replace(/\.md$/, '')
 }
 
 /**

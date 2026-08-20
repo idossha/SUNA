@@ -53,6 +53,7 @@ describe('CHANNELS', () => {
       'env:uv-available',
       'export:docx',
       'export:html',
+      'export:letter',
       'export:notes',
       'export:pdf',
       'figure:create',
