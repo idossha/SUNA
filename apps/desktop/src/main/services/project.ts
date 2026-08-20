@@ -25,6 +25,7 @@ import {
 } from './starter-scaffold'
 import { allowRoot, assertInsideAllowedRoot } from './roots'
 import { importDocumentIntoProject } from './document-import'
+import { purgeExpired } from './trash'
 
 const run = promisify(execFile)
 
@@ -42,6 +43,7 @@ const PROJECT_GITIGNORE = `output/
 __pycache__/
 .venv/
 .mcp.json
+.suna/
 `
 
 /**
@@ -177,6 +179,12 @@ export async function openProject(
     join(dir, manifest.directories.manuscript ?? 'manuscript', 'manuscript.json')
   )
   allowRoot(dir)
+  // Retention is kept on open as well as on opening the Trash view, so a file
+  // past its window leaves even if the user never looks at the trash again.
+  // Best-effort and after allowRoot: a trash sweep must never block an open.
+  void purgeExpired(dir).catch((error: unknown) => {
+    console.warn('trash purge failed (continuing):', error)
+  })
   return { manifest, manuscriptPresent }
 }
 
