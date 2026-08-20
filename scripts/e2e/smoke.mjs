@@ -1080,7 +1080,7 @@ try {
   })
 
   await step('manuscript-view', async () => {
-    await activateView('Manuscript')
+    await activateView('Writing')
     await sleep(600)
     // the outline ends with a 'Total' word-count row (ms__row--total); it is
     // not a section, so it must not count toward the outline assertion below
@@ -1131,7 +1131,7 @@ try {
     // document tab directly (feature-plan-7 §2 — the old .ms__open button is
     // gone; outline rows and the activity bar are the entry points).
     if (!(await evalJs(`!!document.querySelector('.msdoc__titlepage')`))) {
-      await activateView('Manuscript')
+      await activateView('Writing')
       await sleep(1200)
     }
     // ONE CodeMirror over the whole flat manuscript.md (feature-plan-7 §1)
@@ -2847,7 +2847,7 @@ try {
       return true;
     })()`)
     if (!focused) {
-      await activateView('Manuscript')
+      await activateView('Writing')
       await sleep(500)
     }
     const deadline = Date.now() + 10_000
@@ -3197,7 +3197,7 @@ try {
     assert(panel.titleClamp === '2', `titles not clamped to 2 lines: ${panel.titleClamp}`)
 
     // the sidebar manuscript summary renders its title math, like the title page
-    await activateView('Manuscript')
+    await activateView('Writing')
     await sleep(900)
     const title = await evalJs(`(() => {
       const el = document.querySelector('.ms__title');
