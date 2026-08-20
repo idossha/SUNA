@@ -12,7 +12,9 @@ import { useUiStore } from '../state/ui'
 import { useEditorSettings } from '../editor/settings'
 import { DivergenceBanner } from '../editor/DivergenceBanner'
 import { ReviewBar } from '../editor/ReviewBar'
-import type { EditorViewMode } from '../editor/EditorTab'
+import { DOC_MODE_OPTIONS, nextDocMode, type DocViewMode, type EditorViewMode } from '../editor/settings'
+import { DocumentPages } from '../export/DocumentPages'
+import { SegmentedControl } from '../shell/SegmentedControl'
 import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
@@ -29,11 +31,6 @@ import { ReferencesBlock } from './ReferencesBlock'
 import './manuscript.css'
 
 const TAB_TITLE = 'Manuscript'
-/** EditorTab keeps its own copy unexported; same labels, so the two toolbars read alike. */
-const MODE_LABEL: Record<EditorViewMode, string> = {
-  source: 'Source',
-  reading: 'Reading'
-}
 /** A heading is "active" once its top is within this band below the viewport top. */
 const ACTIVE_BAND_PX = 96
 /** manuscript.css's .msdoc__toolbar height — kept clear of the sticky toolbar when scrolling to a heading. */
@@ -90,7 +87,8 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   // Same contract as EditorTab: open in the resolved default mode, and once
   // the user has picked one with ⌘E or the button, stop following the setting.
   const defaultMode = useResolved('editor.defaultMode').value as EditorViewMode
-  const [mode, setMode] = useState<EditorViewMode>(() => getResolved('editor.defaultMode').value)
+
+  const [mode, setMode] = useState<DocViewMode>(() => getResolved('editor.defaultMode').value)
   const userPickedModeRef = useRef(false)
 
   const editorRef = useRef<ManuscriptEditorHandle>(null)
@@ -152,10 +150,19 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outline])
 
+  /** One place both the segmented control and ⌘E land in. */
+  const pickMode = useCallback((next: DocViewMode): void => {
+    userPickedModeRef.current = true
+    editorRef.current?.setLive(next === 'reading')
+    setMode(next)
+  }, [])
+
+  // ⌘E still cycles. The control shows every mode, so the shortcut is now a
+  // convenience rather than the only way to discover the others.
   const toggleMode = useCallback((): void => {
     userPickedModeRef.current = true
     setMode((current) => {
-      const next: EditorViewMode = current === 'source' ? 'reading' : 'source'
+      const next = nextDocMode(current)
       editorRef.current?.setLive(next === 'reading')
       return next
     })
@@ -305,13 +312,13 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
       >
         <div className="msdoc__toolbar">
           {dirty && <span className="msdoc__dirty" aria-hidden="true" />}
-          <button
-            className="editor-tab__mode"
-            onClick={toggleMode}
-            title="Toggle reading / source (⌘E)"
-          >
-            {MODE_LABEL[mode]}
-          </button>
+          <SegmentedControl
+            className="msdoc__modes"
+            label="View"
+            value={mode}
+            options={DOC_MODE_OPTIONS}
+            onChange={pickMode}
+          />
           <RailToggleButton docPath={manuscriptFile} includeWholeManuscript />
           <button
             className="msdoc__export-btn"
@@ -336,6 +343,9 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
           sectionPath={manuscript?.manuscriptFile ?? null}
           getView={getEditorView}
         />
+        {mode === 'pages' && !stale && manuscript !== null ? (
+          <DocumentPages source={{ kind: 'manuscript' }} />
+        ) : (
         <div className="msdoc__body">
           <div className="msdoc__page">
             {stale && (
@@ -381,8 +391,9 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
             )}
           </div>
         </div>
+        )}
       </div>
-      {!stale && manuscript !== null && (
+      {mode !== 'pages' && !stale && manuscript !== null && (
         <CommentsRail
           comments={documentComments}
           docPath={manuscriptFile}

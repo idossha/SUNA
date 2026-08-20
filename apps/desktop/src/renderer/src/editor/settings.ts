@@ -19,6 +19,42 @@ export type EditorThemeName =
  */
 export type EditorViewMode = 'source' | 'reading'
 
+/**
+ * The view modes a whole DOCUMENT tab offers (feature-plan-13 §B1).
+ *
+ * A manuscript or a letter is exported as pages, so it can also be shown as
+ * the pages it will become — read-only, rendered by the exporter itself
+ * (export/DocumentPages.tsx). A loose `.md` file in EditorTab has no page
+ * geometry to show and keeps the two editing modes, which is also why
+ * `editor.defaultMode` stays an EditorViewMode: a default of 'pages' would
+ * be meaningless for most of the files it applies to.
+ */
+export type DocViewMode = EditorViewMode | 'pages'
+
+export const DOC_VIEW_MODES: readonly DocViewMode[] = ['source', 'reading', 'pages']
+
+/**
+ * The view switch's options, in the order the control shows them, and the one
+ * place a mode's label lives.
+ *
+ * Ordered by how much of the document's final form each shows: the source you
+ * type, the same text rendered, then the pages it becomes. A control that
+ * shows all three is also the reason there is no separate label table — the
+ * segmented switch replaced a cycling button, and a cycling button was the
+ * only thing that ever needed a mode's name on its own.
+ */
+export const DOC_MODE_OPTIONS: readonly { value: DocViewMode; label: string; title: string }[] = [
+  { value: 'source', label: 'Source', title: 'The Markdown as written' },
+  { value: 'reading', label: 'Reading', title: 'Live preview — rendered, and still editable' },
+  { value: 'pages', label: 'Pages', title: 'The pages this exports as — read-only' }
+]
+
+/** The next mode in the cycle ⌘E walks. */
+export function nextDocMode(current: DocViewMode): DocViewMode {
+  const i = DOC_VIEW_MODES.indexOf(current)
+  return DOC_VIEW_MODES[(i + 1) % DOC_VIEW_MODES.length] as DocViewMode
+}
+
 export interface EditorSettings {
   /** Reading-mode content column width, in ch. */
   contentWidthCh: number

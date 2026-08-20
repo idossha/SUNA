@@ -34,6 +34,24 @@
   color: var(--ed-ink, var(--s-ink));
 }
 
+/* Pages mode (feature-plan-13 §B): the tab stops being the scroller.
+   PagedDocument has its own scrollport, and "fit the whole page" needs a
+   BOUNDED height to fit into — inside `overflow-y: auto` the container's
+   client height is the content's height, so the fit would silently degrade to
+   fit-width and a page end would never be on screen. Flex column, no overflow:
+   the toolbar keeps its row and the pages take what is left. */
+.msdoc.editor-tab.msdoc--pages {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The toolbar is `position: sticky` for the scrolling modes; as a flex item in
+   pages mode it simply holds its row, and must not be allowed to shrink. */
+.msdoc--pages > .msdoc__toolbar {
+  flex: 0 0 auto;
+}
+
 /* ---- toolbar (settings gear) -----------------------------------------------
    `.msdoc.editor-tab` above IS the scroll container (the e2e smoke suite
    drives it directly: `document.querySelector('.msdoc').scrollTop = 0`), not
@@ -56,6 +74,13 @@
   padding: 0 16px;
   background: var(--ed-bg, var(--s-bg-editor));
   border-bottom: 1px solid var(--ed-border, var(--s-border-strong));
+}
+
+/* The view switch sits at the leading edge of the toolbar's trailing group,
+   before the rail / Export / gear controls. `margin-right: auto` on the dirty
+   dot already pushes everything here, so this only needs to not stretch. */
+.msdoc__modes {
+  flex: 0 0 auto;
 }
 
 /* Dirty dot — the single editor is either clean or dirty as a whole now, so
