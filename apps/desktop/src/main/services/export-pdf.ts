@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import type { ExportOptions } from '@suna/core'
 import { writeFileAtomic } from './atomic'
-import { buildExportContent, buildSupplementContent } from './export-content'
+import { buildExportContent, buildSupplementContent, type ExportContent } from './export-content'
 import { buildManuscriptHtml, buildSupplementHtml } from './export-html'
 import { exportPalette, resolveDocumentStyle } from './export-style'
 import { projectSubdir } from './paths'
@@ -39,7 +39,7 @@ import { assertInsideAllowedRoot } from './roots'
  */
 
 /** Copies katex's dist/ (css + the woff2 fonts it references by relative url()) into a stable temp dir, once. */
-async function ensureKatexAssets(): Promise<string> {
+export async function ensureKatexAssets(): Promise<string> {
   const target = join(app.getPath('temp'), 'suna-katex-assets')
   if (existsSync(join(target, 'katex.min.css'))) return target
   const require = createRequire(import.meta.url)
@@ -105,17 +105,31 @@ export interface ExportPdfResult {
   path: string
 }
 
-export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult> {
-  const root = assertInsideAllowedRoot(req.dir)
-  const supplement = req.target === 'supplement'
-  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
-  // buildSupplementContent throws a clear error naming the expected
-  // manuscript/supplementary.md path when the project has none.
-  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+export interface RenderPdfOptions {
+  options: ExportOptions
+  supplement: boolean
+  /**
+   * Print in THIS window instead of a freshly created one, and leave it
+   * alive afterwards. The live preview passes its long-lived window here:
+   * creating and destroying a BrowserWindow is the single largest fixed cost
+   * in this path, and a preview pays it on every keystroke otherwise.
+   */
+  win?: BrowserWindow
+}
+
+/**
+ * The whole HTML -> PDF pass, with no opinion about where the bytes go: the
+ * real export writes them to output/, the live preview hands them straight
+ * back to the renderer. Everything that decides how the page LOOKS — page
+ * geometry, themed margin bands, line-number injection, the page-number
+ * footer — lives here, so a preview cannot drift from the exported file.
+ */
+export async function renderContentPdf(content: ExportContent, opts: RenderPdfOptions): Promise<Buffer> {
+  const { options, supplement } = opts
   const htmlOptions = {
-    doubleSpacing: req.options.doubleSpacing,
-    lineNumbers: req.options.lineNumbers,
-    theme: req.options.theme
+    doubleSpacing: options.doubleSpacing,
+    lineNumbers: options.lineNumbers,
+    theme: options.theme
   }
   const html = supplement
     ? await buildSupplementHtml(content, htmlOptions)
@@ -125,17 +139,16 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
   const hostPath = join(assetsDir, `suna-manuscript-${process.pid}-${Date.now()}.html`)
   await writeFileAtomic(hostPath, html)
 
-  const outputDir = await projectSubdir(root, 'output')
-  const target = join(outputDir, `${req.outputName}.pdf`)
-
-  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } })
+  const own = opts.win === undefined
+  const win =
+    opts.win ?? new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } })
   try {
     await win.loadFile(hostPath)
-    if (req.options.lineNumbers) await injectLineNumbers(win)
+    if (options.lineNumbers) await injectLineNumbers(win)
     // Supplement ground truth: the page-number footer is ALWAYS on,
     // right-aligned in the body face — whatever options.pageNumbers says.
-    const pageNumbers = supplement || req.options.pageNumbers
-    const palette = exportPalette(req.options.theme)
+    const pageNumbers = supplement || options.pageNumbers
+    const palette = exportPalette(options.theme)
     // Page geometry comes from the same resolved style the DOCX writer uses
     // (export-style.ts) — the always-on SUNA default plus the profile's
     // stated deltas — so a manuscript exported as PDF and as DOCX has the
@@ -168,7 +181,7 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
           ? `<div style="font-size:9px;font-family:'Times New Roman',serif;width:100%;text-align:right;padding-right:12mm;color:#000;">${numberSpan}</div>`
           : `<div style="font-size:9px;width:100%;text-align:center;color:#555;">${numberSpan}</div>`
         : undefined
-    const pdf = await win.webContents.printToPDF({
+    return await win.webContents.printToPDF({
       pageSize: { width: style.page.widthMm / 25.4, height: style.page.heightMm / 25.4 },
       margins: themed
         ? { top: marginIn, bottom: marginIn, left: 0, right: 0 }
@@ -178,11 +191,24 @@ export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult>
       headerTemplate,
       footerTemplate
     })
-    await writeFileAtomic(target, pdf)
   } finally {
-    win.destroy()
+    if (own) win.destroy()
     await unlink(hostPath).catch(() => undefined)
   }
+}
+
+export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult> {
+  const root = assertInsideAllowedRoot(req.dir)
+  const supplement = req.target === 'supplement'
+  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
+  // buildSupplementContent throws a clear error naming the expected
+  // manuscript/supplementary.md path when the project has none.
+  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+  const pdf = await renderContentPdf(content, { options: req.options, supplement })
+
+  const outputDir = await projectSubdir(root, 'output')
+  const target = join(outputDir, `${req.outputName}.pdf`)
+  await writeFileAtomic(target, pdf)
 
   return { path: target }
 }
