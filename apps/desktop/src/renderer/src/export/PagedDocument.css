@@ -1,0 +1,113 @@
+/* ------------------------------------------------------------------ */
+/* PagedDocument — the app's one PDF-pages renderer.                   */
+/*                                                                     */
+/* Mounted by the export dialog's live preview and by the editors'     */
+/* read-only Pages mode, so nothing here may assume either context.    */
+/* Lives beside the component rather than in export.css so a tab can   */
+/* show pages without importing the export dialog's stylesheet.        */
+/* ------------------------------------------------------------------ */
+
+.paged-doc {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.paged-doc__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  border-bottom: 1px solid var(--s-border);
+}
+
+.paged-doc__status {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.paged-doc__count {
+  color: var(--s-ink);
+}
+
+.paged-doc__ms {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+.paged-doc__zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.paged-doc__zoom button {
+  appearance: none;
+  border: 1px solid var(--s-border);
+  background: var(--s-bg-input, transparent);
+  color: var(--s-ink);
+  font: inherit;
+  font-size: var(--s-text-sm);
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.paged-doc__zoom button:hover {
+  border-color: var(--s-accent);
+}
+
+.paged-doc__zoom-value {
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+
+.paged-doc__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* The workbench behind the paper — always darker than the page, so a
+     white US Letter sheet reads as a sheet in either theme. */
+  background: var(--s-bg-deep, rgba(0, 0, 0, 0.18));
+}
+
+.paged-doc__pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: opacity 120ms ease-out;
+}
+/* A render is in flight: the page on screen is the PREVIOUS one, and says so
+   by dimming rather than by disappearing. */
+.paged-doc__pages--stale {
+  opacity: 0.55;
+}
+
+.paged-doc__page {
+  display: block;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28), 0 6px 16px rgba(0, 0, 0, 0.22);
+}
+
+.paged-doc__empty,
+.paged-doc__error {
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.paged-doc__error {
+  color: var(--s-danger, #d66);
+  text-align: left;
+  white-space: pre-wrap;
+}
