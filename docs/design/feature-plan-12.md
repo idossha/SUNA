@@ -32,6 +32,50 @@ tables".
 
 ---
 
+## Build status — 2026-08-19
+
+Seven commits on `feat/document-kinds`. Gates green throughout: `pnpm
+typecheck` clean, `pnpm test` 3552 passing (from a 2459 baseline measured on
+`main` before any of this landed).
+
+| milestone | state |
+|---|---|
+| **12-pre** | **done.** `manuscriptDoc` keyed by document id (the sidebar follows the last-activated tab); comment-rail badge scoped by document path; `migrateCommentTargets` given the other documents' prose paths; the stale smoke tool count and the stale verb count in `website/ai/mcp.md` corrected |
+| **12a** | **done.** `packages/core/src/documents.ts` — `DOCUMENT_KIND_IDS`, `DocumentEntrySchema` with tagged profile refs, `DOCUMENT_KIND_FILES`, `resolveDocuments`/`primaryDocument`/`documentForPath`/`documentPaths`. `suna.json` gains one optional `documents` field; `schemaVersion` stays 1. `paths.ts` gains the registry helpers plus `roundsDir`/`roundDir`. `DiagnosticSurface` widened. 45 tests |
+| **12b** | **partly done.** Schemas (`letters.ts`), the seeded skeleton (`letter-seed.ts`), `profile.letters` + `ProvenanceBasis: 'documented-indexed'`, `check/letter.ts` with nine checks, `createLetter` writing prose + sidecar + gitignored private sidecar + registry entry, `letters` blocks on `science`/`nature`/`pnas`. 63 tests. **Not built: the New Letter sheet, the letter tab, the Assertions panel, the AI-draft route, `~/SunaConfig/identities`, letter export.** |
+| **12c** | **partly done.** `rounds.ts` schemas including `FreezeSchema`; `createRound`/`readRound`/`writeRound`/`listRounds` on disk. **Not built: the freeze itself — `git:tag` still does not exist — the snapshot, the bundle manifest, or the Rounds view.** |
+| **12d** | **not started.** No DOCX return parser; no triage queue. |
+| **12e** | **partly done.** `review-import.ts` — deterministic offline segmentation, verified against both real reviewer documents (five reviewer blocks in one, three in the other, every verbatim contiguous). `analyseReviewerReport`/`commitReviewerReports` as two steps. `check/response.ts` with four checks. 61 tests. **Not built: the import sheet, the review screen, the response workspace, the `::reply`/`::quote`/`@point:` SciMark constructs (only `@point:` is recognised, by the checker, as plain text).** |
+| **12f, 12g, 12h, 12i** | **not started.** No redline dialects, no derived report, no sponsor package model, no rendered-page measurement. |
+| **12j** | **partly done.** Ten verbs registered and driven end to end against a real project (34 total). The doc-drift gate caught every missing row. **Not built: the four verbs covering freeze, returns and packages.** |
+
+**Nothing in the UI has been built.** Every capability above is reachable from
+the MCP verbs and from unit tests; none of it has a surface in the app yet, and
+`document-kinds-ux.md` is still entirely a design. That is the largest single
+piece of remaining work and it is what a user would notice first.
+
+**Two decisions taken while building, both departures from the plan as written:**
+
+1. **No shipped profile carries a quote nobody has read.** The plan gated
+   milestone 12b on someone re-reading the Science and Cell Press pages in a
+   browser. That has not happened, and `nature.com/nature/for-authors/initial-submission`
+   — which the plan recorded as re-fetched HTTP 200 — now returns **HTTP 303 to
+   `idp.nature.com`**, so the flagship quotes could not be reproduced either.
+   Every shipped assertion therefore carries `quote: null` with its source URL
+   and an honest basis; the diagnostics cite the URL without claiming to quote
+   it. The gate holds, and a table-driven test enforces it.
+2. **`createLetter` reads `manuscript.json` through a narrow schema**, not
+   `ManuscriptSchema`. Demanding a fully valid manuscript would make "create a
+   cover letter" fail because some unrelated block is mid-edit.
+
+**One thing to know about the first commit:** `git add -A` swept in the
+uncommitted onboarding changes that were already in the working tree when this
+work started (`OnboardingTab`, `gating`, `manifest`, `preview`, the step
+components, `types`, `GitHubAccount`, `index.html`). They are intact and the
+suite is green, but they are not this work and were not authored here.
+
+---
+
 ## What already exists (do not rebuild)
 
 - **`packages/core/src/anchor.ts`** — W3C-style quote/prefix/suffix anchoring,
