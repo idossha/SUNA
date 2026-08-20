@@ -30,7 +30,10 @@ interface RoundFocusState {
 export const useRoundFocusStore = create<RoundFocusState>((set) => ({
   roundId: null,
   pointId: null,
-  mode: 'focus',
+  // Continuous is the default: opening a round should read like the
+  // manuscript does — every point in one scroll — rather than dropping you
+  // into a single card with no sense of how much is left.
+  mode: 'scroll',
   nonce: 0,
   focus: (roundId, pointId) => set((s) => ({ roundId, pointId, nonce: s.nonce + 1 })),
   mark: (roundId, pointId) =>
