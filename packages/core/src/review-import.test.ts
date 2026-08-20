@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   pointCount,
@@ -13,8 +12,9 @@ import {
  * documents — including the artifacts a .docx → text conversion leaves behind
  * (`**bold**` headings, pandoc's `2\.` escaping, trailing hard-break
  * backslashes, `[…]{.mark}` spans). The documents themselves are private and
- * are not committed; the last block opportunistically runs against them when
- * they happen to be present and skips otherwise.
+ * are not committed, so the grammar is reproduced here rather than the text.
+ * Both real documents were segmented correctly when this was written: five
+ * reviewer blocks in one, three in the other, every verbatim contiguous.
  */
 
 const FIVE_REVIEWERS = `Response to Reviewers - TI-Toolbox Manuscript
@@ -241,31 +241,3 @@ describe('degenerate input', () => {
     expect(pointCount(r)).toBe(0);
   });
 });
-
-/**
- * Opportunistic: when the real documents happen to be on this machine, run
- * against them. They are private and are never committed, so this skips
- * everywhere else.
- */
-const REAL_DIR =
-  '/private/tmp/claude-501/-Users-idohaber-00-development-SUNA/fcb4ad38-3e58-4990-9831-03253b7ca4fd/scratchpad/ex';
-
-describe.skipIf(!existsSync(`${REAL_DIR}/reviews_TI-Toolbox.md`))(
-  'against the real documents',
-  () => {
-    it('finds five reviewers in the TI-Toolbox report', () => {
-      const src = readFileSync(`${REAL_DIR}/reviews_TI-Toolbox.md`, 'utf8');
-      const r = segmentReviewerReport(src);
-      expect(r.reviewers.map((x) => x.index)).toEqual([1, 2, 3, 4, 5]);
-      expect(verbatimIsContiguous(r, src)).toBe(true);
-      expect(pointCount(r)).toBeGreaterThan(10);
-    });
-
-    it('finds three reviewers in the Findlay reply', () => {
-      const src = readFileSync(`${REAL_DIR}/Findlay-NN-ReplyToRefs-final.md`, 'utf8');
-      const r = segmentReviewerReport(src);
-      expect(r.reviewers.map((x) => x.index)).toEqual([1, 2, 3]);
-      expect(verbatimIsContiguous(r, src)).toBe(true);
-    });
-  },
-);

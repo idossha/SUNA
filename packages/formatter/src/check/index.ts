@@ -6,6 +6,7 @@ export type {
 } from './types';
 export { checkFigureSvg } from './figure';
 export { checkLetter, type LetterCheckInput } from './letter';
+export { checkResponse, unassignedPoints, type ResponseCheckInput } from './response';
 export {
   checkManuscript,
   countWords,
