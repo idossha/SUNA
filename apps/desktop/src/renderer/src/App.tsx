@@ -16,6 +16,7 @@ import { ManuscriptTab } from './manuscript/ManuscriptTab'
 import { OnboardingTab } from './onboarding/OnboardingTab'
 import { ReadingNotesTab } from './viewer/ReadingNotesTab'
 import { SettingsTab } from './settings/SettingsTab'
+import { TrashTab } from './shell/TrashTab'
 import { TerminalPanel } from './terminal/TerminalPanel'
 import { PdfTab } from './viewer/PdfTab'
 import { ImageTab } from './viewer/ImageTab'
@@ -49,6 +50,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   'docx-import': DocxImportTab,
   export: ExportDialog,
   settings: SettingsTab,
+  trash: TrashTab,
   'reading-notes': ReadingNotesTab,
   pdf: PdfTab,
   image: ImageTab

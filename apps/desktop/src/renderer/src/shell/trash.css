@@ -1,0 +1,97 @@
+/* SUNA trash tab — a list of recoverable files, not a file tree. */
+
+.trash {
+  max-width: 900px;
+  padding: 16px 20px 32px;
+}
+
+.trash__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trash__title {
+  font-size: var(--s-text-md);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.trash__header-actions,
+.trash__row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.trash__button {
+  padding: 3px 10px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  background: transparent;
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
+  cursor: pointer;
+}
+
+.trash__button:hover:not(:disabled) {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.trash__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.trash__button--danger {
+  border-color: var(--s-err);
+  color: var(--s-err);
+}
+
+.trash__list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trash__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.trash__row-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trash__name {
+  color: var(--s-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trash__origin {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trash__row-meta {
+  display: flex;
+  gap: 12px;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  white-space: nowrap;
+}

@@ -14,7 +14,14 @@ import { activeCanvasPaletteContext } from '../canvas/palette-actions'
 import { exportActiveFigurePdf, exportActiveFigurePng } from '../canvas/palette-export'
 import { startRepairPick } from '../shell/repair/RepairPicker'
 import { scanFigures } from '../views/figures-scan'
-import { activePanelPath, openExportTab, openInSplit, openManuscriptTab, openSettingsTab } from './dock'
+import {
+  activePanelPath,
+  openExportTab,
+  openInSplit,
+  openManuscriptTab,
+  openSettingsTab,
+  openTrashTab
+} from './dock'
 import { useProjectStore } from './project'
 import { resolvePreviewProfileId, useRenderProfileStore } from './renderProfile'
 import { useTerminalPanelStore } from './terminal'
@@ -187,6 +194,17 @@ registerCommand({
   title: 'Open Settings',
   category: 'App',
   run: () => openSettingsTab()
+})
+
+registerCommand({
+  id: 'trash.open',
+  title: 'Open Trash',
+  category: 'App',
+  enabled: () => useProjectStore.getState().rootDir !== null,
+  run: () => {
+    const rootDir = useProjectStore.getState().rootDir
+    if (rootDir !== null) openTrashTab(rootDir)
+  }
 })
 
 registerCommand({
