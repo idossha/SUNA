@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron'
-import type { ExportOptions } from '@suna/core'
+import type { ExportOptions, OversizedBlock } from '@suna/core'
 import { buildExportContent, buildSupplementContent } from './export-content'
 import { buildStandaloneHtml } from './export-html'
 import { renderContentPdf } from './export-pdf'
@@ -83,6 +83,23 @@ function queued<T>(run: () => Promise<T>): Promise<T> {
   return next
 }
 
+/**
+ * Run something in the shared hidden window, serialized, keeping it alive.
+ *
+ * Exposed so the letter preview prints in the SAME window the manuscript
+ * preview uses. A letter goes through its own simpler pipeline
+ * (export-letter.ts), but the cost it would otherwise pay is identical —
+ * creating and destroying a BrowserWindow per render — and there is no reason
+ * for the app to hold two hidden windows to show one document at a time.
+ */
+export function withPreviewWindow<T>(run: (win: BrowserWindow) => Promise<T>): Promise<T> {
+  return queued(async () => {
+    const out = await run(previewWindow())
+    touchIdleTimer()
+    return out
+  })
+}
+
 export interface ExportPreviewRequest {
   dir: string
   profileId: string
@@ -97,6 +114,7 @@ export interface ExportPreviewResult {
   data: string
   approximate: boolean
   ms: number
+  oversized: OversizedBlock[]
 }
 
 export async function exportPreview(req: ExportPreviewRequest): Promise<ExportPreviewResult> {
@@ -108,24 +126,26 @@ export async function exportPreview(req: ExportPreviewRequest): Promise<ExportPr
 
   if (req.format === 'html') {
     const html = await buildStandaloneHtml(content, supplement, req.options.theme)
-    return { kind: 'html', data: html, approximate: false, ms: Date.now() - started }
+    // A web page has no pages, so nothing in it can overrun one.
+    return { kind: 'html', data: html, approximate: false, ms: Date.now() - started, oversized: [] }
   }
 
   // A Word preview is the PDF page render of the DOCX's own document style;
   // the submission options that only exist on paper still apply to it.
-  const pdf = await queued(async () => {
-    const rendered = await renderContentPdf(content, {
+  const rendered = await queued(async () => {
+    const out = await renderContentPdf(content, {
       options: req.options,
       supplement,
       win: previewWindow()
     })
     touchIdleTimer()
-    return rendered
+    return out
   })
   return {
     kind: 'pdf',
-    data: pdf.toString('base64'),
+    data: rendered.pdf.toString('base64'),
     approximate: req.format === 'docx',
-    ms: Date.now() - started
+    ms: Date.now() - started,
+    oversized: rendered.oversized
   }
 }

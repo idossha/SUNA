@@ -14,6 +14,7 @@ import { ExportPreview } from './ExportPreview'
 import { RequirementsPanel } from './RequirementsPanel'
 import { stanceTag } from './requirements'
 import { notifyExported } from './exportToast'
+import { oversizedToastDetail } from './oversized'
 import './export.css'
 
 type ExportFormat = 'docx' | 'pdf' | 'html'
@@ -269,7 +270,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
    * PNG, and writes over the same output file — the uncompressed document is
    * always one more Export click away.
    */
-  const exportOnce = async (compress: boolean): Promise<string> => {
+  const exportOnce = async (compress: boolean): Promise<{ path: string; detail?: string }> => {
     if (manuscript === null || profile === null) throw new Error('nothing to export')
     const figurePngPaths = await rasterizeManuscriptFigures(rootDir, manuscript, profile, { compress })
     const request = {
@@ -284,7 +285,13 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     }
     const channel = format === 'docx' ? ('export:docx' as const) : format === 'pdf' ? ('export:pdf' as const) : ('export:html' as const)
     const res = await window.suna.invoke(channel, request)
-    return res.path
+    // Only the PDF writer measures the printed page, so only it can report a
+    // block that overran it. The same overrun applies to a DOCX of the same
+    // document (both writers resolve export-style.ts), which is why the live
+    // preview — which renders DOCX as its own page geometry — reports it for
+    // both; a Word export alone has nothing to measure with.
+    const detail = 'oversized' in res ? oversizedToastDetail(res.oversized) : undefined
+    return { path: res.path, detail }
   }
 
   const runExport = async (): Promise<void> => {
@@ -296,12 +303,13 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     setCompressedFrom(null)
     setResultCompressed(false)
     try {
-      const path = await exportOnce(compressFigures)
+      const { path, detail } = await exportOnce(compressFigures)
       setResult(path)
       const bytes = await fileSizeOf(path)
       setResultBytes(bytes)
       setResultCompressed(compressFigures)
-      notifyExported(path, bytes !== null ? fileSizeLabel(bytes) : undefined)
+      const size = bytes !== null ? fileSizeLabel(bytes) : undefined
+      notifyExported(path, [size, detail].filter((part) => part !== undefined).join(' · ') || undefined)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -315,7 +323,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     setCompressing(true)
     setError(null)
     try {
-      const path = await exportOnce(true)
+      const { path } = await exportOnce(true)
       setResult(path)
       const bytes = await fileSizeOf(path)
       setResultBytes(bytes)
