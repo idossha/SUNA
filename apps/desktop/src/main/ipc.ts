@@ -442,7 +442,8 @@ export function registerIpcHandlers(): void {
     const next = {
       ...existing,
       status: input.status,
-      assignee: input.assignee === undefined ? existing.assignee : input.assignee
+      assignee: input.assignee === undefined ? existing.assignee : input.assignee,
+      reply: input.reply === undefined ? existing.reply : input.reply
     }
     const updated = {
       ...round,

@@ -453,6 +453,7 @@ export const CHANNELS = {
       pointId: z.string().min(1),
       status: PointStatusSchema,
       assignee: z.string().min(1).nullable().optional(),
+      reply: z.string().optional(),
     }),
     response: z.object({ round: RoundSchema }),
   },

@@ -122,6 +122,17 @@ export const PointStateSchema = z.object({
   /** Identity/author id of whoever owns this point. */
   assignee: z.string().min(1).nullable().default(null),
   /**
+   * The author's reply, in SciMark, written against this point.
+   *
+   * This is state ON the point, not prose in `manuscript/` — it sits in the
+   * mutable half beside the verbatim it answers, which is the only place a
+   * reply can live without either being editable next to the reviewer's words
+   * or being stranded in a response document that has no idea which point it
+   * is answering. The response document is DERIVED from these at format time
+   * (`::reply`), the same way numbering is.
+   */
+  reply: z.string().default(''),
+  /**
    * Links from this point to spans of a document that answer it. The response
    * document's ::quote renders the linked span's CURRENT text at format time,
    * and the page/line reference is derived at export — never typed, never
@@ -204,6 +215,7 @@ export function pointStateFor(round: Round, pointId: string): PointState {
       pointId,
       status: 'unaddressed',
       assignee: null,
+      reply: '',
       links: [],
     }
   );
