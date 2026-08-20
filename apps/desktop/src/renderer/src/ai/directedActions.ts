@@ -15,6 +15,7 @@ import { useAgentChatStore } from '../state/agentChat'
 import {
   commentRunKey,
   figureRunKey,
+  pointRunKey,
   REPAIR_RUN_KEY,
   useAiActionsStore
 } from '../state/aiActions'
@@ -30,6 +31,8 @@ import {
   type UiRepairPromptInput
 } from './templates'
 import { letterDraftPrompt, type LetterDraftPromptInput } from './templates'
+import { pointReplyPrompt, type PointReplyPromptInput } from './templates'
+import { peerReviewLearnPrompt, type PeerReviewLearnPromptInput } from './templates'
 
 /* ------------------------------------------------------------ allowlists -- */
 
@@ -70,6 +73,27 @@ const LETTER_TOOLS = [
   // Deliberately NOT here: anything that could answer an assertion. No such
   // verb exists, and the prompt forbids editing the markers by hand.
 ]
+// Read-only by construction: a reply draft is a PROPOSAL the author accepts
+// in the app, so this action has no write verb and no Edit/Write tool. The
+// one thing it must do well is read the paper before answering for it.
+const POINT_REPLY_TOOLS = [
+  'Read',
+  'Grep',
+  'Glob',
+  'mcp__suna__read_manuscript',
+  'mcp__suna__read_manuscript_meta',
+  'mcp__suna__list_outline',
+  'mcp__suna__read_round',
+  'mcp__suna__list_review_points',
+  'mcp__suna__list_figures',
+  'mcp__suna__read_bib'
+]
+// Read and nothing else. The letter's whole text travels in the prompt, so
+// the agent has nothing it needs to fetch; this list exists to take Write,
+// Edit and Bash away from it. It cannot be the empty array — main omits the
+// --allowed-tools flag entirely for an empty list, which hands back the
+// CLI's permissive default set.
+const PEER_REVIEW_LEARN_TOOLS = ['Read']
 const REPAIR_TOOLS = ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(pnpm:*)', 'Bash(node:*)']
 
 /* -------------------------------------------------------------- CLI gate -- */
@@ -130,6 +154,14 @@ interface DirectedSpec {
   allowedTools: string[]
   useMcp: boolean
   successNote: string
+  /**
+   * Push the answer into the Agent transcript. True for every action that
+   * CHANGED something — the transcript is where those are reviewed. False for
+   * an action whose answer is itself the deliverable (a reply draft), which
+   * would otherwise paste a whole response paragraph into the chat log the
+   * moment its own review surface already shows it.
+   */
+  announce?: boolean
 }
 
 async function runDirected(spec: DirectedSpec): Promise<AiAskOutcome> {
@@ -154,7 +186,9 @@ async function runDirected(spec: DirectedSpec): Promise<AiAskOutcome> {
     const settle = (outcome: AiAskOutcome): void => {
       useAiActionsStore.getState().finish(spec.key)
       if (outcome.text !== null) {
-        useAgentChatStore.getState().pushExternalExchange(spec.title, outcome.text)
+        if (spec.announce !== false) {
+          useAgentChatStore.getState().pushExternalExchange(spec.title, outcome.text)
+        }
         useUiStore.getState().setStatusNote(spec.successNote)
       } else {
         // The CLI's message verbatim (§2c) — including plain 'Cancelled.'.
@@ -273,4 +307,95 @@ export async function runLetterDraft(args: LetterDraftArgs): Promise<AiAskOutcom
 
 export function letterRunKey(documentId: string): string {
   return `letter:${documentId}`
+}
+
+
+export interface PointReplyArgs extends PointReplyPromptInput {
+  /** Project root: child cwd, and where .mcp.json lives. */
+  rootDir: string
+  /** The point being answered — the run key, so the card can find its own run. */
+  pointId: string
+  /** Chosen on the card for this run only; omitted falls back to the setting. */
+  model?: AiModel
+  effort?: AiEffort
+}
+
+/**
+ * The ✦ button beside one reply box: draft a reply, or polish the one there.
+ * Keyed 'point:<pointId>', so the busy indicator and the arriving proposal
+ * both survive the card unmounting mid-run — which it does constantly, since
+ * continuous mode scrolls cards in and out and the mode toggle replaces all
+ * of them.
+ *
+ * The answer does NOT land in the box. It is stored as a proposal the author
+ * accepts or discards, because a reply to a referee is signed by them and a
+ * box that silently fills itself with someone else's prose is how an
+ * unreviewed sentence reaches an editor.
+ */
+export async function runPointReply(args: PointReplyArgs): Promise<AiAskOutcome> {
+  const key = pointRunKey(args.pointId)
+  useAiActionsStore.getState().clearProposal(key)
+  const outcome = await runDirected({
+    key,
+    title: shortTitle(args.mode === 'polish' ? '✦ Polish reply' : '✦ Draft reply', args.pointLabel),
+    prompt: pointReplyPrompt(args),
+    dir: args.rootDir,
+    allowedTools: POINT_REPLY_TOOLS,
+    useMcp: true,
+    model: args.model,
+    effort: args.effort,
+    announce: false,
+    successNote:
+      args.mode === 'polish'
+        ? 'AI polished the reply — review it before you keep it.'
+        : 'AI drafted a reply — review it before you keep it.'
+  })
+  if (outcome.text !== null) useAiActionsStore.getState().propose(key, stripFence(outcome.text))
+  return outcome
+}
+
+/**
+ * The prompt forbids a code fence and models mostly obey, but a reply that
+ * arrives wrapped in ``` would be pasted verbatim into a response letter. One
+ * cheap unwrap is worth more than trusting the instruction.
+ */
+export function stripFence(text: string): string {
+  const trimmed = text.trim()
+  const fence = /^```[a-z]*\n([\s\S]*)\n```$/.exec(trimmed)
+  return (fence?.[1] ?? trimmed).trim()
+}
+
+
+export interface PeerReviewLearnArgs extends PeerReviewLearnPromptInput {
+  /** Project root: child cwd and the confinement boundary. */
+  rootDir: string
+  model?: AiModel
+  effort?: AiEffort
+}
+
+export const PEER_REVIEW_LEARN_KEY = 'peer-review-learn'
+
+/**
+ * Read a group's reply conventions off a response letter they already sent
+ * (the approval sheet's "Learn from a past letter" source).
+ *
+ * Read-only and MCP-less: the letter's text is in the prompt, so the agent
+ * has nothing to fetch, and its answer is a proposal a human must approve
+ * before it becomes the AI's instructions. Single-flight — one sheet, one
+ * document at a time.
+ */
+export async function runPeerReviewLearn(args: PeerReviewLearnArgs): Promise<AiAskOutcome> {
+  const outcome = await runDirected({
+    key: PEER_REVIEW_LEARN_KEY,
+    title: shortTitle('✦ Learn reply style', args.sourcePath.split('/').pop() ?? ''),
+    prompt: peerReviewLearnPrompt(args),
+    dir: args.rootDir,
+    allowedTools: PEER_REVIEW_LEARN_TOOLS,
+    useMcp: false,
+    model: args.model,
+    effort: args.effort,
+    announce: false,
+    successNote: 'Read the conventions from your letter — review them before approving.'
+  })
+  return outcome.text === null ? outcome : { ...outcome, text: stripFence(outcome.text) }
 }
