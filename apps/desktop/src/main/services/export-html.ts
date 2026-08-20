@@ -420,6 +420,37 @@ function titlePageHtml(content: ExportContent): string {
 }
 
 /**
+ * Page-break rules for the printed stylesheet (feature-plan-13 §A2).
+ *
+ * Before this existed the ONLY break declaration in the whole print
+ * stylesheet was `page-break-before` on the references section, so Chromium
+ * split a table wherever the page happened to end, stranded a caption at a
+ * page foot, and separated a figure from its legend. A split table is not a
+ * cosmetic defect in a scientific manuscript — a row torn across a page
+ * boundary is unreadable and an editor sees it before they see the science.
+ *
+ * `.table-block` is the wrapper that already holds caption + table + note
+ * together (see the .table-block rules above), so `break-inside: avoid` on
+ * it is the single rule that does the work. The `table`/`tbody tr` rules are
+ * the fallback for a block too tall to honour it: the block splits, but a
+ * ROW still never tears in half, and `table-header-group` repeats the header
+ * on every continuation page. That degradation is measured and reported
+ * rather than left silent — see measureOversizedBlocks in export-pdf.ts.
+ *
+ * `break-after: avoid` on the headings is not part of the user's ask, but a
+ * heading alone at the foot of a page is the same class of defect and the
+ * rule is one line.
+ */
+const BREAK_CSS = `
+  .table-block, figure.figure, .ms-table-entry { break-inside: avoid; }
+  table, thead, tbody tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+  .ms-h-a, .ms-h-b, .ms-h-c, .ms-h-box { break-after: avoid; }
+  .ms-ref { break-inside: avoid; }
+  .ms-body p, .ms-body li { orphans: 3; widows: 3; }
+`
+
+/**
  * The PDF stylesheet, derived from the same ResolvedDocumentStyle the DOCX
  * writer uses (export-style.ts) so a manuscript exported both ways is set the
  * same: same font, same point sizes, same line spacing, same caption
@@ -488,7 +519,7 @@ function pageCss(style: ResolvedDocumentStyle, palette?: ExportPalette): string 
   tbody tr:last-child td { border-bottom: 1pt solid ${ink}; }
   .ms-table-entry { margin-bottom: 10pt; }
   .ms-table-footnotes { font-size: ${s.caption}pt; margin: 2pt 0 0; padding-left: 1.2em; }
-`
+${BREAK_CSS}`
 }
 
 export interface BuildHtmlOptions {

@@ -107,6 +107,94 @@ function cellAlignments(xml: string): string[][] {
   )
 }
 
+/** The rows of the LAST table in the document, as raw XML. */
+function lastTableRows(xml: string): string[] {
+  const table = xml.slice(xml.lastIndexOf('<w:tbl>'))
+  return [...table.matchAll(/<w:tr>[\s\S]*?<\/w:tr>/g)].map((m) => m[0] ?? '')
+}
+
+/**
+ * Whether each paragraph in a row carries keepNext, ON.
+ *
+ * docx writes the property either way — a paragraph with `keepNext: false`
+ * emits `<w:keepNext w:val="false"/>`, not nothing — so presence of the tag
+ * proves nothing and the VALUE has to be read.
+ */
+function rowKeepNext(row: string): boolean[] {
+  return [...row.matchAll(/<w:p>[\s\S]*?<\/w:p>/g)].map((m) => {
+    const p = m[0] ?? ''
+    const tag = /<w:keepNext(\s+w:val="([a-z]+)")?\s*\/>/.exec(p)
+    if (tag === null) return false
+    return tag[2] === undefined || tag[2] === 'true'
+  })
+}
+
+describe('tables are held together across a page break (feature-plan-13 §A3)', () => {
+  /** A plain markdown table appended to the fixture prose: no managed caption, no note. */
+  const PLAIN_TABLE = '| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |'
+
+  beforeEach(async () => {
+    await writeFixtureProject(dir)
+    await appendProse(`${PLAIN_TABLE}\n\nA paragraph after the table.`)
+  })
+
+  it('marks every row cantSplit, so no row is ever torn in half', async () => {
+    const xml = await documentXmlFor('suna')
+    const rows = lastTableRows(xml)
+    expect(rows.length).toBeGreaterThan(1)
+    for (const [i, row] of rows.entries()) {
+      expect(row, `row ${i} is missing w:cantSplit`).toContain('<w:cantSplit')
+    }
+  })
+
+  it('keeps every row but the last with the next, which is Word\'s only "keep the table together"', async () => {
+    const xml = await documentXmlFor('suna')
+    const rows = lastTableRows(xml)
+    const last = rows.length - 1
+    for (const [i, row] of rows.entries()) {
+      const flags = rowKeepNext(row)
+      expect(flags.length, `row ${i} has no paragraphs`).toBeGreaterThan(0)
+      if (i < last) expect(flags, `row ${i} should keep with the next`).toEqual(flags.map(() => true))
+    }
+  })
+
+  it('repeats the header row on a continuation page', async () => {
+    const xml = await documentXmlFor('suna')
+    const rows = lastTableRows(xml)
+    expect(rows[0]).toContain('<w:tblHeader')
+    // Only the header repeats — a body row marked tblHeader would duplicate data.
+    for (const row of rows.slice(1)) expect(row).not.toContain('<w:tblHeader')
+  })
+
+  it('does keep the last row with a "Note." line that belongs to the table', async () => {
+    // A `![[tbl:id]]` embed binds caption + table + note into one block. The
+    // note is part of the table, so the last row MUST keep with it — a note
+    // stranded at the top of the next page is the same defect as a split
+    // table, just less obvious.
+    await patchManuscript((m) => {
+      const tables = m.tables as { footnotes: unknown[] }[]
+      const first = tables[0] as { footnotes: unknown[] }
+      first.footnotes = [{ mark: 'a', text: 'Values are medians.' }]
+    })
+    await appendProse(`![[tbl:tbl-a]]\n\n${PLAIN_TABLE}\n\nA paragraph after the table.`)
+    const rows = lastTableRows(await documentXmlFor('suna'))
+    const lastRow = rows[rows.length - 1] as string
+    const flags = rowKeepNext(lastRow)
+    expect(flags.length).toBeGreaterThan(0)
+    expect(flags).toEqual(flags.map(() => true))
+  })
+
+  it('does not drag the following paragraph along when nothing must follow the table', async () => {
+    // The fixture's trailing markdown table has no "Note." line under it, so
+    // its last row must NOT keep with the next — otherwise the next body
+    // paragraph is pulled onto the table's page for no reason.
+    const xml = await documentXmlFor('suna')
+    const rows = lastTableRows(xml)
+    const lastRow = rows[rows.length - 1] as string
+    expect(rowKeepNext(lastRow)).toEqual(rowKeepNext(lastRow).map(() => false))
+  })
+})
+
 describe('buildDocxDocument + Packer', () => {
   it('produces a .docx whose document.xml contains the title, an author, a heading and a reference', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)

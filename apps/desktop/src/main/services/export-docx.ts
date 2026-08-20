@@ -373,15 +373,37 @@ function cellAlignment(align: ColumnAlign | undefined, isHeader: boolean, colInd
  * left-aligned and the rest centred. That is the single change that makes an
  * exported table read as a scientific table rather than a spreadsheet grid,
  * which is what Word's default full-border table looks like.
+ *
+ * Keeping the table whole across a page boundary (feature-plan-13 §A3) takes
+ * two different properties, because OOXML has no table-level "keep together":
+ *
+ *  - `cantSplit` on every row stops a SINGLE ROW being torn in half — the
+ *    worst version of the defect, and the only one Word will inflict even on
+ *    a short table.
+ *  - `keepNext` on the paragraphs inside every row but the last is the only
+ *    mechanism Word offers for holding the whole table on one page. It reads
+ *    as a strange place to put it; it is nonetheless the standard idiom.
+ *
+ * The last row is deliberately left without `keepNext` unless `keepWithNext`
+ * says something must follow it (the italic "Note." line under a SUNA table),
+ * because a blanket `keepNext` there would drag the next body paragraph onto
+ * the table's page for no reason.
+ *
+ * When the constraint is unsatisfiable — a table taller than the printable
+ * page — Word ignores `keepNext` and breaks anyway, which is the correct
+ * fallback: `tableHeader` on row 0 repeats the header on the continuation,
+ * and measureOversizedBlocks (export-pdf.ts) tells the author it happened.
  */
-function tableFromMdast(node: TableNode, ctx: DocxCtx): Table {
+function tableFromMdast(node: TableNode, ctx: DocxCtx, opts: { keepWithNext?: boolean } = {}): Table {
   const cellSize = sizeOf(ctx, 'tableCell')
   const lastIndex = node.children.length - 1
 
   const rows = node.children.map((row, rowIndex) => {
     const isHeader = rowIndex === 0
     const isLast = rowIndex === lastIndex
+    const keepNext = !isLast || opts.keepWithNext === true
     return new TableRow({
+      cantSplit: true,
       ...(isHeader ? { tableHeader: true } : {}),
       children: row.children.map((cell, colIndex) => {
         const runStyle: RunStyle = { size: cellSize, bold: isHeader }
@@ -390,6 +412,7 @@ function tableFromMdast(node: TableNode, ctx: DocxCtx): Table {
           children: [
             new Paragraph({
               alignment,
+              keepNext,
               spacing: { before: 0, after: 0 },
               children: inlineChildren(cell.children, ctx, runStyle)
             })
@@ -782,15 +805,16 @@ function blocksFromRoot(root: SciMarkRoot, ctx: DocxCtx): (Paragraph | Table)[] 
     if (node.type === 'tableEmbed' && ctx.style.tablePlacement !== 'end' && ctx.supplement === undefined) {
       const t = ctx.content.tables.find((x) => x.table.id === node.tableId)
       if (t !== undefined) out.push(tableCaptionParagraph(t, ctx, { titleOnly: true }))
+      // The note is part of the table block, so the last row must keep with
+      // it — otherwise a "Note." line strands alone at the top of the next
+      // page, which is the same defect as a split table wearing a disguise.
+      const note = t === undefined ? null : tableNoteParagraph(t, ctx)
       const next = children[i + 1]
       if (next !== undefined && next.type === 'table') {
-        out.push(tableFromMdast(next, ctx))
+        out.push(tableFromMdast(next, ctx, { keepWithNext: note !== null }))
         i += 1
       }
-      if (t !== undefined) {
-        const note = tableNoteParagraph(t, ctx)
-        if (note !== null) out.push(note)
-      }
+      if (note !== null) out.push(note)
       continue
     }
     out.push(...blockNode(node, ctx))

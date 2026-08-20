@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildExportContent } from './export-content'
-import { buildManuscriptHtml } from './export-html'
+import { buildExportContent, buildSupplementContent } from './export-content'
+import { buildManuscriptHtml, buildReaderHtml, buildSupplementHtml } from './export-html'
 import { writeFixtureProject } from './export-fixture'
 import { allowRoot } from './roots'
 
@@ -300,6 +300,43 @@ describe('buildManuscriptHtml', () => {
  * mirroring the SUNA reading tab — linked citations, in-page cross-refs,
  * inlined figures and KaTeX, the reading palette/typography.
  */
+describe('page-break rules in the printed stylesheet (feature-plan-13 §A2)', () => {
+  /**
+   * These assert the DECLARATION only. Whether Chromium honours it is an
+   * empirical question about the print pass, answered by the rendered bytes
+   * in scripts/e2e/probes/table-pagination.mjs — that probe is the real gate;
+   * this is the regression guard that stops the rules being deleted.
+   */
+  it('asks for tables and figures to be kept whole, in both printed documents', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir, { supplement: true })
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    for (const html of [
+      await buildManuscriptHtml(content, OPTIONS),
+      await buildSupplementHtml(await buildSupplementContent({ dir, profileId: 'suna', figurePngPaths }), OPTIONS)
+    ]) {
+      expect(html).toContain('.table-block, figure.figure, .ms-table-entry { break-inside: avoid; }')
+      expect(html).toContain('table, thead, tbody tr { break-inside: avoid; }')
+      // Without this a broken-anyway table loses its header on page 2.
+      expect(html).toContain('thead { display: table-header-group; }')
+    }
+  })
+
+  it('does not leave a heading alone at the foot of a page', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, OPTIONS)
+    expect(html).toContain('break-after: avoid')
+    expect(html).toContain('orphans: 3; widows: 3;')
+  })
+
+  it('leaves the web page alone — an HTML export has no pages to break', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const reader = await buildReaderHtml(content)
+    expect(reader).not.toContain('break-inside: avoid')
+  })
+})
+
 describe('buildReaderHtml + exportHtml', () => {
   const READER_OPTIONS = { doubleSpacing: false, lineNumbers: false, pageNumbers: true }
 
