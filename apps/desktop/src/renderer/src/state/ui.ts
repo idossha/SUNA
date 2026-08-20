@@ -61,12 +61,23 @@ function loadCommentsRailWidth(): number {
 
 /* ---- app-shell toasts (shell/Toasts) --------------------------------------- */
 
+export interface ToastAction {
+  label: string
+  run: () => void
+}
+
 export interface Toast {
   id: number
   message: string
   ttlMs: number
   /** One optional action (e.g. Undo). Running it dismisses the toast. */
-  action?: { label: string; run: () => void }
+  action?: ToastAction
+  /**
+   * Extra actions rendered after `action`, in order. Export toasts use this
+   * for the Open / Reveal pair (export/exportToast.ts); a single-action toast
+   * like Undo still uses `action` and ignores this.
+   */
+  actions?: readonly ToastAction[]
 }
 
 export const TOAST_TTL_DEFAULT_MS = 8000
@@ -171,7 +182,10 @@ interface UiState {
   toggleLeftNav: () => void
   setSidebarWidth: (px: number) => void
   setStatusNote: (note: string | null) => void
-  pushToast: (message: string, opts?: { ttlMs?: number; action?: Toast['action'] }) => number
+  pushToast: (
+    message: string,
+    opts?: { ttlMs?: number; action?: ToastAction; actions?: readonly ToastAction[] }
+  ) => number
   dismissToast: (id: number) => void
   setCommentsRailVisible: (visible: boolean) => void
   toggleCommentsRail: () => void
@@ -237,7 +251,8 @@ export const useUiStore = create<UiState>((set, get) => ({
       id,
       message,
       ttlMs: opts?.ttlMs ?? TOAST_TTL_DEFAULT_MS,
-      ...(opts?.action !== undefined ? { action: opts.action } : {})
+      ...(opts?.action !== undefined ? { action: opts.action } : {}),
+      ...(opts?.actions !== undefined && opts.actions.length > 0 ? { actions: opts.actions } : {})
     }
     set((s) => ({ toasts: [...s.toasts, toast] }))
     return id
