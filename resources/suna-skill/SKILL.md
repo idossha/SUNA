@@ -23,7 +23,9 @@ installed app). This skill is only the trigger.
 3. Orient in `SunaContext/`: start with `README.md` (the scheme + reading
    map), then `WORKFLOW.md` (the session playbook). The complete references
    (`PROJECT-GUIDE.md`, `MANUSCRIPT.md`, `COMMENTS.md`, `FIGURES.md`,
-   `MCP.md`) are siblings.
+   `LETTERS.md`, `ROUNDS.md`, `MCP.md`) are siblings. Read `ROUNDS.md`
+   BEFORE helping anyone hand SUNA a reviewer report — the single most
+   common way an import goes wrong is a human tidying the letter first.
 4. In a project, read `context/PROJECT.md`, `context/MEMORY.md`, and
    `context/RULES.md` before working, and check open review comments
    (`list_comments` over MCP, or `manuscript/comments.json`).

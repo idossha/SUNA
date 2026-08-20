@@ -216,7 +216,7 @@ describe('docs.gen drift gates', () => {
 
   it('every doc the skill and README point at actually ships', () => {
     const names = Object.keys(SUNA_CONTEXT_FILES)
-    for (const referenced of ['README.md', 'WORKFLOW.md', 'PROJECT-GUIDE.md', 'MANUSCRIPT.md', 'COMMENTS.md', 'FIGURES.md', 'MCP.md']) {
+    for (const referenced of ['README.md', 'WORKFLOW.md', 'PROJECT-GUIDE.md', 'MANUSCRIPT.md', 'COMMENTS.md', 'FIGURES.md', 'LETTERS.md', 'ROUNDS.md', 'MCP.md']) {
       expect(names).toContain(referenced)
     }
     expect(SUNA_SKILL_FILE).toContain('README.md')
