@@ -22,6 +22,9 @@ import { getReferencePdf, useReferencePdfsStore } from './state/referencePdfs'
 import { useRenderProfileStore } from './state/renderProfile'
 import { useUiStore } from './state/ui'
 import './styles/app.css'
+import { useRoundFocusStore } from './state/roundFocus'
+import { useAiActionsStore } from './state/aiActions'
+import { runPeerReviewLearn } from './ai/directedActions'
 import 'katex/dist/katex.min.css'
 
 // Dev-only seam for e2e drivers (CDP): bypasses native dialogs.
@@ -61,6 +64,17 @@ if (import.meta.env.DEV) {
       // combined manuscript tab (work items 3–5).
       renderProfileStore: useRenderProfileStore,
       agentChatStore: useAgentChatStore,
+      // The reviewer-response surfaces: the focus/continuous mode and point
+      // selection the round tab and its outline share, and the directed-AI
+      // run/proposal store. A driver pushes a proposal through the store
+      // rather than spawning a CLI, so a probe for the ✦ assistant stays
+      // offline and deterministic.
+      roundFocusStore: useRoundFocusStore,
+      aiActionsStore: useAiActionsStore,
+      // The approval sheet's "learn from a past letter" route. Seamed
+      // because its own entry point is a NATIVE file picker, which CDP
+      // cannot operate — the same reason openDocxImportTab is seamed.
+      peerReviewLearn: runPeerReviewLearn,
       // manuscript/comments.json state — a driver reloads it after an
       // out-of-band write (an MCP add_comment) instead of restarting the app,
       // and reads `comments` to assert anchoring/detached flips
