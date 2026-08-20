@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { DocumentEntry, Round } from '@suna/core'
+import type { DocumentEntry, LoggedVersion, Round } from '@suna/core'
 import { useProjectStore } from './project'
 
 /**
@@ -14,6 +14,8 @@ import { useProjectStore } from './project'
 interface DocumentsState {
   documents: DocumentEntry[]
   rounds: Round[]
+  /** Logged manuscript versions, oldest first, as archive/index.json lists them. */
+  versions: LoggedVersion[]
   /** Registry ids whose prose file is no longer on disk. */
   missing: string[]
   loading: boolean
@@ -26,22 +28,24 @@ interface DocumentsState {
 export const useDocumentsStore = create<DocumentsState>((set) => ({
   documents: [],
   rounds: [],
+  versions: [],
   missing: [],
   loading: false,
   error: null,
 
   refresh: async (rootDir) => {
     if (rootDir === null) {
-      set({ documents: [], rounds: [], missing: [], loading: false, error: null })
+      set({ documents: [], rounds: [], versions: [], missing: [], loading: false, error: null })
       return
     }
     set({ loading: true, error: null })
     try {
-      const [{ documents, missing }, { rounds }] = await Promise.all([
+      const [{ documents, missing }, { rounds }, { versions }] = await Promise.all([
         window.suna.invoke('documents:list', { dir: rootDir }),
-        window.suna.invoke('round:list', { dir: rootDir })
+        window.suna.invoke('round:list', { dir: rootDir }),
+        window.suna.invoke('version:list', { dir: rootDir })
       ])
-      set({ documents, rounds, missing, loading: false })
+      set({ documents, rounds, versions, missing, loading: false })
     } catch (error) {
       set({
         loading: false,
@@ -58,7 +62,8 @@ export const useDocumentsStore = create<DocumentsState>((set) => ({
     set((s) => ({ documents, missing: s.missing.filter((id) => id !== documentId) }))
   },
 
-  reset: () => set({ documents: [], rounds: [], missing: [], loading: false, error: null })
+  reset: () =>
+    set({ documents: [], rounds: [], versions: [], missing: [], loading: false, error: null })
 }))
 
 /** Refresh against whatever project is open. */

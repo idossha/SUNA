@@ -59,6 +59,14 @@ interface ManuscriptEditorProps {
   onSettled: (settled: boolean) => void
   /** Fired (debounced) with the outline of the editor's CURRENT buffer, on mount and on every edit. */
   onOutlineChange: (outline: OutlineSection[]) => void
+  /**
+   * A surface that renders the manuscript but cannot change it — a logged
+   * version (manuscript/archive/vX.Y). CodeMirror is put in readOnly state,
+   * the save keymap never installs, and the comment / citation / figure
+   * insert callbacks are left out, so no gesture on this editor can write to
+   * a file under archive/.
+   */
+  readOnly?: boolean
 }
 
 const OUTLINE_DEBOUNCE_MS = 500
@@ -71,7 +79,10 @@ const OUTLINE_DEBOUNCE_MS = 500
  * ⌘S saves the whole file.
  */
 export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProps>(
-  function ManuscriptEditor({ rootDir, contentPath, documentId, live, onSettled, onOutlineChange }, ref) {
+  function ManuscriptEditor(
+    { rootDir, contentPath, documentId, live, onSettled, onOutlineChange, readOnly = false },
+    ref
+  ) {
     const hostRef = useRef<HTMLDivElement>(null)
     const handleRef = useRef<EditorHandle | null>(null)
     const outlineTimerRef = useRef<number | null>(null)
@@ -88,6 +99,8 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     // the value that is current when it finally runs, not when it was queued.
     const liveRef = useRef(live)
     liveRef.current = live
+    const readOnlyRef = useRef(readOnly)
+    readOnlyRef.current = readOnly
 
     // The AI baseline reaches this live editor the same way it reaches the raw
     // tab: a run finishing changes the store, toggling the setting changes the
@@ -176,6 +189,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
             rootDir,
             theme: useEditorSettings.getState().editorTheme,
             live: liveRef.current,
+            readOnly: readOnlyRef.current,
             vim: vimRef.current,
             onVimMode: useVimModeStore.getState().setMode,
             // No onClose: this view IS the tab, so there is no file for `:q`
@@ -188,23 +202,27 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
             },
             // Returns the promise, so vim's `:wq` can wait for the write.
             onSave: () =>
-              session.save().then((ok) => {
-                if (ok) reportOutline()
-              }),
+              readOnlyRef.current
+                ? undefined
+                : session.save().then((ok) => {
+                    if (ok) reportOutline()
+                  }),
             // ⌘⇧M / context-menu "Comment": same anchored-comment flow as the
             // gutter's own drag-to-comment gesture dispatched below.
-            onComment: (view) => {
-              const { from, to } = view.state.selection.main
-              if (from === to) return
-              const anchor = makeAnchor(view.state.doc.toString(), from, to)
-              useCommentsStore
-                .getState()
-                .startDraft({ kind: 'section', path: contentPath, anchor }, anchor.quote)
-            },
+            onComment: readOnlyRef.current
+              ? undefined
+              : (view) => {
+                  const { from, to } = view.state.selection.main
+                  if (from === to) return
+                  const anchor = makeAnchor(view.state.doc.toString(), from, to)
+                  useCommentsStore
+                    .getState()
+                    .startDraft({ kind: 'section', path: contentPath, anchor }, anchor.quote)
+                },
             // ⌘⇧K / context-menu "Insert citation…".
-            onInsertCitation: (view) => openCitationPicker(view),
+            onInsertCitation: readOnlyRef.current ? undefined : (view) => openCitationPicker(view),
             // ⌘⇧F / context-menu "Insert figure…".
-            onInsertFigure: (view) => openFigurePicker(view)
+            onInsertFigure: readOnlyRef.current ? undefined : (view) => openFigurePicker(view)
           })
           const view = handleRef.current.view
           detach = session.attach(view)
@@ -219,7 +237,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
               // AI-change review, same as the raw editor tab: this is the
               // surface most manuscript prose is actually read on.
               revisionDiffExtension(),
-              revisionReviewKeymap(contentPath)
+              ...(readOnlyRef.current ? [] : [revisionReviewKeymap(contentPath)])
             ])
           })
           applySectionComments(view, commentsForPathRef.current)
@@ -251,7 +269,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
         handleRef.current = null
         release()
       }
-    }, [rootDir, contentPath])
+    }, [rootDir, contentPath, readOnly])
 
     // theme changes apply to the live CM instance without losing state
     useEffect(() => {

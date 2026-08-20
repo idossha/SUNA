@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import katex from 'katex'
 import { outlineFromMarkdown, type OutlineSection } from '@suna/markdown'
+import { formatVersionId, workingVersion } from '@suna/core'
 import { useProjectStore } from '../state/project'
+import { useDocumentsStore } from '../state/documents'
+import { LogVersionSheet } from '../documents/LogVersionSheet'
 import { useManuscriptStore } from '../state/manuscript'
 import { activeSlice, countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openManuscriptTab } from '../state/dock'
@@ -59,6 +62,13 @@ export function ManuscriptView(): JSX.Element {
   const [diskOutline, setDiskOutline] = useState<OutlineSection[]>([])
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
 
+  // The version the working copy carries, and the one button that freezes it.
+  // Both live here rather than on the document list above, because what is
+  // being logged is THIS manuscript — the one this panel summarises.
+  const versions = useDocumentsStore((s) => s.versions)
+  const [logging, setLogging] = useState(false)
+  const working = formatVersionId(workingVersion(versions))
+
   useEffect(() => {
     void refresh()
   }, [refresh, rootDir, saveBump])
@@ -102,6 +112,10 @@ export function ManuscriptView(): JSX.Element {
     })
   }
 
+  const significanceWords =
+    manuscript?.significance == null ? 0 : countWords(manuscript.significance)
+  const highlightCount = manuscript?.highlights?.length ?? 0
+
   if (error !== null) {
     return (
       <div className="view">
@@ -119,9 +133,26 @@ export function ManuscriptView(): JSX.Element {
 
   return (
     <div className="view">
+      {logging && <LogVersionSheet onClose={() => setLogging(false)} />}
       <div>
-        <div className="ms__title">
-          <TexText text={manuscript.title} />
+        {/*
+          The manuscript's own title lives on the title page and in the tab;
+          repeating it here cost three wrapped lines of a narrow sidebar and
+          told the user nothing they were not already looking at.
+        */}
+        <div className="ms__title-row">
+          <div className="ms__title">Manuscript</div>
+          <span className="docs__version" title={`Working version — a log would freeze it as ${working}`}>
+            {working}
+          </span>
+          <button
+            className="docs__row-action"
+            onClick={() => setLogging(true)}
+            disabled={rootDir === null}
+            title="Copy the manuscript as it stands into manuscript/archive/"
+          >
+            Log version
+          </button>
         </div>
         <div className="ms__meta">
           <span>
@@ -131,6 +162,22 @@ export function ManuscriptView(): JSX.Element {
           <span>
             abstract <strong>{countWords(manuscript.abstract.content)}</strong> words
           </span>
+          {/*
+            Significance and highlights are optional front-matter — journals
+            that want them cap them, so their size belongs in this summary.
+            Absent (or empty), they stay out of it entirely.
+          */}
+          {significanceWords > 0 && (
+            <span>
+              significance <strong>{significanceWords}</strong> words
+            </span>
+          )}
+          {highlightCount > 0 && (
+            <span>
+              <strong>{highlightCount}</strong>{' '}
+              {highlightCount === 1 ? 'highlight' : 'highlights'}
+            </span>
+          )}
         </div>
       </div>
 
