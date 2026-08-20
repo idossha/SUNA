@@ -6,7 +6,15 @@ import {
   PdfAcquisitionSchema,
   PdfMatchSchema,
 } from './library';
+import { DocumentEntrySchema } from './documents';
+import { CoverLetterMetaSchema, LetterKindSchema } from './letters';
 import { LitCliIdSchema, LitProviderIdSchema, LitResultSchema } from './lit';
+import {
+  PointStatusSchema,
+  ReviewerReportSchema,
+  RoundKindSchema,
+  RoundSchema,
+} from './rounds';
 import { NoteColorSchema } from './refnotes';
 import {
   ProjectDirKeySchema,
@@ -224,7 +232,183 @@ const GIT_CHANGE = z.object({
   status: z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked', 'conflicted']),
 });
 
+/** A Diagnostic as it crosses IPC — the formatter's type, structurally. */
+export const DiagnosticWireSchema = z.object({
+  id: z.string(),
+  severity: z.enum(['error', 'warning']),
+  surface: z.string(),
+  message: z.string(),
+  target: z
+    .object({
+      figureId: z.string().optional(),
+      elementId: z.string().optional(),
+      sectionPath: z.string().optional(),
+      documentId: z.string().optional(),
+      slotId: z.string().optional(),
+      pointId: z.string().optional(),
+      assertionId: z.string().optional(),
+    })
+    .optional(),
+});
+
+/** A segmented point as it crosses IPC, before it is committed. */
+export const ReviewPointWireSchema = z.object({
+  id: z.string(),
+  reviewerIndex: z.number(),
+  pointIndex: z.number(),
+  section: z.string().nullable(),
+  from: z.number(),
+  to: z.number(),
+  verbatim: z.string(),
+  reason: z.string(),
+});
+
 export const CHANNELS = {
+  /* ---- documents, letters and rounds (feature-plan-12) ------------------ */
+  /** The project's document registry, resolved (synthesized when absent). */
+  'documents:list': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ documents: z.array(DocumentEntrySchema) }),
+  },
+  /** Create a cover letter: prose + sidecar + gitignored private sidecar. */
+  'letter:new': {
+    request: z.object({
+      dir: z.string().min(1),
+      id: z.string().min(1),
+      letterKind: LetterKindSchema,
+      targetProfileId: z.string().min(1),
+      title: z.string().min(1).optional(),
+      salutation: z.string().nullable().optional(),
+    }),
+    response: z.object({
+      documentId: z.string(),
+      proseFile: z.string(),
+      metaFile: z.string(),
+      seedComment: z.string().nullable(),
+      requiredAssertions: z.array(z.string()),
+      gitignoreTouched: z.boolean(),
+    }),
+  },
+  'letter:read': {
+    request: z.object({ dir: z.string().min(1), metaFile: z.string().min(1) }),
+    response: z.object({ meta: CoverLetterMetaSchema }),
+  },
+  'letter:write': {
+    request: z.object({
+      dir: z.string().min(1),
+      metaFile: z.string().min(1),
+      meta: CoverLetterMetaSchema,
+    }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  /** Diagnostics for one letter against the venue it targets. */
+  'letter:check': {
+    request: z.object({ dir: z.string().min(1), documentId: z.string().min(1) }),
+    response: z.object({ diagnostics: z.array(DiagnosticWireSchema) }),
+  },
+  'round:new': {
+    request: z.object({
+      dir: z.string().min(1),
+      id: z.string().min(1),
+      kind: RoundKindSchema,
+      label: z.string().min(1),
+      venue: z.string().nullable().optional(),
+    }),
+    response: z.object({ round: RoundSchema }),
+  },
+  'round:list': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ rounds: z.array(RoundSchema) }),
+  },
+  'round:read': {
+    request: z.object({ dir: z.string().min(1), roundId: z.string().min(1) }),
+    response: z.object({
+      round: RoundSchema,
+      reports: z.array(ReviewerReportSchema),
+    }),
+  },
+  'round:write': {
+    request: z.object({ dir: z.string().min(1), round: RoundSchema }),
+    response: z.object({ ok: z.literal(true) }),
+  },
+  /**
+   * Pass 1 of reviewer import: analyse text, or extract it from a file first.
+   * WRITES NOTHING — the review screen renders this and the user confirms.
+   */
+  'review:analyse': {
+    request: z.object({
+      /** Pasted text, or null when `path` names a file to extract from. */
+      text: z.string().nullable(),
+      path: z.string().min(1).nullable(),
+    }),
+    response: z.object({
+      sourceText: z.string(),
+      reviewers: z.array(
+        z.object({
+          index: z.number(),
+          label: z.string(),
+          from: z.number(),
+          to: z.number(),
+          points: z.array(ReviewPointWireSchema),
+          /** Section-heading spans: structure, neither a point nor a loss. */
+          headings: z
+            .array(z.object({ from: z.number(), to: z.number() }))
+            .default([]),
+        }),
+      ),
+      preamble: z.string(),
+      unassigned: z.array(
+        z.object({ from: z.number(), to: z.number(), text: z.string() }),
+      ),
+      coveragePercent: z.number(),
+      totalPoints: z.number(),
+      unsplitReviewers: z.array(z.number()),
+    }),
+  },
+  /** Pass 2: write the reviewer records the user confirmed. */
+  'review:commit': {
+    request: z.object({
+      dir: z.string().min(1),
+      roundId: z.string().min(1),
+      sourceText: z.string(),
+      preamble: z.string(),
+      reviewers: z.array(
+        z.object({
+          index: z.number(),
+          label: z.string(),
+          from: z.number(),
+          to: z.number(),
+          points: z.array(ReviewPointWireSchema),
+          /** Section-heading spans: structure, neither a point nor a loss. */
+          headings: z
+            .array(z.object({ from: z.number(), to: z.number() }))
+            .default([]),
+        }),
+      ),
+      unassigned: z.array(z.object({ from: z.number(), to: z.number(), text: z.string() })),
+    }),
+    response: z.object({ reviewers: z.number(), points: z.number() }),
+  },
+  /** Set the author's own state on one reviewer point. */
+  'review:set-point': {
+    request: z.object({
+      dir: z.string().min(1),
+      roundId: z.string().min(1),
+      pointId: z.string().min(1),
+      status: PointStatusSchema,
+      assignee: z.string().min(1).nullable().optional(),
+    }),
+    response: z.object({ round: RoundSchema }),
+  },
+  /** Completeness diagnostics for a round's response. */
+  'review:check': {
+    request: z.object({
+      dir: z.string().min(1),
+      roundId: z.string().min(1),
+      forExport: z.boolean().optional(),
+    }),
+    response: z.object({ diagnostics: z.array(DiagnosticWireSchema) }),
+  },
   'project:create': {
     request: z.object({
       dir: z.string().min(1),

@@ -178,6 +178,78 @@ export function openManuscriptTab(rootDir: string): void {
 }
 
 /**
+ * Open (or focus) a document tab by registry id (feature-plan-12 §1).
+ *
+ * `openManuscriptTab` stays as the alias for the primary document so the
+ * three unconditional callers in state/project.ts do not change.
+ */
+export function openDocumentTab(
+  rootDir: string,
+  documentId: string,
+  kind?: string,
+  file?: string | null
+): void {
+  if (!dockApi) return
+  if (documentId === 'manuscript' || kind === 'manuscript') {
+    openManuscriptTab(rootDir)
+    return
+  }
+  // Only a cover letter has a purpose-built tab so far. Every other kind
+  // opens its prose in the ordinary editor rather than in a view that does
+  // not understand it — an honest fallback beats a tab that renders wrong.
+  if (kind !== undefined && kind !== 'cover-letter') {
+    if (file != null) openFileTab(`${rootDir}/manuscript/${file}`)
+    return
+  }
+  const id = `document:${rootDir}:${documentId}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'letter',
+    title: documentId,
+    params: { rootDir, documentId }
+  })
+}
+
+/** Open (or focus) the reviewer-comment import screen. */
+export function openReviewImportTab(rootDir: string): void {
+  if (!dockApi) return
+  const id = `review-import:${rootDir}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'review-import',
+    title: 'Import reviews',
+    params: { rootDir }
+  })
+}
+
+/** Open (or focus) a round's response workspace. */
+export function openRoundTab(rootDir: string, roundId: string): void {
+  if (!dockApi) return
+  const id = `round:${rootDir}:${roundId}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'round',
+    title: roundId,
+    params: { rootDir, roundId }
+  })
+}
+
+/**
  * Components whose panels point into a specific project's directory —
  * closed by closeProjectTabs (feature-plan-7 §3) when the app switches to a
  * different project, so no stale editor/viewer survives pointing at the
@@ -201,7 +273,14 @@ export function closeProjectTabs(rootDir: string): void {
   const prefix = `${rootDir}/`
   for (const panel of [...dockApi.panels]) {
     const component = panel.view.contentComponent
-    if (component === 'manuscript') {
+    // rootDir-keyed panels: they carry the project in params, not in a path,
+    // so a stale one would silently show the previous project's content.
+    if (
+      component === 'manuscript' ||
+      component === 'letter' ||
+      component === 'round' ||
+      component === 'review-import'
+    ) {
       if (panel.params?.['rootDir'] === rootDir) dockApi.removePanel(panel)
       continue
     }

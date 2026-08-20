@@ -14,6 +14,7 @@ import {
   type SegmentationResult
 } from '@suna/core'
 import { writeFileAtomic } from './atomic'
+import { extractPlainText } from './document-import'
 import { roundDir, roundsDir } from './paths'
 
 /**
@@ -207,6 +208,15 @@ export async function commitReviewerReports(
   }
 
   return reports
+}
+
+/**
+ * Text for the reviewer-import sheet's file route. Delegates to the SAME
+ * extraction the manuscript importer uses, so a .docx, a .pdf and a paste all
+ * become one string before anything is segmented.
+ */
+export async function extractReviewText(path: string): Promise<string> {
+  return extractPlainText(path)
 }
 
 export async function readReviewerReports(
