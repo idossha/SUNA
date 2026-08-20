@@ -61,6 +61,7 @@ import { exportNotes } from './services/export-notes'
 import { exportLetter } from './services/export-letter'
 import { exportResponse } from './services/export-response'
 import { exportPdf } from './services/export-pdf'
+import { exportPreview } from './services/export-preview'
 import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
 import { exportFigure } from './services/figure-export'
@@ -728,6 +729,7 @@ export function registerIpcHandlers(): void {
   handle('export:docx', (req) => exportDocx(req))
   handle('export:html', (req) => exportHtml(req))
   handle('export:pdf', (req) => exportPdf(req))
+  handle('export:preview', (req) => exportPreview(req))
   handle('export:notes', (req) => exportNotes(req))
 
   handle('git:status', ({ dir }) => gitStatus(dir))
