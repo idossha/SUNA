@@ -90,13 +90,28 @@ export function ReviewImportTab({ params }: DockPanelProps): JSX.Element {
   }
 
   const commit = async (): Promise<void> => {
-    if (analysis === null || roundId === '' || busy) return
+    if (analysis === null || busy) return
     setBusy(true)
     setError(null)
     try {
+      // A first import has no round to land in, and making the user create
+      // one first is a step with no decision in it — the reviewer reports
+      // ARE the round. So one is opened here when none was picked.
+      let target = roundId
+      if (target === '') {
+        const n = rounds.length + 1
+        const { round } = await window.suna.invoke('round:new', {
+          dir: rootDir,
+          id: `round-${n}`,
+          kind: 'external',
+          label: `Round ${n}`
+        })
+        target = round.id
+        setRoundId(target)
+      }
       const res = await window.suna.invoke('review:commit', {
         dir: rootDir,
-        roundId,
+        roundId: target,
         sourceText: analysis.sourceText,
         preamble: analysis.preamble,
         reviewers: analysis.reviewers,
