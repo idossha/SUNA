@@ -21,7 +21,9 @@ import { ManuscriptSchema, type Manuscript } from '@suna/core'
  * it), and every cross-reference in the prose has something to point at.
  */
 
-const STARTER_INTRO = `Hello, SUNA. This starter manuscript is a working tour of the editor — every feature below is live, so change a word and watch what happens. When you have seen enough, select all and start writing your own paper.
+const STARTER_INTRO = `Hello,
+
+This starter manuscript is a working tour of the editor — every feature below is live, so change a word and watch what happens. When you have seen enough, select all and start writing your own paper.
 
 Prose is Markdown with a few additions for scientific writing. A citation is its BibTeX key in square brackets [@knuth1984], and the reference list at the end of an export is derived from the keys you actually cite — never hand-maintained. Cite two at once like this [@knuth1984; @wong2011].
 
