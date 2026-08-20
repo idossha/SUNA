@@ -105,6 +105,26 @@ export const EXPORT_THEME_PALETTES: Record<string, ExportPalette> = {
     accent: '#fad07a',
     link: '#8197bf',
     colorScheme: 'dark'
+  },
+  'mono-blue-dark': {
+    bg: '#0e0e10',
+    ink: '#f2f2f2',
+    inkMuted: '#a6a6a8',
+    inkFaint: '#6e6e72',
+    border: '#3a3a3f',
+    accent: '#5b9dd9',
+    link: '#7fb6e6',
+    colorScheme: 'dark'
+  },
+  'mono-blue-light': {
+    bg: '#ffffff',
+    ink: '#17171a',
+    inkMuted: '#5c5c63',
+    inkFaint: '#8e8e96',
+    border: '#c9c9d0',
+    accent: '#2f6fae',
+    link: '#2f6fae',
+    colorScheme: 'light'
   }
 }
 

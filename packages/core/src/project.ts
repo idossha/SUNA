@@ -50,6 +50,8 @@ export const EDITOR_THEME_IDS = [
   'suna-light',
   'gruvbox',
   'jellybeans',
+  'mono-blue-dark',
+  'mono-blue-light',
 ] as const;
 export const EditorThemeIdSchema = z.enum(EDITOR_THEME_IDS);
 export type EditorThemeId = z.infer<typeof EditorThemeIdSchema>;

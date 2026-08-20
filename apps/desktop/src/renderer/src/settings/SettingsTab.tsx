@@ -57,7 +57,9 @@ const THEME_LABELS: Record<EditorThemeSetting, string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
   gruvbox: 'Gruvbox',
-  jellybeans: 'Jellybeans'
+  jellybeans: 'Jellybeans',
+  'mono-blue-dark': 'Mono Blue Dark',
+  'mono-blue-light': 'Mono Blue Light'
 }
 
 const FONT_FAMILY_LABELS: Record<EditorFontFamily, string> = {

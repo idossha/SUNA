@@ -3,7 +3,13 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type EditorFontFamily = 'serif' | 'sans' | 'mono'
-export type EditorThemeName = 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
+export type EditorThemeName =
+  | 'suna-dark'
+  | 'suna-light'
+  | 'gruvbox'
+  | 'jellybeans'
+  | 'mono-blue-dark'
+  | 'mono-blue-light'
 
 /**
  * Two surfaces on one editable CodeMirror instance: 'source' is plain
@@ -57,7 +63,9 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeName, string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
   gruvbox: 'Gruvbox',
-  jellybeans: 'Jellybeans'
+  jellybeans: 'Jellybeans',
+  'mono-blue-dark': 'Mono Blue Dark',
+  'mono-blue-light': 'Mono Blue Light'
 }
 
 /**

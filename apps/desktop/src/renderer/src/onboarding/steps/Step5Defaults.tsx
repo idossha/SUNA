@@ -11,7 +11,9 @@ const THEME_LABELS: Record<WizardDefaults['editorTheme'], string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
   gruvbox: 'Gruvbox',
-  jellybeans: 'Jellybeans'
+  jellybeans: 'Jellybeans',
+  'mono-blue-dark': 'Mono Blue Dark',
+  'mono-blue-light': 'Mono Blue Light'
 }
 
 /** Step 5 — Defaults (feature-plan-5 §5), seeded from global settings by the wizard shell. */
