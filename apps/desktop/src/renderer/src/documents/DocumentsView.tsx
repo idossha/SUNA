@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import type { DocumentEntry } from '@suna/core'
+import { stageLabel, versionsNewestFirst } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useDocumentsStore, refreshDocuments, secondaryDocuments } from '../state/documents'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
-import { openDocumentTab, openReviewImportTab, openRoundTab } from '../state/dock'
+import { openDocumentTab, openManuscriptTab, openRoundTab, openVersionTab } from '../state/dock'
 import { ManuscriptView } from '../views/ManuscriptView'
 import { DocumentOutline } from './DocumentOutline'
-import { NewDocumentMenu } from './NewDocumentMenu'
-import { NewLetterSheet } from './NewLetterSheet'
-import { NewRoundSheet } from './NewRoundSheet'
+import { LetterList } from './LetterList'
 import './documents.css'
 
 /**
@@ -35,52 +34,72 @@ export function DocumentsView(): JSX.Element {
   const saveBump = useProjectStore((s) => s.saveBump)
   const documents = useDocumentsStore((s) => s.documents)
   const rounds = useDocumentsStore((s) => s.rounds)
+  const versions = useDocumentsStore((s) => s.versions)
   const missing = useDocumentsStore((s) => s.missing)
   const activeDocumentId = useManuscriptDocStore((s) => s.activeDocumentId)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [sheet, setSheet] = useState<'letter' | 'round' | null>(null)
-  const newBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     refreshDocuments()
   }, [rootDir, saveBump])
 
-  const others = secondaryDocuments(documents)
+  const secondary = secondaryDocuments(documents)
+  const letters = secondary.filter((d) => d.kind === 'cover-letter')
+  const others = secondary.filter((d) => d.kind !== 'cover-letter')
+  const isManuscript = activeDocumentId === null || activeDocumentId === 'manuscript'
+  const activeIsLetter = letters.some((d) => d.id === activeDocumentId)
+
+  // Letters are reachable from the panel even before one is open: clicking the
+  // group row shows the list without changing which tab is frontmost. Opening
+  // any document hands the lower panel back to whatever that document is.
+  const [lettersPicked, setLettersPicked] = useState(false)
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  useEffect(() => {
+    setLettersPicked(false)
+  }, [activeDocumentId])
+  const showLetters = activeIsLetter || lettersPicked
 
   return (
     <div className="docs">
-      <div className="docs__header">
-        {/* The shell renders the panel's own title; a second one is noise. */}
-        <div className="docs__new-wrap">
+      {/*
+        The manuscript is always the first row, even while a letter is
+        frontmost. Without it, opening a letter left the panel showing only
+        that letter — the way back to the manuscript (or to any other
+        document) had disappeared from the view whose whole job is listing
+        them.
+      */}
+      <ul className="docs__list">
+        <li>
           <button
-            ref={newBtnRef}
-            className="docs__new"
-            title="New document"
-            aria-label="New document"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
+            className={`docs__row${isManuscript && !showLetters ? ' docs__row--current' : ''}`}
+            onClick={() => {
+              // Clearing the pick explicitly: picking Letters does not change
+              // which tab is frontmost, so when the manuscript was already the
+              // active document the effect below never fires and the panel
+              // would have stayed on the letters list with no way back.
+              setLettersPicked(false)
+              if (rootDir !== null) openManuscriptTab(rootDir)
+            }}
             disabled={rootDir === null}
+            title="Manuscript"
           >
-            +
+            <span className="docs__row-title">Manuscript</span>
           </button>
-          {menuOpen && newBtnRef.current !== null && (
-            <NewDocumentMenu
-              anchorEl={newBtnRef.current}
-              onClose={() => setMenuOpen(false)}
-              items={[
-                { label: 'Cover letter…', onSelect: () => setSheet('letter') },
-                { label: 'Development round…', onSelect: () => setSheet('round') },
-                {
-                  label: 'Import reviewer comments…',
-                  onSelect: () => {
-                    if (rootDir !== null) openReviewImportTab(rootDir)
-                  }
-                }
-              ]}
-            />
-          )}
-        </div>
-      </div>
+        </li>
+      </ul>
+
+      {letters.length > 0 && (
+        <ul className="docs__list">
+          <li>
+            <button
+              className={`docs__row${showLetters ? ' docs__row--current' : ''}`}
+              onClick={() => setLettersPicked(true)}
+              title="Letters"
+            >
+              <span className="docs__row-title">Letters</span>
+            </button>
+          </li>
+        </ul>
+      )}
 
       {others.length > 0 && (
         <ul className="docs__list">
@@ -90,6 +109,8 @@ export function DocumentsView(): JSX.Element {
               doc={doc}
               rootDir={rootDir}
               missing={missing.includes(doc.id)}
+              current={activeDocumentId === doc.id && !showLetters}
+              onOpen={() => setLettersPicked(false)}
             />
           ))}
         </ul>
@@ -103,7 +124,10 @@ export function DocumentsView(): JSX.Element {
               <li key={round.id}>
                 <button
                   className="docs__row"
-                  onClick={() => rootDir !== null && openRoundTab(rootDir, round.id)}
+                  onClick={() => {
+                    setLettersPicked(false)
+                    if (rootDir !== null) openRoundTab(rootDir, round.id)
+                  }}
                   title={round.label}
                 >
                   <span className={`docs__badge docs__badge--${round.kind}`}>
@@ -122,11 +146,18 @@ export function DocumentsView(): JSX.Element {
         The outline follows whichever document tab is frontmost. The manuscript
         keeps its full view — title-page metadata, figure and table counts —
         because that is what people are looking at most of the time; another
-        kind gets a plain outline, since "2 figures, 1 table" under a cover
-        letter would be describing a different document.
+        kind gets a plain outline. Letters get neither: they are one flat page,
+        so the panel lists the project's letters instead — an outline of a
+        cover letter is either empty or a single "untitled" row.
       */}
       <div className="docs__outline">
-        {activeDocumentId === null || activeDocumentId === 'manuscript' ? (
+        {showLetters ? (
+          <LetterList
+            letters={letters}
+            rootDir={rootDir}
+            activeDocumentId={activeDocumentId}
+          />
+        ) : isManuscript ? (
           <ManuscriptView />
         ) : (
           <DocumentOutline
@@ -138,8 +169,47 @@ export function DocumentsView(): JSX.Element {
         )}
       </div>
 
-      {sheet === 'letter' && <NewLetterSheet onClose={() => setSheet(null)} />}
-      {sheet === 'round' && <NewRoundSheet onClose={() => setSheet(null)} />}
+      {/*
+        Versions sits at the FOOT of the panel, below the outline: it is the
+        manuscript's history, not one of the documents, and nothing in it is
+        what the author is working on. Collapsed by default — a paper that has
+        been through three rounds has a dozen of them.
+      */}
+      {versions.length > 0 && (
+        <div className="docs__versions">
+          <button
+            className="docs__row docs__row-disclosure"
+            onClick={() => setVersionsOpen((v) => !v)}
+            aria-expanded={versionsOpen}
+            title="Logged versions"
+          >
+            <span className={`docs__twisty${versionsOpen ? ' is-open' : ''}`} aria-hidden="true">
+              ›
+            </span>
+            <span className="docs__row-title">Versions</span>
+            <span className="docs__row-meta">{versions.length}</span>
+          </button>
+          {versionsOpen && (
+            <ul className="docs__list docs__versions-list">
+              {versionsNewestFirst(versions).map((v) => (
+                <li key={v.id}>
+                  <button
+                    className="docs__row docs__row--nested"
+                    onClick={() => {
+                      setLettersPicked(false)
+                      if (rootDir !== null) openVersionTab(rootDir, v.id)
+                    }}
+                    title={`${stageLabel(v.stage)} — read-only`}
+                  >
+                    <span className="docs__badge">{v.id}</span>
+                    <span className="docs__row-title">{stageLabel(v.stage)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -147,11 +217,17 @@ export function DocumentsView(): JSX.Element {
 function DocumentRow({
   doc,
   rootDir,
-  missing
+  missing,
+  current,
+  onOpen
 }: {
   doc: DocumentEntry
   rootDir: string | null
   missing: boolean
+  /** This document's tab is the frontmost one — the row the outline below belongs to. */
+  current: boolean
+  /** Hand the lower panel back to this document when its row is clicked. */
+  onOpen: () => void
 }): JSX.Element {
   // The filename, not the folder. Two letters to the same journal can carry
   // the same title, and the thing that tells them apart is the file — so the
@@ -184,8 +260,11 @@ function DocumentRow({
   return (
     <li>
       <button
-        className="docs__row"
-        onClick={() => rootDir !== null && openDocumentTab(rootDir, doc.id, doc.kind, doc.file)}
+        className={`docs__row${current ? ' docs__row--current' : ''}`}
+        onClick={() => {
+          onOpen()
+          if (rootDir !== null) openDocumentTab(rootDir, doc.id, doc.kind, doc.file)
+        }}
         title={doc.file ?? doc.title}
       >
         <span className="docs__badge">{KIND_LABEL[doc.kind] ?? doc.kind}</span>
