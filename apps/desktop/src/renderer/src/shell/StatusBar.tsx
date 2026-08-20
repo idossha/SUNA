@@ -22,10 +22,19 @@ function GearIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path
-        d="M8 5.25A2.75 2.75 0 1 0 8 10.75 2.75 2.75 0 0 0 8 5.25Zm0-3.75.9 1.9 2.05-.55.55 2.05 1.9.9-1.35 1.6 1.35 1.6-1.9.9-.55 2.05-2.05-.55-.9 1.9-.9-1.9-2.05.55-.55-2.05-1.9-.9L3.95 8 2.6 6.4l1.9-.9.55-2.05 2.05.55.9-1.9Z"
+        d="M2.5 5.2h11M2.5 10.8h11"
         stroke="currentColor"
         strokeWidth="1.1"
-        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <circle cx="6" cy="5.2" r="1.7" stroke="currentColor" strokeWidth="1.1" fill="var(--s-bg-raised)" />
+      <circle
+        cx="10.4"
+        cy="10.8"
+        r="1.7"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        fill="var(--s-bg-raised)"
       />
     </svg>
   )
