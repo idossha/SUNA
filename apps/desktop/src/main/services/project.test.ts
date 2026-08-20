@@ -275,7 +275,7 @@ describe('scaffoldProject', () => {
     })
     expect(result.warnings).toEqual([])
     const prose = await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')
-    expect(prose).toContain('Hello, SUNA')
+    expect(prose).toContain('Hello,\n\nThis starter manuscript')
     // One file, three sections: an unheaded intro plus two Markdown headings.
     expect(outlineFromMarkdown(prose).map((s) => [s.level, s.title])).toEqual([
       [0, ''],
