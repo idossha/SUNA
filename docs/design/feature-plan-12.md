@@ -34,45 +34,64 @@ tables".
 
 ## Build status — 2026-08-19
 
-Seven commits on `feat/document-kinds`. Gates green throughout: `pnpm
-typecheck` clean, `pnpm test` 3552 passing (from a 2459 baseline measured on
-`main` before any of this landed).
+Nine commits on `feat/document-kinds`. Gates green throughout: `pnpm typecheck`
+clean, `pnpm test` 3552 passing (from a 2459 baseline measured on `main` before
+any of this landed). The UI was driven in the real app with
+`scripts/e2e/drive.mjs`, not only unit-tested.
 
 | milestone | state |
 |---|---|
-| **12-pre** | **done.** `manuscriptDoc` keyed by document id (the sidebar follows the last-activated tab); comment-rail badge scoped by document path; `migrateCommentTargets` given the other documents' prose paths; the stale smoke tool count and the stale verb count in `website/ai/mcp.md` corrected |
-| **12a** | **done.** `packages/core/src/documents.ts` — `DOCUMENT_KIND_IDS`, `DocumentEntrySchema` with tagged profile refs, `DOCUMENT_KIND_FILES`, `resolveDocuments`/`primaryDocument`/`documentForPath`/`documentPaths`. `suna.json` gains one optional `documents` field; `schemaVersion` stays 1. `paths.ts` gains the registry helpers plus `roundsDir`/`roundDir`. `DiagnosticSurface` widened. 45 tests |
-| **12b** | **partly done.** Schemas (`letters.ts`), the seeded skeleton (`letter-seed.ts`), `profile.letters` + `ProvenanceBasis: 'documented-indexed'`, `check/letter.ts` with nine checks, `createLetter` writing prose + sidecar + gitignored private sidecar + registry entry, `letters` blocks on `science`/`nature`/`pnas`. 63 tests. **Not built: the New Letter sheet, the letter tab, the Assertions panel, the AI-draft route, `~/SunaConfig/identities`, letter export.** |
-| **12c** | **partly done.** `rounds.ts` schemas including `FreezeSchema`; `createRound`/`readRound`/`writeRound`/`listRounds` on disk. **Not built: the freeze itself — `git:tag` still does not exist — the snapshot, the bundle manifest, or the Rounds view.** |
+| **12-pre** | **done.** `manuscriptDoc` keyed by document id; comment-rail badge scoped by document path; `migrateCommentTargets` given the other documents' prose paths; stale smoke tool count and stale verb count corrected |
+| **12a** | **done.** `packages/core/src/documents.ts` — the registry, `DOCUMENT_KIND_FILES`, `resolveDocuments`/`primaryDocument`/`documentForPath`/`documentPaths`. `suna.json` gains one optional `documents` field; `schemaVersion` stays 1. `paths.ts` registry helpers + `roundsDir`/`roundDir`. `DiagnosticSurface` widened. 45 tests |
+| **12b** | **done, minus the AI route and identities.** Schemas, seeded skeleton, `profile.letters`, `ProvenanceBasis: 'documented-indexed'`, nine checks, `createLetter`, `letters` blocks on `science`/`nature`/`pnas`, **and the UI**: the Documents `+` menu, the New Letter sheet with live per-journal requirements, the letter tab with its Assertions panel. **Not built: the AI-draft route, `~/SunaConfig/identities`, letterhead, letter export.** |
+| **12c** | **partly done.** `rounds.ts` schemas including `FreezeSchema`; round CRUD on disk; the New Round sheet and the round list in the sidebar. **Not built: the freeze itself — `git:tag` still does not exist — the snapshot, or the bundle manifest.** |
 | **12d** | **not started.** No DOCX return parser; no triage queue. |
-| **12e** | **partly done.** `review-import.ts` — deterministic offline segmentation, verified against both real reviewer documents (five reviewer blocks in one, three in the other, every verbatim contiguous). `analyseReviewerReport`/`commitReviewerReports` as two steps. `check/response.ts` with four checks. 61 tests. **Not built: the import sheet, the review screen, the response workspace, the `::reply`/`::quote`/`@point:` SciMark constructs (only `@point:` is recognised, by the checker, as plain text).** |
+| **12e** | **done, minus the response document.** Deterministic offline segmentation verified against both real reviewer documents; two-step analyse/commit; four response checks; **and the UI**: the import screen (drop zone + paste box, per-card reasoning, coverage meter, merge/drop), and the response workspace (points list with per-reviewer progress dots, verbatim with no edit control, four statuses, assignee). **Not built: the response document itself, so `::reply`/`::quote` do not exist and `@point:` is only read by the checker.** |
 | **12f, 12g, 12h, 12i** | **not started.** No redline dialects, no derived report, no sponsor package model, no rendered-page measurement. |
-| **12j** | **partly done.** Ten verbs registered and driven end to end against a real project (34 total). The doc-drift gate caught every missing row. **Not built: the four verbs covering freeze, returns and packages.** |
+| **12j** | **partly done.** Ten verbs registered and driven end to end (34 total). **Not built: the four verbs covering freeze, returns and packages.** |
 
-**Nothing in the UI has been built.** Every capability above is reachable from
-the MCP verbs and from unit tests; none of it has a surface in the app yet, and
-`document-kinds-ux.md` is still entirely a design. That is the largest single
-piece of remaining work and it is what a user would notice first.
+**Where the UI deviates from `document-kinds-ux.md`, and why:**
+
+1. **The response workspace's third pane is "Before you send", not the
+   manuscript.** §C.1 specified points / reply / manuscript. What shipped is
+   points / point+status / diagnostics, because without a response document
+   (12e's remaining half) there is no reply to write and no link to make, and a
+   read-only manuscript pane with nothing to connect it to would be decoration.
+   The pane is where the manuscript will go once linking lands.
+2. **A round tab leaves the sidebar on the manuscript outline.** A round has no
+   outline of its own, and the manuscript is what the round is about.
+3. **The letter tab's editor is `ManuscriptEditor`.** There is no separate
+   editor surface component; reusing it gets live preview, comments, three-way
+   merge and the AI-diff bar for free, which is the whole argument for keeping
+   letters under `manuscript/`.
+4. **Non-letter document kinds open their prose in the ordinary editor**, not in
+   a purpose-built tab, since only the cover letter has one so far. An honest
+   fallback beats a tab that renders the wrong thing.
 
 **Two decisions taken while building, both departures from the plan as written:**
 
-1. **No shipped profile carries a quote nobody has read.** The plan gated
-   milestone 12b on someone re-reading the Science and Cell Press pages in a
-   browser. That has not happened, and `nature.com/nature/for-authors/initial-submission`
-   — which the plan recorded as re-fetched HTTP 200 — now returns **HTTP 303 to
+1. **No shipped profile carries a quote nobody has read.** The plan gated 12b on
+   someone re-reading the Science and Cell Press pages in a browser. That has
+   not happened, and `nature.com/nature/for-authors/initial-submission` — which
+   the plan recorded as re-fetched HTTP 200 — now returns **HTTP 303 to
    `idp.nature.com`**, so the flagship quotes could not be reproduced either.
-   Every shipped assertion therefore carries `quote: null` with its source URL
-   and an honest basis; the diagnostics cite the URL without claiming to quote
-   it. The gate holds, and a table-driven test enforces it.
+   Every shipped assertion carries `quote: null` with its source URL and an
+   honest basis; a table-driven test enforces the gate, and the New Letter sheet
+   tells the user when a requirement came from an index.
 2. **`createLetter` reads `manuscript.json` through a narrow schema**, not
-   `ManuscriptSchema`. Demanding a fully valid manuscript would make "create a
-   cover letter" fail because some unrelated block is mid-edit.
+   `ManuscriptSchema`, so a mid-edit block elsewhere cannot block making a
+   letter.
 
 **One thing to know about the first commit:** `git add -A` swept in the
 uncommitted onboarding changes that were already in the working tree when this
 work started (`OnboardingTab`, `gating`, `manifest`, `preview`, the step
 components, `types`, `GitHubAccount`, `index.html`). They are intact and the
 suite is green, but they are not this work and were not authored here.
+
+**Not verified:** none of this has a `pnpm smoke` step. The driver is stale for
+the flat layout (roadmap item 0), so the UI evidence above is
+`scripts/e2e/drive.mjs` probes recorded during this session, not a suite that
+re-runs.
 
 ---
 
