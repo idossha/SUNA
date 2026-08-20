@@ -1995,6 +1995,35 @@ export const CHANNELS = {
     }),
     response: z.object({ path: z.string().min(1) }),
   },
+
+  /**
+   * Response-to-reviewers export: one round's points and the replies written
+   * against them, as a PDF, Word file or web page.
+   *
+   * Derived, never authored. The reviewer's words come verbatim out of
+   * `rounds/<id>/reviewers/*.json` and the replies out of `round.json`'s
+   * point states, so the document cannot drift from the workspace the author
+   * actually worked in — the same discipline numbering follows.
+   *
+   * An unaddressed point stops the export ONCE, named by reviewer and number
+   * (docs/design/document-kinds-ux.md §C.3), and `acknowledgeUnaddressed` is
+   * the author saying they know and want the file anyway — a draft for a
+   * co-author is a legitimate thing to export. A point with no reply
+   * contributes no reply text either way: SUNA does not answer a reviewer on
+   * the author's behalf.
+   * Writes to `<dir>/output/responses/<outputName>.<format>`.
+   */
+  'export:response': {
+    request: z.object({
+      dir: z.string().min(1),
+      roundId: z.string().min(1),
+      format: z.enum(['pdf', 'docx', 'html']),
+      outputName: z.string().min(1),
+      /** The author has seen the unaddressed list and wants the file anyway. */
+      acknowledgeUnaddressed: z.boolean().default(false),
+    }),
+    response: z.object({ path: z.string().min(1) }),
+  },
 } as const satisfies Record<string, ChannelContract>;
 
 /**

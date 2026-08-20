@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { PEER_REVIEW_FILE } from '@suna/core'
 import type { PointStatus, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
-import { isAddressed, pointStateFor, roundProgress } from '@suna/core'
+import { isAddressed, pointStateFor, roundProgress, unaddressedPoints } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openReviewImportTab } from '../state/dock'
 import { refreshDocuments } from '../state/documents'
 import { markRoundPoint, useRoundFocusStore } from '../state/roundFocus'
+import { useUiStore } from '../state/ui'
+import { notifyExported } from '../export/exportToast'
+import { NewDocumentMenu } from './NewDocumentMenu'
 import { ReplyAssistant } from './ReplyAssistant'
 import { pointReplyContext, type ReplyContextSource } from './replyContext'
 import './documents.css'
@@ -241,30 +244,40 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
             {round.venue !== null && ` · ${round.venue}`}
           </span>
         </div>
-        <div className="round__modes" role="group" aria-label="View">
-          <button
-            className={`round__mode${mode === 'focus' ? ' is-on' : ''}`}
-            onClick={() => setMode('focus')}
-            title="One point at a time"
-          >
-            Focus
-          </button>
-          <button
-            className={`round__mode${mode === 'scroll' ? ' is-on' : ''}`}
-            onClick={() => setMode('scroll')}
-            title="Every point in one scroll, like the manuscript"
-          >
-            Continuous
-          </button>
-        </div>
-        {progress !== null && (
-          <div className="round__progress">
-            <strong>
-              {progress.addressed} of {progress.total}
-            </strong>{' '}
-            points addressed
+        <div className="round__tools">
+          <div className="round__modes" role="group" aria-label="View">
+            <button
+              className={`round__mode${mode === 'focus' ? ' is-on' : ''}`}
+              onClick={() => setMode('focus')}
+              title="One point at a time"
+            >
+              Focus
+            </button>
+            <button
+              className={`round__mode${mode === 'scroll' ? ' is-on' : ''}`}
+              onClick={() => setMode('scroll')}
+              title="Every point in one scroll, like the manuscript"
+            >
+              Continuous
+            </button>
           </div>
-        )}
+          {progress !== null && (
+            <div className="round__progress">
+              <strong>
+                {progress.addressed} of {progress.total}
+              </strong>{' '}
+              points addressed
+            </div>
+          )}
+          <ResponseExportButton
+            rootDir={rootDir}
+            roundId={roundId}
+            outputName={`response-${roundId}`}
+            unaddressed={unaddressedPoints(round, reports).map(
+              (p) => `Reviewer ${p.reviewerIndex}, point ${p.pointIndex}`
+            )}
+          />
+        </div>
       </header>
 
       <div className="round__cols">
@@ -314,6 +327,160 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
       </div>
 
     </div>
+  )
+}
+
+/**
+ * The round's own Export — the letter tab's button, in the letter tab's
+ * shape, wired to the response exporter (main/services/export-response.ts).
+ *
+ * The response document is derived from this workspace rather than written
+ * beside it: the reviewer's words come out of the immutable report, the reply
+ * out of the point state you typed it into. So there is nothing to keep in
+ * sync and nothing to ask about beyond which file type.
+ *
+ * An unaddressed point is named, not counted, and it stops the export once —
+ * "Reviewer 2, point 3" is actionable in a way "3 problems" is not, and a
+ * response circulated to co-authors mid-revision is a legitimate thing to
+ * want anyway.
+ */
+function ResponseExportButton({
+  rootDir,
+  roundId,
+  outputName,
+  unaddressed
+}: {
+  rootDir: string
+  roundId: string
+  outputName: string
+  /** Points still neither done nor rebutted, labelled by reviewer and number. */
+  unaddressed: readonly string[]
+}): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  // The format picked while points are still unaddressed — held until the
+  // author says whether to export the response as it stands.
+  const [confirming, setConfirming] = useState<'pdf' | 'docx' | 'html' | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const run = async (format: 'pdf' | 'docx' | 'html', acknowledge: boolean): Promise<void> => {
+    setConfirming(null)
+    setBusy(true)
+    try {
+      const { path } = await window.suna.invoke('export:response', {
+        dir: rootDir,
+        roundId,
+        format,
+        outputName,
+        acknowledgeUnaddressed: acknowledge
+      })
+      notifyExported(
+        path,
+        acknowledge && unaddressed.length > 0
+          ? `${unaddressed.length} point${unaddressed.length === 1 ? '' : 's'} still unaddressed`
+          : undefined
+      )
+    } catch (err) {
+      useUiStore
+        .getState()
+        .setStatusNote(
+          `Response export failed — ${err instanceof Error ? err.message : String(err)}`
+        )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pick = (format: 'pdf' | 'docx' | 'html'): void => {
+    if (unaddressed.length > 0) {
+      setConfirming(format)
+      return
+    }
+    void run(format, false)
+  }
+
+  return (
+    <span className="round__export-wrap">
+      <button
+        ref={btnRef}
+        className="round__export"
+        onClick={() => setOpen((v) => !v)}
+        disabled={busy || rootDir === ''}
+        title="Export the response to reviewers as PDF, Word or a web page"
+      >
+        {busy ? 'Exporting…' : 'Export…'}
+      </button>
+      {open && confirming === null && btnRef.current !== null && (
+        <NewDocumentMenu
+          anchorEl={btnRef.current}
+          onClose={() => setOpen(false)}
+          items={[
+            { label: 'PDF', onSelect: () => pick('pdf') },
+            { label: 'Word (.docx)', onSelect: () => pick('docx') },
+            { label: 'Web page (.html)', onSelect: () => pick('html') }
+          ]}
+        />
+      )}
+      {confirming !== null && (
+        <ResponseExportConfirm
+          unaddressed={unaddressed}
+          onCancel={() => {
+            setConfirming(null)
+            setOpen(false)
+          }}
+          onConfirm={() => {
+            setOpen(false)
+            void run(confirming, true)
+          }}
+        />
+      )}
+    </span>
+  )
+}
+
+/**
+ * The acknowledgement.
+ *
+ * Every unaddressed point by name, because that is the check that catches the
+ * reply nobody noticed was missing (document-kinds-ux.md §C.3). The exported
+ * response quotes those points and simply says nothing under them — SUNA does
+ * not answer a reviewer for you.
+ */
+function ResponseExportConfirm({
+  unaddressed,
+  onCancel,
+  onConfirm
+}: {
+  unaddressed: readonly string[]
+  onCancel: () => void
+  onConfirm: () => void
+}): JSX.Element {
+  const shown = unaddressed.slice(0, 8)
+  return (
+    <>
+      <div className="docs__menu-scrim" onClick={onCancel} role="presentation" />
+      <div className="lxconfirm" role="dialog" aria-label="Export with unaddressed points">
+        <p className="lxconfirm__lead">
+          {unaddressed.length} point{unaddressed.length === 1 ? '' : 's'} still unaddressed:
+        </p>
+        <p className="lxconfirm__ids">
+          {shown.join('; ')}
+          {unaddressed.length > shown.length ? `; +${unaddressed.length - shown.length} more` : ''}
+        </p>
+        <p className="lxconfirm__note">
+          The exported response will quote {unaddressed.length === 1 ? 'it' : 'them'} with no reply
+          underneath — SUNA never answers a reviewer for you.
+        </p>
+        <div className="lxconfirm__row">
+          <button className="lxconfirm__cancel" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="lxconfirm__go" onClick={onConfirm}>
+            Export anyway
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
 

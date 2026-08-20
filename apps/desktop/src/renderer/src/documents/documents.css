@@ -809,10 +809,19 @@ button:disabled {
 .round__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 20px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--s-border);
   flex-shrink: 0;
+}
+
+/* Mode toggle, progress and Export ride together at the right edge, evenly
+   spaced — otherwise the header's free space all pools into one gap. */
+.round__tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
 }
 
 .round__head h2 {
@@ -828,6 +837,7 @@ button:disabled {
 .round__progress {
   font-size: 12.5px;
   color: var(--s-ink-muted);
+  white-space: nowrap;
 }
 
 .round__progress strong {
@@ -1062,8 +1072,6 @@ button:disabled {
 .round__modes {
   display: flex;
   gap: 2px;
-  margin-left: auto;
-  margin-right: 18px;
   background: var(--s-bg-editor);
   border: 1px solid var(--s-border);
   border-radius: 6px;
@@ -2570,4 +2578,32 @@ button:disabled {
   font-size: var(--s-text-xs);
   color: var(--s-accent);
   margin-top: 3px;
+}
+
+/* --------------------------------------------------- the round's Export ---
+   The letter toolbar's button (.msdoc__export-btn), restated here because the
+   round workspace does not load the manuscript stylesheet. The wrap is what
+   the unaddressed-points acknowledgement (.lxconfirm) anchors to, exactly as
+   it does under the letter's toolbar. */
+.round__export-wrap {
+  position: relative;
+}
+
+.round__export {
+  background: transparent;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 4px;
+  color: var(--s-ink);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.round__export:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+}
+
+.round__export:disabled {
+  opacity: 0.4;
+  cursor: default;
 }

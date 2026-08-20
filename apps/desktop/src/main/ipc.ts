@@ -59,6 +59,7 @@ import { exportDocx } from './services/export-docx'
 import { exportHtml } from './services/export-html'
 import { exportNotes } from './services/export-notes'
 import { exportLetter } from './services/export-letter'
+import { exportResponse } from './services/export-response'
 import { exportPdf } from './services/export-pdf'
 import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
@@ -723,6 +724,7 @@ export function registerIpcHandlers(): void {
   handle('figure:create', ({ dir, name, widthMm }) => createFigure(dir, name, widthMm))
 
   handle('export:letter', (req) => exportLetter(req))
+  handle('export:response', (req) => exportResponse(req))
   handle('export:docx', (req) => exportDocx(req))
   handle('export:html', (req) => exportHtml(req))
   handle('export:pdf', (req) => exportPdf(req))
