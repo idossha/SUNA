@@ -11,7 +11,7 @@
  * migration for zero benefit). */
 export const PROJECT_CONTEXT_DIR = 'context'
 
-export const PROJECT_CONTEXT_FILES = ['PROJECT.md', 'MEMORY.md', 'RULES.md'] as const
+export const PROJECT_CONTEXT_FILES = ['PROJECT.md', 'MEMORY.md', 'RULES.md', 'PEER-REVIEW.md'] as const
 
 /**
  * First line of every generated stub. The version marker is the heal
