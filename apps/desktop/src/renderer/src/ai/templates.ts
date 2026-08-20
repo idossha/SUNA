@@ -209,47 +209,87 @@ export interface LetterDraftPromptInput {
   letterKind: string
   /** Assertion ids the venue requires — named so the agent leaves them alone. */
   requiredAssertions: readonly string[]
+  /** The venue's stated requirements, one line each, with its own wording. */
+  venueRequirements?: readonly string[]
+  /** The exact placeholder comment the draft must replace. */
+  placeholder?: string
 }
 
 /**
  * Draft the argument of a cover letter (document-kinds-ux.md §A.4).
  *
- * The rule that shapes this whole prompt: **the AI drafts the argument, the
- * human answers the affidavit.** A cover letter asserts that the work is not
- * under consideration elsewhere, that there are no competing interests, that
- * a named colleague read the draft — claims made to an editor over the
- * author's signature. So the prompt names every assertion marker explicitly
- * and forbids touching them, and no MCP verb exists that could write one
- * anyway.
+ * Two rules shape everything here.
+ *
+ * **The AI drafts the argument, the human answers the affidavit.** A cover
+ * letter asserts that the work is not under consideration elsewhere, that
+ * there are no competing interests, that a named colleague read the draft —
+ * claims made to an editor over the author's signature. The prompt names
+ * every assertion marker and forbids touching them, and no MCP verb exists
+ * that could write one anyway.
+ *
+ * **A cover letter is an argument, not a summary.** The first version of this
+ * prompt said "write two or three paragraphs" and got back a competent
+ * abstract paraphrase. What an editor is deciding is whether to spend two
+ * referees on this paper, so the prompt now names the three moves that
+ * decision actually turns on — the gap, what was done about it, what it lets
+ * the field do next — and gives concrete instructions about evidence,
+ * length and register instead of hoping for them.
  */
 export function letterDraftPrompt(input: LetterDraftPromptInput): string {
   const task = [
     `Write the body of a ${input.letterKind} cover letter to ${input.journalName} for the manuscript in this project.`,
-    'Replace ONLY the HTML comment placeholder that begins "<!-- Why this work matters" with two or three finished paragraphs.'
+    `Replace ONLY the placeholder comment that begins ${JSON.stringify(input.placeholder ?? '<!-- Why this work matters')} with finished prose. Everything else in the file stays exactly as it is.`,
+    '',
+    'BEFORE you write a single sentence, read the paper. In this order:',
+    '  1. mcp__suna__read_manuscript_meta — title, abstract, significance statement, article type.',
+    '  2. mcp__suna__list_outline — the shape of the argument and where its weight sits.',
+    '  3. mcp__suna__read_manuscript — the actual prose. Read the Results and the Discussion properly; that is where the claims you are about to make to an editor live.',
+    '  4. context/PROJECT.md if it exists — what the authors say the project is for, in their own words.',
+    `  5. mcp__suna__read_letter with documentId ${input.documentId} — what ${input.journalName} requires and what is still unanswered.`
   ]
+
   const context = [
     `- Letter file (absolute): ${input.letterPath}`,
     `- Letter file (manuscript-relative, for the MCP verbs): ${input.letterFile}`,
     `- Letter registry id: ${input.documentId}`,
     `- Target venue: ${input.journalName}`,
-    '- Read the manuscript first: mcp__suna__read_manuscript for the prose, mcp__suna__read_manuscript_meta for the title, abstract and significance statement, mcp__suna__list_outline for its shape.',
-    '- Read context/PROJECT.md if it exists — it carries what the project is for in the authors\' own words.',
-    `- Read mcp__suna__read_letter with documentId ${input.documentId} to see what ${input.journalName} requires and what is still unanswered.`,
+    ...(input.venueRequirements === undefined || input.venueRequirements.length === 0
+      ? [`- No cover-letter requirements have been researched for ${input.journalName}.`]
+      : [`- What ${input.journalName} states about cover letters:`, ...input.venueRequirements.map((r) => `    ${r}`)]),
     input.requiredAssertions.length === 0
       ? '- This venue states no required assertions.'
       : `- Assertion markers already in the letter, which you must NOT touch: ${input.requiredAssertions.join(', ')}.`
   ]
+
   const rules = [
-    '- Edit the LETTER, never the manuscript. Use mcp__suna__write_document with the letter\'s documentId, or Edit on the absolute path.',
-    '- Say what the work found, why it matters, and why it belongs in THIS venue. Ground every claim in the manuscript you just read — never invent a result, a number, or a comparison to other work.',
-    '- Do NOT write, fill in, remove or reword any ⟦ unanswered — … ⟧ marker or any ::assert{…} directive. Those are the author\'s factual claims to an editor and only the author may answer them. Leave them exactly where they are.',
-    '- Do not repeat the abstract. Several venues ask explicitly that the letter make the case in the authors\' own words; write for an editor deciding whether to send it out for review.',
-    '- Keep the existing salutation, the closing, and the signature block exactly as they are.',
-    '- Professional, plain, specific. No superlatives the manuscript does not support, no "paradigm shift", no filler.',
+    'SHAPE — three paragraphs, in this order, and nothing else:',
+    '  1. THE GAP AND THE CLAIM. Open with the specific thing the field could not do or did not know, then state in one sentence what this paper establishes. Name the actual result — the number, the effect, the comparison — not "important findings".',
+    '  2. THE EVIDENCE AND ITS LIMITS. How the claim is supported, and where it is bounded. An editor trusts a letter that says what the work does not show; naming the limit honestly is a strength, not a hedge, and it is what separates this from a press release.',
+    `  3. WHY THIS VENUE. What ${input.journalName}'s readership specifically can do with the result. Tie it to the breadth or the discipline this venue actually serves. Never a generic sentence that would fit any journal.`,
+    '',
+    'EVIDENCE:',
+    '- Every number, comparison and claim must come from the manuscript you just read. If a fact is not in the paper, it does not go in the letter. Never invent a result, a statistic, a prior study, or a comparison to other work.',
+    '- Prefer the paper\'s own specific quantities to adjectives. "r ≈ 0.95 across 90 contacts" persuades; "excellent agreement" does not.',
+    '- If the manuscript genuinely does not support a claim the venue expects (novelty, breadth, clinical relevance), write what it DOES support and leave the gap visible rather than papering over it.',
+    '',
+    'REGISTER AND LENGTH:',
+    '- 250–400 words for the three paragraphs. An editor reads this in under a minute.',
+    '- Plain declarative sentences. No "paradigm shift", "unprecedented", "we are excited to", "novel and important", "sheds light on", "paves the way".',
+    '- First person plural, present or present-perfect. Address the editor, not the reader of the paper.',
+    '- Do not repeat the abstract. Several venues ask explicitly that the letter make the case in the authors\' own words; an editor has the abstract already and is looking for the judgement the abstract cannot carry.',
+    '',
+    'WHAT YOU MAY NOT TOUCH:',
+    '- Do NOT write, fill in, remove or reword any ⟦ unanswered — … ⟧ marker or any ::assert{…} directive. Those are the author\'s factual claims to an editor and only the author may answer them. Leave every one exactly where it is, in place, untouched.',
+    '- Keep the salutation, the closing line, and the signature block exactly as they are.',
+    '- Edit the LETTER, never the manuscript. Use Edit on the absolute path above, or mcp__suna__write_document with the letter\'s documentId.',
+    '',
+    'FINISH:',
+    `- Run mcp__suna__check_letter with documentId ${input.documentId} when you are done and fix anything it flags that is YOURS to fix — a missing assertion is the author's, but naming the wrong journal in the prose is yours.`,
     `- ${GIT_RULE}`
   ]
+
   return assemble(
-    'You are drafting the argument of a cover letter in a SUNA academic-writing project.',
+    `You are drafting the argument of a cover letter to ${input.journalName} in a SUNA academic-writing project. The editor reading it is deciding whether to send the paper out for review at all.`,
     task,
     context,
     rules

@@ -10,6 +10,7 @@
  * directed-action options through to the extended 'ai:ask' contract.
  */
 
+import type { AiEffort, AiModel } from '@suna/core'
 import { flushDirtySessions } from '../state/docSessions'
 import { captureAiBaseline } from '../state/revisions'
 
@@ -32,6 +33,10 @@ export interface AiAskRunOptions {
   viaStdin?: boolean
   /** One line naming this run in the AI-diff review bar (feature-plan-11). */
   label?: string
+  /** Per-task model tier. Omit to use the project's setting. */
+  model?: AiModel
+  /** Per-task reasoning effort. Omit to use the project's setting. */
+  effort?: AiEffort
 }
 
 export async function startAiAsk(
@@ -55,7 +60,11 @@ export async function startAiAsk(
     dir,
     allowedTools: options?.allowedTools,
     useMcp: options?.useMcp,
-    viaStdin: options?.viaStdin
+    viaStdin: options?.viaStdin,
+    // Absent means "use the project/global setting"; present is a per-task
+    // choice the user made for this one run.
+    model: options?.model,
+    effort: options?.effort
   })
   const offProgress = window.suna.onAiAskProgress(askId, onProgress)
   const offDone = window.suna.onAiAskDone(askId, (outcome) => {

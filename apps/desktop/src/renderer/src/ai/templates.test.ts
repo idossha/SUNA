@@ -252,12 +252,49 @@ describe('letterDraftPrompt', () => {
     expect(p).toContain('::assert{')
   })
 
-  it('points the agent at the manuscript rather than letting it invent one', () => {
+  it('makes it read the paper before writing, in a named order', () => {
     const p = letterDraftPrompt(base)
-    expect(p).toContain('mcp__suna__read_manuscript')
     expect(p).toContain('mcp__suna__read_manuscript_meta')
+    expect(p).toContain('mcp__suna__list_outline')
+    expect(p).toContain('mcp__suna__read_manuscript')
     expect(p).toContain('context/PROJECT.md')
-    expect(p).toMatch(/never invent a result/)
+    expect(p).toMatch(/BEFORE you write a single sentence/)
+    expect(p).toMatch(/never invent a result/i)
+  })
+
+  it('asks for an argument, not a summary — three named moves', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toMatch(/THE GAP AND THE CLAIM/)
+    expect(p).toMatch(/THE EVIDENCE AND ITS LIMITS/)
+    expect(p).toMatch(/WHY THIS VENUE/)
+    // The letter's job, stated so the model optimises for the right reader.
+    expect(p).toMatch(/deciding whether to send the paper out for review/)
+  })
+
+  it('bounds the length and bans the usual filler', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toContain('250–400 words')
+    for (const banned of ['paradigm shift', 'unprecedented', 'paves the way']) {
+      expect(p).toContain(banned)
+    }
+  })
+
+  it('carries the venue’s own stated requirements into the prompt', () => {
+    const p = letterDraftPrompt({
+      ...base,
+      venueRequirements: ['dataLocation (required) — "Say where the data are."']
+    })
+    expect(p).toContain('What Science states about cover letters')
+    expect(p).toContain('Say where the data are.')
+  })
+
+  it('says so plainly when nothing has been researched for the venue', () => {
+    const p = letterDraftPrompt({ ...base, venueRequirements: [] })
+    expect(p).toMatch(/No cover-letter requirements have been researched/)
+  })
+
+  it('tells it to check its own work at the end', () => {
+    expect(letterDraftPrompt(base)).toContain('mcp__suna__check_letter')
   })
 
   it('tells it to edit the letter, not the manuscript', () => {

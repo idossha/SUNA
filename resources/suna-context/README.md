@@ -17,7 +17,7 @@ Context/
     RULES.md            #   the user's standing rules for ALL projects
   SunaContext/          # layer 2 — app-owned stock docs (this folder); replaced on update
     README.md  PROJECT-GUIDE.md  MANUSCRIPT.md  COMMENTS.md
-    FIGURES.md  MCP.md  WORKFLOW.md
+    FIGURES.md  LETTERS.md  MCP.md  WORKFLOW.md
 ```
 
 Layer 3 is the project itself — any folder containing `suna.json`:
