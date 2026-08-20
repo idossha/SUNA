@@ -3,7 +3,21 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { AuthorsFileSchema, DEFAULT_PROJECT_DIRS, ManuscriptSchema, SunaProjectManifestSchema } from '@suna/core'
+import {
+  AuthorsFileSchema,
+  CoverLetterMetaSchema,
+  DEFAULT_PROJECT_DIRS,
+  LETTER_PRIVATE_GITIGNORE_LINE,
+  ManuscriptSchema,
+  ReviewerReportSchema,
+  RoundSchema,
+  RoundsIndexSchema,
+  SunaProjectManifestSchema,
+  documentPaths,
+  reportIsFaithful,
+  resolveDocuments,
+  unansweredIn
+} from '@suna/core'
 import { outlineFromMarkdown } from '@suna/markdown'
 import {
   checkScaffoldTarget,
@@ -372,5 +386,126 @@ describe('scaffoldProject', () => {
     )
     expect(manuscript.bibliography).toBe('references.bib')
     await rm(importSrc, { recursive: true, force: true })
+  })
+})
+
+describe('the starter scaffold ships a letter and a review round', () => {
+  let parent = ''
+  let target = ''
+
+  beforeEach(async () => {
+    parent = await mkdtemp(join(tmpdir(), 'suna-starter-'))
+    target = join(parent, 'starter-paper')
+  })
+
+  afterEach(async () => {
+    await rm(parent, { recursive: true, force: true })
+  })
+
+  async function makeStarter(): Promise<void> {
+    await scaffoldProject({
+      dir: target,
+      name: 'My Starter Paper',
+      activeProfileId: 'science',
+      scaffold: 'starter',
+      importDir: null,
+      settings: {}
+    })
+  }
+
+  it('declares a registry naming the manuscript and the letter', async () => {
+    await makeStarter()
+    const manifest = SunaProjectManifestSchema.parse(
+      JSON.parse(await readFile(join(target, 'suna.json'), 'utf8'))
+    )
+    const docs = resolveDocuments(manifest)
+    expect(docs.map((d) => `${d.id}:${d.kind}`)).toEqual(['manuscript:manuscript', 'cover:cover-letter'])
+    // Every registered prose/meta path is a file that actually exists — a
+    // registry pointing at nothing is a project that fails to open.
+    for (const doc of docs) {
+      const paths = documentPaths(join(target, DEFAULT_PROJECT_DIRS.manuscript), doc)
+      if (paths.prose !== null) expect((await readFile(paths.prose, 'utf8')).length).toBeGreaterThan(0)
+      if (paths.meta !== null) expect((await readFile(paths.meta, 'utf8')).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('writes a letter whose answered assertion is placed and whose unanswered one is marked', async () => {
+    await makeStarter()
+    const dirName = join(target, DEFAULT_PROJECT_DIRS.manuscript, 'letters')
+    const meta = CoverLetterMetaSchema.parse(JSON.parse(await readFile(join(dirName, 'cover.json'), 'utf8')))
+    const prose = await readFile(join(dirName, 'cover.md'), 'utf8')
+
+    expect(meta.targetProfileId).toBe('science')
+    expect(meta.covers[0]?.title).toBe('My Starter Paper')
+
+    // Both are placed as directives…
+    for (const a of meta.assertions) expect(prose).toContain(`::assert{${a.id}}`)
+    // …but exactly one is answered, and the other shows the marker the
+    // checker looks for. A starter that answered both would teach nothing.
+    expect(meta.assertions.filter((a) => a.text !== null).map((a) => a.id)).toEqual([
+      'competingInterests'
+    ])
+    expect(unansweredIn(prose)).toEqual(['dataLocation'])
+  })
+
+  it('ignores the confidential letter sidecar before any letter is written', async () => {
+    await makeStarter()
+    expect(await readFile(join(target, '.gitignore'), 'utf8')).toContain(
+      LETTER_PRIVATE_GITIGNORE_LINE
+    )
+  })
+
+  it('writes a round whose reviewer points are faithful slices of the source', async () => {
+    await makeStarter()
+    const roundsDir = join(target, 'rounds')
+    const index = RoundsIndexSchema.parse(JSON.parse(await readFile(join(roundsDir, 'index.json'), 'utf8')))
+    expect(index.rounds).toEqual(['round-1'])
+
+    const round = RoundSchema.parse(
+      JSON.parse(await readFile(join(roundsDir, 'round-1', 'round.json'), 'utf8'))
+    )
+    const names = (await readdir(join(roundsDir, 'round-1', 'reviewers'))).sort()
+    expect(names).toEqual(['1.json', '2.json'])
+
+    const pointIds: string[] = []
+    for (const name of names) {
+      const report = ReviewerReportSchema.parse(
+        JSON.parse(await readFile(join(roundsDir, 'round-1', 'reviewers', name), 'utf8'))
+      )
+      expect(reportIsFaithful(report)).toBe(true)
+      for (const p of report.points) {
+        expect(report.sourceText.slice(p.from, p.to)).toBe(p.verbatim)
+        pointIds.push(p.id)
+      }
+    }
+
+    // Every point has state, and exactly one arrives answered so the tab
+    // opens on a real counter rather than an empty one.
+    expect(round.pointStates.map((s) => s.pointId).sort()).toEqual([...pointIds].sort())
+    const done = round.pointStates.filter((s) => s.status === 'done')
+    expect(done).toHaveLength(1)
+    expect(done[0]?.reply.length).toBeGreaterThan(0)
+  })
+
+  it('gives no other scaffold a registry, a letter or a round', async () => {
+    for (const scaffold of ['blank', 'import'] as const) {
+      const dirName = join(parent, `plain-${scaffold}`)
+      await scaffoldProject({
+        dir: dirName,
+        name: 'Plain',
+        activeProfileId: 'science',
+        scaffold,
+        importDir: null,
+        settings: {}
+      })
+      const raw = await readFile(join(dirName, 'suna.json'), 'utf8')
+      // Absent, not empty: a manifest with `documents: []` is a different
+      // thing on disk from one that never mentions documents at all.
+      expect(raw).not.toContain('documents')
+      await expect(readdir(join(dirName, 'rounds'))).rejects.toThrow()
+      await expect(
+        readdir(join(dirName, DEFAULT_PROJECT_DIRS.manuscript, 'letters'))
+      ).rejects.toThrow()
+    }
   })
 })

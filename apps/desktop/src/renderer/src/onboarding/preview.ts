@@ -29,6 +29,14 @@ export function projectTreeLines(state: WizardState): string[] {
     state.scaffold === 'import' && state.importFiles.some((f) => f.ext === 'bib')
   if (!importedBib) lines.push('    references.bib')
 
+  // Only the starter ships a letter and a demonstration review round; every
+  // other scaffold writes the manuscript alone (ADR-009).
+  if (state.scaffold === 'starter') {
+    lines.push('    letters/')
+    lines.push('      cover.md')
+    lines.push('      cover.json')
+  }
+
   if (state.scaffold === 'import' && state.importFiles.length > 0) {
     lines.push('    imported/')
     for (const file of state.importFiles) lines.push(`      ${file.name}`)
@@ -38,6 +46,9 @@ export function projectTreeLines(state: WizardState): string[] {
     if (dir === DEFAULT_PROJECT_DIRS.manuscript) continue
     lines.push(`  ${dir}/`)
   }
+  // `rounds/` is not a ProjectDirKey — it is fixed at the project root — so it
+  // is listed here rather than coming out of DEFAULT_PROJECT_DIRS.
+  if (state.scaffold === 'starter') lines.push('  rounds/')
   lines.push('  .mcp.json  (machine-local, not committed)')
   if (state.pythonChoice === 'create-uv') lines.push('  .venv/  (created by uv)')
 
