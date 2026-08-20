@@ -8,6 +8,7 @@ import {
 } from './library';
 import { DocumentEntrySchema } from './documents';
 import { CoverLetterMetaSchema, LetterKindSchema } from './letters';
+import { PeerReviewApprovalSchema, PeerReviewSourceSchema } from './peer-review-guide';
 import { LitCliIdSchema, LitProviderIdSchema, LitResultSchema } from './lit';
 import {
   PointStatusSchema,
@@ -546,6 +547,29 @@ export const CHANNELS = {
    * Pure filename-shape checks (empty/illegal characters) run in the renderer
    * without a round trip — this only answers questions the filesystem knows.
    */
+  /**
+   * Record a human's approval of context/PEER-REVIEW.md — the rules the AI
+   * follows when it drafts a reply to a referee. Until this exists in
+   * suna.json, no reply-drafting action will run.
+   *
+   * Main reads the file itself and hashes what it finds, rather than
+   * accepting a hash from the caller: the record must pin the approval to
+   * bytes that are actually on disk, and a renderer-computed hash could
+   * record an approval of text that was never saved. Fails when the file is
+   * missing or empty, because there would be nothing to have approved.
+   */
+  'peer-review:approve': {
+    request: z.object({
+      dir: z.string().min(1),
+      approvedBy: z.string().min(1),
+      source: PeerReviewSourceSchema,
+      learnedFrom: z.string().min(1).nullable(),
+    }),
+    response: z.object({
+      manifest: SunaProjectManifestSchema,
+      approval: PeerReviewApprovalSchema,
+    }),
+  },
   'project:check-target': {
     request: z.object({ parentDir: z.string().min(1), name: z.string().min(1) }),
     response: z.object({

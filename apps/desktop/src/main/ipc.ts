@@ -91,6 +91,7 @@ import {
   searchLiterature
 } from './services/lit'
 import { appMcpInvocation, healProjectAgentLayer } from './services/agentLayer'
+import { approvePeerReviewAi } from './services/peer-review-approval'
 import { updateManuscript } from './services/manuscript'
 import { migrateProject } from './services/migrate-manuscript'
 import {
@@ -482,6 +483,9 @@ export function registerIpcHandlers(): void {
   handle('project:update-settings', async ({ dir, patch }) => ({
     manifest: await updateProjectSettings(dir, patch)
   }))
+  handle('peer-review:approve', async ({ dir, approvedBy, source, learnedFrom }) =>
+    approvePeerReviewAi({ dir, approvedBy, source, learnedFrom })
+  )
   handle('project:check-target', ({ parentDir, name }) => checkScaffoldTarget(parentDir, name))
   handle('project:list-importable', async ({ dir }) => ({ files: await listImportableFiles(dir) }))
   handle('project:scaffold', async (req) => {
