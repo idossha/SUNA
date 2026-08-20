@@ -572,6 +572,12 @@ export const dockDevSeam = {
    * so a driver cannot reach the screen at all without this seam.
    */
   openReviewImportTab,
+  /**
+   * The response workspace for one round. Reached in the UI only by clicking
+   * a round in the sidebar's document list, which is not mounted in every
+   * view — same problem the import screen has.
+   */
+  openRoundTab,
   /** feature-plan-7 §3: close every tab scoped to a project directory. */
   closeProjectTabs,
   sideGroupId,
