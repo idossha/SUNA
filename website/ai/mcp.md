@@ -57,7 +57,7 @@ Comments and replies written over MCP always carry `author.kind: "agent"`, so th
 
 ## The verbs
 
-Twenty-three verbs, all returning plain text. A verb that fails comes back as text flagged `isError`, not as a protocol error, so an agent can read the failure and retry.
+Twenty-four verbs, all returning plain text. A verb that fails comes back as text flagged `isError`, not as a protocol error, so an agent can read the failure and retry.
 
 ### Project
 

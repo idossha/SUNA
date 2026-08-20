@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UiLitProviderIdSchema } from './lit';
+import { DocumentEntrySchema } from './documents';
 
 export const PROJECT_DIR_KEYS = [
   'manuscript',
@@ -145,6 +146,14 @@ export const SunaProjectManifestSchema = z.object({
   createdAt: z.iso.datetime(),
   /** Absent on every project created before feature-plan-5 §4. */
   settings: ProjectSettingsSchema.optional(),
+  /**
+   * The document registry (ADR-009). Absent on every project created before
+   * feature-plan-12, and `resolveDocuments` synthesizes a one-manuscript
+   * registry for those — which is what makes the registry a zero-file
+   * migration. `settings` above is the precedent for an additive optional
+   * block, and `schemaVersion` stays 1 for the same reason it did then.
+   */
+  documents: z.array(DocumentEntrySchema).optional(),
 });
 export type SunaProjectManifest = z.infer<typeof SunaProjectManifestSchema>;
 

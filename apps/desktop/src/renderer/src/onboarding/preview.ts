@@ -2,7 +2,7 @@ import { DEFAULT_PROJECT_DIRS } from '@suna/core'
 import type { WizardState } from './types'
 
 /**
- * Step 7 (Review)'s directory-tree preview — a flat indented listing, not a
+ * The Review step's directory-tree preview — a flat indented listing, not a
  * fully box-drawn tree, so it stays trivial to keep in exact sync with what
  * scaffoldProject (main process) actually writes. Pure: no fs, no IPC.
  */

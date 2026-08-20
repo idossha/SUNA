@@ -5,7 +5,7 @@ import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openExportTab } from '../state/dock'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
-import { useManuscriptDocStore } from '../state/manuscriptDoc'
+import { PRIMARY_DOC_SLICE, docSlice, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useCommentsStore } from '../state/comments'
 import { useDocSessionMeta } from '../state/docSessions'
 import { useUiStore } from '../state/ui'
@@ -119,10 +119,13 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const getScrollElement = useCallback((): HTMLElement | null => rootRef.current, [])
   const comments = useCommentsStore((s) => s.comments)
 
-  const outline = useManuscriptDocStore((s) => s.outline)
+  // This tab shows the primary manuscript. When other document kinds get
+  // their own tabs (feature-plan-12 §2, §6) this becomes a panel param.
+  const documentId = PRIMARY_DOC_SLICE
+  const outline = useManuscriptDocStore((s) => docSlice(s, documentId).outline)
 
   const handleOutlineChange = useCallback((next: OutlineSection[]): void => {
-    useManuscriptDocStore.getState().setOutline(next)
+    useManuscriptDocStore.getState().setOutline(documentId, next)
   }, [])
 
   /** Viewport-relative top of a document position, diffed against the scroll
@@ -163,7 +166,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
       if (top > ACTIVE_BAND_PX) break
       active = i
     }
-    if (active !== null) useManuscriptDocStore.getState().setActiveSectionIndex(active)
+    if (active !== null) useManuscriptDocStore.getState().setActiveSectionIndex(documentId, active)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outline])
 
@@ -249,19 +252,19 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   // announce mount + frontmost state to the sidebar outline
   useEffect(() => {
     const store = useManuscriptDocStore.getState()
-    store.setTabMounted(true)
-    store.setTabActive(api.isActive)
+    store.setTabMounted(documentId, true)
+    store.setTabActive(documentId, api.isActive)
     const disposable = api.onDidActiveChange(({ isActive }) => {
-      useManuscriptDocStore.getState().setTabActive(isActive)
+      useManuscriptDocStore.getState().setTabActive(documentId, isActive)
     })
     return () => {
       disposable.dispose()
-      const s = useManuscriptDocStore.getState()
-      s.setTabMounted(false)
-      s.setTabActive(false)
-      s.setOutline([])
+      // Drop the whole slice rather than blanking its fields: a closed tab
+      // owns no outline, and leaving an empty one behind would make the
+      // sidebar's "tab is mounted" test lie.
+      useManuscriptDocStore.getState().forgetDocument(documentId)
     }
-  }, [api])
+  }, [api, documentId])
 
   // This document's comments: whole-manuscript comments plus every
   // section-target comment targeting the manuscript file (figure-target
@@ -282,7 +285,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   // ancestor-aware scrollIntoView (comments/anchorExtension's revealAnchor
   // uses the same mechanism). Held (not consumed) until the editor has
   // settled — scrolling earlier would target a view that doesn't exist yet.
-  const scrollRequest = useManuscriptDocStore((s) => s.scrollRequest)
+  const scrollRequest = useManuscriptDocStore((s) => docSlice(s, documentId).scrollRequest)
   useEffect(() => {
     if (scrollRequest === null || !settled) return
     const view = editorRef.current?.getView()
@@ -298,7 +301,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
         })
       })
     }
-    useManuscriptDocStore.getState().consumeScrollRequest(scrollRequest.nonce)
+    useManuscriptDocStore.getState().consumeScrollRequest(documentId, scrollRequest.nonce)
   }, [scrollRequest, settled, outline])
 
   const settingsStyle = manuscriptStyleVars({
@@ -327,7 +330,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
           >
             {MODE_LABEL[mode]}
           </button>
-          <RailToggleButton />
+          <RailToggleButton docPath={manuscriptFile} includeWholeManuscript />
           <button
             className="msdoc__export-btn"
             onClick={() => !stale && openExportTab(rootDir)}
@@ -375,6 +378,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
                 />
                 <div className="msdoc__rule" />
                 <ManuscriptEditor
+                  documentId={documentId}
                   ref={editorRef}
                   rootDir={rootDir}
                   contentPath={manuscriptFile}
@@ -384,6 +388,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
                 />
                 <div className="msdoc__rule" />
                 <ReferencesBlock
+                  documentId={documentId}
                   rootDir={rootDir}
                   manuscriptFile={manuscriptFile}
                   figures={manuscript.figures}

@@ -15,7 +15,7 @@ export interface WizardManifestInput {
 }
 
 /**
- * Builds the exact suna.json step 7 (Review) previews and step 7 (Create)
+ * Builds the exact suna.json the Review step previews and Create
  * asks the main process to write — pure, so the preview and the eventual
  * write can never diverge in shape. Validated against the same schema the
  * writer uses, so an invalid wizard state fails here, in the UI, rather than

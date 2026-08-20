@@ -7,12 +7,26 @@
 
 export type DiagnosticSeverity = 'error' | 'warning';
 
-export type DiagnosticSurface = 'figure' | 'manuscript' | 'export';
+export type DiagnosticSurface =
+  | 'figure'
+  | 'manuscript'
+  | 'export'
+  /** feature-plan-12 §2 — cover-letter assertions and journal requirements. */
+  | 'letter'
+  /** feature-plan-12 §6 — unaddressed reviewer points, response structure. */
+  | 'response'
+  /** feature-plan-12 §9 — sponsor package slots and rendered-page limits. */
+  | 'package';
 
 export interface DiagnosticTarget {
   figureId?: string;
   elementId?: string;
   sectionPath?: string;
+  /** Registry id of the document the diagnostic belongs to (ADR-009). */
+  documentId?: string;
+  slotId?: string;
+  pointId?: string;
+  assertionId?: string;
 }
 
 export interface Diagnostic {

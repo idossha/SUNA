@@ -7,6 +7,31 @@ type DeviceStart = ResponseOf<'github:device-start'>
 /** Milliseconds; the poll interval GitHub returns is in seconds. */
 const SECOND = 1000
 
+/**
+ * The signed-in user's GitHub avatar. Loading it is the one renderer-side
+ * network request SUNA makes, so it is host-pinned in the CSP; if it fails
+ * anyway (offline, or GitHub not reachable) we fall back to the blank disc
+ * rather than leaving a broken-image icon in the panel.
+ */
+function Avatar({ url }: { url: string | null }): JSX.Element {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [url])
+  if (url === null || failed) {
+    return <span className="gh__avatar gh__avatar--blank" aria-hidden="true" />
+  }
+  return (
+    <img
+      className="gh__avatar"
+      src={url}
+      alt=""
+      width={22}
+      height={22}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 function GitHubMark(): JSX.Element {
   return (
     <svg className="gh__mark" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -191,11 +216,7 @@ export function GitHubAccount({
       <div className="gh">
         <div className="gh__row">
           <GitHubMark />
-          {account.avatarUrl !== null ? (
-            <img className="gh__avatar" src={account.avatarUrl} alt="" width={22} height={22} />
-          ) : (
-            <span className="gh__avatar gh__avatar--blank" aria-hidden="true" />
-          )}
+          <Avatar url={account.avatarUrl} />
           <span className="gh__who">
             <span className="gh__login">{account.login}</span>
             {account.name !== null && <span className="gh__name">{account.name}</span>}

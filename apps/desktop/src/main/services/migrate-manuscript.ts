@@ -2,7 +2,7 @@ import { access, readFile, rm, unlink } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { CommentsFileSchema, ManuscriptSchema, AuthorsFileSchema } from '@suna/core'
 import { writeFileAtomic } from './atomic'
-import { projectSubdir } from './paths'
+import { projectDocuments, projectSubdir } from './paths'
 
 /**
  * Migrate a project from the OLD manuscript layout to the flat one
@@ -201,24 +201,47 @@ async function buildMarkdown(
  */
 export function migrateCommentTargets(
   file: unknown,
-  manuscriptFile: string
+  manuscriptFile: string,
+  /**
+   * Prose paths belonging to OTHER documents in the registry (ADR-009), which
+   * this retarget must leave alone.
+   *
+   * Before the registry there was exactly one prose file, so "every section
+   * comment whose path is not manuscriptFile is a stale sections/ path" was a
+   * safe reading. With a cover letter at `letters/cover-science.md` beside the
+   * manuscript it stops being safe: an unscoped retarget would collapse every
+   * document's comments onto manuscript.md.
+   *
+   * feature-plan-12 gap 5 is explicit that this collision needs a project that
+   * is simultaneously pre-feature-plan-7 and post-registry, which nothing can
+   * produce today — `migrateProject` returns early on any flat project long
+   * before this runs. This parameter is cheap insurance against a future
+   * ordering, not a fix for a live bug.
+   */
+  otherDocumentPaths: readonly string[] = []
 ): { file: unknown; retargeted: number } {
   if (!isRecord(file)) return { file, retargeted: 0 }
   const comments = file['comments']
   if (!Array.isArray(comments)) return { file, retargeted: 0 }
+  const owned = new Set(otherDocumentPaths)
   let retargeted = 0
   const next = comments.map((comment) => {
     if (!isRecord(comment)) return comment
     const target = comment['target']
     if (!isRecord(target) || target['kind'] !== 'section') return comment
     if (target['path'] === manuscriptFile) return comment
+    if (typeof target['path'] === 'string' && owned.has(target['path'])) return comment
     retargeted += 1
     return { ...comment, target: { ...target, path: manuscriptFile } }
   })
   return { file: { ...file, comments: next }, retargeted }
 }
 
-async function migrateComments(manuscriptDir: string, manuscriptFile: string): Promise<string[]> {
+async function migrateComments(
+  manuscriptDir: string,
+  manuscriptFile: string,
+  otherDocumentPaths: readonly string[]
+): Promise<string[]> {
   const path = join(manuscriptDir, 'comments.json')
   let raw: string
   try {
@@ -232,7 +255,7 @@ async function migrateComments(manuscriptDir: string, manuscriptFile: string): P
   } catch (error) {
     return [`comments.json left alone — it is not valid JSON (${describe(error)})`]
   }
-  const { file, retargeted } = migrateCommentTargets(parsed, manuscriptFile)
+  const { file, retargeted } = migrateCommentTargets(parsed, manuscriptFile, otherDocumentPaths)
   if (retargeted === 0) return []
   const validated = CommentsFileSchema.safeParse(file)
   if (!validated.success) {
@@ -391,7 +414,12 @@ export async function migrateProject(dir: string): Promise<MigrationResult> {
   // 5 — comments are a sidecar: a failure here is reported, never fatal, and
   // never a reason to undo a verified prose migration.
   try {
-    notes.push(...(await migrateComments(manuscriptDir, manuscriptFile)))
+    // Every prose file the registry claims for a NON-primary document is off
+    // limits to the retarget (feature-plan-12 gap 5).
+    const otherDocumentPaths = (await projectDocuments(dir))
+      .filter((d) => d.kind !== 'manuscript' && d.file !== null)
+      .map((d) => d.file as string)
+    notes.push(...(await migrateComments(manuscriptDir, manuscriptFile, otherDocumentPaths)))
   } catch (error) {
     notes.push(`comments.json could not be retargeted: ${describe(error)}`)
   }

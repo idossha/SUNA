@@ -1,16 +1,16 @@
 import type { JSX } from 'react'
-import { getBundledProfile } from '@suna/formatter'
 import {
   buildScaffoldSettings,
   CREATE_SUBSTEPS,
   type CreateSubstep,
   type StepProps
 } from '../types'
+import { HOUSE_PROFILE_ID } from '../../state/renderProfile'
 import { buildProjectManifest } from '../manifest'
 import { projectTreeLines } from '../preview'
 import { GitHubPublish } from './GitHubPublish'
 
-interface Step7Props extends StepProps {
+interface Step6Props extends StepProps {
   targetPath: string | null
 }
 
@@ -44,10 +44,8 @@ function aiSummary(state: StepProps['state']): string {
   return `API key (${state.apiProvider ?? 'no provider chosen'}).`
 }
 
-/** Step 7 — Review (feature-plan-5 §5). Presentational only; the Create button lives in the footer. */
-export function Step7Review({ state, update, targetPath }: Step7Props): JSX.Element {
-  const activeProfileId = state.profileId ?? 'suna'
-  const profile = getBundledProfile(activeProfileId)
+/** Step 6 — Review (feature-plan-5 §5). Presentational only; the Create button lives in the footer. */
+export function Step6Review({ state, update, targetPath }: Step6Props): JSX.Element {
   // createdAt is necessarily a preview — the real write timestamps at Create
   // time — but it must still be a valid ISO datetime for the schema to accept
   // it (this is a snapshot for reading, not the value that gets written).
@@ -55,7 +53,7 @@ export function Step7Review({ state, update, targetPath }: Step7Props): JSX.Elem
     targetPath !== null
       ? buildProjectManifest({
           name: state.name || (targetPath.split('/').pop() ?? 'project'),
-          activeProfileId,
+          activeProfileId: HOUSE_PROFILE_ID,
           settings: buildScaffoldSettings(state)
         })
       : null
@@ -72,10 +70,6 @@ export function Step7Review({ state, update, targetPath }: Step7Props): JSX.Elem
           <span>Location</span> {targetPath ?? '—'}
         </div>
         <div>
-          <span>Journal</span> {profile?.journalName ?? activeProfileId}
-          {state.decideLater && ' (decide later — drafts in SUNA style)'}
-        </div>
-        <div>
           <span>Scaffold</span> {scaffoldSummary(state)}
         </div>
         <div>
@@ -85,8 +79,7 @@ export function Step7Review({ state, update, targetPath }: Step7Props): JSX.Elem
           <span>AI</span> {aiSummary(state)}
         </div>
         <div>
-          <span>Defaults</span>{' '}
-          {state.saveDefaultsToProject ? 'Saved to this project' : 'Saved to global settings'}
+          <span>Defaults</span> Saved to this project
         </div>
         <div>
           <span>Version control</span>{' '}

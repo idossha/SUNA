@@ -33,7 +33,7 @@ import {
   applyEquationLabels,
   applyFigureCaptions
 } from './citeChips'
-import { useManuscriptDocStore } from '../state/manuscriptDoc'
+import { docSlice, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { useRevision } from '../state/revisions'
 import { revisionDiffExtension } from '../editor/revisionDiff'
 import { revisionReviewKeymap, syncRevisionBase } from '../editor/revisionReview'
@@ -51,6 +51,8 @@ interface ManuscriptEditorProps {
   rootDir: string
   /** Path relative to manuscript/ — the manuscript.json `manuscriptFile`, e.g. "manuscript.md". */
   contentPath: string
+  /** Registry id of the document this editor belongs to (ADR-009). */
+  documentId: string
   /** Reading mode (live-preview decorations). Read once at mount; use the handle's `setLive` to change it after. */
   live: boolean
   /** Fired once the editor has mounted (or failed to load) and again with false on unmount. */
@@ -69,7 +71,7 @@ const OUTLINE_DEBOUNCE_MS = 500
  * ⌘S saves the whole file.
  */
 export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProps>(
-  function ManuscriptEditor({ rootDir, contentPath, live, onSettled, onOutlineChange }, ref) {
+  function ManuscriptEditor({ rootDir, contentPath, documentId, live, onSettled, onOutlineChange }, ref) {
     const hostRef = useRef<HTMLDivElement>(null)
     const handleRef = useRef<EditorHandle | null>(null)
     const outlineTimerRef = useRef<number | null>(null)
@@ -284,7 +286,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
     // style + label map). A mutation observer re-applies the pass whenever
     // CodeMirror re-creates widget DOM; both passes are idempotent per serial,
     // so their own mutations converge instead of looping the observer.
-    const citationRender = useManuscriptDocStore((s) => s.citationRender)
+    const citationRender = useManuscriptDocStore((s) => docSlice(s, documentId).citationRender)
     useEffect(() => {
       const host = hostRef.current
       if (host === null) return
@@ -298,7 +300,7 @@ export const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEdi
         scheduled = true
         queueMicrotask(() => {
           scheduled = false
-          const latest = useManuscriptDocStore.getState().citationRender
+          const latest = docSlice(useManuscriptDocStore.getState(), documentId).citationRender
           applyCiteChips(host, latest)
           applyCrossRefChips(host, latest)
           applyFigureCaptions(host, latest)

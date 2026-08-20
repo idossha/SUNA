@@ -29,7 +29,7 @@ const SCAFFOLD_OPTIONS: { id: ScaffoldKind; title: string; hint: string }[] = [
 ]
 
 /** Step 3 — What to scaffold (feature-plan-5 §5). */
-export function Step3Scaffold({ state, update }: StepProps): JSX.Element {
+export function Step2Scaffold({ state, update }: StepProps): JSX.Element {
   const requestId = useRef(0)
 
   const pickImportDir = async (): Promise<void> => {

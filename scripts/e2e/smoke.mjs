@@ -1112,8 +1112,8 @@ try {
     while (Date.now() < spyDeadline) {
       spy = await evalJs(`({
         tab: !!document.querySelector('.msdoc'),
-        tabActive: window.__sunaDev.manuscriptDocStore.getState().tabActive,
-        active: window.__sunaDev.manuscriptDocStore.getState().activeSectionIndex
+        tabActive: (()=>{const s=window.__sunaDev.manuscriptDocStore.getState();return s.byDoc[s.activeDocumentId]??{}})().tabActive,
+        active: (()=>{const s=window.__sunaDev.manuscriptDocStore.getState();return s.byDoc[s.activeDocumentId]??{}})().activeSectionIndex
       })`)
       if (spy.tab && spy.tabActive && spy.active === 1) break
       await sleep(300)
@@ -1205,7 +1205,7 @@ try {
     let active = -1
     while (Date.now() < methodsDeadline && active !== 3) {
       active = await evalJs(
-        `window.__sunaDev.manuscriptDocStore.getState().activeSectionIndex`
+        `(()=>{const s=window.__sunaDev.manuscriptDocStore.getState();return s.byDoc[s.activeDocumentId]??{}})().activeSectionIndex`
       )
       if (active !== 3) await sleep(300)
     }
@@ -4783,7 +4783,7 @@ try {
     ]) {
       assert(probe.tools.includes(name), `bundled MCP server is missing ${name}`)
     }
-    assert(probe.tools.length === 19, `MCP tool count: ${probe.tools.length}`)
+    assert(probe.tools.length === 24, `MCP tool count: ${probe.tools.length}`)
 
     // the anchored edit primitive, round-tripped through the real bundle:
     // edit a unique phrase, verify the section report, put it back
@@ -6040,20 +6040,20 @@ try {
     const shownPath = await evalJs(`document.querySelector('.onboard__path')?.textContent`)
     assert(shownPath === WIZARD_DIR, `step 1 shows ${shownPath}, want ${WIZARD_DIR}`)
 
-    // Walk 1 → 7 through the real Next button.
+    // Walk 1 → 6 through the real Next button.
     const titles = []
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       const at = await wizardState()
       titles.push(`${at.step}:${at.title}`)
-      if (at.step === 7) break
+      if (at.step === 6) break
       assert(at.nextDisabled === false, `Next disabled on step ${at.step} (${at.title})`)
       await evalJs(`document.querySelector('.onboard__next').click()`)
       await sleep(700)
     }
-    assert(titles.length === 7, `walked ${titles.length} steps: ${titles.join(' → ')}`)
+    assert(titles.length === 6, `walked ${titles.length} steps: ${titles.join(' → ')}`)
     assert(
       titles.join(' → ') ===
-        '1:Where & what → 2:Target journal → 3:What to scaffold → 4:Python environment → 5:AI → 6:Defaults → 7:Review',
+        '1:Where & what → 2:What to scaffold → 3:Python environment → 4:AI → 5:Defaults → 6:Review',
       `unexpected step order: ${titles.join(' → ')}`
     )
 
