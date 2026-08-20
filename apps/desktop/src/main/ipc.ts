@@ -16,6 +16,7 @@ import {
   readRound,
   writeRound
 } from './services/round-new'
+import { listVersions, logVersion, readVersionFile } from './services/version-log'
 import { documentFile, projectDocument, projectDocuments } from './services/paths'
 import { readFile } from 'node:fs/promises'
 import { pointStateFor } from '@suna/core'
@@ -380,6 +381,14 @@ export function registerIpcHandlers(): void {
     await writeRound(dir, round)
     return { ok: true as const }
   })
+
+  handle('version:list', async ({ dir }) => ({ versions: await listVersions(dir) }))
+  handle('version:log', async ({ dir, stage, note }) => ({
+    version: await logVersion({ rootDir: dir, stage, note })
+  }))
+  handle('version:read-file', async ({ dir, versionId, path }) => ({
+    text: await readVersionFile(dir, versionId, path)
+  }))
 
   handle('review:analyse', async ({ text, path }) => {
     // A file goes through the SAME extraction the DOCX importer uses —
