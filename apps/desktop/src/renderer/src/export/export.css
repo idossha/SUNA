@@ -18,19 +18,195 @@
 }
 
 .export-dialog__form {
-  flex: 0 1 520px;
-  max-width: 520px;
+  flex: 0 1 400px;
+  max-width: 400px;
   min-width: 0;
   overflow-y: auto;
   padding: 20px 24px 40px;
 }
 
-.export-dialog__requirements {
+/* The right column carries the preview and the requirements summary behind a
+   tab strip. It is the WIDE one: the controls are a short list, and the page
+   being made is the thing worth the space. */
+.export-dialog__right {
   flex: 1;
   min-width: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-left: 1px solid var(--s-border);
   background: var(--s-bg-panel);
+}
+
+.export-dialog__tabs {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.export-dialog__tabs button {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: var(--s-text-sm);
+  padding: 6px 12px 8px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.export-dialog__tabs button:hover {
+  color: var(--s-ink);
+}
+
+.export-dialog__tabs button.is-active {
+  color: var(--s-ink);
+  border-bottom-color: var(--s-accent);
+}
+
+.export-dialog__tabpanel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-dialog__tabpanel[hidden] {
+  display: none;
+}
+
+.export-dialog__tabpanel--scroll {
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Live preview                                                        */
+/* ------------------------------------------------------------------ */
+
+.export-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.export-preview__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  border-bottom: 1px solid var(--s-border);
+}
+
+.export-preview__status {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.export-preview__count {
+  color: var(--s-ink);
+}
+
+.export-preview__ms {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+.export-preview__zoom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.export-preview__zoom button {
+  appearance: none;
+  border: 1px solid var(--s-border);
+  background: var(--s-bg-input, transparent);
+  color: var(--s-ink);
+  font: inherit;
+  font-size: var(--s-text-sm);
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.export-preview__zoom button:hover {
+  border-color: var(--s-accent);
+}
+
+.export-preview__zoom-value {
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+
+.export-preview__note {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  color: var(--s-ink-muted);
+  border-bottom: 1px solid var(--s-border);
+}
+
+.export-preview__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* The workbench behind the paper — always darker than the page, so a
+     white US Letter sheet reads as a sheet in either theme. */
+  background: var(--s-bg-deep, rgba(0, 0, 0, 0.18));
+}
+
+.export-preview__pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: opacity 120ms ease-out;
+}
+
+/* A render is in flight: the page on screen is the PREVIOUS one, and says so
+   by dimming rather than by disappearing. */
+.export-preview__pages--stale {
+  opacity: 0.55;
+}
+
+.export-preview__page {
+  display: block;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28), 0 6px 16px rgba(0, 0, 0, 0.22);
+}
+
+.export-preview__frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+
+.export-preview__empty,
+.export-preview__error {
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.export-preview__error {
+  color: var(--s-danger, #d66);
+  text-align: left;
+  white-space: pre-wrap;
 }
 
 @container (max-width: 899px) {
@@ -44,10 +220,13 @@
     overflow-y: visible;
   }
 
-  .export-dialog__requirements {
-    overflow-y: visible;
+  /* Stacked, the preview needs a height of its own — a flex child in a
+     block container has nothing to fill. */
+  .export-dialog__right {
+    overflow: visible;
     border-left: none;
     border-top: 1px solid var(--s-border);
+    height: 70vh;
   }
 }
 

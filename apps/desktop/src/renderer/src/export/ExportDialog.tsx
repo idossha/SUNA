@@ -10,6 +10,7 @@ import { useEditorSettings } from '../editor/settings'
 import { useResolved } from '../state/settings'
 import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
+import { ExportPreview } from './ExportPreview'
 import { RequirementsPanel } from './RequirementsPanel'
 import { stanceTag } from './requirements'
 import { notifyExported } from './exportToast'
@@ -61,12 +62,20 @@ function severityDot(severity: Diagnostic['severity']): string {
  * way, and a full-resolution export that turns out too big can be rewritten
  * compressed in place by the Compress button beside it (which just flips the
  * same checkbox and re-exports).
+ *
+ * The Document picker only exists when there is a second document to pick:
+ * a project with no manuscript/supplementary.md has exactly one thing to
+ * export, and a one-choice selector is noise. It appears the moment a
+ * supplement file does.
  */
 export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const rootDir = String(params['rootDir'] ?? '')
   const manuscript = useManuscriptStore((s) => s.manuscript)
   const versions = useDocumentsStore((s) => s.versions)
   const manifest = useProjectStore((s) => s.manifest)
+  // Reactive here, not read imperatively as the export does: the preview has
+  // to repaint when the theme changes under it.
+  const editorTheme = useEditorSettings((s) => s.editorTheme)
 
   // Which profile the page OPENS on, in the order somebody actually chose
   // it: the Settings 'Preview / render profile' (project or global) first,
@@ -108,6 +117,8 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   /** Whether the file now on disk was written with compressed figures. */
   const [resultCompressed, setResultCompressed] = useState(false)
   const [compressing, setCompressing] = useState(false)
+  /** Which panel owns the right-hand column. Preview first — it is the reason to look. */
+  const [rightTab, setRightTab] = useState<'preview' | 'requirements'>('preview')
 
   const profile = getBundledProfile(profileId)
 
@@ -268,7 +279,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
       figurePngPaths,
       // The active editor theme rides along so the PDF / web page render in
       // the look the project is being written in (DOCX ignores it).
-      options: { doubleSpacing, lineNumbers, pageNumbers, theme: useEditorSettings.getState().editorTheme },
+      options: { doubleSpacing, lineNumbers, pageNumbers, theme: editorTheme },
       target
     }
     const channel = format === 'docx' ? ('export:docx' as const) : format === 'pdf' ? ('export:pdf' as const) : ('export:html' as const)
@@ -532,8 +543,48 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
         </div>
 
         {profile !== null && (
-          <aside className="export-dialog__requirements">
-            <RequirementsPanel profile={profile} articleTypeId={articleTypeId || null} />
+          <aside className="export-dialog__right">
+            <div className="export-dialog__tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rightTab === 'preview'}
+                className={rightTab === 'preview' ? 'is-active' : ''}
+                onClick={() => setRightTab('preview')}
+              >
+                Preview
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rightTab === 'requirements'}
+                className={rightTab === 'requirements' ? 'is-active' : ''}
+                onClick={() => setRightTab('requirements')}
+              >
+                {house ? 'House style' : 'Journal requirements'}
+              </button>
+            </div>
+            {/* Both stay MOUNTED: switching tabs must not throw away a
+                rendered preview and pay for it again on the way back. */}
+            <div hidden={rightTab !== 'preview'} className="export-dialog__tabpanel">
+              {rootDir !== '' && manuscript !== null && (
+                <ExportPreview
+                  rootDir={rootDir}
+                  manuscript={manuscript}
+                  profile={profile}
+                  profileId={profileId}
+                  format={format}
+                  target={target}
+                  doubleSpacing={doubleSpacing}
+                  lineNumbers={lineNumbers}
+                  pageNumbers={pageNumbers}
+                  theme={editorTheme}
+                />
+              )}
+            </div>
+            <div hidden={rightTab !== 'requirements'} className="export-dialog__tabpanel export-dialog__tabpanel--scroll">
+              <RequirementsPanel profile={profile} articleTypeId={articleTypeId || null} />
+            </div>
           </aside>
         )}
       </div>
