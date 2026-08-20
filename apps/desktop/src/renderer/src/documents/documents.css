@@ -836,25 +836,16 @@ button:disabled {
 
 .round__cols {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr) minmax(230px, 320px);
+  /* One column: the sidebar outline is the list of points. */
+  grid-template-columns: minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
 
-.round__list,
-.round__detail,
-.round__problems {
+.round__detail {
   overflow-y: auto;
   min-height: 0;
   padding: 14px 16px;
-}
-
-.round__list {
-  border-right: 1px solid var(--s-border);
-}
-
-.round__problems {
-  border-left: 1px solid var(--s-border);
 }
 
 .round__filter {
@@ -882,21 +873,21 @@ button:disabled {
   margin-top: 16px;
 }
 
-.round__dots {
-  display: flex;
-  gap: 3px;
+.round__tally {
   margin-left: auto;
+  font-family: var(--s-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0;
+  color: var(--s-ink-faint);
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  padding: 1px 7px;
 }
 
-.round__dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--s-border-strong);
-}
-
-.round__dots i.is-on {
-  background: var(--s-ok);
+.round__tally.is-complete {
+  color: var(--s-ok);
+  border-color: var(--s-ok);
 }
 
 .round__list ul {
@@ -1012,8 +1003,32 @@ button:disabled {
 .round__status {
   display: flex;
   gap: 6px;
-  margin-bottom: 14px;
   flex-wrap: wrap;
+}
+
+/*
+  The card's footer: the four status pills at the left, the AI controls at the
+  right, on one line. Two columns rather than a flex row with a spacer,
+  because ReplyAssistant contributes THREE things to this footer — its button
+  bar, which belongs on this line, and its busy strip and proposal, which must
+  span the full width beneath both groups. The assistant's root is
+  `display: contents` so those three become direct grid children here.
+
+  Narrow panes wrap the two groups onto separate lines rather than crushing
+  the pills; the AI bar stays right-aligned either way.
+*/
+.round__foot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 620px) {
+  .round__foot {
+    grid-template-columns: 1fr;
+  }
 }
 
 .round__st {
@@ -1042,6 +1057,117 @@ button:disabled {
 .round__st.is-on.is-rebutted {
   border-color: var(--s-graph-4);
   color: var(--s-graph-4);
+}
+
+.round__modes {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  margin-right: 18px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.round__mode {
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 3px 11px;
+  cursor: pointer;
+}
+
+.round__mode:hover {
+  color: var(--s-ink);
+}
+
+.round__mode.is-on {
+  background: var(--s-bg-panel);
+  color: var(--s-ink);
+}
+
+.round__card {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.round__scroll-rev + .round__scroll-rev {
+  margin-top: 32px;
+}
+
+.round__scroll-rev {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.round__scroll-head {
+  position: sticky;
+  top: -14px;
+  z-index: 1;
+  margin: 0 0 12px;
+  padding: 8px 0;
+  background: var(--s-bg-panel);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-faint);
+}
+
+/*
+  In continuous mode the cards are a stack, so each needs an edge. The
+  selected one is marked, not boxed — a border that appears on click makes the
+  whole column shift.
+*/
+.round__scroll-rev .round__card {
+  border-left: 2px solid transparent;
+  padding-left: 14px;
+  margin-bottom: 26px;
+  max-width: none;
+}
+
+.round__scroll-rev .round__card.is-selected {
+  border-left-color: var(--s-accent);
+}
+
+.round__reply {
+  margin: 14px 0 12px;
+}
+
+.round__reply label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-faint);
+  margin-bottom: 6px;
+}
+
+.round__reply-box {
+  display: block;
+  width: 100%;
+  min-height: 108px;
+  resize: vertical;
+  background: var(--s-bg-editor);
+  color: var(--s-ink);
+  border: 1px solid var(--s-border);
+  border-radius: 7px;
+  padding: 11px 13px;
+  font-family: var(--s-font-serif);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.round__reply-box:focus {
+  outline: none;
+  border-color: var(--s-accent);
+}
+
+.round__reply-box::placeholder {
+  color: var(--s-ink-faint);
 }
 
 .round__assign {
@@ -1826,4 +1952,622 @@ button:disabled {
   margin: 0 0 16px;
   font-size: var(--s-text-xs);
   color: var(--s-ink-faint);
+}
+
+
+/* ------------------------------------------------- round outline (sidebar) */
+
+.rvout__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--s-border);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 2px 4px 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.rvout__head:hover .rvout__title {
+  color: var(--s-accent);
+}
+
+.rvout__title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+.rvout__count {
+  margin-left: auto;
+  font-family: var(--s-font-mono);
+  font-size: 10.5px;
+  color: var(--s-ink-faint);
+}
+
+.rvout__rev h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-faint);
+}
+
+.rvout__pt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.rvout__pt:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.rvout__pt.is-active {
+  border-left-color: var(--s-accent);
+  color: var(--s-ink);
+}
+
+.rvout__pt.is-done,
+.rvout__pt.is-rebutted {
+  color: var(--s-ink-faint);
+}
+
+.rvout__pt-id {
+  font-family: var(--s-font-mono);
+  font-size: 10.5px;
+  color: var(--s-ink-faint);
+  flex: none;
+}
+
+.rvout__pt-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rvout__pt-tick {
+  flex: none;
+  color: var(--s-ok);
+  font-size: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   The AI assistant beside one reply box (ReplyAssistant.tsx).
+
+   It sits UNDER the textarea, not floating over it, and the proposal renders
+   below both: at no point does AI output cover, replace or resemble the
+   author's own words. The proposal is set in the same serif as the reply it
+   might become, so what you are judging looks like what you would be sending.
+   -------------------------------------------------------------------------- */
+
+.reply-ai {
+  /* Its children ARE the footer grid's children — see .round__foot. */
+  display: contents;
+}
+
+.reply-ai__bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The strip and the proposal answer the whole card, not just the right half. */
+.reply-ai__busy,
+.reply-ai__proposal,
+.reply-ai__error {
+  grid-column: 1 / -1;
+}
+
+.reply-ai__go,
+.reply-ai__more {
+  font: inherit;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  background: transparent;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.reply-ai__go:hover:not(:disabled),
+.reply-ai__more:hover:not(:disabled) {
+  color: var(--s-accent);
+  border-color: var(--s-border-strong);
+  background: var(--s-bg-hover);
+}
+
+.reply-ai__go:disabled,
+.reply-ai__more:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.reply-ai__more {
+  padding: 3px 6px;
+}
+
+.reply-ai__ctx {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  cursor: help;
+}
+
+.reply-ai__menu-wrap {
+  position: relative;
+}
+
+.reply-ai__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  /* Anchored to the button's right edge: the bar now sits in the card's
+     right corner, so a left-anchored menu would hang off the pane. */
+  right: 0;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: var(--s-text-sm);
+}
+
+.reply-ai__menu hr {
+  border: 0;
+  border-top: 1px solid var(--s-border);
+  margin: 0;
+  width: 100%;
+}
+
+.reply-ai__menu > button {
+  font: inherit;
+  font-size: var(--s-text-sm);
+  text-align: left;
+  color: var(--s-ink);
+  background: transparent;
+  border: 0;
+  border-radius: var(--s-radius);
+  padding: 5px 6px;
+  cursor: pointer;
+}
+
+.reply-ai__menu > button:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+}
+
+.reply-ai__menu > button:disabled {
+  color: var(--s-ink-faint);
+  cursor: default;
+}
+
+.reply-ai__menu label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--s-ink-muted);
+}
+
+.reply-ai__menu select {
+  font: inherit;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  background: var(--s-bg-panel);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  padding: 3px 6px;
+  max-width: 62%;
+}
+
+.reply-ai__hint {
+  margin: 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  line-height: 1.45;
+}
+
+.reply-ai__gate {
+  margin: 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-warn);
+}
+
+/* ---- waiting ------------------------------------------------------------ */
+
+.reply-ai__busy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--s-bg-active);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+}
+
+.reply-ai__pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--s-accent);
+  flex-shrink: 0;
+  animation: letter-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reply-ai__pulse {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.reply-ai__busy-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.reply-ai__busy-note {
+  color: var(--s-ink-muted);
+  font-size: var(--s-text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-ai__cancel {
+  font: inherit;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  background: transparent;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+/* ---- the proposal ------------------------------------------------------- */
+
+.reply-ai__proposal {
+  border: 1px solid var(--s-accent);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-panel);
+  overflow: hidden;
+}
+
+.reply-ai__proposal header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--s-bg-active);
+  border-bottom: 1px solid var(--s-border);
+  font-size: var(--s-text-xs);
+}
+
+.reply-ai__proposal header span {
+  color: var(--s-ink-faint);
+}
+
+.reply-ai__proposal-text {
+  padding: 10px 12px;
+  font-family: var(--s-font-serif);
+  font-size: var(--s-text-md);
+  line-height: 1.6;
+  color: var(--s-ink);
+  white-space: pre-wrap;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.reply-ai__proposal-acts {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--s-border);
+}
+
+.reply-ai__proposal-acts button {
+  font: inherit;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  background: transparent;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.reply-ai__proposal-acts button:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.reply-ai__accept {
+  color: var(--s-accent-ink) !important;
+  background: var(--s-accent) !important;
+  border-color: var(--s-accent) !important;
+}
+
+.reply-ai__error {
+  margin: 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-err);
+}
+
+/* --------------------------------------------------------------------------
+   The approval gate for AI-drafted replies (PeerReviewApprovalSheet.tsx).
+
+   Reads as a consent screen, not a form: a short statement of why, the three
+   routes, the document itself given most of the height, and an agreement
+   line sitting in the footer where a signature would go.
+   -------------------------------------------------------------------------- */
+
+.prapp__body {
+  /* The document is the point; the controls above it should not grow. */
+  min-height: 0;
+}
+
+.prapp__lead {
+  margin: 0;
+  font-size: var(--s-text-md);
+  line-height: 1.6;
+  color: var(--s-ink-muted);
+  border-left: 2px solid var(--s-accent);
+  padding-left: 12px;
+}
+
+/* ---- learning from a past letter ---------------------------------------- */
+
+.prapp__import {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: -8px;
+}
+
+.prapp__import > button {
+  font: inherit;
+  font-size: var(--s-text-sm);
+  background: var(--s-bg-editor);
+  color: inherit;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.prapp__import > button:hover:not(:disabled) {
+  border-color: var(--s-border-strong);
+}
+
+.prapp__import-file {
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40%;
+}
+
+.prapp__import-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+}
+
+.prapp__import-busy em {
+  font-style: normal;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- the document ------------------------------------------------------- */
+
+.prapp__existing {
+  margin: -2px 0 4px;
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  color: var(--s-ink-muted);
+}
+
+.prapp__doc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-muted);
+  margin-bottom: -10px;
+}
+
+.prapp__edit-toggle {
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  color: var(--s-accent);
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.prapp__doc,
+.prapp__editor {
+  height: 34vh;
+  min-height: 220px;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  background: var(--s-bg-editor);
+  overflow-y: auto;
+}
+
+.prapp__doc {
+  padding: 14px 18px;
+}
+
+.prapp__doc:focus-visible {
+  outline: none;
+  border-color: var(--s-accent);
+}
+
+.prapp__doc-empty {
+  margin: 0;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-sm);
+}
+
+.prapp__doc pre {
+  margin: 0;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/*
+  Rendered, not raw. What is being approved is a document a person has to
+  read closely, and Markdown source makes that harder for no gain — the
+  editor is one click away for anyone who wants the file itself.
+*/
+.prapp__rendered {
+  font-size: var(--s-text-md);
+  line-height: 1.6;
+}
+
+.prapp__rendered h1 {
+  font-size: var(--s-text-lg);
+  margin: 0 0 12px;
+}
+
+.prapp__rendered h2 {
+  font-size: var(--s-text-md);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-muted);
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--s-border);
+}
+
+.prapp__rendered h2:first-child {
+  margin-top: 0;
+}
+
+.prapp__rendered ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.prapp__rendered li {
+  margin-bottom: 6px;
+}
+
+.prapp__rendered li::marker {
+  color: var(--s-ink-faint);
+}
+
+.prapp__rendered p {
+  margin: 0 0 10px;
+}
+
+.prapp__rendered em {
+  color: var(--s-ink-muted);
+}
+
+.prapp__editor {
+  display: block;
+  width: 100%;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-sm);
+  line-height: 1.55;
+  color: var(--s-ink);
+  padding: 12px 14px;
+  resize: none;
+}
+
+.prapp__editor:focus {
+  outline: none;
+  border-color: var(--s-accent);
+}
+
+/* ---- the agreement ------------------------------------------------------ */
+
+.prapp__foot {
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.prapp__agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: var(--s-text-sm);
+  line-height: 1.45;
+  color: var(--s-ink);
+  cursor: pointer;
+}
+
+.prapp__agree input {
+  margin-top: 2px;
+  accent-color: var(--s-accent);
+  flex-shrink: 0;
+}
+
+.prapp__agree.is-locked {
+  color: var(--s-ink-faint);
+  cursor: default;
+}
+
+.prapp__agree span {
+  display: block;
+}
+
+.prapp__agree em {
+  display: block;
+  font-style: normal;
+  font-size: var(--s-text-xs);
+  color: var(--s-accent);
+  margin-top: 3px;
 }
