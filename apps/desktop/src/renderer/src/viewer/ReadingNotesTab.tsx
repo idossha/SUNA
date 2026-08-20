@@ -16,6 +16,7 @@ import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
 import { useRefNotesStore } from '../state/refnotes'
+import { notifyExported } from '../export/exportToast'
 import { citedPageLabel, quoteWithCitation } from './pdfSelection'
 import '../comments/comments.css'
 import './viewer.css'
@@ -186,7 +187,6 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
   // answer.
   const [menuOpen, setMenuOpen] = useState(false)
   const [exporting, setExporting] = useState<NotesExportFormat | null>(null)
-  const [writtenPath, setWrittenPath] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   // A menu that outlives a click elsewhere is a menu stuck open over the list.
@@ -302,10 +302,11 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
           })
         })
       )
-      setWrittenPath(path)
-      setNote(`Wrote ${NOTES_EXPORT_BASENAME}.${format} to ${NOTES_OUTPUT_DIR}`)
+      // The shared export toast carries Open / Reveal now (export/exportToast.ts),
+      // so this tab no longer keeps its own copy of that strip.
+      notifyExported(path, `${total} note${total === 1 ? '' : 's'} → ${NOTES_OUTPUT_DIR}`)
+      setNote(null)
     } catch (err) {
-      setWrittenPath(null)
       setNote(describeIpcFailure(err))
     } finally {
       setExporting(null)
@@ -313,27 +314,7 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
   }
 
   const dismissNote = (): void => {
-    setWrittenPath(null)
     setNote(null)
-  }
-
-  /**
-   * The two things anyone does with a file they just wrote: read it, or go to
-   * where it is. Both, because neither substitutes for the other — opening the
-   * PDF is the point of exporting it, and the folder is how it gets attached
-   * to an email or dropped into a shared drive.
-   */
-  const openWritten = (mode: 'file' | 'folder'): void => {
-    const path = writtenPath
-    if (path === null) return
-    setWrittenPath(null)
-    setNote(null)
-    void window.suna
-      .invoke(mode === 'file' ? 'shell:open-path' : 'shell:reveal', { path })
-      .then(({ error }) => {
-        if (error !== null) setNote(error)
-      })
-      .catch((err: unknown) => setNote(describeIpcFailure(err)))
   }
 
   if (error !== null) {
@@ -501,16 +482,6 @@ export function ReadingNotesTab({ params }: DockPanelProps): JSX.Element {
       {note !== null && (
         <div className="pdfview__note rnotes__note" role="status">
           <span>{note}</span>
-          {writtenPath !== null && (
-            <>
-              <button className="rnotes__notebtn" onClick={() => openWritten('file')}>
-                Open
-              </button>
-              <button className="rnotes__notebtn" onClick={() => openWritten('folder')}>
-                Show in folder
-              </button>
-            </>
-          )}
           <button className="rnotes__notebtn" aria-label="Dismiss" onClick={dismissNote}>
             ✕
           </button>
