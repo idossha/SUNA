@@ -194,3 +194,64 @@ export function uiRepairPrompt(input: UiRepairPromptInput): string {
     rules
   )
 }
+
+/* ------------------------------------------------------- letter draft ----- */
+
+export interface LetterDraftPromptInput {
+  /** Absolute path of the letter's prose file. */
+  letterPath: string
+  /** Manuscript-relative, for the MCP verbs. */
+  letterFile: string
+  /** Registry id, so the agent can read the sidecar through read_letter. */
+  documentId: string
+  /** The venue this letter addresses. */
+  journalName: string
+  letterKind: string
+  /** Assertion ids the venue requires — named so the agent leaves them alone. */
+  requiredAssertions: readonly string[]
+}
+
+/**
+ * Draft the argument of a cover letter (document-kinds-ux.md §A.4).
+ *
+ * The rule that shapes this whole prompt: **the AI drafts the argument, the
+ * human answers the affidavit.** A cover letter asserts that the work is not
+ * under consideration elsewhere, that there are no competing interests, that
+ * a named colleague read the draft — claims made to an editor over the
+ * author's signature. So the prompt names every assertion marker explicitly
+ * and forbids touching them, and no MCP verb exists that could write one
+ * anyway.
+ */
+export function letterDraftPrompt(input: LetterDraftPromptInput): string {
+  const task = [
+    `Write the body of a ${input.letterKind} cover letter to ${input.journalName} for the manuscript in this project.`,
+    'Replace ONLY the HTML comment placeholder that begins "<!-- Why this work matters" with two or three finished paragraphs.'
+  ]
+  const context = [
+    `- Letter file (absolute): ${input.letterPath}`,
+    `- Letter file (manuscript-relative, for the MCP verbs): ${input.letterFile}`,
+    `- Letter registry id: ${input.documentId}`,
+    `- Target venue: ${input.journalName}`,
+    '- Read the manuscript first: mcp__suna__read_manuscript for the prose, mcp__suna__read_manuscript_meta for the title, abstract and significance statement, mcp__suna__list_outline for its shape.',
+    '- Read context/PROJECT.md if it exists — it carries what the project is for in the authors\' own words.',
+    `- Read mcp__suna__read_letter with documentId ${input.documentId} to see what ${input.journalName} requires and what is still unanswered.`,
+    input.requiredAssertions.length === 0
+      ? '- This venue states no required assertions.'
+      : `- Assertion markers already in the letter, which you must NOT touch: ${input.requiredAssertions.join(', ')}.`
+  ]
+  const rules = [
+    '- Edit the LETTER, never the manuscript. Use mcp__suna__write_document with the letter\'s documentId, or Edit on the absolute path.',
+    '- Say what the work found, why it matters, and why it belongs in THIS venue. Ground every claim in the manuscript you just read — never invent a result, a number, or a comparison to other work.',
+    '- Do NOT write, fill in, remove or reword any ⟦ unanswered — … ⟧ marker or any ::assert{…} directive. Those are the author\'s factual claims to an editor and only the author may answer them. Leave them exactly where they are.',
+    '- Do not repeat the abstract. Several venues ask explicitly that the letter make the case in the authors\' own words; write for an editor deciding whether to send it out for review.',
+    '- Keep the existing salutation, the closing, and the signature block exactly as they are.',
+    '- Professional, plain, specific. No superlatives the manuscript does not support, no "paradigm shift", no filler.',
+    `- ${GIT_RULE}`
+  ]
+  return assemble(
+    'You are drafting the argument of a cover letter in a SUNA academic-writing project.',
+    task,
+    context,
+    rules
+  )
+}

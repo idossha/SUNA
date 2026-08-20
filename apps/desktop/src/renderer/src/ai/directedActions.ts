@@ -28,6 +28,7 @@ import {
   type FigureEditPromptInput,
   type UiRepairPromptInput
 } from './templates'
+import { letterDraftPrompt, type LetterDraftPromptInput } from './templates'
 
 /* ------------------------------------------------------------ allowlists -- */
 
@@ -53,6 +54,20 @@ const COMMENT_TOOLS = [
   'mcp__suna__edit_manuscript',
   'mcp__suna__reply_comment'
   // No resolve verb exists: resolving a thread is human-only, in the app.
+]
+const LETTER_TOOLS = [
+  'Read',
+  'Grep',
+  'Glob',
+  'Edit',
+  'mcp__suna__read_manuscript',
+  'mcp__suna__read_manuscript_meta',
+  'mcp__suna__list_outline',
+  'mcp__suna__read_letter',
+  'mcp__suna__check_letter',
+  'mcp__suna__write_document'
+  // Deliberately NOT here: anything that could answer an assertion. No such
+  // verb exists, and the prompt forbids editing the markers by hand.
 ]
 const REPAIR_TOOLS = ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(pnpm:*)', 'Bash(node:*)']
 
@@ -218,4 +233,27 @@ export async function runUiRepair(args: UiRepairArgs): Promise<AiAskOutcome> {
     useMcp: false,
     successNote: 'AI repair finished — summary in the Agent panel.'
   })
+}
+
+
+export interface LetterDraftArgs extends LetterDraftPromptInput {
+  /** Project root: child cwd, and where .mcp.json lives. */
+  rootDir: string
+}
+
+/** The New Letter sheet's "AI draft" mode. Keyed 'letter:<documentId>'. */
+export async function runLetterDraft(args: LetterDraftArgs): Promise<AiAskOutcome> {
+  return runDirected({
+    key: letterRunKey(args.documentId),
+    title: shortTitle('✦ Draft letter', args.journalName),
+    prompt: letterDraftPrompt(args),
+    dir: args.rootDir,
+    allowedTools: LETTER_TOOLS,
+    useMcp: true,
+    successNote: 'AI drafted the letter — review the change before sending.'
+  })
+}
+
+export function letterRunKey(documentId: string): string {
+  return `letter:${documentId}`
 }

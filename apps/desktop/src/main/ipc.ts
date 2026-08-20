@@ -1,4 +1,10 @@
-import { createLetter, readLetterMeta, writeLetterMeta } from './services/letter-new'
+import {
+  createLetter,
+  missingDocuments,
+  readLetterMeta,
+  removeDocument,
+  writeLetterMeta
+} from './services/letter-new'
 import { checkLetterDocument } from './services/letter-check'
 import {
   analyseReviewerReport,
@@ -327,7 +333,13 @@ export function registerIpcHandlers(): void {
   handle('project:migrate', ({ dir }) => migrateProject(dir))
 
   /* ---- documents, letters and rounds (feature-plan-12) ------------------ */
-  handle('documents:list', async ({ dir }) => ({ documents: await projectDocuments(dir) }))
+  handle('documents:list', async ({ dir }) => ({
+    documents: await projectDocuments(dir),
+    missing: await missingDocuments(dir)
+  }))
+  handle('documents:remove', async ({ dir, documentId }) => ({
+    documents: await removeDocument(dir, documentId)
+  }))
   handle('letter:new', async (input) => {
     const res = await createLetter({
       rootDir: input.dir,

@@ -1,4 +1,4 @@
-import { mkdir, readFile } from 'node:fs/promises'
+import { access, mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import {
   AuthorsFileSchema,
@@ -22,7 +22,7 @@ import {
 import { ensureGitignoreLine } from '@suna/agent'
 import { getBundledProfile } from '@suna/formatter'
 import { writeFileAtomic } from './atomic'
-import { projectSubdir } from './paths'
+import { projectDocuments, projectSubdir } from './paths'
 
 /**
  * Create a cover letter (feature-plan-12 §2e, document-kinds-ux.md §A).
@@ -221,3 +221,52 @@ export async function writeLetterMeta(
   )
 }
 
+
+
+/**
+ * Registry ids whose prose file has gone from disk.
+ *
+ * `suna.json` is a plain file people edit and move things around in, and a
+ * letter deleted in Finder leaves its entry behind. Reporting that is better
+ * than opening an empty editor and better than silently pruning something the
+ * user might be about to restore from git.
+ */
+export async function missingDocuments(rootDir: string): Promise<string[]> {
+  const manuscriptDir = await projectSubdir(rootDir, 'manuscript')
+  const docs = await projectDocuments(rootDir)
+  const out: string[] = []
+  for (const doc of docs) {
+    const rel = doc.kind === 'manuscript' ? null : doc.file
+    if (rel === null) continue
+    try {
+      await access(join(manuscriptDir, rel))
+    } catch {
+      out.push(doc.id)
+    }
+  }
+  return out
+}
+
+/**
+ * Remove one entry from the registry. Deletes NO file — a registry entry and
+ * the bytes it points at are different things, and only one of them is this
+ * function's business.
+ */
+export async function removeDocument(rootDir: string, documentId: string): Promise<DocumentEntry[]> {
+  const manifestPath = join(rootDir, 'suna.json')
+  const manifest = SunaProjectManifestSchema.parse(
+    JSON.parse(await readFile(manifestPath, 'utf8'))
+  )
+  const current = resolveDocuments(manifest)
+  const target = current.find((d) => d.id === documentId)
+  if (target === undefined) return current
+  if (target.kind === 'manuscript') {
+    throw new Error('the manuscript cannot be removed from the registry')
+  }
+  const next = current.filter((d) => d.id !== documentId)
+  await writeFileAtomic(
+    manifestPath,
+    `${JSON.stringify(SunaProjectManifestSchema.parse({ ...manifest, documents: next }), null, 2)}\n`
+  )
+  return next
+}

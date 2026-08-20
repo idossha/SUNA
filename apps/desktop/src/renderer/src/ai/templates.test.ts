@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  letterDraftPrompt,
   commentFixPrompt,
   figureEditPrompt,
   shortTitle,
@@ -221,5 +222,61 @@ describe('shortTitle', () => {
     const exact = 'y'.repeat(60)
     expect(shortTitle('✦ Repair UI', exact)).toBe(`✦ Repair UI: ${exact}`)
     expect(shortTitle('✦ Repair UI', '   ')).toBe('✦ Repair UI')
+  })
+})
+
+describe('letterDraftPrompt', () => {
+  const base = {
+    letterPath: '/p/manuscript/letters/cover-science.md',
+    letterFile: 'letters/cover-science.md',
+    documentId: 'cover-science',
+    journalName: 'Science',
+    letterKind: 'submission',
+    requiredAssertions: ['journalFit', 'competingInterests']
+  }
+
+  it('names the venue, the letter file and the registry id', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toContain('Science')
+    expect(p).toContain('/p/manuscript/letters/cover-science.md')
+    expect(p).toContain('letters/cover-science.md')
+    expect(p).toContain('cover-science')
+  })
+
+  it('forbids touching the assertion markers, and names them', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toContain('journalFit, competingInterests')
+    expect(p).toMatch(/must NOT touch/)
+    expect(p).toMatch(/only the author may answer them/)
+    expect(p).toContain('⟦ unanswered')
+    expect(p).toContain('::assert{')
+  })
+
+  it('points the agent at the manuscript rather than letting it invent one', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toContain('mcp__suna__read_manuscript')
+    expect(p).toContain('mcp__suna__read_manuscript_meta')
+    expect(p).toContain('context/PROJECT.md')
+    expect(p).toMatch(/never invent a result/)
+  })
+
+  it('tells it to edit the letter, not the manuscript', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toMatch(/Edit the LETTER, never the manuscript/)
+  })
+
+  it('does not repeat the abstract, and keeps the signature block', () => {
+    const p = letterDraftPrompt(base)
+    expect(p).toMatch(/Do not repeat the abstract/)
+    expect(p).toMatch(/signature block exactly as they are/)
+  })
+
+  it('handles a venue that states no required assertions', () => {
+    const p = letterDraftPrompt({ ...base, requiredAssertions: [] })
+    expect(p).toContain('states no required assertions')
+  })
+
+  it('never tells the agent to commit', () => {
+    expect(letterDraftPrompt(base)).toMatch(/never commit/)
   })
 })
