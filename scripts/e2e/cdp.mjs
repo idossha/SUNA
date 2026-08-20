@@ -71,6 +71,20 @@ export async function launchApp({ root, port, hidden = true, userData, env = {},
 }
 
 /**
+ * The app's own window, told apart from the hidden BrowserWindows the app
+ * uses as renderers — the export preview and the PDF export both load a
+ * generated page out of the temp katex-assets directory, and either can be
+ * listed BEFORE the real window. Attaching to one of those is how a driver
+ * ends up reporting `window.__sunaDev is undefined` on a perfectly healthy
+ * app. The renderer is the dev server or the packaged index.html; anything
+ * under file:///…/suna-katex-assets/ is a print job, never the shell.
+ */
+function isAppWindow(t) {
+  if (t.type !== 'page') return false
+  return !t.url.includes('suna-katex-assets')
+}
+
+/**
  * Poll the CDP endpoint until a page target answers, open its websocket and
  * return the client. `diagnostics` is an optional () => string appended to
  * the timeout error (a dev-log tail, typically).
@@ -81,7 +95,7 @@ export async function connect({ port, timeoutMs = 60000, diagnostics }) {
   while (Date.now() < deadline && !target) {
     try {
       const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()
-      target = list.find((t) => t.type === 'page')
+      target = list.find(isAppWindow) ?? null
     } catch { /* not up yet */ }
     if (!target) await sleep(500)
   }
