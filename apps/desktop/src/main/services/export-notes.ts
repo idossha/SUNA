@@ -273,9 +273,10 @@ function buildNotesDocx(req: ExportNotesRequest): Document {
   })
 }
 
-/** Print the built HTML through a hidden window, the same way export-pdf.ts
- *  prints a manuscript — no LaTeX, no external binary. */
-async function printNotesPdf(html: string, target: string): Promise<void> {
+/** Print built HTML through a hidden window, the same way export-pdf.ts
+ *  prints a manuscript — no LaTeX, no external binary. Shared with the
+ *  letter export (export-letter.ts), which prints the same way. */
+export async function printHtmlToPdf(html: string, target: string): Promise<void> {
   const hostPath = join(app.getPath('temp'), `suna-notes-${process.pid}-${Date.now()}.html`)
   await writeFileAtomic(hostPath, html)
   const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } })
@@ -314,7 +315,7 @@ export async function exportNotes(req: ExportNotesRequest): Promise<ExportNotesR
   } else if (req.format === 'docx') {
     await writeFileAtomic(target, await Packer.toBuffer(buildNotesDocx(req)))
   } else {
-    await printNotesPdf(buildNotesHtml(req), target)
+    await printHtmlToPdf(buildNotesHtml(req), target)
   }
 
   return { path: target }
