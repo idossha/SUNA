@@ -21,16 +21,19 @@ function ToastCard({ toast }: { toast: Toast }): JSX.Element {
   return (
     <div className="toast" role="status">
       <span className="toast__message">{toast.message}</span>
-      {toast.action !== undefined && (
-        <button
-          className="toast__action"
-          onClick={() => {
-            toast.action?.run()
-            dismiss(toast.id)
-          }}
-        >
-          {toast.action.label}
-        </button>
+      {[...(toast.action !== undefined ? [toast.action] : []), ...(toast.actions ?? [])].map(
+        (action) => (
+          <button
+            key={action.label}
+            className="toast__action"
+            onClick={() => {
+              action.run()
+              dismiss(toast.id)
+            }}
+          >
+            {action.label}
+          </button>
+        )
       )}
       <button className="toast__close" aria-label="Dismiss" onClick={() => dismiss(toast.id)}>
         ×
