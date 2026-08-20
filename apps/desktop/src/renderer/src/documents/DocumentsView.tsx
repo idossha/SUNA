@@ -4,10 +4,12 @@ import { stageLabel, versionsNewestFirst } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useDocumentsStore, refreshDocuments, secondaryDocuments } from '../state/documents'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
-import { openDocumentTab, openManuscriptTab, openRoundTab, openVersionTab } from '../state/dock'
+import { openDocumentTab, openManuscriptTab, openVersionTab } from '../state/dock'
 import { ManuscriptView } from '../views/ManuscriptView'
 import { DocumentOutline } from './DocumentOutline'
 import { LetterList } from './LetterList'
+import { RoundList } from './RoundList'
+import { RoundOutline } from './RoundOutline'
 import './documents.css'
 
 /**
@@ -52,11 +54,18 @@ export function DocumentsView(): JSX.Element {
   // group row shows the list without changing which tab is frontmost. Opening
   // any document hands the lower panel back to whatever that document is.
   const [lettersPicked, setLettersPicked] = useState(false)
+  // Peer review is a group like Letters, not a flat list of rounds: picking it
+  // shows the rounds, and picking a round hands the panel its point-by-point
+  // outline. The manuscript outline is not what you are reading during a
+  // response, so it steps aside rather than sitting under an unrelated list.
+  const [reviewRoundId, setReviewRoundId] = useState<string | null | false>(false)
   const [versionsOpen, setVersionsOpen] = useState(false)
   useEffect(() => {
     setLettersPicked(false)
+    setReviewRoundId(false)
   }, [activeDocumentId])
-  const showLetters = activeIsLetter || lettersPicked
+  const showReview = reviewRoundId !== false
+  const showLetters = (activeIsLetter || lettersPicked) && !showReview
 
   return (
     <div className="docs">
@@ -70,13 +79,16 @@ export function DocumentsView(): JSX.Element {
       <ul className="docs__list">
         <li>
           <button
-            className={`docs__row${isManuscript && !showLetters ? ' docs__row--current' : ''}`}
+            className={`docs__row${
+              isManuscript && !showLetters && !showReview ? ' docs__row--current' : ''
+            }`}
             onClick={() => {
               // Clearing the pick explicitly: picking Letters does not change
               // which tab is frontmost, so when the manuscript was already the
               // active document the effect below never fires and the panel
               // would have stayed on the letters list with no way back.
               setLettersPicked(false)
+              setReviewRoundId(false)
               if (rootDir !== null) openManuscriptTab(rootDir)
             }}
             disabled={rootDir === null}
@@ -92,7 +104,10 @@ export function DocumentsView(): JSX.Element {
           <li>
             <button
               className={`docs__row${showLetters ? ' docs__row--current' : ''}`}
-              onClick={() => setLettersPicked(true)}
+              onClick={() => {
+                setReviewRoundId(false)
+                setLettersPicked(true)
+              }}
               title="Letters"
             >
               <span className="docs__row-title">Letters</span>
@@ -109,37 +124,32 @@ export function DocumentsView(): JSX.Element {
               doc={doc}
               rootDir={rootDir}
               missing={missing.includes(doc.id)}
-              current={activeDocumentId === doc.id && !showLetters}
-              onOpen={() => setLettersPicked(false)}
+              current={activeDocumentId === doc.id && !showLetters && !showReview}
+              onOpen={() => {
+                setLettersPicked(false)
+                setReviewRoundId(false)
+              }}
             />
           ))}
         </ul>
       )}
 
       {rounds.length > 0 && (
-        <>
-          <div className="docs__section">Rounds</div>
-          <ul className="docs__list">
-            {rounds.map((round) => (
-              <li key={round.id}>
-                <button
-                  className="docs__row"
-                  onClick={() => {
-                    setLettersPicked(false)
-                    if (rootDir !== null) openRoundTab(rootDir, round.id)
-                  }}
-                  title={round.label}
-                >
-                  <span className={`docs__badge docs__badge--${round.kind}`}>
-                    {round.kind === 'internal' ? 'int' : 'ext'}
-                  </span>
-                  <span className="docs__row-title">{round.label}</span>
-                  <span className="docs__row-meta">{round.decision ?? round.state}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
+        <ul className="docs__list">
+          <li>
+            <button
+              className={`docs__row${showReview ? ' docs__row--current' : ''}`}
+              onClick={() => {
+                setLettersPicked(false)
+                setReviewRoundId((cur) => (cur === false ? null : cur))
+              }}
+              title="Peer review"
+            >
+              <span className="docs__row-title">Peer review</span>
+              <span className="docs__row-meta">{rounds.length}</span>
+            </button>
+          </li>
+        </ul>
       )}
 
       {/*
@@ -151,7 +161,17 @@ export function DocumentsView(): JSX.Element {
         cover letter is either empty or a single "untitled" row.
       */}
       <div className="docs__outline">
-        {showLetters ? (
+        {showReview ? (
+          reviewRoundId === null ? (
+            <RoundList
+              rounds={rounds}
+              rootDir={rootDir}
+              onPick={(id) => setReviewRoundId(id)}
+            />
+          ) : (
+            <RoundOutline roundId={reviewRoundId} />
+          )
+        ) : showLetters ? (
           <LetterList
             letters={letters}
             rootDir={rootDir}
@@ -197,6 +217,7 @@ export function DocumentsView(): JSX.Element {
                     className="docs__row docs__row--nested"
                     onClick={() => {
                       setLettersPicked(false)
+                      setReviewRoundId(false)
                       if (rootDir !== null) openVersionTab(rootDir, v.id)
                     }}
                     title={`${stageLabel(v.stage)} — read-only`}
