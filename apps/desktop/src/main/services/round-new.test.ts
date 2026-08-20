@@ -201,7 +201,7 @@ describe('round state round-trips', () => {
       state: 'closed',
       decision: 'major-revision',
       decidedAt: '2026-08-19T12:00:00.000Z',
-      pointStates: [{ pointId: 'r1.1', status: 'rebutted', assignee: 'AT', links: [] }]
+      pointStates: [{ pointId: 'r1.1', status: 'rebutted', assignee: 'AT', reply: '', links: [] }]
     })
     const back = await readRound(dir, 'round-2')
     expect(back.decision).toBe('major-revision')

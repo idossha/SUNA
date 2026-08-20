@@ -82,9 +82,9 @@ describe('response.point-unaddressed', () => {
   it('counts a rebuttal as addressed — disagreeing in writing is answering', () => {
     const diags = checkResponse({
       round: roundWith([
-        { pointId: 'r1.1', status: 'rebutted', assignee: null, links: [] },
-        { pointId: 'r1.2', status: 'done', assignee: null, links: [] },
-        { pointId: 'r1.3', status: 'done', assignee: null, links: [] },
+        { pointId: 'r1.1', status: 'rebutted', assignee: null, reply: '', links: [] },
+        { pointId: 'r1.2', status: 'done', assignee: null, reply: '', links: [] },
+        { pointId: 'r1.3', status: 'done', assignee: null, reply: '', links: [] },
       ]),
       reports: [reportFor()],
       responseText: '@point:r1.1 @point:r1.2 @point:r1.3',
@@ -94,7 +94,7 @@ describe('response.point-unaddressed', () => {
 
   it('does not count a draft as addressed', () => {
     const diags = checkResponse({
-      round: roundWith([{ pointId: 'r1.1', status: 'drafted', assignee: null, links: [] }]),
+      round: roundWith([{ pointId: 'r1.1', status: 'drafted', assignee: null, reply: '', links: [] }]),
       reports: [reportFor()],
       responseText: '',
     });
@@ -104,9 +104,9 @@ describe('response.point-unaddressed', () => {
   it('catches the RE58 case — a gap in the middle of an otherwise complete set', () => {
     const diags = checkResponse({
       round: roundWith([
-        { pointId: 'r1.1', status: 'done', assignee: null, links: [] },
+        { pointId: 'r1.1', status: 'done', assignee: null, reply: '', links: [] },
         // r1.2 skipped, exactly as RE58 was
-        { pointId: 'r1.3', status: 'done', assignee: null, links: [] },
+        { pointId: 'r1.3', status: 'done', assignee: null, reply: '', links: [] },
       ]),
       reports: [reportFor()],
       responseText: '@point:r1.1 @point:r1.3',
@@ -122,7 +122,7 @@ describe('response.point-unaddressed', () => {
 describe('response.reply-missing and -orphaned', () => {
   it('warns when a point is marked done but no reply names it', () => {
     const diags = checkResponse({
-      round: roundWith([{ pointId: 'r1.1', status: 'done', assignee: null, links: [] }]),
+      round: roundWith([{ pointId: 'r1.1', status: 'done', assignee: null, reply: '', links: [] }]),
       reports: [reportFor()],
       responseText: 'We have revised the manuscript throughout.',
     });
@@ -141,7 +141,7 @@ describe('response.reply-missing and -orphaned', () => {
 
   it('is case-insensitive about point ids', () => {
     const diags = checkResponse({
-      round: roundWith([{ pointId: 'r1.1', status: 'done', assignee: null, links: [] }]),
+      round: roundWith([{ pointId: 'r1.1', status: 'done', assignee: null, reply: '', links: [] }]),
       reports: [reportFor()],
       responseText: '@point:R1.1',
     });
@@ -180,7 +180,7 @@ describe('response.verbatim-altered', () => {
 
 describe('assignment is information, not a diagnostic', () => {
   it('lists unassigned points without emitting anything', () => {
-    const round = roundWith([{ pointId: 'r1.1', status: 'done', assignee: 'AT', links: [] }]);
+    const round = roundWith([{ pointId: 'r1.1', status: 'done', assignee: 'AT', reply: '', links: [] }]);
     const reports = [reportFor()];
     expect(unassignedPoints(round, reports).map((p) => p.id)).toEqual(['r1.2', 'r1.3']);
     const diags = checkResponse({ round, reports, responseText: '@point:r1.1' });
