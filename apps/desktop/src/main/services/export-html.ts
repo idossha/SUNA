@@ -1169,16 +1169,29 @@ export interface ExportHtmlResult {
  * supplement target reuses the supplement page with KaTeX inlined so it too
  * stands alone. Never touches any source file.
  */
+/**
+ * The self-contained page itself, with no opinion about where it goes: the
+ * export writes it to output/, the live preview renders the same string in
+ * an iframe. One builder, so a preview cannot drift from the written file.
+ */
+export async function buildStandaloneHtml(
+  content: ExportContent,
+  supplement: boolean,
+  theme?: string
+): Promise<string> {
+  return supplement
+    ? await withInlineKatex(
+        await buildSupplementHtml(content, { doubleSpacing: false, lineNumbers: false, theme })
+      )
+    : await buildReaderHtml(content, theme)
+}
+
 export async function exportHtml(req: ExportHtmlRequest): Promise<ExportHtmlResult> {
   const root = assertInsideAllowedRoot(req.dir)
   const supplement = req.target === 'supplement'
   const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
   const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
-  const html = supplement
-    ? await withInlineKatex(
-        await buildSupplementHtml(content, { doubleSpacing: false, lineNumbers: false, theme: req.options.theme })
-      )
-    : await buildReaderHtml(content, req.options.theme)
+  const html = await buildStandaloneHtml(content, supplement, req.options.theme)
   const outputDir = await projectSubdir(root, 'output')
   const target = join(outputDir, `${req.outputName}.html`)
   await writeFileAtomic(target, html)
