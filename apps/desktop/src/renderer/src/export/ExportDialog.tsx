@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
-import { DEFAULT_PROJECT_DIRS } from '@suna/core'
+import { DEFAULT_PROJECT_DIRS, formatVersionId, workingVersion } from '@suna/core'
 import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId, type Diagnostic } from '@suna/formatter'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
+import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { HOUSE_PROFILE_ID, resolvePreviewProfileId } from '../state/renderProfile'
 import { useEditorSettings } from '../editor/settings'
 import { useResolved } from '../state/settings'
@@ -21,17 +22,6 @@ const FORMAT_LABEL: Record<ExportFormat, string> = { docx: 'Word', pdf: 'PDF', h
 
 /** The supplement source file convention (main's export-content.ts SUPPLEMENT_FILE). */
 const SUPPLEMENT_FILE = 'supplementary.md'
-
-/** Lowercase, hyphenated, ASCII — a reasonable default output/<name>.<ext>. */
-function slugify(name: string): string {
-  const base = name
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return base === '' ? 'manuscript' : base
-}
 
 function fileSizeLabel(bytes: number): string {
   return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`
@@ -75,6 +65,7 @@ function severityDot(severity: Diagnostic['severity']): string {
 export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const rootDir = String(params['rootDir'] ?? '')
   const manuscript = useManuscriptStore((s) => s.manuscript)
+  const versions = useDocumentsStore((s) => s.versions)
   const manifest = useProjectStore((s) => s.manifest)
 
   // Which profile the page OPENS on, in the order somebody actually chose
@@ -148,19 +139,32 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     }
   }, [manifest, defaultProfileId])
 
-  // Default output names per document target: <slug> for the manuscript,
-  // <slug>-supplement for the supplement. Switching targets swaps the default
-  // in place, but never clobbers a name the user typed themselves.
-  const baseSlug = manuscript !== null ? slugify(manuscript.title) : ''
-  const defaultNameFor = (t: ExportTarget): string => (t === 'supplement' ? `${baseSlug}-supplement` : baseSlug)
+  // Default output names per document target: manuscript_<version> for the
+  // manuscript, manuscript_<version>-supplement for the supplement, where the
+  // version is the one the working copy currently carries (the number a log
+  // would freeze). Switching targets swaps the default in place, and a newly
+  // loaded version list re-seeds it — but neither ever clobbers a name the
+  // user typed themselves.
+  // The export panel can be the first thing opened in a session, before any
+  // view has pulled the registry in — ask for it once so the version in the
+  // default name is the real one.
+  useEffect(() => {
+    refreshDocuments()
+  }, [rootDir])
+
+  const workingId = formatVersionId(workingVersion(versions))
+  const defaultNameFor = (t: ExportTarget): string =>
+    t === 'supplement' ? `manuscript_${workingId}-supplement` : `manuscript_${workingId}`
+  const lastDefault = useRef('')
   useEffect(() => {
     if (manuscript === null) return
-    const other: ExportTarget = target === 'supplement' ? 'manuscript' : 'supplement'
-    if (outputName === '' || outputName === defaultNameFor(other)) {
-      setOutputName(defaultNameFor(target))
+    const next = defaultNameFor(target)
+    if (outputName === '' || outputName === lastDefault.current) {
+      lastDefault.current = next
+      setOutputName(next)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- defaultNameFor is derived from manuscript
-  }, [manuscript, target, outputName])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- defaultNameFor is derived from manuscript/versions
+  }, [manuscript, target, outputName, workingId])
 
   // Probe for manuscript/supplementary.md so the supplement target is only
   // offered when the file exists. Re-probed whenever the project tree could
