@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import type { DocumentEntry } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useDocumentsStore, refreshDocuments, secondaryDocuments } from '../state/documents'
@@ -6,6 +6,7 @@ import { useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openDocumentTab, openReviewImportTab, openRoundTab } from '../state/dock'
 import { ManuscriptView } from '../views/ManuscriptView'
 import { DocumentOutline } from './DocumentOutline'
+import { NewDocumentMenu } from './NewDocumentMenu'
 import { NewLetterSheet } from './NewLetterSheet'
 import { NewRoundSheet } from './NewRoundSheet'
 import './documents.css'
@@ -37,6 +38,7 @@ export function DocumentsView(): JSX.Element {
   const activeDocumentId = useManuscriptDocStore((s) => s.activeDocumentId)
   const [menuOpen, setMenuOpen] = useState(false)
   const [sheet, setSheet] = useState<'letter' | 'round' | null>(null)
+  const newBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     refreshDocuments()
@@ -50,6 +52,7 @@ export function DocumentsView(): JSX.Element {
         {/* The shell renders the panel's own title; a second one is noise. */}
         <div className="docs__new-wrap">
           <button
+            ref={newBtnRef}
             className="docs__new"
             title="New document"
             aria-label="New document"
@@ -59,45 +62,21 @@ export function DocumentsView(): JSX.Element {
           >
             +
           </button>
-          {menuOpen && (
-            <>
-              <div className="docs__menu-scrim" onClick={() => setMenuOpen(false)} role="presentation" />
-              <ul className="docs__menu" role="menu">
-                <li>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      setSheet('letter')
-                    }}
-                  >
-                    Cover letter…
-                  </button>
-                </li>
-                <li>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      setSheet('round')
-                    }}
-                  >
-                    Development round…
-                  </button>
-                </li>
-                <li>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      if (rootDir !== null) openReviewImportTab(rootDir)
-                    }}
-                  >
-                    Import reviewer comments…
-                  </button>
-                </li>
-              </ul>
-            </>
+          {menuOpen && newBtnRef.current !== null && (
+            <NewDocumentMenu
+              anchorEl={newBtnRef.current}
+              onClose={() => setMenuOpen(false)}
+              items={[
+                { label: 'Cover letter…', onSelect: () => setSheet('letter') },
+                { label: 'Development round…', onSelect: () => setSheet('round') },
+                {
+                  label: 'Import reviewer comments…',
+                  onSelect: () => {
+                    if (rootDir !== null) openReviewImportTab(rootDir)
+                  }
+                }
+              ]}
+            />
           )}
         </div>
       </div>

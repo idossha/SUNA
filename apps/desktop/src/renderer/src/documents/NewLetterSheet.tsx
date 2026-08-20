@@ -2,7 +2,7 @@ import { useMemo, useState, type JSX } from 'react'
 import type { LetterKind } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
 import { useProjectStore } from '../state/project'
-import { refreshDocuments } from '../state/documents'
+import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { openDocumentTab } from '../state/dock'
 import './documents.css'
 
@@ -48,10 +48,21 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
 
   const profile = useMemo(() => getBundledProfile(profileId), [profileId])
   const letters = profile?.letters
-  const id = useMemo(
-    () => slugify(`cover-${profile?.journalName ?? profileId}`),
-    [profile, profileId]
-  )
+  const documents = useDocumentsStore((s) => s.documents)
+
+  // A second letter to the same journal is a normal thing to want — a
+  // revision cover letter beside the submission one, or a fresh attempt after
+  // a rejection. Finding a free id here means the collision shows up as the
+  // filename under the buttons, rather than as an error after Create.
+  const id = useMemo(() => {
+    const base = slugify(`cover-${profile?.journalName ?? profileId}`)
+    const taken = new Set(documents.map((d) => d.id))
+    if (!taken.has(base)) return base
+    for (let n = 2; n < 100; n += 1) {
+      if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
+    }
+    return `${base}-${Date.now()}`
+  }, [profile, profileId, documents])
 
   const create = async (): Promise<void> => {
     if (rootDir === null || busy) return
