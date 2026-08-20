@@ -1,3 +1,4 @@
+import { PEER_REVIEW_FILE, peerReviewSeed } from '@suna/core'
 import { existsSync } from 'node:fs'
 import { access, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -317,7 +318,8 @@ export async function ensureProjectAgentLayer(
   const memory: [string, string][] = [
     ['PROJECT.md', projectTemplate(projectName)],
     ['MEMORY.md', memoryTemplate()],
-    ['RULES.md', rulesTemplate()]
+    ['RULES.md', rulesTemplate()],
+    [PEER_REVIEW_FILE, peerReviewSeed()]
   ]
   for (const [name, body] of memory) {
     if (await writeIfMissing(join(contextDir, name), body)) {
