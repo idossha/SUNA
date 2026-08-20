@@ -8,6 +8,7 @@ import {
 } from 'dockview'
 import { createRoot, type Root } from 'react-dom/client'
 import 'dockview/dist/styles/dockview.css'
+import { toggleMaximize } from './toggleMaximize'
 
 /**
  * Minimal React adapter over dockview-core v8 (which ships no React binding).
@@ -84,12 +85,21 @@ export function DockHost({ components, onReady }: DockHostProps): JSX.Element {
     })
     onReady(dockview.api)
 
+    // double-clicking a tab lip zooms its group to fill the dock, and back
+    const onDoubleClick = (event: MouseEvent): void => {
+      const target = event.target as HTMLElement | null
+      if (!target?.closest('.dv-tab')) return
+      if (toggleMaximize(dockview.api)) event.preventDefault()
+    }
+    container.addEventListener('dblclick', onDoubleClick)
+
     const observer = new ResizeObserver(() => {
       dockview.layout(container.clientWidth, container.clientHeight)
     })
     observer.observe(container)
 
     return () => {
+      container.removeEventListener('dblclick', onDoubleClick)
       observer.disconnect()
       dockview.dispose()
     }
