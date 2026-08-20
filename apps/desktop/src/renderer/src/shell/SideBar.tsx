@@ -10,6 +10,7 @@ import { useProjectStore } from '../state/project'
 import { useExplorerStore } from '../state/explorer'
 import { ExplorerView } from './ExplorerView'
 import { DocumentsView } from '../documents/DocumentsView'
+import { NewDocumentButton } from '../documents/NewDocumentButton'
 import { FiguresView } from '../views/FiguresView'
 import { ReferencesView } from '../views/ReferencesView'
 import { SourceControlView } from '../views/SourceControlView'
@@ -111,6 +112,11 @@ export function SideBar(): JSX.Element {
     <aside ref={asideRef} className="sidebar" style={{ width: sidebarWidth }}>
       <div className="sidebar__header">
         <span>{SIDEBAR_VIEW_LABELS[activeView]}</span>
+        {activeView === 'manuscript' && rootDir !== null && (
+          <span className="sidebar__actions">
+            <NewDocumentButton />
+          </span>
+        )}
         {activeView === 'explorer' && rootDir !== null && (
           <span className="sidebar__actions">
             <button

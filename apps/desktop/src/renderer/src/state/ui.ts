@@ -8,7 +8,7 @@ export type SidebarView = (typeof SIDEBAR_VIEWS)[number]
 
 export const SIDEBAR_VIEW_LABELS: Record<SidebarView, string> = {
   explorer: 'Explorer',
-  manuscript: 'Documents',
+  manuscript: 'Writing',
   figures: 'Figures',
   references: 'References',
   git: 'Source Control',
