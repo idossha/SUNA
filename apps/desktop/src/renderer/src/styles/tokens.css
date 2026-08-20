@@ -30,6 +30,13 @@
   --s-warn: #d9915b;
   --s-err: #d97b6c;
 
+  /* An inserted-word wash has to survive being laid UNDER prose on a dark
+     surface: --s-ok is a desaturated teal that, tinted down, sank into the
+     editor background and read as a smudge rather than a mark. The diff
+     insert therefore carries its own, brighter green; every other theme
+     points it back at --s-ok, which already reads there. */
+  --s-diff-ins: #57d9a3;
+
   /* lines */
   --s-border: #2a2a33;
   --s-border-strong: #3a3a45;
@@ -96,6 +103,7 @@ body[data-suna-theme='suna-light'] {
   --s-accent-ink: #fbf7ee;
 
   --s-ok: #3f6b4f;
+  --s-diff-ins: var(--s-ok);
   --s-warn: #a05c22;
   --s-err: #b0503f;
 
@@ -135,6 +143,7 @@ body[data-suna-theme='gruvbox'] {
   --s-accent-ink: #282828;
 
   --s-ok: #b8bb26;
+  --s-diff-ins: var(--s-ok);
   --s-warn: #fe8019;
   --s-err: #fb4934;
 
@@ -162,9 +171,93 @@ body[data-suna-theme='jellybeans'] {
   --s-accent-ink: #151515;
 
   --s-ok: #99ad6a;
+  --s-diff-ins: var(--s-ok);
   --s-warn: #ffb964;
   --s-err: #cf6a4c;
 
   --s-border: #252525;
   --s-border-strong: #404040;
+}
+
+/* mono-blue-dark: neutral black-and-white chrome, one restrained blue accent.
+   The greys are true neutrals so the blue is the only hue in the shell; the
+   semantic colours are desaturated to keep them from competing with it. */
+.app[data-suna-theme='mono-blue-dark'],
+body[data-suna-theme='mono-blue-dark'] {
+  --s-bg-chrome: #0a0a0b;
+  --s-bg-shell: #0e0e10;
+  --s-bg-panel: #131315;
+  --s-bg-editor: #0e0e10;
+  --s-bg-raised: #1a1a1d;
+  --s-bg-hover: rgba(255, 255, 255, 0.06);
+  --s-bg-active: rgba(91, 157, 217, 0.14);
+  --s-bg-selected: rgba(91, 157, 217, 0.2);
+
+  --s-ink: #f2f2f2;
+  --s-ink-muted: #a6a6a8;
+  --s-ink-faint: #6e6e72;
+
+  --s-accent: #5b9dd9;
+  --s-accent-ink: #0a0a0b;
+
+  --s-ok: #7fae93;
+  --s-diff-ins: #63c79b;
+  --s-warn: #c9a26a;
+  --s-err: #cf7a72;
+
+  --s-border: #232326;
+  --s-border-strong: #3a3a3f;
+
+  /* Lanes stay mostly greyscale; the accent blue leads, with two further
+     blues so a busy history still separates without adding new hues. */
+  --s-graph-0: #5b9dd9;
+  --s-graph-1: #9a9a9e;
+  --s-graph-2: #7fb6e6;
+  --s-graph-3: #6e6e72;
+  --s-graph-4: #3f7fb3;
+  --s-graph-5: #c4c4c8;
+  --s-graph-6: #4f4f54;
+  --s-graph-7: #a8c8e4;
+}
+
+/* mono-blue-light: the same neutral-grey-plus-one-blue idea inverted onto
+   white paper. The blue darkens to #2f6fae so it holds contrast against a
+   white surface, where the dark theme's lighter blue would wash out. */
+.app[data-suna-theme='mono-blue-light'],
+body[data-suna-theme='mono-blue-light'] {
+  --s-bg-chrome: #eaeaee;
+  --s-bg-shell: #f1f1f4;
+  --s-bg-panel: #f6f6f8;
+  --s-bg-editor: #ffffff;
+  --s-bg-raised: #ffffff;
+  --s-bg-hover: rgba(23, 23, 26, 0.06);
+  --s-bg-active: rgba(47, 111, 174, 0.14);
+  --s-bg-selected: rgba(47, 111, 174, 0.2);
+
+  --s-ink: #17171a;
+  --s-ink-muted: #5c5c63;
+  --s-ink-faint: #8e8e96;
+
+  --s-accent: #2f6fae;
+  --s-accent-ink: #ffffff;
+
+  --s-ok: #2f6b4f;
+  --s-diff-ins: var(--s-ok);
+  --s-warn: #8a5a1f;
+  --s-err: #a8463a;
+
+  --s-border: #dcdce1;
+  --s-border-strong: #c9c9d0;
+
+  /* Darkened lanes: greys and blues that stay legible on white. */
+  --s-graph-0: #2f6fae;
+  --s-graph-1: #5c5c63;
+  --s-graph-2: #1f4f80;
+  --s-graph-3: #8e8e96;
+  --s-graph-4: #4a86c4;
+  --s-graph-5: #3a3a40;
+  --s-graph-6: #6d93b5;
+  --s-graph-7: #77777f;
+
+  color-scheme: light;
 }

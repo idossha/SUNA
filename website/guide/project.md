@@ -126,7 +126,7 @@ Every key here is optional and nullable. An absent or `null` key falls through t
 | `editor.fontSizePx` | 12–22 |
 | `editor.lineHeight` | 1.4–2.0 |
 | `editor.fontFamily` | `serif`, `sans`, `mono` |
-| `editor.editorTheme` | `suna-dark`, `suna-light`, `gruvbox`, `jellybeans` |
+| `editor.editorTheme` | `suna-dark`, `suna-light`, `gruvbox`, `jellybeans`, `mono-blue-dark`, `mono-blue-light` |
 | `editor.vimMotions` | boolean |
 | `figures.defaultWidthPreset` | `single`, `onehalf`, `double` |
 | `python.envPath` | Path to the project's Python environment. |

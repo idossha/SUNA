@@ -99,10 +99,54 @@
   --ed-syn-keyword: #8197bf;
 }
 
+/* Mono Blue Dark: black-and-white surface; syntax is carried by weight and by one
+   blue at three intensities rather than by hue. */
+.editor-tab--theme-mono-blue-dark {
+  --ed-bg: #0e0e10;
+  --ed-ink: #f2f2f2;
+  --ed-ink-muted: #a6a6a8;
+  --ed-ink-faint: #6e6e72;
+  --ed-accent: #5b9dd9;
+  --ed-border: #3a3a3f;
+  --ed-selection: rgba(91, 157, 217, 0.22);
+  --ed-active-line: rgba(255, 255, 255, 0.035);
+  --ed-syn-heading: #5b9dd9;
+  --ed-syn-em: #c8c8cc;
+  --ed-syn-strong: #ffffff;
+  --ed-syn-link: #7fb6e6;
+  --ed-syn-code: #a8c8e4;
+  --ed-syn-label: #8fa8bf;
+  --ed-syn-number: #b9b9bd;
+  --ed-syn-keyword: #4f8fc4;
+}
+
+/* Mono Blue Light: white paper, near-black ink, the blue darkened so it still
+   reads as an accent rather than a highlight. */
+.editor-tab--theme-mono-blue-light {
+  --ed-bg: #ffffff;
+  --ed-ink: #17171a;
+  --ed-ink-muted: #5c5c63;
+  --ed-ink-faint: #8e8e96;
+  --ed-accent: #2f6fae;
+  --ed-border: #c9c9d0;
+  --ed-selection: rgba(47, 111, 174, 0.2);
+  --ed-active-line: rgba(23, 23, 26, 0.04);
+  --ed-syn-heading: #2f6fae;
+  --ed-syn-em: #4a4a52;
+  --ed-syn-strong: #000000;
+  --ed-syn-link: #1f4f80;
+  --ed-syn-code: #3a6a90;
+  --ed-syn-label: #5a7590;
+  --ed-syn-number: #55555c;
+  --ed-syn-keyword: #24598c;
+}
+
 /* the tab surface itself follows the editor theme, not the chrome */
 .editor-tab.editor-tab--theme-suna-light,
 .editor-tab.editor-tab--theme-gruvbox,
-.editor-tab.editor-tab--theme-jellybeans {
+.editor-tab.editor-tab--theme-jellybeans,
+.editor-tab.editor-tab--theme-mono-blue-dark,
+.editor-tab.editor-tab--theme-mono-blue-light {
   background: var(--ed-bg);
 }
 

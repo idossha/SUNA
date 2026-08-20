@@ -79,13 +79,17 @@ const sunaSyntax = HighlightStyle.define([
 
 const syntax = syntaxHighlighting(sunaSyntax, { fallback: true })
 
+const LIGHT_THEMES = new Set<EditorThemeName>(['suna-light', 'mono-blue-light'])
+
 export function editorTheme(name: EditorThemeName): Extension {
-  return [name === 'suna-light' ? lightChrome : darkChrome, syntax]
+  return [LIGHT_THEMES.has(name) ? lightChrome : darkChrome, syntax]
 }
 
 export const EDITOR_THEME_CLASS: Record<EditorThemeName, string> = {
   'suna-dark': 'editor-tab--theme-suna-dark',
   'suna-light': 'editor-tab--theme-suna-light',
   gruvbox: 'editor-tab--theme-gruvbox',
-  jellybeans: 'editor-tab--theme-jellybeans'
+  jellybeans: 'editor-tab--theme-jellybeans',
+  'mono-blue-dark': 'editor-tab--theme-mono-blue-dark',
+  'mono-blue-light': 'editor-tab--theme-mono-blue-light'
 }

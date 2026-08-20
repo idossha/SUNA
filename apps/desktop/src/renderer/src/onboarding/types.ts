@@ -56,6 +56,8 @@ export function repoNameFromProjectName(name: string): string {
 export interface WizardDefaults {
   defaultMode: 'source' | 'reading'
   editorTheme: 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
+    | 'mono-blue-dark'
+    | 'mono-blue-light'
   fontSizePx: number
   lineHeight: number
   contentWidthCh: number

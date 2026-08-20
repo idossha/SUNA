@@ -33,7 +33,8 @@ import { useProjectStore } from './project'
  *                         opened markdown tabs; READING is the default.
  *   'editor.vimMotions'   boolean               vim keymap in the source view.
  *   'editor.theme'        'suna-dark' | 'suna-light' | 'gruvbox' |
- *                         'jellybeans'
+ *                         'jellybeans' |
+ *                         'mono-blue-dark' | 'mono-blue-light'
  *                         default app theme (editor surface + chrome).
  *   'editor.autosave'     boolean               save a dirty buffer (and the
  *                         figure canvas) after a pause in editing. ON by
@@ -75,7 +76,13 @@ import { useProjectStore } from './project'
  * hand-edit of suna.json in the editor re-resolves without a restart).
  */
 export type EditorModeSetting = 'reading' | 'source'
-export type EditorThemeSetting = 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
+export type EditorThemeSetting =
+  | 'suna-dark'
+  | 'suna-light'
+  | 'gruvbox'
+  | 'jellybeans'
+  | 'mono-blue-dark'
+  | 'mono-blue-light'
 
 export interface GlobalSettings {
   'editor.defaultMode': EditorModeSetting
@@ -126,7 +133,9 @@ const EDITOR_THEMES: readonly EditorThemeSetting[] = [
   'suna-dark',
   'suna-light',
   'gruvbox',
-  'jellybeans'
+  'jellybeans',
+  'mono-blue-dark',
+  'mono-blue-light'
 ]
 
 /** Coerce the untyped persisted record into a fully-populated settings object. */
