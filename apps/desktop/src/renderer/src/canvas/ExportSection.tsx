@@ -5,6 +5,7 @@ import type { Diagnostic } from '@suna/formatter'
 import { DPI_CHOICES, defaultDpi, widthPresetsFor } from './export-presets'
 import { encodeTiff } from './tiff'
 import { exportPixelSize, parseRasterExportError } from './units'
+import { notifyExported } from '../export/exportToast'
 
 /**
  * Export section (canvas parity spec §5–6): SVG/PDF via the main-process
@@ -113,7 +114,7 @@ export function ExportSection(props: ExportSectionProps): JSX.Element {
         dpi,
         transparent
       })
-      note(`Exported ${format.toUpperCase()} → ${res.path}`)
+      notifyExported(res.path)
     })
 
   const exportRaster = (format: 'png' | 'tiff'): Promise<void> =>
@@ -152,7 +153,7 @@ export function ExportSection(props: ExportSectionProps): JSX.Element {
           base64 = await blobToBase64(tiffBytesToBlob(tiffBytes))
         }
         await window.suna.invoke('figure:write-binary', { path, base64 })
-        note(`Exported ${format.toUpperCase()} → ${path} (${widthPx}×${heightPx})`)
+        notifyExported(path, `${widthPx}×${heightPx} at ${dpi} dpi`)
       } finally {
         URL.revokeObjectURL(url)
       }

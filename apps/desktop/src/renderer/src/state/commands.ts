@@ -19,6 +19,7 @@ import { useProjectStore } from './project'
 import { resolvePreviewProfileId, useRenderProfileStore } from './renderProfile'
 import { useTerminalPanelStore } from './terminal'
 import { useUiStore } from './ui'
+import { notifyExported } from '../export/exportToast'
 
 export interface Command {
   id: string
@@ -207,8 +208,7 @@ registerCommand({
     const context = activeCanvasPaletteContext()
     if (context === null) return
     try {
-      const path = await exportActiveFigurePng(context)
-      useUiStore.getState().setStatusNote(`Exported PNG → ${path}`)
+      notifyExported(await exportActiveFigurePng(context))
     } catch (error) {
       reportError('PNG export failed', error)
     }
@@ -224,8 +224,7 @@ registerCommand({
     const context = activeCanvasPaletteContext()
     if (context === null) return
     try {
-      const path = await exportActiveFigurePdf(context)
-      useUiStore.getState().setStatusNote(`Exported PDF → ${path}`)
+      notifyExported(await exportActiveFigurePdf(context))
     } catch (error) {
       reportError('PDF export failed', error)
     }

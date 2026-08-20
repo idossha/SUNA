@@ -11,6 +11,7 @@ import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
 import { RequirementsPanel } from './RequirementsPanel'
 import { stanceTag } from './requirements'
+import { notifyExported } from './exportToast'
 import './export.css'
 
 type ExportFormat = 'docx' | 'pdf' | 'html'
@@ -282,8 +283,10 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     try {
       const path = await exportOnce(compressFigures)
       setResult(path)
-      setResultBytes(await fileSizeOf(path))
+      const bytes = await fileSizeOf(path)
+      setResultBytes(bytes)
       setResultCompressed(compressFigures)
+      notifyExported(path, bytes !== null ? fileSizeLabel(bytes) : undefined)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -299,10 +302,17 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
     try {
       const path = await exportOnce(true)
       setResult(path)
-      setResultBytes(await fileSizeOf(path))
+      const bytes = await fileSizeOf(path)
+      setResultBytes(bytes)
       setCompressedFrom(before)
       setResultCompressed(true)
       setCompressFigures(true)
+      notifyExported(
+        path,
+        before !== null && bytes !== null
+          ? `compressed ${fileSizeLabel(before)} → ${fileSizeLabel(bytes)}`
+          : 'figures compressed'
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {

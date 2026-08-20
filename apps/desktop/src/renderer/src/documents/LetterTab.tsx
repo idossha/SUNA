@@ -23,6 +23,7 @@ import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
 import { GearIcon } from '../editor/GearIcon'
 import { NewDocumentMenu } from './NewDocumentMenu'
+import { notifyExported } from '../export/exportToast'
 import { manuscriptStyleVars } from '../manuscript/msdocStyle'
 import '../editor/editor.css'
 import '../manuscript/manuscript.css'
@@ -359,15 +360,16 @@ function LetterExportButton({
         outputName,
         acknowledgeUnanswered: acknowledge
       })
-      // The status note, not a Finder window: exporting is often the second
-      // of three (pdf, docx, html), and a popped folder per format is noise.
-      useUiStore
-        .getState()
-        .setStatusNote(
-          acknowledge && unanswered.length > 0
-            ? `Wrote the letter to ${path} — ${unanswered.length} assertion${unanswered.length === 1 ? '' : 's'} still unanswered`
-            : `Wrote the letter to ${path}`
-        )
+      // The shared export toast (export/exportToast.ts), same as every other
+      // export in the app: it OFFERS Open / Reveal rather than popping a
+      // Finder window, because exporting is often the second of three (pdf,
+      // docx, html) and a folder per format is noise.
+      notifyExported(
+        path,
+        acknowledge && unanswered.length > 0
+          ? `${unanswered.length} assertion${unanswered.length === 1 ? '' : 's'} still unanswered`
+          : undefined
+      )
     } catch (err) {
       useUiStore
         .getState()
