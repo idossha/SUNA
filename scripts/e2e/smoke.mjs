@@ -4783,7 +4783,7 @@ try {
     ]) {
       assert(probe.tools.includes(name), `bundled MCP server is missing ${name}`)
     }
-    assert(probe.tools.length === 24, `MCP tool count: ${probe.tools.length}`)
+    assert(probe.tools.length === 34, `MCP tool count: ${probe.tools.length}`)
 
     // the anchored edit primitive, round-tripped through the real bundle:
     // edit a unique phrase, verify the section report, put it back

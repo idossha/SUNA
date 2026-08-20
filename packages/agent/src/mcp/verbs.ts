@@ -6,6 +6,28 @@ import { z } from 'zod'
 import { ManuscriptSchema, emptyAuthorsFile } from '@suna/core'
 import { outlineFromMarkdown, parseSciMark } from '@suna/markdown'
 import { writeAtomic } from '../context/ensure'
+import {
+  checkLetterCompliance,
+  checkLetterInput,
+  checkResponseCompleteness,
+  checkResponseInput,
+  listDocuments,
+  listDocumentsInput,
+  listReviewPoints,
+  listReviewPointsInput,
+  listRounds,
+  listRoundsInput,
+  readDocument,
+  readDocumentInput,
+  readLetter,
+  readLetterInput,
+  readRound,
+  readRoundInput,
+  setPointStatus,
+  setPointStatusInput,
+  writeDocument,
+  writeDocumentInput
+} from './documents'
 import { loadProjectContext, resolveInside, type ProjectContext } from './project'
 import {
   addComment,
@@ -471,6 +493,21 @@ export async function checkManuscriptCompliance(ctx: ProjectContext): Promise<st
 
 /** Tool metadata shared by the server and its tests. */
 export const TOOLS = [
+  // ---- the document registry, letters and rounds (feature-plan-12 §10) ----
+  // There is deliberately NO verb that writes a letter assertion. A cover
+  // letter's assertions are the author's factual claims to an editor, over
+  // the author's signature; an agent may draft the argument and read what is
+  // still unanswered, but it may not sign the affidavit.
+  { name: 'list_documents', description: 'List the documents this project holds (manuscript, cover letters, responses, reports) with their kind, prose file and profile', schema: listDocumentsInput },
+  { name: 'read_document', description: 'Read any document\'s prose by its registry id — read_manuscript is the special case for the manuscript', schema: readDocumentInput },
+  { name: 'write_document', description: 'Overwrite any document\'s prose by its registry id', schema: writeDocumentInput },
+  { name: 'read_letter', description: 'Read a cover letter\'s sidecar: which venue it addresses, what it covers, and which required assertions are still UNANSWERED. SUNA never writes an assertion — report what is missing, do not fill it in', schema: readLetterInput },
+  { name: 'check_letter', description: "Check a cover letter against the target journal's stated letter requirements (missing assertions, the wrong journal named in the prose, an unnamed data repository, a contact the journal requires)", schema: checkLetterInput },
+  { name: 'list_rounds', description: 'List the project\'s development rounds — internal circulations and external review rounds — with state, decision and how many reviewer points are addressed', schema: listRoundsInput },
+  { name: 'read_round', description: 'Read one round: state, decision, freeze, and per-reviewer progress', schema: readRoundInput },
+  { name: 'list_review_points', description: "List a round's reviewer points verbatim, with each point's status and assignee; filter by status or assignee", schema: listReviewPointsInput },
+  { name: 'set_point_status', description: "Set the author's state on one reviewer point (unaddressed/drafted/done/rebutted) and optionally its assignee. This writes the authors' own bookkeeping — a reviewer's words have no write path at all", schema: setPointStatusInput },
+  { name: 'check_response', description: 'Check a round for completeness: every unaddressed reviewer point by name, replies that name no point, and points marked answered whose reply never appears', schema: checkResponseInput },
   { name: 'list_project', description: 'List every file in the SUNA project', schema: listProjectInput },
   { name: 'read_manuscript', description: 'Read the whole manuscript prose file (manuscript/manuscript.md)', schema: readManuscriptInput },
   {
@@ -559,6 +596,30 @@ export async function callTool(
 ): Promise<string> {
   const ctx = await loadProjectContext(rootDir)
   switch (name) {
+    case 'list_documents':
+      listDocumentsInput.parse(args)
+      return listDocuments(ctx)
+    case 'read_document':
+      return readDocument(ctx, readDocumentInput.parse(args).documentId)
+    case 'write_document': {
+      const input = writeDocumentInput.parse(args)
+      return writeDocument(ctx, input.documentId, input.content)
+    }
+    case 'read_letter':
+      return readLetter(ctx, readLetterInput.parse(args).documentId)
+    case 'check_letter':
+      return checkLetterCompliance(ctx, checkLetterInput.parse(args).documentId)
+    case 'list_rounds':
+      listRoundsInput.parse(args)
+      return listRounds(ctx)
+    case 'read_round':
+      return readRound(ctx, readRoundInput.parse(args).roundId)
+    case 'list_review_points':
+      return listReviewPoints(ctx, listReviewPointsInput.parse(args))
+    case 'set_point_status':
+      return setPointStatus(ctx, setPointStatusInput.parse(args))
+    case 'check_response':
+      return checkResponseCompleteness(ctx, checkResponseInput.parse(args))
     case 'list_project':
       return listProject(ctx)
     case 'read_manuscript':

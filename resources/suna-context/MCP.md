@@ -46,13 +46,23 @@ the literature APIs:
 Set them in the environment the server is launched with. Agent comments always carry
 `author.kind: "agent"`.
 
-## The 24 verbs
+## The 34 verbs
 
 Every reply is plain text.
 
 | verb | input | purpose |
 |---|---|---|
 | list_project | {} | header (project/profile/root) + recursive file list |
+| list_documents | {} | the documents this project holds — manuscript, cover letters, responses, reports — with kind, prose file and profile |
+| read_document | {documentId} | any document's prose by registry id; read_manuscript is the special case |
+| write_document | {documentId, content} | overwrite any document's prose by registry id |
+| read_letter | {documentId} | a cover letter's sidecar: the venue, what it covers, and which required assertions are still UNANSWERED |
+| check_letter | {documentId} | the letter against the target journal's stated requirements |
+| list_rounds | {} | development rounds — internal circulations and external review rounds — with state, decision and points addressed |
+| read_round | {roundId} | one round: state, decision, freeze, per-reviewer progress |
+| list_review_points | {roundId, status?, assignee?} | a round's reviewer points verbatim, with status and assignee |
+| set_point_status | {roundId, pointId, status, assignee?} | set the AUTHORS' state on a point (unaddressed/drafted/done/rebutted) |
+| check_response | {roundId, forExport?} | every unaddressed reviewer point BY NAME, plus orphaned and missing replies |
 | read_manuscript | {} | the whole prose file |
 | write_manuscript | {content} | overwrite the whole prose file — wholesale restructures only; prefer edit_manuscript |
 | edit_manuscript | {find, replace} | anchored exact-match edit; errors if find matches 0 or >1 times (with per-match context so you can extend find); reports the section it edited |
@@ -118,6 +128,20 @@ to you, and nothing here attempts to defeat access controls: a 403 is reported a
 
 Citation and cross-reference syntax is in MANUSCRIPT.md; the comment schema and review
 procedure are in COMMENTS.md.
+
+## What you must not write
+
+**Never write a cover letter's assertions.** A letter's assertion set records the
+author's factual claims to an editor — that the work is not under consideration
+elsewhere, that there are no competing interests, that a named colleague has read the
+draft — made over the author's signature. There is no verb that writes one, and that is
+deliberate. Draft the argument; read `read_letter` to see what is still unanswered and
+say so plainly. Filling it in is the author's job.
+
+**Never edit a reviewer's words.** Reviewer points live in `rounds/<id>/reviewers/*.json`
+and have no write path at all. `set_point_status` writes the authors' own bookkeeping
+beside a point, never the point. A verbatim that stops matching the text as received is
+reported by `check_response` as an error.
 
 ## Conventions
 
