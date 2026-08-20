@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import {
+  BYTES_PER_MB,
   SETTINGS_DEFAULTS,
   SETTING_KEYS,
+  TRASH_DEFAULTS,
+  trashPolicy,
   SunaProjectManifestSchema,
   mergeProjectSettings,
   projectSettingPatch,
@@ -92,6 +95,14 @@ export interface GlobalSettings {
   'references.autoOpenPdf': boolean
   /** Show the AI's unreviewed changes inline in the editor (feature-plan-11). */
   'review.aiDiffs': ReviewAiDiffs
+  /**
+   * Deleted FILES at or under this many MB go to SUNA's own trash, where they
+   * stay restorable; anything bigger (and every directory) goes to the OS
+   * trash. Read main-side too — see services/trash.ts.
+   */
+  'trash.maxFileMb': number
+  /** How long a file waits in SUNA's trash before it is passed to the OS trash. */
+  'trash.retentionDays': number
 }
 
 export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
@@ -104,7 +115,9 @@ export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
   'lit.mailto': '',
   'lit.cli': 'auto',
   'references.autoOpenPdf': true,
-  'review.aiDiffs': 'inline'
+  'review.aiDiffs': 'inline',
+  'trash.maxFileMb': TRASH_DEFAULTS.maxFileMb,
+  'trash.retentionDays': TRASH_DEFAULTS.retentionDays
 }
 
 export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
@@ -150,6 +163,11 @@ export function coerceSettings(raw: Record<string, unknown>): GlobalSettings {
   if (typeof raw['references.autoOpenPdf'] === 'boolean') {
     out['references.autoOpenPdf'] = raw['references.autoOpenPdf']
   }
+  // The main process resolves the same two keys through trashPolicy(); the
+  // bounds live in @suna/core so the page and the delete path cannot disagree.
+  const policy = trashPolicy(raw)
+  out['trash.maxFileMb'] = policy.maxFileBytes / BYTES_PER_MB
+  out['trash.retentionDays'] = policy.retentionDays
   return out
 }
 
