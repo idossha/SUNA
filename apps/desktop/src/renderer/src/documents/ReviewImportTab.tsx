@@ -1,4 +1,12 @@
-import { useCallback, useMemo, useState, type DragEvent, type JSX } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type JSX
+} from 'react'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useDocumentsStore, refreshDocuments } from '../state/documents'
 import { openRoundTab } from '../state/dock'
@@ -122,6 +130,9 @@ export function ReviewImportTab({ params }: DockPanelProps): JSX.Element {
       })
       setDone(res)
       refreshDocuments()
+      // Reviewing the split is optional; landing in the round is the point.
+      // The confirmation screen only existed to hold a button that goes here.
+      openRoundTab(rootDir, target)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -232,7 +243,31 @@ function ReviewScreen(props: {
   onChange: (a: Analysis) => void
 }): JSX.Element {
   const { analysis } = props
-  const [selected, setSelected] = useState<string | null>(null)
+  // Selecting on one side scrolls the OTHER side to the match; scrolling the
+  // side that was clicked would yank the text out from under the cursor.
+  const [selected, setSelected] = useState<{ id: string; from: 'source' | 'card' } | null>(null)
+  const cardRefs = useRef(new Map<string, HTMLElement>())
+  const sourceRef = useRef<HTMLDivElement | null>(null)
+  const selectedId = selected?.id ?? null
+
+  useEffect(() => {
+    if (selected === null) return
+    const target =
+      selected.from === 'source'
+        ? cardRefs.current.get(selected.id)
+        : // A point can span several segments; scroll to the first one.
+          sourceRef.current?.querySelector<HTMLElement>(
+            `[data-point-id="${CSS.escape(selected.id)}"]`
+          )
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [selected])
+
+  const bindCard =
+    (id: string) =>
+    (el: HTMLElement | null): void => {
+      if (el === null) cardRefs.current.delete(id)
+      else cardRefs.current.set(id, el)
+    }
 
   const dropPoint = (reviewerIndex: number, pointId: string): void => {
     props.onChange({
@@ -277,7 +312,10 @@ function ReviewScreen(props: {
       <header className="rvimp__head rvimp__head--row">
         <div>
           <h2>{analysis.totalPoints} points found</h2>
-          <p>Every card says why it was detected. Correct anything wrong before importing.</p>
+          <p>
+            Every card says why it was detected. Correcting them here is optional — import
+            now and edit in the round if you would rather.
+          </p>
         </div>
         <div className="rvimp__round">
           <label htmlFor="rvimp-round">Import into</label>
@@ -286,7 +324,7 @@ function ReviewScreen(props: {
             value={props.roundId}
             onChange={(e) => props.setRoundId(e.target.value)}
           >
-            <option value="">Choose a round…</option>
+            <option value="">New round</option>
             {props.rounds.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.label}
@@ -297,20 +335,25 @@ function ReviewScreen(props: {
       </header>
 
       <div className="rvimp__cols">
-        <div className="rvimp__source">
+        <div className="rvimp__source" ref={sourceRef}>
           {segments.map((seg, i) => (
             <span
               key={i}
               className={
                 seg.kind === 'point'
-                  ? `rvimp__seg is-point${selected === seg.pointId ? ' is-selected' : ''}`
+                  ? `rvimp__seg is-point${selectedId === seg.pointId ? ' is-selected' : ''}`
                   : seg.kind === 'gap'
                     ? 'rvimp__seg is-gap'
                     : seg.kind === 'head'
                       ? 'rvimp__seg is-head'
                       : 'rvimp__seg'
               }
-              onClick={() => seg.kind === 'point' && setSelected(seg.pointId ?? null)}
+              data-point-id={seg.kind === 'point' ? seg.pointId : undefined}
+              onClick={() =>
+                seg.kind === 'point' &&
+                seg.pointId != null &&
+                setSelected({ id: seg.pointId, from: 'source' })
+              }
             >
               {seg.text}
             </span>
@@ -335,8 +378,9 @@ function ReviewScreen(props: {
               {r.points.map((p) => (
                 <article
                   key={p.id}
-                  className={`rvimp__card${selected === p.id ? ' is-selected' : ''}`}
-                  onClick={() => setSelected(p.id)}
+                  ref={bindCard(p.id)}
+                  className={`rvimp__card${selectedId === p.id ? ' is-selected' : ''}`}
+                  onClick={() => setSelected({ id: p.id, from: 'card' })}
                 >
                   <header>
                     <span className="rvimp__pid">
@@ -398,7 +442,7 @@ function ReviewScreen(props: {
           <button
             className="is-primary"
             onClick={props.onCommit}
-            disabled={props.busy || props.roundId === '' || analysis.totalPoints === 0}
+            disabled={props.busy || analysis.totalPoints === 0}
           >
             {props.busy ? 'Importing…' : `Import ${analysis.totalPoints} points`}
           </button>
