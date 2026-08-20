@@ -111,9 +111,14 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
     set({ menu: null })
     const targets = menu.targets
     const failures: string[] = []
+    // Light files land in SUNA's trash and stay restorable; directories and
+    // heavy files go straight to the OS trash. The note says which happened,
+    // so "where did it go?" never needs a second guess.
+    let recoverable = 0
     for (const path of targets) {
       try {
-        await window.suna.invoke('fs:delete', { path })
+        const { destination } = await window.suna.invoke('fs:delete', { path })
+        if (destination === 'suna') recoverable += 1
       } catch (error) {
         failures.push(`${path.split('/').pop() ?? path} (${error instanceof Error ? error.message : String(error)})`)
       }
@@ -126,13 +131,13 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
         .getState()
         .setStatusNote(`Moved ${moved} to the trash; could not delete ${failures.join(', ')}`)
     } else {
+      const what =
+        moved === 1
+          ? `Moved ${targets[0]?.split('/').pop() ?? ''} to the trash`
+          : `Moved ${moved} items to the trash`
       useUiStore
         .getState()
-        .setStatusNote(
-          moved === 1
-            ? `Moved ${targets[0]?.split('/').pop() ?? ''} to the trash`
-            : `Moved ${moved} items to the trash`
-        )
+        .setStatusNote(recoverable > 0 ? `${what} — restore from Trash` : what)
     }
   },
 
