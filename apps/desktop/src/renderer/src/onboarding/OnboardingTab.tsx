@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { resolveSettings, type ResponseOf } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
+import { HOUSE_PROFILE_ID } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
 import { useSettingsStore } from '../state/settings'
 import { useUiStore } from '../state/ui'
@@ -11,24 +12,24 @@ import { stepGate } from './gating'
 import {
   buildScaffoldSettings,
   createInitialWizardState,
-  defaultsToGlobalPatch,
   INITIAL_CREATE_PROGRESS,
   type CreateProgress,
   type WizardMode,
   type WizardState
 } from './types'
 import { Step1Location } from './steps/Step1Location'
-import { Step2Profile } from './steps/Step2Profile'
-import { Step3Scaffold } from './steps/Step3Scaffold'
-import { Step4Python } from './steps/Step4Python'
-import { Step5Ai } from './steps/Step5Ai'
-import { Step6Defaults } from './steps/Step6Defaults'
-import { Step7Review } from './steps/Step7Review'
+import { Step2Scaffold } from './steps/Step2Scaffold'
+import { Step3Python } from './steps/Step3Python'
+import { Step4Ai } from './steps/Step4Ai'
+import { Step5Defaults } from './steps/Step5Defaults'
+import { Step6Review } from './steps/Step6Review'
 import './onboarding.css'
+
+/** The Review step — the wizard's last, and the only one that writes anything. */
+const LAST_STEP = 6
 
 const STEP_TITLES = [
   'Where & what',
-  'Target journal',
   'What to scaffold',
   'Python environment',
   'AI',
@@ -59,8 +60,8 @@ function splitPath(path: string): { parent: string; name: string } {
  * Onboarding wizard (feature-plan-5 §5) — a full dock tab, component
  * 'onboarding'. Two entry points: {mode:'create'} starts from step 1;
  * {mode:'setup', dir} targets an existing suna.json-less folder and starts
- * at step 2 (steps 2-7 "against it", per the spec). Nothing is written to
- * disk before "Create project" on step 7.
+ * at step 2 (steps 2-6 "against it", per the spec). Nothing is written to
+ * disk before "Create project" on step 6.
  */
 export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
   const [wizard, setWizard] = useState<WizardState>(() => {
@@ -75,7 +76,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
 
   const update = (patch: Partial<WizardState>): void => setWizard((s) => ({ ...s, ...patch }))
 
-  // Step 6 seeds from GLOBAL settings only (not any other currently-open
+  // The Defaults step seeds from GLOBAL settings only (not any other currently-open
   // project's overrides) — load once, then seed once when it lands.
   useEffect(() => {
     void useSettingsStore.getState().load()
@@ -99,10 +100,10 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
   }, [globalSettingsLoaded, rawGlobalSettings])
 
   /**
-   * Live theme preview (step 6): the picked theme is applied to the whole
+   * Live theme preview (Defaults step): the picked theme is applied to the whole
    * app as it is picked, because "SUNA Dark" and "Gruvbox" mean nothing as
    * words in a dropdown. The editor-settings store is localStorage-only, so
-   * previewing writes no project or global setting — step 7's create is
+   * previewing writes no project or global setting — the create step is
    * still what commits the choice. Abandon the wizard and the theme the
    * user arrived with is put back.
    */
@@ -150,7 +151,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
   }, [api])
 
   const firstStep = wizard.mode === 'setup' ? 2 : 1
-  const visibleSteps = wizard.mode === 'setup' ? [2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7]
+  const visibleSteps = wizard.mode === 'setup' ? [2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6]
   const gate = stepGate(wizard.step, wizard)
   const targetPath =
     wizard.parentDir !== null && wizard.name !== '' ? `${wizard.parentDir}/${wizard.name}` : null
@@ -170,7 +171,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
   }
 
   const goNext = (): void => {
-    if (!gate.canAdvance || wizard.step >= 7) return
+    if (!gate.canAdvance || wizard.step >= LAST_STEP) return
     update({ step: wizard.step + 1 })
   }
 
@@ -181,7 +182,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     const warnings: string[] = []
     update({ creating: true, createError: null, createWarnings: [], progress })
 
-    const activeProfileId = snapshot.profileId ?? 'suna'
+    const activeProfileId = HOUSE_PROFILE_ID
     const settings = buildScaffoldSettings(snapshot)
 
     let scaffoldResult: ResponseOf<'project:scaffold'>
@@ -240,14 +241,6 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
       update({ progress })
     }
 
-    if (!snapshot.saveDefaultsToProject) {
-      try {
-        await window.suna.invoke('settings:set', { patch: defaultsToGlobalPatch(snapshot.defaults) })
-      } catch (error) {
-        warnings.push(`Could not save defaults globally: ${errorMessage(error)}`)
-        update({ createWarnings: [...warnings] })
-      }
-    }
 
     progress = { ...progress, env: 'active' }
     update({ progress })
@@ -338,15 +331,14 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
         {wizard.step === 1 && wizard.mode === 'create' && (
           <Step1Location state={wizard} update={update} />
         )}
-        {wizard.step === 2 && <Step2Profile state={wizard} update={update} />}
-        {wizard.step === 3 && <Step3Scaffold state={wizard} update={update} />}
-        {wizard.step === 4 && (
-          <Step4Python state={wizard} update={update} scanDir={envScanDir} />
+        {wizard.step === 2 && <Step2Scaffold state={wizard} update={update} />}
+        {wizard.step === 3 && (
+          <Step3Python state={wizard} update={update} scanDir={envScanDir} />
         )}
-        {wizard.step === 5 && <Step5Ai state={wizard} update={update} />}
-        {wizard.step === 6 && <Step6Defaults state={wizard} update={update} />}
-        {wizard.step === 7 && (
-          <Step7Review state={wizard} update={update} targetPath={targetPath} />
+        {wizard.step === 4 && <Step4Ai state={wizard} update={update} />}
+        {wizard.step === 5 && <Step5Defaults state={wizard} update={update} />}
+        {wizard.step === 6 && (
+          <Step6Review state={wizard} update={update} targetPath={targetPath} />
         )}
       </div>
 
@@ -355,12 +347,12 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
           {created ? 'Close' : wizard.step <= firstStep ? 'Cancel' : 'Back'}
         </button>
         <div className="onboard__footer-right">
-          {wizard.step < 7 && (
+          {wizard.step < LAST_STEP && (
             <button className="onboard__next" onClick={goNext} disabled={!gate.canAdvance}>
               Next
             </button>
           )}
-          {wizard.step === 7 && !created && (
+          {wizard.step === LAST_STEP && !created && (
             <button
               className="onboard__create"
               onClick={() => void runCreate()}
@@ -369,7 +361,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
               {wizard.creating ? 'Creating…' : 'Create project'}
             </button>
           )}
-          {wizard.step === 7 && created && (
+          {wizard.step === LAST_STEP && created && (
             <button className="onboard__create" onClick={() => api.close()}>
               Done
             </button>

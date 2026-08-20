@@ -3,7 +3,7 @@ import katex from 'katex'
 import { outlineFromMarkdown, type OutlineSection } from '@suna/markdown'
 import { useProjectStore } from '../state/project'
 import { useManuscriptStore } from '../state/manuscript'
-import { countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
+import { activeSlice, countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openManuscriptTab } from '../state/dock'
 import { splitTexSpans } from '../manuscript/title-page'
 import { activeRowKey, outlineRows, totalWords, visibleRows } from './outline'
@@ -49,10 +49,12 @@ export function ManuscriptView(): JSX.Element {
   const authors = useManuscriptStore((s) => s.authors)
   const refresh = useManuscriptStore((s) => s.refresh)
 
-  const liveOutline = useManuscriptDocStore((s) => s.outline)
-  const activeSectionIndex = useManuscriptDocStore((s) => s.activeSectionIndex)
-  const tabActive = useManuscriptDocStore((s) => s.tabActive)
-  const tabMounted = useManuscriptDocStore((s) => s.tabMounted)
+  // The sidebar follows whichever document tab was activated last.
+  const activeDocumentId = useManuscriptDocStore((s) => s.activeDocumentId)
+  const liveOutline = useManuscriptDocStore((s) => activeSlice(s).outline)
+  const activeSectionIndex = useManuscriptDocStore((s) => activeSlice(s).activeSectionIndex)
+  const tabActive = useManuscriptDocStore((s) => activeSlice(s).tabActive)
+  const tabMounted = useManuscriptDocStore((s) => activeSlice(s).tabMounted)
 
   const [diskOutline, setDiskOutline] = useState<OutlineSection[]>([])
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
@@ -148,7 +150,8 @@ export function ManuscriptView(): JSX.Element {
                 onClick={() => {
                   if (rootDir === null) return
                   openManuscriptTab(rootDir)
-                  useManuscriptDocStore.getState().requestScroll(index)
+                  if (activeDocumentId !== null)
+                    useManuscriptDocStore.getState().requestScroll(activeDocumentId, index)
                 }}
               >
                 {row.hasChildren ? (

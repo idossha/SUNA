@@ -1,0 +1,3107 @@
+[
+  {
+    "area": "cover-letter",
+    "title": "Cover letters / letters to the editor — per-journal content contracts",
+    "scope": "The confidential note to the handling editor that accompanies a submission, a revision, or an appeal. NOT the published 'Letter to the Editor' correspondence article type, and NOT the point-by-point response (that is area 'revision-response').",
+    "sources": [
+      {
+        "url": "https://www.science.org/content/page/science-information-authors",
+        "what": "Science 'Information for Authors' — the cover letter is the only required file on the Related Documents tab, and the page enumerates nine things it must contain, plus where suggested/excluded reviewers actually go"
+      },
+      {
+        "url": "https://www.nature.com/nature/for-authors/initial-submission",
+        "what": "Nature 'Initial submission' — the cover letter is optional, is confidential, must not repeat the abstract/introduction, and is the channel for conflicts of interest and related work elsewhere"
+      },
+      {
+        "url": "https://www.nature.com/commsphys/submit/submission-guidelines",
+        "what": "Nature Portfolio (Communications Physics) submission guidelines — corresponding-author affiliation and contact information required in the cover letter; suggested/excluded referees appropriate there"
+      },
+      {
+        "url": "https://www.nature.com/nature/for-authors/editorial-criteria-and-processes",
+        "what": "Nature editorial criteria — appeal rules (in writing, confined to the scientific case) and the point-by-point requirement on resubmission"
+      },
+      {
+        "url": "https://www.nature.com/nature/for-authors/formatting-guide",
+        "what": "Nature formatting guide — presubmission enquiry contents (cover paragraph + referenced summary paragraph + reference list)"
+      },
+      {
+        "url": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "what": "Cell Press — the cover letter is editor-only, must explain four things, may carry three optional items; declaration of interests is a separate form"
+      },
+      {
+        "url": "https://www.cell.com/neuron/information-for-authors/submit-manuscript",
+        "what": "Neuron — the same Cell Press cover-letter contract, verbatim"
+      },
+      {
+        "url": "https://www.cell.com/cell/information-for-authors/final-submission",
+        "what": "Cell Press final submission — a revision needs a NEW cover letter plus a SEPARATE point-by-point letter"
+      },
+      {
+        "url": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "what": "PNAS — no cover letter among the required components; the significance statement lives in the manuscript; reviewer suggestions are submission metadata"
+      },
+      {
+        "url": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "what": "eLife author instructions — the five conditional cover-letter cases (Review Articles, Replication Studies, preregistration, third-party data permission, data-availability exceptions) and the appeal contract"
+      },
+      {
+        "url": "https://academic.oup.com/brain/pages/General_Instructions",
+        "what": "Brain — a cover letter is mandatory and must carry an abbreviated non-specialist summary of at most 323 characters including spaces"
+      },
+      {
+        "url": "https://jamanetwork.com/journals/jamaneurology/pages/instructions-for-authors",
+        "what": "JAMA Neurology — cover letter with complete corresponding-author postal contact and a related-papers disclosure"
+      },
+      {
+        "url": "https://www.icmje.org/recommendations/browse/manuscript-preparation/sending-the-submission.html",
+        "what": "ICMJE Recommendations — the clinical-family baseline: redundant-publication statement, conflict-of-interest statement, authorship statement, corresponding-author contact"
+      },
+      {
+        "url": "derived/cover_letter_science.txt",
+        "what": "User-supplied real submission cover letter to Science (Markdown extraction of the .docx below)"
+      },
+      {
+        "url": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx",
+        "what": "The same letter as OOXML — letterhead table, margins, fonts, alignment, embedded images"
+      },
+      {
+        "url": "derived/nature_gt.txt",
+        "what": "User-supplied real submission cover letter to Nature covering TWO companion manuscripts (text extraction)"
+      },
+      {
+        "url": "SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf",
+        "what": "The same letter as PDF — page geometry, fonts, running footer, signature block measured from the file"
+      }
+    ],
+    "rules": [
+      {
+        "id": "cl.science.required",
+        "rule": "Science — a cover letter is the only REQUIRED file on the Related Documents tab",
+        "value": "\"The only required file on the Related Documents tab is the Cover Letter.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.title-and-point",
+        "rule": "Science — the cover letter must contain the title of the paper and a statement of its main point",
+        "value": "\"The title of the paper and a statement of its main point.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.fair-review",
+        "rule": "Science — the cover letter must contain any information needed to ensure a fair review process, including related manuscripts submitted to other journals",
+        "value": "\"Any information needed to ensure a fair review process, including related manuscripts submitted to other journals.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.presubmission",
+        "rule": "Science — the cover letter must reference any pre-submission discussions with editors",
+        "value": "\"Reference to any pre-submission discussions with editors.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.colleagues",
+        "rule": "Science — the cover letter must name colleagues with whom the paper was shared before submission",
+        "value": "\"Names of colleagues with whom you have shared the paper prior to its submission.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.dual-publication",
+        "rule": "Science — the cover letter must contain a dual-publication statement",
+        "value": "\"A statement that none of the material has been published or is under consideration for publication elsewhere.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.human-consent",
+        "rule": "Science — the cover letter must contain an informed-consent statement for human-subjects investigations",
+        "value": "\"For investigations on humans, a statement indicating that informed consent was obtained after the nature and possible consequences of the studies were explained.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.animal-care",
+        "rule": "Science — the cover letter must contain an animal-care statement for animal studies",
+        "value": "\"For studies using laboratory animals, wild or temporarily captive animals, and/or genetically modified animals, a statement that the animals' care was in accordance with institutional guidelines.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.data-location",
+        "rule": "Science — the cover letter must specify where data are (or will be) available and any restrictions",
+        "value": "\"Specification of where all data underlying the study are available, or will be deposited, and whether there are any restrictions on data availability, such as an MTA.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.reference-material",
+        "rule": "Science — the cover letter must give information on any reference material or additional data files",
+        "value": "\"Information on any reference material or additional data files (see below for uploading items to the Auxiliary files section).\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.extended-format",
+        "rule": "Science — use of the extended Research Article format must be justified in the cover letter",
+        "value": "\"The cover letter should indicate why the additional length is merited.\" (extended format: up to 6000 words, 6 display items, 100 main-text references)",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.accelerated",
+        "rule": "Science — requests for accelerated online publication go in the cover letter",
+        "value": "\"Requests for accelerated online publication should be explained to the editors in the cover letter.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.reviewers-vehicle",
+        "rule": "Science — suggested and excluded reviewers go in the SUBMISSION SYSTEM, not the cover letter",
+        "value": "\"suggest up to 5 potential reviewers and indicate individuals that should be excluded as reviewers, along with the reason for exclusion (limit of 5). Name and email are required for all suggested and excluded reviewers.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.related-papers-auxiliary",
+        "rule": "Science — related papers under consideration or in press elsewhere are uploaded as Auxiliary files, and the obligation is continuous",
+        "value": "\"Any papers by any subset of the authors that are related to the manuscript and are under consideration or in press at other journals. This applies throughout the evaluation process at Science.\"",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.science.length",
+        "rule": "Science — cover-letter length limit",
+        "value": null,
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.science.typography",
+        "rule": "Science — cover-letter file format, font, margins",
+        "value": null,
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.nature.optional",
+        "rule": "Nature — a cover letter is optional",
+        "value": "optional; \"The cover letter is an excellent opportunity to briefly discuss the importance of the submitted work and why it is appropriate for the journal.\"",
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.nature.no-repeat",
+        "rule": "Nature — do not repeat the abstract or introduction in the cover letter",
+        "value": "\"Please avoid repeating information that is already present in the abstract and introduction.\"",
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.nature.confidential",
+        "rule": "Nature — the cover letter is confidential and is the channel for conflicts of interest and related work elsewhere",
+        "value": "\"The cover letter is not shared with the referees, and should be used to provide confidential information, such as conflicts of interest, and to declare any related work that is in press or submitted elsewhere.\"",
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.nature.related-manuscripts",
+        "rule": "Nature — related manuscripts with overlapping authorship under consideration (including under appeal) or in press elsewhere must be declared, with marked copies supplied",
+        "value": "authors must alert the journal to \"any related manuscripts with overlapping authorship that are under consideration (including under appeal) or in press at other journals\" and include marked copies with the submission",
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.natureportfolio.contact",
+        "rule": "Nature Portfolio — the cover letter must include the corresponding author's affiliation and contact information",
+        "value": "\"Authors should provide a cover letter that includes the affiliation and contact information for the corresponding author.\"",
+        "source": "https://www.nature.com/commsphys/submit/submission-guidelines",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.natureportfolio.reviewers-vehicle",
+        "rule": "Nature Portfolio — suggested or excluded referees may be named in the cover letter",
+        "value": "\"It is also appropriate to include suggested or excluded referees in the cover letter.\" plus \"We strive to ensure that the diversity of our reviewers reflects that of the broad scientific community, in terms of gender, ethnicity/race, geographic location and career stage. We ask that you keep this in mind when suggesting potential reviewers.\"",
+        "source": "https://www.nature.com/commsphys/submit/submission-guidelines",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.nature.reviewers-vehicle",
+        "rule": "Nature (flagship) — where suggested or excluded referees belong is NOT STATED on the cover-letter page",
+        "value": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "not-stated",
+        "note": "Checked 2026-08-19 (HTTP 200, page read in full) and the source is SILENT: the word 'suggest' appears once, about transferring to suggested alternative journals, and the only referee statement about the cover letter is that it 'is not shared with the referees'. cl.natureportfolio.reviewers-vehicle is sourced from Communications Physics and applies to that journal; it is NOT evidence for the flagship. A nature profile must leave the suggestedReviewers/excludedReviewers vehicle unset rather than inherit the portfolio sentence."
+      },
+      {
+        "id": "cl.nature.presubmission-enquiry",
+        "rule": "Nature — presubmission enquiries require a cover paragraph plus a fully referenced summary paragraph plus a reference list",
+        "value": "\"All presubmission enquiries must include a cover paragraph to the editor stating the interest to a broad scientific readership, a fully referenced summary paragraph, and a reference list.\"",
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.nature.appeal",
+        "rule": "Nature — appeals must be in writing and confined to the scientific case",
+        "value": "\"the appeal must be made in writing, not by telephone, and should be confined to the scientific case for publication\"; \"The main grounds for a successful appeal for reconsideration are if the author can identify a specific technical or other point of interest which had been missed by the referees and editors previously.\"",
+        "source": "https://www.nature.com/nature/for-authors/editorial-criteria-and-processes",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.nature.length",
+        "rule": "Nature — cover-letter length limit",
+        "value": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.nature.typography",
+        "rule": "Nature — cover-letter font, margins, page size",
+        "value": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.cell.editor-only",
+        "rule": "Cell Press (Cell, Neuron) — the cover letter is editor-only and is never shown to reviewers",
+        "value": "\"The cover letter is only available to the editors and will not be seen by reviewers.\" and \"The version that is shared with reviewers will not include the cover letter or any reviewer preferences.\"",
+        "source": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.cell.four-things",
+        "rule": "Cell Press — the cover letter must explain four things",
+        "value": "\"What was previously known (the background); The conceptual advance provided by your work; The significance of the work and its potential impact; If your paper is part of a consortium\"",
+        "source": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.cell.three-optional",
+        "rule": "Cell Press — the cover letter may also carry three optional items",
+        "value": "\"Suggest appropriate reviewers and request reviewer exclusions; Share information about related work, time constraints, and/or competition; Note if you have communicated about the paper with one of the journal's editors\"",
+        "source": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.cell.doi-form",
+        "rule": "Cell Press — declaration of interests is a separate required FORM, not a cover-letter sentence",
+        "value": "\"A completed declaration of interests form (PDF) is required.\" and at final submission \"the declaration of interests statement in the form must match the statement in your manuscript\"",
+        "source": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.neuron.same-as-cell",
+        "rule": "Neuron — the cover-letter contract is identical to Cell's (same Cell Press text)",
+        "value": "\"The cover letter is only available to the editors and will not be seen by reviewers. The cover letter should explain: What was previously known (the background); The conceptual advance provided by your work; The significance of the work and its potential impact; If your paper is part of a consortium\"",
+        "source": "https://www.cell.com/neuron/information-for-authors/submit-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.cell.length",
+        "rule": "Cell Press — cover-letter length limit",
+        "value": null,
+        "source": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.pnas.not-requested",
+        "rule": "PNAS — a cover letter is not among the required components of an initial submission",
+        "value": null,
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.pnas.significance-in-manuscript",
+        "rule": "PNAS — the significance statement lives in the MANUSCRIPT, not in a cover letter, and is capped at 120 words",
+        "value": "\"Significance statement (Direct and Contributed Submissions only) — Explain the significance of the research at a level understandable to an undergraduate-educated scientist outside their field of specialty; Include no more than 120 words\"",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.pnas.abstract",
+        "rule": "PNAS — abstract limit (context for what a letter must not duplicate)",
+        "value": "\"Include no more than 250 words\"",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.pnas.title",
+        "rule": "PNAS — title limit",
+        "value": "\"Keep the title brief (< 135 characters)\"",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.pnas.reviewers-vehicle",
+        "rule": "PNAS — reviewer and editor suggestions are submission metadata, minimum three of each category",
+        "value": "\"list of appropriate Editorial Board members, NAS members, and qualified reviewers (minimum of three each) who are experts in the paper's scientific area. (A brief justification for suggested reviewers is welcome, particularly for interdisciplinary papers)\"",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.elife.review-article",
+        "rule": "eLife — Review Articles MUST be accompanied by a cover letter, with three specified elements",
+        "value": "\"Review Articles must be accompanied by a cover letter outlining why you are a suitable author for the article, how the article moves the field forward and surveys the field of research in an original and/or thought-provoking way, and highlights how it differs from recent examples of reviews in the field (with references).\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.elife.replication",
+        "rule": "eLife — Replication Studies must summarise interactions with the original authors in the cover letter",
+        "value": "authors \"are asked to summarize their interactions with the original authors as part of a cover letter, along with any relevant interactions with other researchers in the field\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.elife.preregistration",
+        "rule": "eLife — preregistration must be noted in the cover letter",
+        "value": "authors are encouraged to consider preregistration, \"noting if they have done so within their cover letter and submission. If the preregistration included a precise analysis plan, that should be included as well.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.elife.third-party-data",
+        "rule": "eLife — permission to use unpublished external datasets must be stated in the cover letter",
+        "value": "authors must obtain \"permission where required (which should be stated in the cover letter)\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.elife.data-exception",
+        "rule": "eLife — exceptions to the data-availability policy must be requested in the cover letter at submission",
+        "value": "\"Any exceptions to the aforementioned policies regarding Data Availability and Sharing should be requested initially in the cover letter at the time of submission.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.elife.research-article",
+        "rule": "eLife — whether a cover letter is required for ordinary Research Articles",
+        "value": null,
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.elife.appeal",
+        "rule": "eLife — appeal letters: form, grounds, deadline and quota",
+        "value": "\"Please provide a formal response stating the grounds for appeal and include 'Appeal' in the subject line.\" Grounds: \"a significant factual error\", \"a competing interest may have compromised the objectivity of the review process\", or \"new data or analyses that address the central concerns have already been acquired\". \"Appeals would ideally be requested within one month of receiving the decision\"; \"We will only consider one request for an appeal for any single version of a submission.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.brain.required-summary",
+        "rule": "Brain — a cover letter is mandatory and must contain an abbreviated summary of at most 323 characters including spaces",
+        "value": "323 characters (including spaces); \"A cover letter must accompany the submission, and should contain an abbreviated summary of no more than 323 characters (including spaces) that should be accessible to the non-specialist.\"",
+        "source": "https://academic.oup.com/brain/pages/General_Instructions",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.brain.summary-content",
+        "rule": "Brain — the abbreviated summary must capture the main purpose and conclusions of the work",
+        "value": "the summary should \"capture the main purpose and conclusions of the work\"",
+        "source": "https://academic.oup.com/brain/pages/General_Instructions",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.brain.prior-publication",
+        "rule": "Brain — prior publication of the same or a substantially similar paper must be explained in the submission cover letter",
+        "value": "\"Authors must explain in the submission cover letter any prior publication of the same or a substantially similar paper.\"",
+        "source": "https://academic.oup.com/brain/pages/General_Instructions",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.brain.revision-optional",
+        "rule": "Brain — at revision the cover letter is optional and responses to referees go in a separate field",
+        "value": "\"On a later page you are given the option of including a cover letter to the Editor.\" Responses to referees belong in the designated field; appending a letter may delay reviewers seeing the comments.",
+        "source": "https://academic.oup.com/brain/pages/General_Instructions",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.brain.reviewers-vehicle",
+        "rule": "Brain — whether suggested or excluded reviewers belong in the cover letter",
+        "value": null,
+        "source": "https://academic.oup.com/brain/pages/General_Instructions",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.jamaneuro.contact",
+        "rule": "JAMA Neurology — a cover letter with complete corresponding-author contact information is required",
+        "value": "\"Include a cover letter and complete contact information for the corresponding author (affiliation, postal/mail address, email address, and telephone number)\"",
+        "source": "https://jamanetwork.com/journals/jamaneurology/pages/instructions-for-authors",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.jamaneuro.related-papers",
+        "rule": "JAMA Neurology — the cover letter must state whether related papers from the same study have been published, posted, or submitted",
+        "value": "\"whether the authors have published, posted, or submitted any related papers from the same study\"",
+        "source": "https://jamanetwork.com/journals/jamaneurology/pages/instructions-for-authors",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.jamaneuro.previous-review",
+        "rule": "JAMA Neurology — previous editors' and reviewers' comments from another journal should be supplied, as a distinct file type",
+        "value": "it is \"helpful to include the previous editors' and reviewers' comments with the submitted manuscript, along with the authors' responses to those comments\"; the system provides \"a file type for Previous Peer Review and Editorial Comments\"",
+        "source": "https://jamanetwork.com/journals/jamaneurology/pages/instructions-for-authors",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.jamaneuro.length",
+        "rule": "JAMA Neurology — cover-letter length limit",
+        "value": null,
+        "source": "https://jamanetwork.com/journals/jamaneurology/pages/instructions-for-authors",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "cl.icmje.redundant-publication",
+        "rule": "ICMJE — the cover letter or submission form must carry a full redundant-publication statement",
+        "value": "\"A full statement to the editor about all submissions and previous reports that might be regarded as redundant publication of the same or very similar work\"; such work must be referenced in the new paper and copies included",
+        "source": "https://www.icmje.org/recommendations/browse/manuscript-preparation/sending-the-submission.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.icmje.coi",
+        "rule": "ICMJE — the cover letter must carry a conflict-of-interest statement if it is not in the manuscript or an authors' form",
+        "value": "\"A statement of financial or other relationships and activities that might lead to a conflict of interest, if that information is not included in the manuscript itself or in an authors' form\"",
+        "source": "https://www.icmje.org/recommendations/browse/manuscript-preparation/sending-the-submission.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.icmje.authorship",
+        "rule": "ICMJE — the cover letter must carry a statement on authorship",
+        "value": "\"A statement on authorship\" — that all authors have read and approved the manuscript and meet authorship requirements",
+        "source": "https://www.icmje.org/recommendations/browse/manuscript-preparation/sending-the-submission.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.icmje.corresponding-contact",
+        "rule": "ICMJE — the cover letter must give contact information for the corresponding author",
+        "value": "\"Contact information for the author responsible for communicating with other authors about revisions and final approval of the proofs\"",
+        "source": "https://www.icmje.org/recommendations/browse/manuscript-preparation/sending-the-submission.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.icmje.prior-submissions",
+        "rule": "ICMJE — previous submissions elsewhere and previous editorial correspondence are encouraged to be disclosed",
+        "value": "the letter should mention if the manuscript was previously submitted elsewhere; \"Editors encourage authors to submit these previous communications\" as it may expedite review",
+        "source": "https://www.icmje.org/recommendations/browse/manuscript-preparation/sending-the-submission.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "cl.conflict.background",
+        "rule": "CONFLICT (journals) — whether to restate the background in the cover letter",
+        "value": "Cell Press REQUIRES \"What was previously known (the background)\"; Nature says \"Please avoid repeating information that is already present in the abstract and introduction.\" Both stated, both official, irreconcilable — record per profile, never normalise.",
+        "source": "https://www.cell.com/cell/information-for-authors/submit-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.conflict.reviewer-vehicle",
+        "rule": "CONFLICT (journals) — where suggested/excluded reviewers belong",
+        "value": "Cover letter at Nature Portfolio and Cell Press; submission FORM at Science (5 + 5, name and email required) and PNAS (min. 3 Editorial Board members, 3 NAS members, 3 qualified reviewers). Same data, different vehicle.",
+        "source": "https://www.science.org/content/page/science-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "cl.example.page-size",
+        "rule": "EXAMPLE — page size, both real letters",
+        "value": "US Letter, 8.5 x 11 in (Word sectPr w:w=12240 w:h=15840 twips; PDF page 612 x 792 pt)",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1; SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.science-margins",
+        "rule": "EXAMPLE — Science letter page margins",
+        "value": "0.5 in on all four sides (w:pgMar top/right/bottom/left = 720 twips; header/footer 720)",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.science-font",
+        "rule": "EXAMPLE — Science letter body font and size",
+        "value": "Arial 10 pt (w:sz 20 half-points); letterhead cell text partly 8 pt (w:sz 16)",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.science-spacing",
+        "rule": "EXAMPLE — Science letter line spacing and paragraph spacing",
+        "value": "1.15 line (w:spacing w:line=276 lineRule=auto); 10 pt space after each paragraph (docDefaults w:after=200 twips), no first-line indent",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.science-alignment",
+        "rule": "EXAMPLE — Science letter paragraph alignment",
+        "value": "justified (w:jc val=both) for all nine body paragraphs; salutation left with a 0.25 in right indent; closing block indented 2.5 in from left (w:ind left=3600 firstLine=720)",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.science-structure",
+        "rule": "EXAMPLE — Science letter structure counts",
+        "value": "1 letterhead table (2 columns) + 9 body paragraphs + 1 closing paragraph; 4 embedded images (university crest, 2 unit logos, 1 signature); 1 page; ~430 words; covers 1 manuscript",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1; derived/cover_letter_science.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.nature-font",
+        "rule": "EXAMPLE — Nature letter body font and size",
+        "value": "Times New Roman 12 pt (glyph bbox height 13.28 pt); letterhead line Tahoma ~11.5 pt; footer Tahoma ~8 pt",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.nature-margins",
+        "rule": "EXAMPLE — Nature letter margins and text block",
+        "value": "left text edge 65.4 pt (0.91 in); right text edge 547.8 pt (right margin 64.2 pt); first letterhead line at 80.7 pt from top; last body line ends 708.7 pt; footer band at 737-747 pt",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.nature-spacing",
+        "rule": "EXAMPLE — Nature letter line and paragraph spacing",
+        "value": "15.84 pt line pitch (1.32 x the 12 pt body); 25.92 pt between the last line of one paragraph and the first of the next, i.e. ~10 pt space-after; no first-line indent (every paragraph starts at x=65.4 pt)",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.nature-alignment",
+        "rule": "EXAMPLE — Nature letter paragraph alignment",
+        "value": "left-aligned, ragged right (line right edges vary 411-546 pt) — NOT justified",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.nature-length",
+        "rule": "EXAMPLE — Nature letter length and coverage",
+        "value": "2 pages, 6 body paragraphs, ~590 words, covering 2 companion manuscripts under one letter",
+        "source": "derived/nature_gt.txt; SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf pp.1-2",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.typography-conflict",
+        "rule": "CONFLICT (examples) — letter typography is not shared between the two real letters, and no journal source states any of it",
+        "value": "Arial 10 pt / 0.5 in margins / justified (Science) vs Times New Roman 12 pt / ~0.9 in margins / ragged-right (Nature). Any house layout SUNA ships is SUNA's own opinion and must be labelled as such, never attributed to a journal.",
+        "source": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx p.1; SUNA_EXAMPLES/letter-to-editor/Nature_GT.pdf p.1",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.defect.stale-journal-name",
+        "rule": "DEFECT observed — the target-journal name is inconsistent within one letter",
+        "value": "the letter submits \"for consideration as an article in Science\" and then pitches \"the broad readership of Science Advances\" — a stale journal name from a previous target. Mechanically detectable against the active profile's journalName.",
+        "source": "derived/cover_letter_science.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.defect.availability-vague",
+        "rule": "DEFECT observed — the data-availability sentence does not satisfy Science's own requirement",
+        "value": "the letter says only \"Data and analysis code will be made available upon publication\", with no repository, no deposition plan and no statement about restrictions, against Science's demand for \"Specification of where all data underlying the study are available, or will be deposited, and whether there are any restrictions\"",
+        "source": "derived/cover_letter_science.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.defect.presubmission-absent",
+        "rule": "DEFECT observed — Science's required pre-submission-discussion item is absent",
+        "value": "no \"Reference to any pre-submission discussions with editors\" appears anywhere in the letter",
+        "source": "derived/cover_letter_science.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "cl.example.no-recipient-block",
+        "rule": "OBSERVED ABSENT — neither real letter carries an editor name or an editorial-office postal address",
+        "value": null,
+        "source": "derived/cover_letter_science.txt; derived/nature_gt.txt",
+        "provenance": "counted-empirically"
+      }
+    ],
+    "anatomy": [
+      {
+        "slot": "letterhead",
+        "required": "conditional",
+        "observedIn": [
+          "cover_letter_science.md",
+          "Cover_letter_mTBI_network_dynamics_042826 Science.docx",
+          "nature_gt.txt",
+          "Nature_GT.pdf"
+        ],
+        "content": "Institutional identity block. Science: a borderless two-column Word TABLE, one column per PI, each cell holding name+degree in bold, rank, department, university, a departmental logo image, street address, city/state/ZIP, \"Email: …\", \"Phone: …\", lab URL; plus a university crest image (image1.png, 1.97 x 1.31 in). Nature: a single right-aligned line \"Department of Psychiatry\" in Tahoma at the top of every page.",
+        "derivable": false,
+        "notes": "Nothing here is derivable from SUNA today — no logo store, no postal address, no phone, no lab URL. Two columns because there are two corresponding PIs. Per-lab data, reused across every project."
+      },
+      {
+        "slot": "running footer",
+        "required": "conditional",
+        "observedIn": [
+          "nature_gt.txt",
+          "Nature_GT.pdf"
+        ],
+        "content": "Repeated on both pages: institute name, street, city/state/ZIP on line 1 and phone/FAX on line 2, 8 pt Tahoma, tab-separated columns, plus the department header line repeated at the top of page 2.",
+        "derivable": false,
+        "notes": "Preprinted institutional stationery. Absent entirely from the Science example, which has no footer. Page-level export concern, not letter content."
+      },
+      {
+        "slot": "date",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: bolded and INLINE on the salutation line — \"Dear Editor, **April 28 2026**\". Nature: on its own right-aligned line above the salutation, with city — \"Madison, April 27, 2026\".",
+        "derivable": true,
+        "notes": "Two incompatible placements in two real letters; placement is a style choice, not a journal rule. Derivable from the clock at export time — which is what prevents the stale date baked into the Science filename (042826)."
+      },
+      {
+        "slot": "recipient / editor address block",
+        "required": "optional",
+        "observedIn": [],
+        "content": null,
+        "derivable": false,
+        "notes": "OBSERVED ABSENT in both letters. Do not require it. Where a journal wants a named handling editor it is collected in the submission form."
+      },
+      {
+        "slot": "salutation",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: \"Dear Editor,\" (comma). Nature: \"Dear Nature Editors:\" (colon, plural, journal-named).",
+        "derivable": true,
+        "notes": "Both generic-plural; neither addresses a named person. The journal name in the Nature salutation makes the salutation profile-dependent."
+      },
+      {
+        "slot": "submission statement",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: \"Please find attached our manuscript entitled \\\"Mechanical strain and strain rate define thresholds of network-level calcium disruption after brain injury\\\" which we hereby submit for consideration as an article in Science.\" Nature: \"We are pleased to submit, for your consideration, two complementary papers…\"",
+        "derivable": true,
+        "notes": "Carries three derivable slots at once — manuscript title, article type, target journal name. Highest-value derivation target, and where the Science/Science Advances inconsistency originates."
+      },
+      {
+        "slot": "companion-manuscript enumeration",
+        "required": "conditional",
+        "observedIn": [
+          "nature_gt.txt"
+        ],
+        "content": "One sentence per companion paper naming article type, title and author list.",
+        "derivable": true,
+        "notes": "Fires only when one letter covers 2+ manuscripts. Implies a cover letter is NOT necessarily 1:1 with a SUNA project. Derivable per project from that project's manuscript.json + authors.json; SUNA has no cross-project reference mechanism today."
+      },
+      {
+        "slot": "background / what was previously known",
+        "required": "conditional",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: a knowledge-gap paragraph. Nature: a full paragraph on the synaptic homeostasis hypothesis with an inline citation rendered as running prose, not as a reference-list entry.",
+        "derivable": false,
+        "notes": "Cell Press REQUIRES this explicitly; Nature explicitly warns against it. A recorded conflict between two journals' stated rules."
+      },
+      {
+        "slot": "what was done / key results",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "A compressed, quantitative restatement of the findings.",
+        "derivable": true,
+        "notes": "manuscript.json abstract.content is the obvious seed but must be REWRITTEN, not pasted — Nature and Cell say so in different words."
+      },
+      {
+        "slot": "conceptual advance / significance claim",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: \"…represents a significant conceptual advance in understanding mTBI pathophysiology…\". Nature: \"The core claim of this perspective is about the nature of learning itself…\".",
+        "derivable": true,
+        "notes": "Maps almost exactly onto manuscript.json `significance`. Cell Press splits it into two required bullets."
+      },
+      {
+        "slot": "journal-fit / readership statement",
+        "required": "conditional",
+        "observedIn": [
+          "cover_letter_science.md"
+        ],
+        "content": "\"…we believe this paper will be of great interest to the broad readership of Science Advances.\"",
+        "derivable": true,
+        "notes": "THIS IS THE OBSERVED DEFECT (cl.defect.stale-journal-name). Required at Nature/Cell, absent from PNAS's requirements entirely."
+      },
+      {
+        "slot": "exclusivity / dual-publication statement",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: \"Please note that none of the material has been published or is under consideration elsewhere. We have no related manuscripts submitted or in press.\" Nature: near-verbatim equivalent.",
+        "derivable": false,
+        "notes": "Two separable assertions journals treat differently: (a) not published / not under consideration elsewhere; (b) no related manuscripts submitted or in press. Nature requires (b) even when (a) holds, with marked copies attached."
+      },
+      {
+        "slot": "third-party endorsement / colleagues who saw the draft",
+        "required": "optional",
+        "observedIn": [
+          "cover_letter_science.md"
+        ],
+        "content": "A named clinician who saw the final draft and vouched for the clinical relevance.",
+        "derivable": false,
+        "notes": "Precisely Science's required item 4. Also a conflict-of-interest-adjacent disclosure: a named non-author who has seen the draft is implicitly excluded as a reviewer."
+      },
+      {
+        "slot": "data & code availability statement",
+        "required": "conditional",
+        "observedIn": [
+          "cover_letter_science.md"
+        ],
+        "content": "\"Data and analysis code will be made available upon publication.\"",
+        "derivable": true,
+        "notes": "Present but WEAK against Science's stated rule — see cl.defect.availability-vague. Seed: manuscript.json availability.data / availability.code."
+      },
+      {
+        "slot": "competing-interests statement",
+        "required": "conditional",
+        "observedIn": [
+          "cover_letter_science.md"
+        ],
+        "content": "\"We declare no competing interests.\"",
+        "derivable": true,
+        "notes": "Directly derivable from manuscript.json backMatter.competingInterests, and worth a contradiction check between the two."
+      },
+      {
+        "slot": "closing thanks",
+        "required": "optional",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "\"Thank you for considering our submission.\" / \"We thank you in advance for your consideration.\"",
+        "derivable": false,
+        "notes": "One sentence, always the last body paragraph."
+      },
+      {
+        "slot": "valediction",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "\"Sincerely,\" in both.",
+        "derivable": false,
+        "notes": "Science places it on the same line as the signature image and typed name, indented 2.5 in; Nature on its own line at the left margin."
+      },
+      {
+        "slot": "signature image",
+        "required": "conditional",
+        "observedIn": [
+          "Cover_letter_mTBI_network_dynamics_042826 Science.docx",
+          "Nature_GT.pdf"
+        ],
+        "content": "Science: image4.png inline immediately before the typed name. Nature: handwritten signatures in the whitespace above the signer block.",
+        "derivable": false,
+        "notes": "A raster asset. SUNA has no store for it. Referenced by path, embedded only at export — the same boundary a rasterized figure already crosses."
+      },
+      {
+        "slot": "signer block",
+        "required": "required",
+        "observedIn": [
+          "cover_letter_science.md",
+          "nature_gt.txt"
+        ],
+        "content": "Science: a single line \"Name, PhD\". Nature: a two-column block, one column per signer, each with name + degrees, chair title, directorship, professorship and email.",
+        "derivable": true,
+        "notes": "Names and emails derivable from authors.json (corresponding: true, email); degrees, chairs and titles are NOT stored by SUNA anywhere. The email lines are what satisfy Nature Portfolio's contact-information rule."
+      },
+      {
+        "slot": "abbreviated non-specialist summary",
+        "required": "conditional",
+        "observedIn": [],
+        "content": null,
+        "derivable": true,
+        "notes": "Absent from both examples; required by Brain at 323 characters including spaces. The single most machine-checkable cover-letter rule found anywhere. Fires only for the Brain profile."
+      },
+      {
+        "slot": "suggested / excluded reviewers",
+        "required": "conditional",
+        "observedIn": [],
+        "content": null,
+        "derivable": false,
+        "notes": "Absent from both examples. Journal-dependent VEHICLE — same information, letter at Nature/Cell, submission form at Science/PNAS. Confidential and career-sensitive."
+      },
+      {
+        "slot": "prior-submission / appeal history",
+        "required": "conditional",
+        "observedIn": [],
+        "content": null,
+        "derivable": false,
+        "notes": "Absent from both examples. Distinct from the exclusivity statement: this is THIS paper's own history at other journals, including transfers and appeals. Not stored by SUNA."
+      },
+      {
+        "slot": "ethics statements (human consent, animal care)",
+        "required": "conditional",
+        "observedIn": [],
+        "content": null,
+        "derivable": false,
+        "notes": "Absent from both examples; required by Science when applicable. SUNA has no study-type flag and no ethics-approval store, so this can only be a prompt, never a derivation."
+      },
+      {
+        "slot": "revision-specific: how the revision answers the reviewers",
+        "required": "conditional",
+        "observedIn": [],
+        "content": null,
+        "derivable": false,
+        "notes": "A DIFFERENT document from the point-by-point response, which Cell requires alongside it. The short confidential covering note that sits on top of the response."
+      },
+      {
+        "slot": "appeal-specific: grounds for appeal",
+        "required": "conditional",
+        "observedIn": [],
+        "content": null,
+        "derivable": false,
+        "notes": "A third member of the letter family, sharing the letterhead/salutation/signature anatomy but with a different body contract and hard eligibility constraints (eLife: one appeal per version, ideally within one month)."
+      }
+    ],
+    "derivable_from_suna_today": [
+      {
+        "field": "Manuscript title",
+        "from": "manuscript/manuscript.json -> title",
+        "confidence": "high"
+      },
+      {
+        "field": "Article-type word in \"submit for consideration as an ARTICLE\"",
+        "from": "manuscript.json -> articleType, refined by the profile's manuscript.articleTypes[].name",
+        "confidence": "high for the three core types; medium for journal-specific names — the Nature example calls one paper \"a perspective\", which is not in ArticleTypeSchema"
+      },
+      {
+        "field": "Target journal name (salutation, submission sentence, journal-fit sentence)",
+        "from": "the letter's target profile -> journalName",
+        "confidence": "high — and it is the cross-check that catches the observed defect"
+      },
+      {
+        "field": "Publisher name",
+        "from": "profile -> publisher",
+        "confidence": "high"
+      },
+      {
+        "field": "Signer names",
+        "from": "manuscript/authors.json -> authors[] where corresponding === true",
+        "confidence": "high for names; NONE for degrees/post-nominals — authors.json has no degree field"
+      },
+      {
+        "field": "Corresponding-author email",
+        "from": "authors.json -> corresponding author's email (nullable)",
+        "confidence": "high when present; a missing email must be a diagnostic, not a blank line"
+      },
+      {
+        "field": "Corresponding-author affiliation line",
+        "from": "authors.json -> affiliationRefs[] -> affiliations[].text",
+        "confidence": "medium — the text is unstructured and cannot be split into department / street / city / ZIP for JAMA's postal-address requirement"
+      },
+      {
+        "field": "Seed text for key results",
+        "from": "manuscript.json -> abstract.content",
+        "confidence": "medium — must be REWRITTEN, not pasted"
+      },
+      {
+        "field": "Seed text for the conceptual-advance paragraph and Brain's 323-character summary",
+        "from": "manuscript.json -> significance",
+        "confidence": "high as a seed; the 323-char version needs compression, and the field is optional"
+      },
+      {
+        "field": "Data / code availability sentences",
+        "from": "manuscript.json -> availability.data / availability.code",
+        "confidence": "high for the text; whether it names a repository is a separate structural fact, not a prose heuristic"
+      },
+      {
+        "field": "Competing-interests sentence",
+        "from": "manuscript.json -> backMatter.competingInterests",
+        "confidence": "high"
+      },
+      {
+        "field": "Funding disclosure",
+        "from": "manuscript.json -> backMatter.funding[]",
+        "confidence": "high"
+      },
+      {
+        "field": "Display-item and reference counts (Science's extended-format justification)",
+        "from": "figures[].length + tables[].length; reference count derived from the cited-key set at format time",
+        "confidence": "high — counts DERIVED at format time, never stored"
+      },
+      {
+        "field": "Whether the paper exceeds the profile's word limit",
+        "from": "manuscript.md word count vs profile articleTypes[].wordLimit",
+        "confidence": "high"
+      },
+      {
+        "field": "Letter date",
+        "from": "system clock at export time",
+        "confidence": "high"
+      },
+      {
+        "field": "Human-subjects / animal-work flags",
+        "from": "nothing — no study-type flag exists in manuscript.json",
+        "confidence": "none — must be a user prompt"
+      },
+      {
+        "field": "Institutional letterhead and signature images, degrees, chair titles",
+        "from": "nothing — SUNA stores no institution profile and no per-person assets",
+        "confidence": "none — new storage required"
+      },
+      {
+        "field": "Suggested / excluded reviewers with reasons",
+        "from": "nothing — backMatter.peerReview.reviewers[] is the PUBLISHED peer-review acknowledgement, not a suggestion list",
+        "confidence": "none — new sidecar required"
+      },
+      {
+        "field": "Prior-submission history, transfers, appeals",
+        "from": "nothing — manuscript.json `history` holds only received/accepted/publishedOnline for THIS journal, all null until acceptance",
+        "confidence": "none — new sidecar required"
+      },
+      {
+        "field": "Colleagues who saw the draft; pre-submission editor discussions",
+        "from": "nothing",
+        "confidence": "none — new sidecar required"
+      }
+    ],
+    "confidence_notes": "Both user-supplied examples are SUBMISSION cover letters, not published correspondence and not point-by-point responses. The genuinely journal-specific part is CONTENT ASSERTIONS, not layout: Science enumerates nine required items, Cell four required plus three optional, Nature calls the letter optional but names it the confidential channel, Brain imposes a hard 323-character summary, JAMA requires full postal contact, PNAS does not ask for one at all, and eLife requires one only in five specific circumstances. Layout is stated by NOBODY: the two real letters disagree on font (Arial 10 pt vs Times New Roman 12 pt), margin (0.5 in vs ~0.9 in) and justification (justified vs ragged-right), so any house layout SUNA ships is SUNA's own opinion and must be recorded as such. PROVENANCE CAVEAT: www.science.org and www.cell.com both return HTTP 403 to direct fetch (Cloudflare), so the Science and Cell Press quotes were captured from indexed search results rather than a fetched page; the URLs are correct and the wording is consistent across sibling journals, but they should be re-read from the live pages in a browser session before shipping as profile data. The Nature Portfolio referee-suggestion sentence was captured from Communications Physics. That gap is now CLOSED with a negative answer: on 2026-08-19 nature.com/nature/for-authors/initial-submission returned HTTP 200 and was read in full. The three cl.nature.* cover-letter quotes reproduce VERBATIM from it, so they stay `documented`; the flagship page contains no referee-suggestion sentence at all (its only referee mention about the letter is that it 'is not shared with the referees'), which is recorded as cl.nature.reviewers-vehicle = null / not-stated. The commsphys sentence must NOT be generalised to the nature profile. eLife's author guide now lives at elife-rp.msubmit.net (elifesciences.org/author-guide 404s), a URL that looks like submission-system infrastructure and may move. SOURCE PATHS: SUNA_EXAMPLES/ holds only the user's original binaries (.docx/.pdf). Every `derived/<name>.txt` citation above, and every line number in one, refers to a text extraction produced from those binaries, NOT to a file that ships anywhere: `pdftotext -layout <file>.pdf > derived/<name>.txt` for a PDF (this is the command that yields the 5,715-line derived/assembled.txt whose lines 4244-4269 are the PHS 398 form page), and the concatenated w:t runs of word/document.xml for a .docx. An earlier revision of this file cited a SUNA_EXAMPLES/cover-letters/ directory that does not exist — the real one is SUNA_EXAMPLES/letter-to-editor/ — and cited the extractions as if they sat beside the binaries. Re-run the commands to re-check any counted-empirically number here. PROVENANCE VOCABULARY: `documented-indexed` is a fourth basis beside documented / counted-empirically / inferred, and it means the venue states this but the sentence was captured from a search index rather than read from the cited page. Every science.org and cell.com rule above carries it, because both hosts return HTTP 403 to direct fetch (reproduced 2026-08-19). The URL is correct; the wording is NOT confirmed against it. ADR-009 gates milestone 12b on re-reading these in a browser session and downgrading them to `documented`; no quote ships as profile data while it is still `documented-indexed`."
+  },
+  {
+    "area": "revision-response",
+    "title": "Revision rounds — reviewer reports in, revised manuscript + point-by-point response out",
+    "scope": "What each publisher requires an author to upload at revision, how manuscript changes must be marked, and the empirical anatomy of two real response documents.",
+    "sources": [
+      {
+        "url": "https://www.nature.com/nature/for-authors/editorial-criteria-and-processes",
+        "what": "Nature — revised papers must carry a point-by-point response to all comments from all referees; resubmissions likewise"
+      },
+      {
+        "url": "https://www.nature.com/npjdigitalmed/for-authors-and-referees/editorial-process",
+        "what": "Nature Portfolio (npj family) — the point-by-point response is a SEPARATE file from the cover letter; resubmission-round cap; invited revisions go through the revision link"
+      },
+      {
+        "url": "https://www.nature.com/nature-portfolio/editorial-policies/peer-review",
+        "what": "Nature Portfolio — transparent peer review may PUBLISH the author rebuttal letter alongside the article"
+      },
+      {
+        "url": "https://www.nature.com/nature/for-authors/final-submission",
+        "what": "Nature — accepted manuscript text file format"
+      },
+      {
+        "url": "https://www.nature.com/nature/for-authors/formatting-guide",
+        "what": "Nature formatting guide — checked for a marked-up / tracked-changes requirement at revision; none stated"
+      },
+      {
+        "url": "https://www.nature.com/neuro/submission-guidelines",
+        "what": "Nature Neuroscience submission guidelines — checked for revision-specific instructions; none stated"
+      },
+      {
+        "url": "https://www.science.org/content/page/instructions-preparing-revised-manuscript",
+        "what": "Science — changes must be shown by HIGHLIGHT OR COLOURED TEXT, and the point-by-point response is generated as a PDF"
+      },
+      {
+        "url": "https://www.science.org/content/page/science-advances-information-authors",
+        "what": "Science Advances — the point-by-point response is a separate .pdf or .docx under Auxiliary Supplementary Materials"
+      },
+      {
+        "url": "https://www.cell.com/cell/information-for-authors/revise-manuscript",
+        "what": "Cell Press — a letter with detailed point-by-point responses is required; the cover letter is confidential to the editor and distinct from it"
+      },
+      {
+        "url": "https://www.cell.com/cell/information-for-authors/final-submission",
+        "what": "Cell Press — revised main text as a single editable document"
+      },
+      {
+        "url": "https://www.elsevier.support/publishing/answer/how-do-i-submit-my-revision-with-tracked-changes",
+        "what": "Elsevier — two manuscript files (marked-up and clean), which file type each goes under, which one is built into the reviewer PDF, and the naming convention"
+      },
+      {
+        "url": "https://service.elsevier.com/app/answers/detail/a_id/28463/supporthub/publishing/",
+        "what": "Elsevier Editorial Manager — a 'Response to Reviewers' item type appears when the journal requires one"
+      },
+      {
+        "url": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "what": "PLOS — exactly three uploads, the required content and file label of each, Track Changes as the marking method, and the fact that the response is published if peer-review history is published"
+      },
+      {
+        "url": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "what": "PNAS — a revision requires a point-by-point response and a tracked-changes file is strongly encouraged; no cover letter mentioned"
+      },
+      {
+        "url": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "what": "eLife — response to the previous letter plus a tracked-changes article file, the required opening statement that waives re-review, and the revision deadline and round policy"
+      },
+      {
+        "url": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx",
+        "what": "User-supplied real point-by-point response (Nature Neuroscience), finished and submitted — colour role code, EndNote fields, response-only figures"
+      },
+      {
+        "url": "SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx",
+        "what": "The matching revised manuscript — 1260 changed runs marked by RED FONT ONLY, zero Word tracked changes"
+      },
+      {
+        "url": "SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "what": "User-supplied real point-by-point response, IN PROGRESS — co-author attention banner, highlight-as-assignment, empty reply markers, placeholder text"
+      }
+    ],
+    "rules": [
+      {
+        "id": "rev.nature.point-by-point",
+        "rule": "Nature — a revised paper must be accompanied by a point-by-point response to all referee comments",
+        "value": "\"Revised papers should be accompanied by a point-by-point response to all the comments made by all the referees.\"",
+        "source": "https://www.nature.com/nature/for-authors/editorial-criteria-and-processes",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.nature.resubmission",
+        "rule": "Nature — a resubmission after rejection-with-invitation must also carry a point-by-point response",
+        "value": "\"…must accompany the resubmitted version with a point-by-point response to the referees' comments. Editors will not send resubmitted papers to the reviewers if it seems that the authors have not made a serious attempt to address all the referees' criticisms.\"",
+        "source": "https://www.nature.com/nature/for-authors/editorial-criteria-and-processes",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.npj.separate-files",
+        "rule": "Nature Portfolio (npj family) — the point-by-point response is a SEPARATE file from the cover letter",
+        "value": "\"the revised manuscript should be accompanied by a cover letter explaining how the manuscript has been changed, and a separate point-by-point response to referees' comments.\"",
+        "source": "https://www.nature.com/npjdigitalmed/for-authors-and-referees/editorial-process",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.npj.max-rounds",
+        "rule": "Nature Portfolio — maximum number of resubmission rounds normally considered",
+        "value": "\"Ideally no more than two resubmissions will be considered for each manuscript, following which we will try to reach a final decision on publication.\"",
+        "source": "https://www.nature.com/npjdigitalmed/for-authors-and-referees/editorial-process",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.npj.revision-link",
+        "rule": "Nature Portfolio — an invited revision must go through the revision link, not as a new submission",
+        "value": "\"An invited revision should be submitted via the revision link to the online submission system provided in the decision letter, not as a new manuscript.\"",
+        "source": "https://www.nature.com/npjdigitalmed/for-authors-and-referees/editorial-process",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.nature.rebuttal-published",
+        "rule": "Nature Portfolio — the author rebuttal letter may be PUBLISHED with the article under transparent peer review",
+        "value": "\"Many Nature Portfolio journals offer transparent peer review (TPR)… Depending on the journal, the peer-review file may include reviewer comments to the authors, author rebuttal letters and, where applicable, editorial decision letters.\"",
+        "source": "https://www.nature.com/nature-portfolio/editorial-policies/peer-review",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.nature.markup",
+        "rule": "Nature — whether a marked-up / tracked-changes manuscript is required at revision",
+        "value": null,
+        "source": "https://www.nature.com/nature/for-authors/formatting-guide",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.nature.response-length",
+        "rule": "Nature — length, word or page limit on the point-by-point response",
+        "value": null,
+        "source": "https://www.nature.com/nature/for-authors/editorial-criteria-and-processes",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.natneuro.revision-instructions",
+        "rule": "Nature Neuroscience — revision-specific instructions on its submission-guidelines page",
+        "value": null,
+        "source": "https://www.nature.com/neuro/submission-guidelines",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.nature.accepted-format",
+        "rule": "Nature — accepted manuscript text file format",
+        "value": "\"Microsoft Word format with style tags removed\"; LaTeX/TeX submissions must be converted to PDF and both the PDF and the original TeX/LaTeX file uploaded",
+        "source": "https://www.nature.com/nature/for-authors/final-submission",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.science.markup",
+        "rule": "Science — changes in a revised manuscript must be shown by HIGHLIGHT OR COLOURED TEXT, not Track Changes",
+        "value": "\"Be sure to highlight or use colored text to indicate your changes to the main text and the Supplementary Materials (including the figure legends) to facilitate the reviewers' evaluation of your revised manuscript.\"",
+        "source": "https://www.science.org/content/page/instructions-preparing-revised-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.science.response-pdf",
+        "rule": "Science — the point-by-point response is generated as a PDF",
+        "value": "\"Generate a PDF containing a point-by-point response to each reviewer comment.\"",
+        "source": "https://www.science.org/content/page/instructions-preparing-revised-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.sciadv.response-file",
+        "rule": "Science Advances — the point-by-point response is a separate .pdf or .docx uploaded under Auxiliary Supplementary Materials",
+        "value": "\"please provide a point-by-point response to reviewer comments uploaded as a separate document (.pdf or .docx) under Auxiliary Supplementary Materials in the submission record\"",
+        "source": "https://www.science.org/content/page/science-advances-information-authors",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.cell.point-by-point",
+        "rule": "Cell Press — a letter with detailed point-by-point responses to reviewer and editor comments is required with a revised manuscript",
+        "value": "\"A letter containing detailed point-by-point responses to the comments of the reviewers and/or editors\"",
+        "source": "https://www.cell.com/cell/information-for-authors/revise-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.cell.cover-letter-distinct",
+        "rule": "Cell Press — the revision cover letter is confidential to the editor and distinct from the point-by-point response",
+        "value": "\"The cover letter is confidential to the editor\" and should \"briefly summarize how the revised manuscript addresses these comments\"",
+        "source": "https://www.cell.com/cell/information-for-authors/revise-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.cell.markup",
+        "rule": "Cell Press — whether text changes in the revised manuscript must be marked or highlighted",
+        "value": null,
+        "source": "https://www.cell.com/cell/information-for-authors/revise-manuscript",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.cell.single-document",
+        "rule": "Cell Press — the revised main text must be a single editable document",
+        "value": "the main text (title through references and figure/table legends) should be uploaded as a single document \"in an editable format, preferably Microsoft Word\"",
+        "source": "https://www.cell.com/cell/information-for-authors/final-submission",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.elsevier.two-files",
+        "rule": "Elsevier — a revision is usually two manuscript files, one marked up and one clean",
+        "value": "\"When journals require this, you will usually be asked for two files. One with all changes marked up so that editors and reviewers can see what was edited, and a second 'clean' copy with no markup.\"",
+        "source": "https://www.elsevier.support/publishing/answer/how-do-i-submit-my-revision-with-tracked-changes",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elsevier.file-types",
+        "rule": "Elsevier — which file type each version is uploaded as",
+        "value": "\"The 'clean' version should be uploaded as the primary 'manuscript' file type of the journal, The journal should have a separate file type for the tracked changes version.\"",
+        "source": "https://www.elsevier.support/publishing/answer/how-do-i-submit-my-revision-with-tracked-changes",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elsevier.reviewer-pdf",
+        "rule": "Elsevier — only the clean version is built into the reviewer PDF",
+        "value": "\"When you are required to upload both versions, usually only the clean version will be built into the PDF while the one with tracked changes is linked for download by the editors and/or reviewers.\"",
+        "source": "https://www.elsevier.support/publishing/answer/how-do-i-submit-my-revision-with-tracked-changes",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elsevier.naming",
+        "rule": "Elsevier — file-naming convention for the two versions",
+        "value": "tracked version named to show it, e.g. 'revision 2 tracked changes.docx'; clean version e.g. 'revision 2.docx' or 'revision 2 clean.docx'",
+        "source": "https://www.elsevier.support/publishing/answer/how-do-i-submit-my-revision-with-tracked-changes",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elsevier.response-item-type",
+        "rule": "Elsevier (Editorial Manager) — a Response to Reviewers item type appears when the journal requires one",
+        "value": "\"Some publications may require Authors to submit a response to Reviewer/Editor comments as a Word document when submitting the revision. In this case, an item (Response to Reviewers, or something similar) will appear in the 'Select Item Type' drop-down menu.\"",
+        "source": "https://service.elsevier.com/app/answers/detail/a_id/28463/supporthub/publishing/",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.three-uploads",
+        "rule": "PLOS — a revision requires exactly three uploads",
+        "value": "\"Response to reviewers\" + \"Revised manuscript (marked-up copy)\" + \"Revised manuscript (clean copy)\"",
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.response-content",
+        "rule": "PLOS — required content and file label of the response document",
+        "value": "\"Address the specific points made by each reviewer. Include your responses to all the reviewers' and editors' comments and list the changes you have made to the manuscript. … Upload this document as a \\\"Response to reviewers\\\" file.\"",
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.response-published",
+        "rule": "PLOS — the response to reviewers is PUBLISHED if peer-review history is published",
+        "value": "\"Remember, if you choose to publish the peer review history of your manuscript, your response to reviewers will appear online alongside the final article.\"",
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.markup",
+        "rule": "PLOS — how changes must be marked in the marked-up copy, and its file label",
+        "value": "\"Include a marked-up copy of your manuscript file showing the changes you have made since the original submission. The best way to show these changes is the \\\"Track Changes\\\" option in Microsoft Word. Upload this as a \\\"Revised Article with Changes Highlighted\\\" file.\"",
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.clean-copy",
+        "rule": "PLOS — the clean copy is the primary Manuscript file",
+        "value": "\"Upload a clean copy of your revised manuscript that does not show your changes. Upload this as your \\\"Manuscript\\\" file.\"",
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.figures-carry-over",
+        "rule": "PLOS — figures and supporting information carry over automatically",
+        "value": "\"Figures and supporting information files from your original submission will automatically transfer to your revised submission unless you choose to update and replace them.\"",
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.plos.response-length",
+        "rule": "PLOS — length limit on the response to reviewers",
+        "value": null,
+        "source": "https://journals.plos.org/plosone/s/revising-your-manuscript",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.pnas.revision",
+        "rule": "PNAS — a revision requires a point-by-point response; no cover letter is mentioned",
+        "value": "\"a revised version of the manuscript, and a point-by-point response to reviewer comments\"; \"Authors are strongly encouraged to include a tracked-changes file for review purposes.\"; revisions due within two months",
+        "source": "https://www.pnas.org/author-center/submitting-your-manuscript",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elife.required-files",
+        "rule": "eLife — a revised submission needs a response to the previous letter plus a tracked-changes article file",
+        "value": "\"When revising, please include a response to the previous letter and tracked changes version of the article file, alongside the updated files.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elife.internal-conflict",
+        "rule": "eLife — the same page states the tracked-changes file only as a RECOMMENDATION elsewhere; recorded, not resolved",
+        "value": "\"When resubmitting, please upload a response to the previous letter and we recommend including a \\\"tracked changes\\\" version of the article file.\" (vs the mandatory phrasing in the Editorial Process section of the same document)",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elife.response-published",
+        "rule": "eLife — the author response is published as part of version two of the Reviewed Preprint",
+        "value": "\"Version two of the Reviewed Preprint will include the revised preprint, an eLife Assessment and Public Reviews (updated as appropriate), and a response from the authors (ideally responding to the Public Reviews and recommendations to the authors).\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elife.opening-block",
+        "rule": "eLife — a specific statement must appear AT THE BEGINNING of the Author Response to skip re-review",
+        "value": "\"If you are not looking for an updated eLife Assessment or choose to make minor revisions, please indicate at the beginning of the Author Response that you would be happy for the editors to assess the revised version without involving the reviewers again.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elife.deadline",
+        "rule": "eLife — revision deadline",
+        "value": "\"Authors need to alert us if they will need longer than 12 months to submit a revised version.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.elife.rounds",
+        "rule": "eLife — number of revision rounds normally considered",
+        "value": "\"we are always willing to consider the first round of revisions; requests to consider subsequent rounds of revision will need to be justified\" / \"We discourage multiple rounds of revisions and re-review.\"",
+        "source": "https://elife-rp.msubmit.net/html/elife-rp_author_instructions.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rev.conflict.markup-dialect",
+        "rule": "CONFLICT ACROSS PUBLISHERS — how manuscript changes must be marked; recorded, not reconciled",
+        "value": "Science: \"highlight or use colored text\". PLOS: \"The best way to show these changes is the \\\"Track Changes\\\" option in Microsoft Word\". Elsevier: \"all changes marked up\" under a tracked-changes file type. eLife: \"tracked changes version of the article file\". Nature and Cell Press: NOT STATED. A formatter must be able to emit BOTH a colour-marked and a w:ins/w:del-marked DOCX, and a profile must select the dialect per publisher.",
+        "source": "https://www.science.org/content/page/instructions-preparing-revised-manuscript",
+        "provenance": "documented-indexed"
+      },
+      {
+        "id": "rev.response.typography",
+        "rule": "Response-document page, margin or font requirements at any of the six publishers surveyed",
+        "value": null,
+        "source": null,
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.response.file-format",
+        "rule": "Required file format for the response document beyond Science's \".pdf or .docx\" and Elsevier's \"Word document\"",
+        "value": null,
+        "source": null,
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rev.example.no-track-changes",
+        "rule": "EMPIRICAL — neither real response document nor the real marked-up manuscript uses Word Track Changes",
+        "value": "0 <w:ins> and 0 <w:del> elements in word/document.xml of all three files; 0 comments.xml parts. Changes are marked by font colour only: Findlay-NN-Revision-final.docx has 847 runs at <w:color w:val=\"EE0000\"/> and 413 at <w:color w:val=\"FF0000\"/> against 1936 black runs.",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.colour-role-code",
+        "rule": "EMPIRICAL — the response document's three-colour role code",
+        "value": "black #000000 = the reviewer's verbatim text (200 runs Findlay / 301 TI); blue #0432FF = the authors' reply (745 / 1022); red #EE0000 or #FF0000 = text quoted from the revised manuscript (204 / 171). Identical scheme in both documents, only one of which writes a legend. Colour is the ONLY machine-readable role marker in these files.",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.assignment-highlight",
+        "rule": "EMPIRICAL — co-author assignment is encoded as a <w:highlight> colour bound to initials, and is cleared before submission",
+        "value": "\"AJ\" = <w:highlight w:val=\"magenta\"/>, \"AT\" = <w:highlight w:val=\"green\"/>; 10 magenta-highlighted reply markers ([RE4:], [RE70:], [RE81:]) and 6 green ([RE8:], [RE44:]). The FINISHED Findlay reply retains only 11 highlight runs, all of which contain no text — the attention layer was cleared before submission.",
+        "source": "SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.numbering-drift",
+        "rule": "EMPIRICAL — hand-maintained reply numbering drifts",
+        "value": "reviews_TI-Toolbox runs a single global counter RE1-RE83 across five reviewers; RE58 is ABSENT. Findlay instead restarts point numbering per reviewer AND per group, so no reply carries a globally unique label at all and cross-references must be written \"Reviewer 1, point 2\".",
+        "source": "SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.stale-quotes",
+        "rule": "EMPIRICAL — pasted manuscript quotes go stale inside the response",
+        "value": "reviews_TI-Toolbox quotes one sentence twice with different citation numbering — \"…stimulation regime (54--56)… critical (57,58).\" vs \"…stimulation regime [8], [9], [10]… critical [11], [12].\" Findlay quotes one Results sentence twice — \"DS rates were similar in both states\" (matches the revision) vs \"DS rates decreased slightly in IS\" (matches nothing in the revision).",
+        "source": "SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.marking-inconsistent",
+        "rule": "EMPIRICAL — the quoted-text marking convention is applied inconsistently by hand",
+        "value": "Findlay-NN-ReplyToRefs-final: 71 indented paragraphs, 26 red paragraphs, only 20 both. reviews_TI-Toolbox: 28 indented, 45 red, 26 both. There is no single reliable delimiter for \"this is quoted manuscript text\".",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.figure-drift",
+        "rule": "EMPIRICAL — response figures are separate binaries from manuscript figures and have drifted",
+        "value": "Only 1 of the 8 images in Findlay-NN-ReplyToRefs-final.docx word/media is byte-identical to any of the 23 images in Findlay-NN-Revision-final.docx word/media.",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.own-bibliography",
+        "rule": "EMPIRICAL — the response carries live bibliography fields and its own independently numbered reference list",
+        "value": "Findlay-NN-ReplyToRefs-final: 104 ADDIN fields, 101 EndNote EN.CITE, ~50-entry author-year reference list. reviews_TI-Toolbox: 33 Zotero CSL_CITATION fields, 40-entry IEEE-numbered list under the heading \"References:\".",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.own-math",
+        "rule": "EMPIRICAL — the response document can carry its own mathematics, none of it numbered",
+        "value": "reviews_TI-Toolbox.docx contains 24 <m:oMath> and 3 <m:oMathPara> nodes; none of the equations is numbered. Findlay-NN-ReplyToRefs-final.docx contains 0.",
+        "source": "SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.line-numbers",
+        "rule": "EMPIRICAL — reviewers address the previous version by line number, and the revision itself ships none",
+        "value": "Reviewer points cite \"Line 423:\", \"Line 499:\", \"Lines 160 - 162:\", \"line 99\", \"line 107\"; the authors reply with \"(see previous Results, lines 315-339)\" and \"(see previous Discussion, lines 376-381)\". Findlay-NN-Revision-final.docx has no <w:lnNumType> element; reviews_TI-Toolbox.docx does (<w:lnNumType w:countBy=\"1\" w:restart=\"continuous\"/>).",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.cardinality",
+        "rule": "EMPIRICAL — one reviewer point does not equal one manuscript edit",
+        "value": "Zero-edit replies: \"RE: This point was addressed before (points 1 and 3).\", \"RE: See points 1 and 2 above.\" Many-edit replies: Reviewer 3 point 3 produces a new Figure 4, an Extended Data Fig. 8, a renamed Results section and three quoted prose blocks. Shared-edit replies: Reviewer 1 point 5 and Reviewer 2 point 3 both land in Extended Data Fig. 7.",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.in-progress-holes",
+        "rule": "EMPIRICAL — the in-progress draft carries shipping-blocking holes that a pre-flight check can enumerate",
+        "value": "\"Thank for.....\" (unfinished thanks), \"XXXXXXX\" (a quote slot with no text yet), four empty reply markers with nothing after the colon — RE34:, RE36:, RE64:, RE82: — a delegation note \"[RE81:] Figure 4C: Aksel is responsible.\", and a sentinel \"$$$\" left at the end of RE69.",
+        "source": "SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.section-not-line",
+        "rule": "EMPIRICAL — authors point at where a change landed by SECTION NAME, never by line in the current version",
+        "value": "\"We now present these results in the Section \\\"Homeostatic changes in cortex and hippocampus can dissociate\\\".\", \"Discussion subsection \\\"Relationship of SPW to extrahippocampal activity\\\"\", \"added the following statement to the methods section 2.6.4\". Line numbers appear ONLY against the superseded version.",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rev.example.response-only-items",
+        "rule": "EMPIRICAL — response documents carry display items the manuscript never sees, unnumbered and in their own namespace",
+        "value": "Findlay has two uncaptioned/unnumbered response-only figures (\"Regression to the mean\"; \"Examples of SPW and DS changes over extended wake\", the latter explicitly framed as reviewer-only) beside reproductions of numbered manuscript figures. reviews_TI-Toolbox has a response-only results table with 4 cells at <w:shd w:fill=\"FFFF00\"/>.",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-ReplyToRefs-final.docx; SUNA_EXAMPLES/peer-review/reviews_TI-Toolbox.docx",
+        "provenance": "counted-empirically"
+      }
+    ],
+    "anatomy": [
+      {
+        "slot": "co-author attention banner",
+        "required": "optional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"COLOR CODED ATTENTION FOR CO-AUTHORS\" then the initials, each highlighted in the colour that then marks their assigned reply markers. A WORKING overlay that MUST be strippable at export — the finished Findlay reply retains only empty highlight residue."
+      },
+      {
+        "slot": "document title",
+        "required": "conditional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"Response to Reviewers - TI-Toolbox Manuscript\". Findlay has no title at all; it opens with \"Reviewers' Comments: \". Optional, derivable from the manuscript title."
+      },
+      {
+        "slot": "salutation to the editor",
+        "required": "conditional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"Dear Editor and Reviewers,\". Findlay omits any salutation — consistent with Nature Portfolio putting the editor-facing narrative in a SEPARATE cover letter."
+      },
+      {
+        "slot": "preamble / global claims",
+        "required": "conditional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "Three checkable claims live here: every point has a reply, the changes are highlighted in the manuscript, the responses are point-by-point. (a) is verifiable against the point list; (b) against whether a marked-up export was actually produced."
+      },
+      {
+        "slot": "colour legend",
+        "required": "conditional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"Color codes: replies by authors, quoted modified text in manuscript\" — and the legend demonstrates itself, each phrase set in the colour it names. Findlay uses the identical scheme with no legend at all."
+      },
+      {
+        "slot": "reviewer block header",
+        "required": "required",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"Reviewer #1 (Comments for the Author):\" — the journal system's own label, pasted through. TI-Toolbox precedes each with a literal 80-character '=' divider paragraph. Reviewer numbering is external input: never derived, never renumbered."
+      },
+      {
+        "slot": "reviewer's general assessment",
+        "required": "optional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "An unnumbered opening block that GETS A REPLY but is NOT a numbered point. The model needs an addressable unit that may carry a reply and yet has no ordinal, or numbering gets thrown off."
+      },
+      {
+        "slot": "point group header",
+        "required": "optional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"Main issues\", \"Minor issues/questions\", \"Major comments\", \"COMMENTS PER SECTION\", … CRITICAL for numbering: in Findlay the point counter RESTARTS inside each group, so a point's identity is (reviewer, group, ordinal) and cannot be a single integer. Group headers are the reviewer's own words."
+      },
+      {
+        "slot": "reviewer point",
+        "required": "required",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "VERBATIM AND IMMUTABLE. Findlay numbers them with literal typed text, style varying by reviewer (\"1.\" for R1/R2, \"1- \" for R3); numId is absent on every one, so the digits are typed characters, not a Word list. TI-Toolbox does not number reviewer points at all — the only identifier is the reply marker appended to the paragraph."
+      },
+      {
+        "slot": "authors' reply",
+        "required": "required",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "TWO conventions: a bare \"RE:\" opening a NEW paragraph (Findlay, 29 occurrences) versus \"RE\" + a GLOBAL sequence number + \":\" appended INLINE to the end of the reviewer's own paragraph (TI-Toolbox, RE1-RE83, RE58 missing). May be multi-paragraph, may nest its own enumeration, may contain zero manuscript changes."
+      },
+      {
+        "slot": "quoted NEW manuscript text",
+        "required": "conditional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "Triple-marked and inconsistently so: 0.5 in paragraph indent, curly double quotes, and red font — the same red the marked-up manuscript uses, because the passage was copy-pasted out of it. Must be a live transclusion plus a verifier, never a stored paste."
+      },
+      {
+        "slot": "pointer to where the change landed",
+        "required": "conditional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "By section NAME. The word \"previous\" is doing real work in the line-number citations and must survive as authored text."
+      },
+      {
+        "slot": "response display item",
+        "required": "optional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "TWO kinds, distinguished by caption: a manuscript figure REPRODUCED with its manuscript number, and a RESPONSE-ONLY figure with a bare descriptive title and NO number. Reuse across points is by textual back-reference (\"Extended Data Fig. 7 is shown above (Rev 1, point 5).\"), not duplication."
+      },
+      {
+        "slot": "equation inside the response",
+        "required": "optional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "Real display and inline math native to the response, none of it numbered — consistent with derive-at-format-time, and a reason the response's equation namespace must be separate from the manuscript's."
+      },
+      {
+        "slot": "citation inside the response + its own reference list",
+        "required": "conditional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "The response cites literature in its own right, with live reference-manager fields, and ends with its OWN reference list in its own style and its own numbering. This is where the (54--56) vs [8],[9],[10] collision comes from."
+      },
+      {
+        "slot": "cross-reference to another point",
+        "required": "optional",
+        "observedIn": [
+          "Findlay-NN-ReplyToRefs-final.docx",
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "Composite addresses in Findlay (\"point 3 of Reviewer 3\", \"Reviewer 1, point 2\", \"(Rev 1, point 5)\"); 12 distinct see-RE<n> references in TI-Toolbox. Internal links whose targets renumber whenever a point is inserted."
+      },
+      {
+        "slot": "closing / sign-off",
+        "required": "optional",
+        "observedIn": [
+          "reviews_TI-Toolbox.docx"
+        ],
+        "notes": "\"Sincerely,\" then \"The Authors\" — deliberately anonymous. Findlay has no sign-off; it ends on the reference list."
+      }
+    ],
+    "confidence_notes": "Publishers CONVERGE on requiring a separate point-by-point response file and DIVERGE completely on how the manuscript must be marked — which makes this exactly a profile-flagged, never-auto-applied rule set. Nature and Cell Press state nothing about marking at all, and under the null-means-not-stated rule those stay null: the export dialog must offer or withhold a marked-up file without inventing a requirement. Neither real .docx contains a single w:ins/w:del or a comments.xml part, so the labs whose files these are do not use Word Track Changes for any of this — the marked-up manuscript marks its 1260 changed runs by red font alone, which is what Science asks for and NOT what PLOS/Elsevier/eLife ask for. PROVENANCE CAVEAT: as in the cover-letter area, the Science and Cell Press pages return HTTP 403 to direct fetch and their quotes came from indexed results; re-verify from a browser session before shipping as profile data. SOURCE PATHS: SUNA_EXAMPLES/ holds only the user's original binaries (.docx/.pdf). Every `derived/<name>.txt` citation above, and every line number in one, refers to a text extraction produced from those binaries, NOT to a file that ships anywhere: `pdftotext -layout <file>.pdf > derived/<name>.txt` for a PDF (this is the command that yields the 5,715-line derived/assembled.txt whose lines 4244-4269 are the PHS 398 form page), and the concatenated w:t runs of word/document.xml for a .docx. An earlier revision of this file cited a SUNA_EXAMPLES/cover-letters/ directory that does not exist — the real one is SUNA_EXAMPLES/letter-to-editor/ — and cited the extractions as if they sat beside the binaries. Re-run the commands to re-check any counted-empirically number here. PROVENANCE VOCABULARY: `documented-indexed` is a fourth basis beside documented / counted-empirically / inferred, and it means the venue states this but the sentence was captured from a search index rather than read from the cited page. Every science.org and cell.com rule above carries it, because both hosts return HTTP 403 to direct fetch (reproduced 2026-08-19). The URL is correct; the wording is NOT confirmed against it. ADR-009 gates milestone 12b on re-reading these in a browser session and downgrading them to `documented`; no quote ships as profile data while it is still `documented-indexed`."
+  },
+  {
+    "area": "sponsor-package-nih",
+    "title": "NIH SF424 (R&R) + PHS 398 Research Plan — the R01 component package",
+    "scope": "The ordered slot list of an NIH R01 application, per-component limits in their own units, and the format rules that govern every applicant-supplied attachment. Verified against a real 5,715-line assembled 2026 submission.",
+    "sources": [
+      {
+        "url": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "what": "NIH Table of Page Limits — Specific Aims, Research Strategy per activity code, Introduction to Resubmission, legacy biosketch, Letters of Support (K/fellowship), the catch-all rule, and the NOFO-supersedes rule"
+      },
+      {
+        "url": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "what": "G.220 — Project Summary/Abstract (30 lines), Project Narrative (3 sentences), Bibliography, Facilities, Equipment"
+      },
+      {
+        "url": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "what": "G.400 — the PHS 398 Research Plan attachments: Research Strategy scope, Vertebrate Animals criteria and trigger, Select Agent, Multiple PD/PI, Consortium, Letters of Support content, Resource Sharing, Other Plan(s)/DMS Plan, Authentication, Appendix, Progress Report Publication List"
+      },
+      {
+        "url": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "what": "Format Attachments — PDF-only, flattening, font minimum and families, type and line density, margins, page size, headers/footers prohibition, filename rules, file size, hyperlink display"
+      },
+      {
+        "url": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-20-174.html",
+        "what": "NOT-OD-20-174 — hyperlink policy and the consequence of an unallowable hyperlink"
+      },
+      {
+        "url": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-046.html",
+        "what": "NOT-OD-26-046 — the 2026 DMS Plan format, required for due dates on or after 25 May 2026, with its element word limits"
+      },
+      {
+        "url": "https://grants.nih.gov/policy-and-compliance/policy-topics/sharing-policies/dms/writing-dms-plan",
+        "what": "Where the DMS Plan is submitted within the PHS 398 Research Plan"
+      },
+      {
+        "url": "https://grants.nih.gov/sites/default/files/Common%20Form%20NIH%20Biographical%20Sketch_FINAL.pdf",
+        "what": "NIH Biographical Sketch Common Form instructions — no page limit, five plus five products, ORCID requirement"
+      },
+      {
+        "url": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "what": "NIH Biographical Sketch Supplement instructions — Personal Statement 3,500 characters, Honors 15 entries, Contributions to Science 2,000 characters each, prohibitions, and the appended-to-Common-Form rule"
+      },
+      {
+        "url": "https://grants.nih.gov/grants-process/write-application/forms-directory/biographical-sketch-common-form",
+        "what": "SciENcv is mandatory; there is no downloadable blank template"
+      },
+      {
+        "url": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-018.html",
+        "what": "NOT-OD-26-018 — Common Forms mandatory for due dates on or after 25 January 2026"
+      },
+      {
+        "url": "https://www.era.nih.gov/docs/SF424_R&R_Assembly.pdf",
+        "what": "eRA assembly reference — the applicant does not assemble the package; the system compiles it and generates the table of contents and pagination"
+      },
+      {
+        "url": "derived/assembled.txt",
+        "what": "The user's real assembled 2026 NIH submission, 5,715 lines — the source for every counted-empirically rule below, including the PHS 398 Research Plan slot page reproduced verbatim"
+      },
+      {
+        "url": "derived/open_cl_osa.txt",
+        "what": "The Word draft of the same Research Strategy — the before side of the figure-number and citation-number drift measurements"
+      },
+      {
+        "url": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "what": "The circulating draft with 12 co-author comments and 5 tracked changes"
+      }
+    ],
+    "rules": [
+      {
+        "id": "nih.aims.pages",
+        "rule": "Specific Aims attachment page limit (all activity codes using a form with a Specific Aims section)",
+        "value": "1 page",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.strategy.pages.r01",
+        "rule": "Research Strategy page limit for R01 (also R15, R18, R21/R33, R24, R28, R33, R34, R42, R44, R61, R61/R33, U01, UG3/UH3, UH2/UH3 and others in the same row)",
+        "value": "12 pages",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.strategy.pages.small",
+        "rule": "Research Strategy page limit for R03, R13, R21, R41, R43, SC2, SC3 and others in that row",
+        "value": "6 pages",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.strategy.pages.dp1",
+        "rule": "Research Strategy page limit for DP1",
+        "value": "5 pages",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.strategy.pages.dp2",
+        "rule": "Research Strategy page limit for DP2",
+        "value": "10 pages",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.strategy.scope",
+        "rule": "The Research Strategy page limit applies to the ENTIRE single attachment — figures, tables, graphs, diagrams and charts all count",
+        "value": "included in the limit; \"The page limit applies to the entirety of the single Research Strategy attachment\"",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.strategy.headings",
+        "rule": "The Research Strategy must be organised into three required sections with headings",
+        "value": "\"organize [the Research Strategy] into three required sections with headings: Significance, Innovation, Approach\"",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.introduction.pages",
+        "rule": "Introduction to Resubmission and Revision Applications page limit (all activity codes)",
+        "value": "1 page",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.summary.lines",
+        "rule": "Project Summary/Abstract limit — measured in LINES, not pages",
+        "value": "30 lines of text; \"A summary that exceeds the 30-line limit will be flagged as an error by the Agency upon submission\"",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.summary.no-proprietary",
+        "rule": "The Project Summary/Abstract must not contain proprietary or confidential information or trade secrets",
+        "value": "prohibited",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.narrative.sentences",
+        "rule": "Project Narrative limit (all activity codes except C06, UC6, G20) — measured in SENTENCES",
+        "value": "at most three sentences",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.bibliography.pages",
+        "rule": "Bibliography & References Cited page limit",
+        "value": "no page limit; \"While there is not a page limitation, it is important to be concise\"",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.facilities.pages",
+        "rule": "Facilities & Other Resources page limit",
+        "value": null,
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "nih.equipment.pages",
+        "rule": "Equipment page limit",
+        "value": null,
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.220-r&r-other-project-information-form.htm",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "nih.catchall",
+        "rule": "Catch-all for any attachment with no listed limit — this is the rule that makes null safe to encode",
+        "value": "\"If no page limit is listed in the table below, in Section IV of the NOFO under Page Limitations, or in a related notice, you can assume the attachment does not have a limit.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.nofo-supersedes",
+        "rule": "NOFO instructions override the Table of Page Limits",
+        "value": "\"Notice of Funding Opportunity (NOFO) instructions always supersede these instructions.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.animals.pages",
+        "rule": "Vertebrate Animals attachment page limit",
+        "value": "no limit listed in the Table of Page Limits; G.400 states no page limit",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.animals.criteria",
+        "rule": "Vertebrate Animals required content — THREE criteria",
+        "value": "(1) description of procedures involving live vertebrate animals including species, strains, ages, sex and numbers; (2) justification that the species are appropriate and why alternatives cannot be used; (3) description of interventions (analgesia, anesthesia, sedation, palliative care, humane endpoints) to minimize discomfort, distress, pain and injury",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.animals.trigger",
+        "rule": "The Vertebrate Animals attachment is required only when the R&R Other Project Information form answers Yes to \"Are Vertebrate Animals Used?\" — a conditional, form-driven trigger",
+        "value": "conditional on form field 2 = Yes",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.select-agent.pages",
+        "rule": "Select Agent Research page limit",
+        "value": "no specific page limit; \"Although no specific page limitation applies to this section, be succinct\"",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.mpi.pages",
+        "rule": "Multiple PD/PI Leadership Plan page limit and trigger",
+        "value": "no page limit stated; required for all applications designating multiple PD/PIs; must describe rationale, governance and organizational structure",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.consortium.pages",
+        "rule": "Consortium/Contractual Arrangements page limit and trigger",
+        "value": "no page limit stated; required when the budget contains consortium/contractual arrangements",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.letters.pages.research",
+        "rule": "Letters of Support page limit for research grants (R-series)",
+        "value": null,
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "nih.letters.pages.k",
+        "rule": "Letters of Support page limit for individual career development (K) awards and fellowship applications",
+        "value": "6 pages",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.letters.content",
+        "rule": "Letters of Support content — must not contain preliminary data or methods",
+        "value": "prohibited content: preliminary data, methods; must address collaboration terms, co-authorship expectations, resource availability, and for consultants their rates and effort",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.resource-sharing.pages",
+        "rule": "Resource Sharing Plan(s) page limit",
+        "value": "no page limit stated",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.dmsp.pages",
+        "rule": "Other Plan(s) — Data Management and Sharing Plan length",
+        "value": "\"Recommended not to exceed two pages\" — a RECOMMENDATION, not an enforced limit",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.dmsp.format-2026",
+        "rule": "The current DMS Plan format is the 2026 format, required for applications with due dates on or after 25 May 2026 — replacing the six-element narrative format",
+        "value": "2026 DMS Plan format required; \"Effective for applications submitted for due dates on or after May 25, 2026\"",
+        "source": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-046.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.dmsp.element4",
+        "rule": "2026 DMS Plan element 4 (description of sharing limitations) word limit",
+        "value": "300 words maximum",
+        "source": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-046.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.dmsp.element6",
+        "rule": "2026 DMS Plan element 6 (data types and repositories table) word limit",
+        "value": "100 words maximum",
+        "source": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-046.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.dmsp.slot",
+        "rule": "The DMS Plan is submitted in the \"Other Plan(s)\" field of the PHS 398 Research Plan",
+        "value": "Other Plan(s) attachment slot (item 11)",
+        "source": "https://grants.nih.gov/policy-and-compliance/policy-topics/sharing-policies/dms/writing-dms-plan",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.authentication.pages",
+        "rule": "Authentication of Key Biological and/or Chemical Resources page limit",
+        "value": "\"A maximum of one page is suggested\"",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.appendix.count",
+        "rule": "Appendix — maximum number of attachments and allowable content",
+        "value": "a maximum of 10 PDF attachments; allowable content limited to blank data collection/survey/questionnaire forms, interview question lists, blank informed consent/assent forms, and items specified in the NOFO",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.progress-report.trigger",
+        "rule": "Progress Report Publication List — required only for Renewal applications",
+        "value": "conditional on Renewal; no page limit stated",
+        "source": "https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.common.pages",
+        "rule": "Biographical Sketch Common Form page limit",
+        "value": "no page limit — \"For NIH, there is no page limit for the Biographical Sketch Common Form.\"",
+        "source": "https://grants.nih.gov/sites/default/files/Common%20Form%20NIH%20Biographical%20Sketch_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.products",
+        "rule": "Biographical Sketch Common Form — number of products",
+        "value": "up to five products closely related to the proposed project, plus up to five other significant products (ten total)",
+        "source": "https://grants.nih.gov/sites/default/files/Common%20Form%20NIH%20Biographical%20Sketch_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.orcid",
+        "rule": "Biographical Sketch Common Form — the persistent identifier must be an ORCID iD linked to the eRA Commons Personal Profile",
+        "value": "ORCID iD, required",
+        "source": "https://grants.nih.gov/sites/default/files/Common%20Form%20NIH%20Biographical%20Sketch_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.supplement.personal",
+        "rule": "Biographical Sketch Supplement — Personal Statement character limit",
+        "value": "3,500 characters",
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.supplement.honors",
+        "rule": "Biographical Sketch Supplement — Honors entry limit",
+        "value": "no more than 15 entries",
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.supplement.contributions",
+        "rule": "Biographical Sketch Supplement — Contributions to Science, number and length",
+        "value": "up to five contributions; \"The description of each contribution should be no longer than one half page\"; \"Each Contribution to Science is limited to 2,000 characters\"",
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.supplement.no-graphics",
+        "rule": "Biographical Sketch Supplement — figures, tables and graphics are prohibited in Contributions to Science",
+        "value": "\"Figures, tables, or graphics are not allowed.\"",
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.supplement.no-citations",
+        "rule": "Biographical Sketch Supplement — full bibliographic citations and hyperlinked references are prohibited",
+        "value": "\"Do not provide full bibliographic citations or include hyperlinked references in the NIH Biographical Sketch Supplement.\" Recommended styles: lead author and year, e.g. (Collins et al., 2026), or PMCID/PMID",
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.pairing",
+        "rule": "Biographical Sketch Supplement — the Supplement must be appended to that same person's Common Form; the pair is ordered and adjacent",
+        "value": "\"This format page should be appended to the respective Biographical Sketch Common Form of each individual submitting a biographical sketch for NIH.\"",
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.supplement.pages",
+        "rule": "Biographical Sketch Supplement — overall page limit",
+        "value": null,
+        "source": "https://grants.nih.gov/sites/default/files/NIH%20Biographical%20Sketch%20Supplement_FINAL.pdf",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "nih.biosketch.sciencv",
+        "rule": "SciENcv must be used to prepare the Biographical Sketch Common Form and NIH Supplement — there is no downloadable blank template",
+        "value": "\"SciENcv must be used to prepare the form. There is not a blank template that can be downloaded and completed outside of SciENcv.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/forms-directory/biographical-sketch-common-form",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.mandatory-date",
+        "rule": "Common Forms for the biosketch are mandatory for due dates on or after 25 January 2026",
+        "value": "required for all NIH grant applications, Just-in-Time, RPPR and Prior Approval submissions with due dates on or after January 25, 2026",
+        "source": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-018.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.biosketch.legacy.pages",
+        "rule": "Legacy (pre-Common-Form) Biographical Sketch page limit, for historical profiles",
+        "value": "5 pages",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/page-limits",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.filetype",
+        "rule": "Allowed file type for all attachments",
+        "value": "PDF only, produced from word-processing software; \"Avoid scanning text documents to produce the required PDFs.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.flatten",
+        "rule": "PDFs must be flattened and must have all security features disabled",
+        "value": "\"PDF documents … must be flattened\"; \"Disable all security features in your PDF documents. Do not encrypt or password protect your documents.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.no-portfolio",
+        "rule": "PDF bundling/portfolio features are prohibited — all content must be directly visible in the PDF",
+        "value": "prohibited",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.font-min",
+        "rule": "Minimum font size in attachments",
+        "value": "11 points or larger",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.font-families",
+        "rule": "Recommended font families",
+        "value": "Arial, Georgia, Helvetica, Palatino Linotype (other serif and non-serif fonts are acceptable if they meet the requirements)",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.font-graphics-exception",
+        "rule": "Font-size exception for graphics — the only place smaller type is allowed",
+        "value": "\"Smaller text in graphics, figures, graphs, diagrams, and charts is acceptable, as long as it is legible when the page is viewed at 100%.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.type-density",
+        "rule": "Type density",
+        "value": "no more than 15 characters per linear inch, including characters and spaces",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.line-spacing",
+        "rule": "Line spacing",
+        "value": "no more than six lines per vertical inch",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.margins",
+        "rule": "Margins on all attachment pages",
+        "value": "at least one-half inch (0.5 in) top, bottom, left and right; no applicant-supplied information may appear in the margins",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.page-size",
+        "rule": "Page size",
+        "value": "no larger than standard letter paper size, 8.5 x 11 in",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.no-page-furniture",
+        "rule": "Headers, footers and page numbers are PROHIBITED in applicant attachments — the agency adds them at assembly",
+        "value": "\"Do not include headers or footers in your attachments. We add headers, footers, page numbers, bookmarks, and a table of contents when we assemble your grant application upon submission.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.orientation",
+        "rule": "Page orientation",
+        "value": "both portrait and landscape accepted; landscape can be difficult to read online",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.filename-length",
+        "rule": "Attachment filename length",
+        "value": "maximum 50 characters including spaces",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.filename-charset",
+        "rule": "Attachment filename character set and uniqueness",
+        "value": "A-Z a-z 0-9 underscore hyphen space period parenthesis curly braces square brackets tilde exclamation point comma apostrophe at sign number sign dollar sign percent sign plus sign equal sign; single spaces only between words; no leading spaces; no space before the .pdf extension; avoid ampersands; each filename must be unique across all attachments",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.file-size",
+        "rule": "Attachment file size",
+        "value": "greater than 0 bytes and 100 MB or less",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.hyperlinks",
+        "rule": "Hyperlinks and URLs are allowed only where specifically permitted, and are effectively never permitted in page-limited attachments",
+        "value": "\"Hyperlinks and URLs are only allowed when specifically noted in funding opportunity announcement (FOA) and form field instructions\"; \"It is highly unusual for a FOA to allow links in Specific Aims, Research Strategy and other page-limited attachments.\"",
+        "source": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-20-174.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.hyperlink-consequence",
+        "rule": "Consequence of an unallowable hyperlink",
+        "value": "\"Applications that do not follow these instructions, and include unallowable hyperlinks, may be withdrawn from review and funding consideration.\"",
+        "source": "https://grants.nih.gov/grants/guide/notice-files/NOT-OD-20-174.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.hyperlink-display",
+        "rule": "When a hyperlink IS permitted, the visible text must be the URL itself",
+        "value": "\"you must hyperlink the actual URL text so it appears on the page rather than hiding the URL behind a specific word or phrase\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.format.consequence",
+        "rule": "Consequence of non-conforming PDF attachments",
+        "value": "\"Applications that include PDF attachments that do not conform to the minimum requirements listed above may be withdrawn from consideration.\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.assembly.agency-owns",
+        "rule": "The applicant does not assemble the package — eRA compiles forms and attachments into a single grant image in a fixed order with a generated table of contents",
+        "value": "\"Applicants will not actually construct an application… the eRA system will compile the data fields and attachments into a single grant image\"; \"A system-generated table of contents will be part of that grant image. The order of the application will be as stated in the table of contents\"",
+        "source": "https://www.era.nih.gov/docs/SF424_R&R_Assembly.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nih.assembly.reference-stale",
+        "rule": "The era.nih.gov assembly reference is dated 1/4/2006 and its PHS 398 Research Plan sub-list is obsolete",
+        "value": "it lists Background and Significance / Preliminary Studies / Research Design and Methods, which no longer exist, and its R&R Other Project Information item numbers are off by one versus the current form. Use for top-level order only, not for the Research Plan sub-list.",
+        "source": "https://www.era.nih.gov/docs/SF424_R&R_Assembly.pdf",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.slot-list",
+        "rule": "EMPIRICAL — the thirteen numbered PHS 398 Research Plan slots and their order, as printed on the form in the real submission",
+        "value": "1 Introduction to Application; 2 Specific Aims; 3 Research Strategy*; 4 Progress Report Publication List; 5 Vertebrate Animals; 6 Select Agent Research; 7 Multiple PD/PI Leadership Plan; 8 Consortium/Contractual Arrangements; 9 Letters of Support; 10 Resource Sharing Plan(s); 11 Other Plan(s); 12 Authentication of Key Biological and/or Chemical Resources; 13 Appendix — grouped under \"Introduction\", \"Research Plan Section\" and \"Other Research Plan Section\"; only Research Strategy is starred as required. THIS PAGE IS THE SCHEMA MADE VISIBLE.",
+        "source": "derived/assembled.txt lines 4244-4269",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.empty-slots-keep-numbers",
+        "rule": "EMPIRICAL — empty Research Plan slots keep their numbers; the list is not renumbered when slots go unused",
+        "value": "six of thirteen slots empty (1, 4, 6, 7, 10, 13) with numbering preserved",
+        "source": "derived/assembled.txt lines 4244-4269",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.cardinality",
+        "rule": "EMPIRICAL — package cardinality observed",
+        "value": "9 senior/key person profiles; 9 Biographical Sketch Common Form + NIH Supplement PAIRS (18 documents) in profile order; 3 letters of support concatenated into one PDF; Figures 1-12 and Table 1 in the Research Strategy; 5 budget periods (15 form pages); 2 performance sites; 1 subrecipient",
+        "source": "derived/assembled.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.merged-attachments",
+        "rule": "EMPIRICAL — a per-slot attachment can be a MERGE of N logical documents, and the filename is the only record of it",
+        "value": "\"ALL facilities.pdf\" carries UW-Madison and CWRU facilities narratives; \"ALL equipment.pdf\" carries both institutions' equipment; \"ALL COMBINED.pdf\" carries three letters of support from three signatories on three letterheads with three date formats (5/13/2026, May 21 2026, June 4 2026)",
+        "source": "derived/assembled.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.numbering-scope",
+        "rule": "EMPIRICAL — reference numbering scope is PER-ATTACHMENT, not per-package: two disjoint number spaces exist in one submission",
+        "value": "Bibliography & References Cited runs to 60+ numbered entries; the Vertebrate Animals attachment carries its own list restarting at 1 and reaching 15+, with no shared numbering",
+        "source": "derived/assembled.txt lines 223-545 and ~5280-5296",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.figure-number-drift",
+        "rule": "EMPIRICAL — figure numbers are NOT stable between draft and submission, confirming that numbering must be derived at format time",
+        "value": "the species-comparison figure is \"Figure 3. Hypoglossal Comparison Across Species\" in the Word draft and \"Figure 2: Hypoglossal Comparison Across [Species]\" in the submitted Research Strategy; the neuroanatomy figure is referenced as \"See Figure 2\" in the draft and rendered as \"Figure 5: Relevant OSA Neuroanatomy\" in the submission",
+        "source": "derived/open_cl_osa.txt versus derived/assembled.txt lines 4444 and 4539",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.citation-number-drift",
+        "rule": "EMPIRICAL — citation numbers are NOT stable between draft and submission",
+        "value": "the far-field EMG methods claim carries superscript \"40--42\" in the Word draft and \"33-35\" at the corresponding point in the submitted Research Strategy",
+        "source": "derived/open_cl_osa.txt versus derived/assembled.txt line 4468",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.reuse-drift",
+        "rule": "EMPIRICAL — content is reused across components and drifts: the Project Summary is a lightly edited derivative of the Specific Aims",
+        "value": "both open with the identical sentence \"Obstructive sleep apnea (OSA) is characterized by periodic stopping and restarting of breathing during sleep.\" and share paragraph structure, but diverge: the Aims say \"received FDA pre-market approval (PMA)\" and \"many time and cost intensive clinical sleep studies over many months\" where the Summary says \"received FDA approval\" and \"many clinical visits/sleep studies over up to a year-long period\". The divergences look DELIBERATE.",
+        "source": "derived/assembled.txt lines 198-222 versus 4271-4325",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.shared-publication",
+        "rule": "EMPIRICAL — the same publication feeds multiple components, confirming references.bib as the single upstream source",
+        "value": "Settell et al., \"Functional vagotopy in the cervical vagus nerve of the domestic pig\", J Neural Eng 2020 appears in one PI's biosketch Products, in a second person's biosketch Products, and is cited from the Research Strategy body",
+        "source": "derived/assembled.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.defect.headings",
+        "rule": "DEFECT observed — the Research Strategy does not use NIH's prescribed Significance / Innovation / Approach headings",
+        "value": "submitted headings are \"Background/Significance of Obstructive Sleep Apnea (OSA):\", \"INNOVATION:\", \"APPROACH:\" as run-in headings, with a Table placed before the Approach section",
+        "source": "derived/assembled.txt lines 4326, 4365, 4377 versus https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.defect.animals-criteria",
+        "rule": "DEFECT observed — the Vertebrate Animals attachment uses four numbered criteria where NIH's instructions describe three",
+        "value": "submitted: \"(1) Description of the use of animals:\", \"(2) Justification for use of animals:\", \"(3) Veterinary care:\", \"(4) Euthanasia:\"",
+        "source": "derived/assembled.txt versus https://grants.nih.gov/grants/how-to-apply-application-guide/forms-i/general/g.400-phs-398-research-plan-form.htm",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.defect.superseded-format",
+        "rule": "DEFECT observed — the DMS Plan uses a format superseded before the stated deadline",
+        "value": "the submitted DMS Plan uses the pre-2026 six-element narrative format (Element 1: Data Type … Element 6: Oversight) and reproduces the old format page's own boilerplate \"The Plan is recommended not to exceed two pages\" and \"Text in italics should be deleted\"; the institutional form gives \"Sponsor Deadline: 06/05/2026\", after the 25 May 2026 cutover. A version-of-schema violation, not a length violation.",
+        "source": "derived/assembled.txt versus https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-046.html",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.defect.activity-code",
+        "rule": "DEFECT observed — the activity code disagrees across three components of one submission",
+        "value": "cover letter: \"our submission UG3/UH3 … submitted under the PA-25-301\"; institutional Proposal Summary: \"Sponsor Mechanism: NIH Research Project Grant (Parent R01 Clinical Trial Not Allowed)\"; a letter of support: \"Letter of Support … for R01 proposal\". PA-25-301 is in fact the Parent R01 NOFO. RECORDED, NOT RESOLVED.",
+        "source": "derived/assembled.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.filenames",
+        "rule": "EMPIRICAL — all nine biosketch filenames pass NIH's 50-character rule but follow no shared convention",
+        "value": "cv-2720698-Ludwig.pdf (21), Shoffstall Biosketch cv-2578904.pdf (35), cv-2648096-lake.pdf (19), SciENcv-2715430-Bhaskar.pdf (27), cv-2666188-Williams.pdf (23), NIH Biosketch_CNXII_Baskin 2026.pdf (34), cv-2700404-Suminski.pdf (23), cv-2709218-1-trevathan.pdf (26), cv-2709585.pdf (14) — each person exported their own file from SciENcv. Filename generation is a step the export tool should own outright.",
+        "source": "derived/assembled.txt lines 1079-1279",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.institutional-pages",
+        "rule": "EMPIRICAL — the PDF a PI supplies may be the INSTITUTION's assembly, carrying pages the sponsor never receives",
+        "value": "the assembled file ends with a two-page University of Wisconsin \"Proposal Summary\" internal routing form containing Proposal Status, Sponsor Deadline, Export Control questions and award placeholders — none of it part of the NIH submission, but carrying the only copy of the deadline date that governs the DMS-format question",
+        "source": "derived/assembled.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.pages-unverifiable",
+        "rule": "EMPIRICAL — page-limit compliance could NOT be verified from the extracted text, because page boundaries did not survive extraction",
+        "value": "grep for the NIH assembly header token \"Contact PD/PI\" in assembled.txt returns 0 matches; only sporadic form-internal page furniture survives. Rendered page counts must come from the export pipeline, not from the source text. NO page-limit rule in this area has been tested against the real example.",
+        "source": "derived/assembled.txt",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.float-layout",
+        "rule": "EMPIRICAL — figures in the submitted Research Strategy are TEXT-WRAPPED FLOATS beside body copy",
+        "value": "caption lines are interleaved mid-sentence in the text extraction, e.g. \"side effects28,29. In contrast, canines have smaller cranial nerves than Figure 2: Hypoglossal Comparison Across\". Markdown + SVG has no notion of a wrapped float, and float placement materially changes the rendered page count a limit is measured against.",
+        "source": "derived/assembled.txt lines 4444 and following",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "nih.example.aims-spine-portable",
+        "rule": "EMPIRICAL — the Aim 1/2/3 spine is the portable core across schemas, including non-sponsor ones",
+        "value": "the preliminary-exam proposals open with \"SPECIFIC AIMS\" and \"Aim 1 … Aim 2 … Aim 3\" with no forms, no biosketches and no budget around them, sharing the aims skeleton with the NIH submission",
+        "source": "derived/prelim_IH.txt; derived/prelim_gholston.txt",
+        "provenance": "counted-empirically"
+      }
+    ],
+    "slots": [
+      {
+        "ordinal": 1,
+        "id": "introduction",
+        "label": "Introduction to Application",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "resubmission or revision",
+        "limit": {
+          "unit": "pages",
+          "max": 1,
+          "enforcement": "hard"
+        }
+      },
+      {
+        "ordinal": 2,
+        "id": "specific-aims",
+        "label": "Specific Aims",
+        "kind": "authored",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": {
+          "unit": "pages",
+          "max": 1,
+          "enforcement": "hard"
+        }
+      },
+      {
+        "ordinal": 3,
+        "id": "research-strategy",
+        "label": "Research Strategy",
+        "kind": "authored",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": {
+          "unit": "pages",
+          "max": 12,
+          "enforcement": "hard"
+        },
+        "requiredHeadings": [
+          "Significance",
+          "Innovation",
+          "Approach"
+        ]
+      },
+      {
+        "ordinal": 4,
+        "id": "progress-report-publications",
+        "label": "Progress Report Publication List",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "renewal",
+        "limit": null
+      },
+      {
+        "ordinal": 5,
+        "id": "vertebrate-animals",
+        "label": "Vertebrate Animals",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "vertebrateAnimals",
+        "limit": null
+      },
+      {
+        "ordinal": 6,
+        "id": "select-agent",
+        "label": "Select Agent Research",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "selectAgents",
+        "limit": null
+      },
+      {
+        "ordinal": 7,
+        "id": "mpi-leadership",
+        "label": "Multiple PD/PI Leadership Plan",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "pdPiCount > 1",
+        "limit": null
+      },
+      {
+        "ordinal": 8,
+        "id": "consortium",
+        "label": "Consortium/Contractual Arrangements",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "subrecipients nonEmpty",
+        "limit": null
+      },
+      {
+        "ordinal": 9,
+        "id": "letters-of-support",
+        "label": "Letters of Support",
+        "kind": "merge",
+        "required": "optional",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 10,
+        "id": "resource-sharing",
+        "label": "Resource Sharing Plan(s)",
+        "kind": "authored",
+        "required": "optional",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 11,
+        "id": "other-plans-dmsp",
+        "label": "Other Plan(s) — Data Management and Sharing Plan",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "data generated",
+        "limit": {
+          "unit": "pages",
+          "max": 2,
+          "enforcement": "recommended"
+        }
+      },
+      {
+        "ordinal": 12,
+        "id": "authentication",
+        "label": "Authentication of Key Biological and/or Chemical Resources",
+        "kind": "authored",
+        "required": "conditional",
+        "requiredWhen": "key biological or chemical resources used",
+        "limit": {
+          "unit": "pages",
+          "max": 1,
+          "enforcement": "recommended"
+        }
+      },
+      {
+        "ordinal": 13,
+        "id": "appendix",
+        "label": "Appendix",
+        "kind": "external",
+        "required": "optional",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 101,
+        "id": "project-summary",
+        "label": "Project Summary/Abstract (R&R Other Project Information item 7)",
+        "kind": "authored",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": {
+          "unit": "lines",
+          "max": 30,
+          "enforcement": "hard"
+        }
+      },
+      {
+        "ordinal": 102,
+        "id": "project-narrative",
+        "label": "Project Narrative (item 8)",
+        "kind": "authored",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": {
+          "unit": "sentences",
+          "max": 3,
+          "enforcement": "hard"
+        }
+      },
+      {
+        "ordinal": 103,
+        "id": "bibliography",
+        "label": "Bibliography & References Cited (item 9)",
+        "kind": "authored",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 104,
+        "id": "facilities",
+        "label": "Facilities & Other Resources (item 10)",
+        "kind": "merge",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 105,
+        "id": "equipment",
+        "label": "Equipment (item 11)",
+        "kind": "merge",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 201,
+        "id": "biosketch",
+        "label": "Biographical Sketch Common Form + NIH Supplement",
+        "kind": "per-person",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 202,
+        "id": "budget-justification",
+        "label": "Budget Justification",
+        "kind": "authored",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 301,
+        "id": "sf424-face-page",
+        "label": "SF 424 (R&R) Face Page",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 302,
+        "id": "performance-sites",
+        "label": "Research & Related Project/Performance Site Location(s)",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 303,
+        "id": "other-project-info",
+        "label": "Research & Related Other Project Information",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 304,
+        "id": "senior-key-profile",
+        "label": "Research & Related Senior/Key Person Profile (Expanded)",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 305,
+        "id": "budget",
+        "label": "Research & Related Budget, per budget period",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 306,
+        "id": "cumulative-budget",
+        "label": "Research & Related Budget – Cumulative Budget",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 307,
+        "id": "subaward-budget",
+        "label": "R&R Subaward Budget Attachment(s) Form",
+        "kind": "form",
+        "required": "conditional",
+        "requiredWhen": "subrecipients nonEmpty",
+        "limit": null
+      },
+      {
+        "ordinal": 308,
+        "id": "phs398-cover-supplement",
+        "label": "PHS 398 Cover Page Supplement",
+        "kind": "form",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      },
+      {
+        "ordinal": 309,
+        "id": "table-of-contents",
+        "label": "Table of Contents",
+        "kind": "agency",
+        "required": "required",
+        "requiredWhen": null,
+        "limit": null
+      }
+    ],
+    "confidence_notes": "The slot list above is a MERGE of the PHS 398 Research Plan form page reproduced verbatim in the real submission (ordinals 1-13, counted-empirically) with the attachments that hang off the R&R Other Project Information form (101-105), the per-person and budget attachments (201-202), and the form/agency-generated pages (301-309). Ordinals 1-13 are the sponsor's own numbering and MUST NOT be renumbered when a slot is empty; the 100/200/300 blocks are SUNA's grouping, not NIH's, and are labelled as such. NOT VERIFIED: no page-limit rule here has been tested against the real example, because the text extraction of the assembled PDF did not preserve page boundaries (nih.example.pages-unverifiable). NOT ENCODED: the NOFO overlay layer. NIH states plainly that NOFO Section IV supersedes the Table of Page Limits, so a single static nih-r01 profile will confidently apply a 12-page limit to an application that may be governed by something else; PA-25-301 Section IV was not fetched, so how much it overrides in practice is UNKNOWN. NOT MODELLED: the institutional routing layer, budgets as data, and the SciENcv biosketch pipeline — NIH states outright that SciENcv must be used and that no blank template exists, so SUNA's only correct role for a biosketch is to accept the PDF, check its filename, and count its pages. SOURCE PATHS: SUNA_EXAMPLES/ holds only the user's original binaries (.docx/.pdf). Every `derived/<name>.txt` citation above, and every line number in one, refers to a text extraction produced from those binaries, NOT to a file that ships anywhere: `pdftotext -layout <file>.pdf > derived/<name>.txt` for a PDF (this is the command that yields the 5,715-line derived/assembled.txt whose lines 4244-4269 are the PHS 398 form page), and the concatenated w:t runs of word/document.xml for a .docx. An earlier revision of this file cited a SUNA_EXAMPLES/cover-letters/ directory that does not exist — the real one is SUNA_EXAMPLES/letter-to-editor/ — and cited the extractions as if they sat beside the binaries. Re-run the commands to re-check any counted-empirically number here."
+  },
+  {
+    "area": "sponsor-package-nsf",
+    "title": "NSF PAPPG 24-1 — the full research proposal component list",
+    "scope": "The second sponsor schema, recorded because it conflicts with NIH almost everywhere the two overlap. That conflict is the whole argument for sponsor rules being swappable profile data over one shared substrate rather than a global setting.",
+    "sources": [
+      {
+        "url": "https://www.nsf.gov/policies/pappg",
+        "what": "Which PAPPG version is in force, and the two supplements issued since"
+      },
+      {
+        "url": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "what": "Chapter II — proposal section list and order, Project Summary, Project Description, References Cited, senior/key personnel documents"
+      },
+      {
+        "url": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "what": "The complete PAPPG 24-1 PDF — Chapter II.C format requirements (typefaces, spacing, margins, page size, pagination, columns) and the per-component limits not surfaced in the HTML extract"
+      }
+    ],
+    "rules": [
+      {
+        "id": "nsf.version",
+        "rule": "Current PAPPG version in force",
+        "value": "NSF 24-1, effective May 20, 2024 — \"NSF 24-1 applies to all proposals submitted or due on or after May 20, 2024\"",
+        "source": "https://www.nsf.gov/policies/pappg",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.supplements",
+        "rule": "Whether the NSF 24-1 supplements change any Chapter II proposal-preparation rule",
+        "value": null,
+        "source": "https://www.nsf.gov/policies/pappg",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "nsf.sections",
+        "rule": "Full research proposal section list and order",
+        "value": "a. Cover Sheet; b. Project Summary; c. Table of Contents; d. Project Description; e. References Cited; f. Budget and Budget Justification; g. Facilities, Equipment and Other Resources; h. Senior/Key Personnel Documents — (i) Biographical Sketch(es), (ii) Current and Pending (Other) Support, (iii) Collaborators and Other Affiliations, (iv) Synergistic Activities; i. Special Information and Supplementary Documentation — (i) Mentoring Plan (if applicable), (ii) Data Management and Sharing Plan",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.description.pages",
+        "rule": "Project Description page limit, including Results from Prior NSF Support",
+        "value": "may not exceed 15 pages; \"Conformance to the 15-page limit will be strictly enforced and may not be exceeded unless a deviation has been specifically authorized\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.description.visuals-count",
+        "rule": "Visual materials count toward the Project Description 15-page limit",
+        "value": "\"Visual materials, including charts, graphs, maps, photographs, and other pictorial presentations are included in the 15-page limitation.\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.prior-support.pages",
+        "rule": "Results from Prior NSF Support page limit, carved out of the 15 pages",
+        "value": "limited to five pages; \"Results may be summarized in fewer than five pages, which would give the balance of the 15 pages for the Project Description\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.broader-impacts.heading",
+        "rule": "The Project Description must contain a separate section labeled \"Broader Impacts\" with that heading on its own line",
+        "value": "required heading; \"'Broader Impacts' must appear as a heading on its own line\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.description.no-urls",
+        "rule": "URLs are PROHIBITED in the Project Description",
+        "value": "\"URLs must not be used because: 1) the information could circumvent page limitations; 2) the reviewers are under no obligation to view the sites; and 3) the sites could be altered or deleted between the time of submission and the time of review.\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.summary.structure",
+        "rule": "Project Summary length and required three-part structure",
+        "value": "\"not more than one page in length\"; consists of an overview, a statement on the intellectual merit of the proposed activity, and a statement on the broader impacts of the proposed activity; \"It should not be an abstract of the proposal.\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.summary.chars",
+        "rule": "Project Summary character limit when entered as text boxes in Research.gov",
+        "value": null,
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "nsf.references.pages",
+        "rule": "References Cited page limit and content restriction",
+        "value": "\"While there is no established page limitation for the references, this section must include bibliographic citations only and must not be used to provide parenthetical information outside of the 15-page Project Description.\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.references.fields",
+        "rule": "References Cited required citation fields",
+        "value": "names of all authors in publication sequence, article and journal title, book title, volume number, page numbers, year of publication; website address optional and its absence is not a violation",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.biosketch.limit",
+        "rule": "Biographical Sketch page/character limit",
+        "value": "\"Except where noted below, there is no page or character limit to this section of the proposal\" — NSF 24-1 explicitly REMOVED the previous 3-page limitation and removed the Synergistic Activities section from the biosketch",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.biosketch.sciencv",
+        "rule": "The Biographical Sketch must be prepared per senior/key person through SciENcv",
+        "value": "\"A biographical sketch must be provided separately for each individual designated as a senior/key person through use of SciENcv (Science Experts Network Curriculum Vitae). SciENcv will produce an NSF-compliant PDF version\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.other-personnel",
+        "rule": "Biographical information for other personnel is freeform and goes in Other Supplementary Documents, not the biosketch slot",
+        "value": "freeform; uploaded as a single PDF clearly identified as \"Other Personnel\" biographical information",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.current-pending",
+        "rule": "Current and Pending (Other) Support page limit and preparation method",
+        "value": "\"there is no page limitation for this section of the proposal, though some fields have character limitations for consistency and equity\"; must be provided separately for each senior/key person through SciENcv; a separate submission per proposal, per active project, and for in-kind contributions",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.facilities",
+        "rule": "Facilities, Equipment and Other Resources page limit and content restriction",
+        "value": "no page limit stated; \"The description should be narrative in nature and must not include any quantifiable financial information\"",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.dmsp.pages",
+        "rule": "Data Management and Sharing Plan page limit",
+        "value": "\"no more than two pages\", uploaded under \"Data Management and Sharing Plan\" in the supplementary documentation section; proposers who cannot fit within two pages \"may use part of the 15-page Project Description\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.collaborative.one-plan",
+        "rule": "Collaborative proposals submit only ONE combined Data Management and Sharing Plan and ONE mentoring plan across all participating organizations",
+        "value": "one per unified project, not one per organization",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.mentoring.pages",
+        "rule": "Mentoring Plan page limit and trigger",
+        "value": "\"In no more than one page\"; required when the proposal requests funding to support postdoctoral researchers or graduate students; \"the mentoring plan must not be used to circumvent the 15-page Project Description limitation\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.budget-justification.pages",
+        "rule": "Budget Justification page limit",
+        "value": "no more than five pages per proposal; subaward/consortium budgets each include a separate budget justification of no more than five pages",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.fonts",
+        "rule": "Allowed typefaces and minimum point sizes",
+        "value": "Arial (not Arial Narrow), Courier New, or Palatino Linotype at 10 points or larger; Times New Roman at 11 points or larger; Computer Modern family at 11 points or larger. Macintosh users may also use Helvetica and Palatino.",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.font-exception",
+        "rule": "Font-size exception",
+        "value": "\"A font size of less than 10 points may be used for mathematical formulas or equations, figures, tables, or diagram captions and when using a Symbol font to insert Greek letters or special characters.\" Other fonts such as Cambria Math may be used for formulas and special characters.",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.line-spacing",
+        "rule": "Line spacing",
+        "value": "no more than six lines of text within a vertical space of one inch",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.margins",
+        "rule": "Margins",
+        "value": "at least one inch in all directions; \"No proposer-supplied information may appear in the margins\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.page-size",
+        "rule": "Page size",
+        "value": "no larger than standard letter paper size (8.5 by 11 or 11 by 8.5)",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.applies-everywhere",
+        "rule": "Format requirements apply to every uploaded section including supplementary documentation",
+        "value": "\"These requirements apply to all uploaded sections of a proposal, including supplementary documentation.\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.pagination",
+        "rule": "Page numbering is supplied by the system, not the proposer",
+        "value": "\"For proposals submitted via Research.gov, the system will automatically paginate a proposal. Each section of the proposal that is uploaded as a file should leave out page numbering unless otherwise directed within Research.gov.\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.columns",
+        "rule": "Column layout",
+        "value": "\"Proposers are strongly encouraged to use only a standard, single-column format for the text.\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.format.font-consequence",
+        "rule": "Consequence of undersized fonts",
+        "value": "\"the use of small fonts not in compliance with the above guidelines may be grounds for NSF to return the proposal without review\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.section-missing.consequence",
+        "rule": "Consequence of omitting a required section",
+        "value": "\"Failure to submit the required sections will result in the proposal not being accepted, or being returned without review.\"",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "nsf.synergistic.limit",
+        "rule": "Synergistic Activities component limit",
+        "value": null,
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "not-stated"
+      },
+      {
+        "id": "xa.conflict.margins",
+        "rule": "NIH vs NSF CONFLICT — margins: the same prose cannot satisfy both without re-layout",
+        "value": "NIH at least 0.5 inch; NSF at least 1 inch",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      },
+      {
+        "id": "xa.conflict.font",
+        "rule": "NIH vs NSF CONFLICT — minimum font size: Arial 10 pt is legal at NSF and illegal at NIH",
+        "value": "NIH minimum 11 pt for all fonts; NSF permits Arial/Courier New/Palatino Linotype at 10 pt but requires 11 pt for Times New Roman and Computer Modern",
+        "source": "https://nsf-gov-resources.nsf.gov/files/nsf24_1.pdf",
+        "provenance": "documented"
+      },
+      {
+        "id": "xa.conflict.narrative-length",
+        "rule": "NIH vs NSF CONFLICT — main narrative length",
+        "value": "NIH R01 Research Strategy 12 pages; NSF Project Description 15 pages including up to 5 pages of Results from Prior NSF Support",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "xa.conflict.summary",
+        "rule": "NIH vs NSF CONFLICT — abstract/summary unit and structure",
+        "value": "NIH Project Summary/Abstract = 30 LINES, unstructured; NSF Project Summary = 1 PAGE, and must contain Overview + Intellectual Merit + Broader Impacts",
+        "source": "https://www.nsf.gov/policies/pappg/24-1/ch-2-proposal-preparation",
+        "provenance": "documented"
+      },
+      {
+        "id": "xa.agreement.pagination",
+        "rule": "NIH vs NSF AGREEMENT — both agencies own pagination; the applicant must never author page numbers, headers, footers or a table of contents",
+        "value": "NIH: \"Do not include headers or footers in your attachments\"; NSF: \"the system will automatically paginate a proposal… should leave out page numbering\"",
+        "source": "https://grants.nih.gov/grants-process/write-application/how-to-apply-application-guide/format-attachments",
+        "provenance": "documented"
+      }
+    ],
+    "confidence_notes": "All NSF rules are recorded against BASE PAPPG NSF 24-1 only. Two supplements have been issued (NSF 26-200, for awards on or after 8 December 2025; NSF 26-202, for awards on or after 22 January 2026) and their effect on Chapter II could NOT be verified: https://www.nsf.gov/policies/document/nsf26202 returned HTTP 404. Whether either supplement changes a proposal-preparation rule is therefore UNKNOWN, and any NSF profile must record that gap rather than imply the base document is current. Also NOT extracted: the per-field SciENcv character limits NSF applies to the Common Form (PAPPG says 'except where noted below' and the per-field notes were not fully read), and the Synergistic Activities component limit."
+  },
+  {
+    "area": "rounds-and-returns",
+    "title": "Rounds of development — how a version is named today, and how feedback actually comes back",
+    "scope": "The internal loop after data collection: freeze a state, circulate it, collect marked-up copies, reconcile them, re-freeze. Almost entirely counted-empirically, because no publisher states anything about it. The OOXML rules below ARE documented, because the returned file is Word's format and its semantics are specified.",
+    "sources": [
+      {
+        "url": "https://schemas.liquid-technologies.com/officeopenxml/2006/comment5.html",
+        "what": "OOXML CT_Comment — the attributes a Word comment record carries"
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.office2013.word.commentex?view=openxml-3.0.1",
+        "what": "w15:commentEx — where the resolved state (w15:done) and reply threading (w15:paraIdParent) actually live, and which paragraph w15:paraId identifies"
+      },
+      {
+        "url": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "what": "A real circulating draft returned by co-authors: 12 comments, 5 tracked changes, one author field, three human voices"
+      },
+      {
+        "url": "SUNA_EXAMPLES/proposals/assembled proposal 06-05-2026-0939.pdf",
+        "what": "The next freeze of the same work four days later — a second filename-as-version"
+      },
+      {
+        "url": "SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx",
+        "what": "A third filename-as-version, with a different date format"
+      },
+      {
+        "url": "SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx",
+        "what": "A 'final' artifact — zero marks of any kind, which makes 'final' a machine-checkable state"
+      }
+    ],
+    "rules": [
+      {
+        "id": "rnd.ooxml.comment-attrs",
+        "rule": "A Word comment record (w:comment / CT_Comment) carries exactly: w:id (required), w:author (required), w:date (optional), w:initials (optional), plus a rich-text body of one or more w:p",
+        "value": "id required; author required; date optional; initials optional",
+        "source": "https://schemas.liquid-technologies.com/officeopenxml/2006/comment5.html",
+        "provenance": "documented"
+      },
+      {
+        "id": "rnd.ooxml.done",
+        "rule": "Resolved state lives on w15:commentEx in word/commentsExtended.xml, keyed by w15:paraId, as w15:done — NOT on w:comment",
+        "value": "w15:done, ST_OnOff, default \"0\"",
+        "source": "https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.office2013.word.commentex?view=openxml-3.0.1",
+        "provenance": "documented"
+      },
+      {
+        "id": "rnd.ooxml.threading",
+        "rule": "Reply threading lives on w15:commentEx as w15:paraIdParent, naming the paraId of the last paragraph of the comment being replied to",
+        "value": "w15:paraIdParent, optional",
+        "source": "https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.office2013.word.commentex?view=openxml-3.0.1",
+        "provenance": "documented"
+      },
+      {
+        "id": "rnd.ooxml.paraid-last",
+        "rule": "w15:paraId identifies the LAST paragraph of a comment, not the first — a multi-paragraph comment is keyed by its tail",
+        "value": "last paragraph",
+        "source": "https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.office2013.word.commentex?view=openxml-3.0.1",
+        "provenance": "documented"
+      },
+      {
+        "id": "rnd.example.paraid-confirmed",
+        "rule": "EMPIRICAL confirmation of the last-paragraph rule",
+        "value": "OSA comments 15 and 16 each contain 3 w:p and their commentEx paraIds (1750FC64, 474D3E8B) are the THIRD paragraph's",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.tracked-attrs",
+        "rule": "EMPIRICAL — a tracked change (w:ins / w:del) carries id, author, date, and NOT initials in practice",
+        "value": "5 records: w:del ids 2, 3, 7 and w:ins ids 5, 6, all with w:id + w:author + w:date, none with w:initials",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.deltext",
+        "rule": "EMPIRICAL — deleted text is preserved verbatim in w:delText, so a rejected deletion is fully recoverable from the file",
+        "value": "3 w:delText elements matching the 3 w:del records",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.ins-formatting",
+        "rule": "EMPIRICAL — a tracked insertion carries run FORMATTING, not just text",
+        "value": "w:ins id 6 inserts 'extend ' inside an rPr with Arial, italic and single underline",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.point-anchor",
+        "rule": "EMPIRICAL — a comment need not have a text range; a w:commentReference may appear with no w:commentRangeStart/End",
+        "value": "12 w:commentReference vs 11 w:commentRangeStart/End; comment id 18 is the point anchor",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.range-lengths",
+        "rule": "EMPIRICAL — anchored range length in real co-author feedback spans three orders of magnitude and does not correlate with the comment's scope",
+        "value": "1, 6, 6, 8, 8, 10, 92, 247, 254, 334, 504 characters (11 ranges)",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.derived-number-anchor",
+        "rule": "EMPIRICAL — a comment can be anchored to a DERIVED number that does not exist in the Markdown source at all",
+        "value": "comment id 1 (\"Need to ping Andrew on getting a revised version of this figure.\") has a 1-character range over the '3' in '(See Figure 3)'. Under SUNA's derive-at-format-time rule the source carries a cross-reference token and the '3' is produced at export, so the quote is unfindable in the target text at any anchoring tier.",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.author-unreliable",
+        "rule": "EMPIRICAL — author identity in a circulated DOCX is unreliable: every comment can carry one w:author while the bodies name different real authors",
+        "value": "12/12 comments w:author=\"Kip Allan Ludwig\"; 5 bodies begin \"Evan Comment\"/\"Evan comment\"; 2 address \"James\"; word/people.xml holds exactly 1 w15:person. Three human voices collapsed into one author field, with the real author encoded in prose.",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.people-identity",
+        "rule": "EMPIRICAL — word/people.xml maps an author display name to a directory identity, not to an email",
+        "value": "w15:presenceInfo providerId=\"AD\", userId=\"S-1-5-21-…\" — Word's own identity, not a SUNA account and not an ORCID",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.sideparts-inconsistent",
+        "rule": "EMPIRICAL — the comment side-parts are NOT mutually consistent in real files and an importer must tolerate gaps",
+        "value": "12 commentEx entries vs 11 commentId entries; paraId 5DD30D31 (comment 18) has no durableId",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.extensible-orphans",
+        "rule": "EMPIRICAL — commentsExtensible.xml accumulates orphan records for deleted comments and must never be used as the comment list",
+        "value": "22 w16cex:durableId entries, 0 of which match any of the 11 durableIds in commentsIds.xml; dateUtc values range 2025-04-22 to 2026-06-10",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.comment-parts",
+        "rule": "EMPIRICAL — Word comments exist as five sidecar parts, never as inline markup in the prose stream",
+        "value": "word/comments.xml, word/people.xml, word/commentsExtended.xml, word/commentsIds.xml, word/commentsExtensible.xml. An uncommented sibling draft in the same folder has none of these parts at all.",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.filename-is-version",
+        "rule": "EMPIRICAL — a returned draft's filename encodes its save wall-clock time in the sender's LOCAL timezone, matching docProps/core.xml dcterms:modified",
+        "value": "\"Open CL OSA_6-1 1124 AM.docx\" ↔ modified 2026-06-01T16:25:00Z (11:25 CDT); \"Cover_letter_mTBI_network_dynamics_042826 Science.docx\" ↔ modified 2026-04-28T17:39:00Z. The version IS the filename.",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx; SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.date-formats",
+        "rule": "EMPIRICAL — date formats in filenames are not standardised; a version-naming tool must OFFER a format, not assume one",
+        "value": "'6-1 1124 AM' (M-D + 12h clock), '06-05-2026-0939' (MM-DD-YYYY-HHMM), '042826' (MMDDYY)",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx; SUNA_EXAMPLES/proposals/assembled proposal 06-05-2026-0939.pdf; SUNA_EXAMPLES/letter-to-editor/Cover_letter_mTBI_network_dynamics_042826 Science.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.cp-revision-useless",
+        "rule": "EMPIRICAL — Word's cp:revision is a save counter, carries no semantics, and must never be surfaced as a version number",
+        "value": "2, 5, 10, 21, 592 across five example documents",
+        "source": "SUNA_EXAMPLES (docProps/core.xml of the five .docx files)",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.final-means-clean",
+        "rule": "EMPIRICAL — a filename status word marks a state a checker can assert: 'final' means zero outstanding marks",
+        "value": "Findlay-NN-Revision-final.docx: 0 w:ins, 0 w:del, 0 w:commentRangeStart, 0 w:highlight",
+        "source": "SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.citation-managers",
+        "rule": "EMPIRICAL — a circulated DOCX carries the sender's citation-manager field codes, and the manager differs by lab",
+        "value": "Zotero: 80 ADDIN ZOTERO_ITEM CSL_CITATION + 1 ADDIN ZOTERO_BIBL + ZOTERO_PREF_1/2 in docProps/custom.xml naming the american-medical-association style. EndNote: 222 ADDIN EN.CITE in the revision, 101 in the reply letter. SUNA's references.bib is the source of truth for neither.",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx; SUNA_EXAMPLES/peer-review/Findlay-NN-Revision-final.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.layout-directed-feedback",
+        "rule": "EMPIRICAL — real co-author comments are LAYOUT-directed, not only prose-directed, which is why page limits must be visible during drafting",
+        "value": "\"Too much unbroken text for multiple pages. Need any figures/diagrams we can use to help condense and explain/provide examples.\", \"Will need to add diagram to explain this mass of text.\", \"Included this earlier so can make this briefer.\", \"Need to ping Andrew on getting a revised version of this figure.\"",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.assignment-in-prose",
+        "rule": "EMPIRICAL — assignment is written into comment prose, naming someone other than the comment's own author",
+        "value": "\"James problem to address #2.\", \"James, double check this (not sure if this is pulse ox mediated) and provide commercial source.\", \"Need to ping Andrew on getting a revised version of this figure.\" — three different named owners, none of them the comment's w:author",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.example.round-open",
+        "rule": "EMPIRICAL — all 12 comments in the circulating draft read w15:done=\"0\"",
+        "value": "the round is entirely open, which is the honest state of a draft dated 6-1 that was still being worked on a week later",
+        "source": "SUNA_EXAMPLES/proposals/Open CL OSA_6-1 1124 AM.docx",
+        "provenance": "counted-empirically"
+      },
+      {
+        "id": "rnd.internal-report",
+        "rule": "Whether any internal round report exists in current practice",
+        "value": null,
+        "source": null,
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rnd.storage.returns",
+        "rule": "Whether a co-author's returned DOCX should be stored in the repository as evidence, and where",
+        "value": null,
+        "source": null,
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rnd.storage.retention",
+        "rule": "Retention policy for output/ artifacts across many rounds",
+        "value": null,
+        "source": null,
+        "provenance": "not-stated"
+      },
+      {
+        "id": "rnd.identity.canonical",
+        "rule": "Whether ORCID or email is the canonical co-author identity for round-tripping w:author",
+        "value": null,
+        "source": null,
+        "provenance": "not-stated"
+      }
+    ],
+    "anatomy": [
+      {
+        "slot": "1. Freeze",
+        "required": "required",
+        "notes": "The author decides 'this is what goes out' and gives that state a human-readable identity. Today the identity IS the filename: subject + date + optional time + optional status word or destination."
+      },
+      {
+        "slot": "2. Package",
+        "required": "required",
+        "notes": "DOCX when the sender wants marks back; PDF when the sender wants it read, not edited. The word 'assembled' in one filename is itself evidence that the outbound artifact is a CONCATENATION of parts that live separately during authoring."
+      },
+      {
+        "slot": "3. Circulate",
+        "required": "required",
+        "notes": "Email. dc:creator and cp:lastModifiedBy on the OSA file name two DIFFERENT people, one file passed hand to hand. THE RECIPIENT DOES NOT HAVE SUNA — the hard constraint on the whole design."
+      },
+      {
+        "slot": "4. Annotate",
+        "required": "required",
+        "notes": "FOUR channels, simultaneously, in real files: w:comment records; w:ins/w:del tracked changes; highlight-as-assignment; and instructions written in prose INTO the body. Channels three and four carry the same information as a comment thread — an assignee and an open state — in a form no schema captures."
+      },
+      {
+        "slot": "5. Return & collect",
+        "required": "required",
+        "notes": "Several marked-up copies come back, overlapping. The OSA file is the visible product of a human manually merging two colleagues' feedback into his own copy by pasting it into his own comment threads, prefixed with the speaker's name."
+      },
+      {
+        "slot": "6. Ingest",
+        "required": "required",
+        "notes": "The returned file is anchored to a FROZEN version; the working tree has moved on. Re-anchoring is against a MOVED target."
+      },
+      {
+        "slot": "7. Triage & assign",
+        "required": "conditional",
+        "notes": "Every returned item acquires an owner and a status. Skipped by a solo author."
+      },
+      {
+        "slot": "8. Answer",
+        "required": "required",
+        "notes": "Edit the prose, reply in the thread, and quote the changed passage back."
+      },
+      {
+        "slot": "9. Close",
+        "required": "required",
+        "notes": "Word carries this as w15:done on the commentEx record — the one field of the four that round-trips losslessly."
+      },
+      {
+        "slot": "10. Re-freeze",
+        "required": "required",
+        "notes": "The next named artifact. Nothing in either consecutive freeze records that they are related, or what changed between them. The co-author who gets round N+1 has no way to learn what happened to round N's comments."
+      }
+    ],
+    "confidence_notes": "NO PUBLISHER STATES ANYTHING ABOUT THE INTERNAL LOOP, so everything here except the four OOXML rules is counted-empirically from the user's own files. The most important negative finding: an internal round report DOES NOT EXIST in current practice. There is no artifact in any of the examples that tells a co-author what happened to their previous round's comments, so if SUNA produces one it is SUNA's invention and there is no shape to imitate — which is an argument for making it entirely DERIVED (so it cannot go stale) rather than an argument against building it. Four questions are genuinely unanswered by any source and are carried into the ADR as open decisions: what a version IS mechanically, whether returned binaries belong in git, retention for output artifacts, and which identifier is canonical for a co-author across Word, git and authors.json. SOURCE PATHS: SUNA_EXAMPLES/ holds only the user's original binaries (.docx/.pdf). Every `derived/<name>.txt` citation above, and every line number in one, refers to a text extraction produced from those binaries, NOT to a file that ships anywhere: `pdftotext -layout <file>.pdf > derived/<name>.txt` for a PDF (this is the command that yields the 5,715-line derived/assembled.txt whose lines 4244-4269 are the PHS 398 form page), and the concatenated w:t runs of word/document.xml for a .docx. An earlier revision of this file cited a SUNA_EXAMPLES/cover-letters/ directory that does not exist — the real one is SUNA_EXAMPLES/letter-to-editor/ — and cited the extractions as if they sat beside the binaries. Re-run the commands to re-check any counted-empirically number here."
+  }
+]

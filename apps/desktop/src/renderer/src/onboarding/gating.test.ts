@@ -50,26 +50,19 @@ describe('stepGate — step 1 (Where & what)', () => {
   })
 })
 
-describe('stepGate — step 2 (Target journal)', () => {
-  it('always advances — "Decide later" is allowed', () => {
-    const state = createInitialWizardState('create', { profileId: null, decideLater: true })
-    expect(stepGate(2, state)).toEqual({ canAdvance: true, reason: null })
-  })
-})
-
-describe('stepGate — step 3 (What to scaffold)', () => {
+describe('stepGate — step 2 (What to scaffold)', () => {
   it('advances for blank and starter with no importDir needed', () => {
-    expect(stepGate(3, createInitialWizardState('create', { scaffold: 'blank' })).canAdvance).toBe(
+    expect(stepGate(2, createInitialWizardState('create', { scaffold: 'blank' })).canAdvance).toBe(
       true
     )
     expect(
-      stepGate(3, createInitialWizardState('create', { scaffold: 'starter' })).canAdvance
+      stepGate(2, createInitialWizardState('create', { scaffold: 'starter' })).canAdvance
     ).toBe(true)
   })
 
   it('blocks import until a source folder is chosen', () => {
     const state = createInitialWizardState('create', { scaffold: 'import', importDir: null })
-    expect(stepGate(3, state).canAdvance).toBe(false)
+    expect(stepGate(2, state).canAdvance).toBe(false)
   })
 
   it('advances import once a source folder is chosen, even with zero files found', () => {
@@ -78,17 +71,17 @@ describe('stepGate — step 3 (What to scaffold)', () => {
       importDir: '/old-paper',
       importFiles: []
     })
-    expect(stepGate(3, state).canAdvance).toBe(true)
+    expect(stepGate(2, state).canAdvance).toBe(true)
   })
 })
 
-describe('stepGate — step 4 (Python environment)', () => {
+describe('stepGate — step 3 (Python environment)', () => {
   it('advances on skip and on create-with-uv', () => {
     expect(
-      stepGate(4, createInitialWizardState('create', { pythonChoice: 'skip' })).canAdvance
+      stepGate(3, createInitialWizardState('create', { pythonChoice: 'skip' })).canAdvance
     ).toBe(true)
     expect(
-      stepGate(4, createInitialWizardState('create', { pythonChoice: 'create-uv' })).canAdvance
+      stepGate(3, createInitialWizardState('create', { pythonChoice: 'create-uv' })).canAdvance
     ).toBe(true)
   })
 
@@ -97,7 +90,7 @@ describe('stepGate — step 4 (Python environment)', () => {
       pythonChoice: 'existing',
       existingEnvPath: null
     })
-    expect(stepGate(4, state).canAdvance).toBe(false)
+    expect(stepGate(3, state).canAdvance).toBe(false)
   })
 
   it('advances "use existing" once a path is selected', () => {
@@ -105,23 +98,23 @@ describe('stepGate — step 4 (Python environment)', () => {
       pythonChoice: 'existing',
       existingEnvPath: '/work/paper/.venv'
     })
-    expect(stepGate(4, state).canAdvance).toBe(true)
+    expect(stepGate(3, state).canAdvance).toBe(true)
   })
 })
 
-describe('stepGate — step 5 (AI)', () => {
+describe('stepGate — step 4 (AI)', () => {
   it('advances on cli and skip', () => {
-    expect(stepGate(5, createInitialWizardState('create', { aiChoice: 'cli' })).canAdvance).toBe(
+    expect(stepGate(4, createInitialWizardState('create', { aiChoice: 'cli' })).canAdvance).toBe(
       true
     )
-    expect(stepGate(5, createInitialWizardState('create', { aiChoice: 'skip' })).canAdvance).toBe(
+    expect(stepGate(4, createInitialWizardState('create', { aiChoice: 'skip' })).canAdvance).toBe(
       true
     )
   })
 
   it('blocks api with no provider chosen', () => {
     const state = createInitialWizardState('create', { aiChoice: 'api', apiProvider: null })
-    expect(stepGate(5, state).canAdvance).toBe(false)
+    expect(stepGate(4, state).canAdvance).toBe(false)
   })
 
   it('blocks api with a provider but an empty key', () => {
@@ -130,7 +123,7 @@ describe('stepGate — step 5 (AI)', () => {
       apiProvider: 'anthropic',
       apiKey: ''
     })
-    expect(stepGate(5, state).canAdvance).toBe(false)
+    expect(stepGate(4, state).canAdvance).toBe(false)
   })
 
   it('advances api once a provider and a non-empty key are both set', () => {
@@ -139,20 +132,20 @@ describe('stepGate — step 5 (AI)', () => {
       apiProvider: 'anthropic',
       apiKey: 'sk-ant-...'
     })
-    expect(stepGate(5, state).canAdvance).toBe(true)
+    expect(stepGate(4, state).canAdvance).toBe(true)
   })
 })
 
-describe('stepGate — step 6 (Defaults) and step 7 (Review)', () => {
-  it('step 6 always advances', () => {
-    expect(stepGate(6, createInitialWizardState('create')).canAdvance).toBe(true)
+describe('stepGate — step 5 (Defaults) and step 6 (Review)', () => {
+  it('step 5 always advances', () => {
+    expect(stepGate(5, createInitialWizardState('create')).canAdvance).toBe(true)
   })
 
-  it('step 7 advances when idle and blocks while creating', () => {
-    expect(stepGate(7, createInitialWizardState('create', { creating: false })).canAdvance).toBe(
+  it('step 6 advances when idle and blocks while creating', () => {
+    expect(stepGate(6, createInitialWizardState('create', { creating: false })).canAdvance).toBe(
       true
     )
-    expect(stepGate(7, createInitialWizardState('create', { creating: true })).canAdvance).toBe(
+    expect(stepGate(6, createInitialWizardState('create', { creating: true })).canAdvance).toBe(
       false
     )
   })

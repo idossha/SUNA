@@ -23,7 +23,7 @@ function errorMessage(error: unknown): string {
  * channel — like the Settings page's provider rows — since a keychain entry
  * isn't project state; `.mcp.json` (which is) waits for step 7.
  */
-export function Step5Ai({ state, update }: StepProps): JSX.Element {
+export function Step4Ai({ state, update }: StepProps): JSX.Element {
   const [keyDraft, setKeyDraft] = useState('')
   const [keyStatus, setKeyStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [keyError, setKeyError] = useState<string | null>(null)

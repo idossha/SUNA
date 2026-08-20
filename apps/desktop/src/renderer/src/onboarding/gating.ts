@@ -19,7 +19,7 @@ function gateStep1(state: WizardState): StepGate {
   return { canAdvance: result.valid, reason: result.reason }
 }
 
-function gateStep3(state: WizardState): StepGate {
+function gateStep2(state: WizardState): StepGate {
   if (state.scaffold === 'document') {
     if (state.documentPath === null) {
       return { canAdvance: false, reason: 'Choose a .docx, .pdf or .html manuscript to start from.' }
@@ -33,7 +33,7 @@ function gateStep3(state: WizardState): StepGate {
   return OK
 }
 
-function gateStep4(state: WizardState): StepGate {
+function gateStep3(state: WizardState): StepGate {
   if (state.pythonChoice !== 'existing') return OK
   if (state.existingEnvPath === null) {
     return { canAdvance: false, reason: 'Select one of the detected environments.' }
@@ -41,7 +41,7 @@ function gateStep4(state: WizardState): StepGate {
   return OK
 }
 
-function gateStep5(state: WizardState): StepGate {
+function gateStep4(state: WizardState): StepGate {
   if (state.aiChoice !== 'api') return OK
   if (state.apiProvider === null) {
     return { canAdvance: false, reason: 'Choose a provider.' }
@@ -53,27 +53,25 @@ function gateStep5(state: WizardState): StepGate {
 }
 
 /**
- * Whether "Next" (or, on step 7, "Create project") is enabled for the step
+ * Whether "Next" (or, on step 6, "Create project") is enabled for the step
  * the wizard is currently on — pure given the wizard's state, so the same
  * function drives the button and is unit-testable without rendering
- * anything. Steps 2 and 6 have no gate ("Decide later" / defaults are always
- * valid); step 7's gate is "not already creating".
+ * anything. Step 5 has no gate (defaults are always valid); step 6's gate is
+ * "not already creating".
  */
 export function stepGate(step: number, state: WizardState): StepGate {
   switch (step) {
     case 1:
       return gateStep1(state)
     case 2:
-      return OK
+      return gateStep2(state)
     case 3:
       return gateStep3(state)
     case 4:
       return gateStep4(state)
     case 5:
-      return gateStep5(state)
-    case 6:
       return OK
-    case 7:
+    case 6:
       return state.creating ? { canAdvance: false, reason: null } : OK
     default:
       return OK

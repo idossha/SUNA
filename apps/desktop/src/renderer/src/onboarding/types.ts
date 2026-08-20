@@ -1,4 +1,4 @@
-import { SETTING_KEYS, type ProjectSettings, type ResponseOf } from '@suna/core'
+import type { ProjectSettings, ResponseOf } from '@suna/core'
 
 /**
  * Onboarding wizard (feature-plan-5 §5). Two entry points share every step
@@ -52,7 +52,7 @@ export function repoNameFromProjectName(name: string): string {
   return cleaned === '' ? 'manuscript' : cleaned.slice(0, 100)
 }
 
-/** Step 6 seed/output — the five resolved keys the spec names for "Defaults". */
+/** Defaults step seed/output — the five resolved keys the spec names for "Defaults". */
 export interface WizardDefaults {
   defaultMode: 'source' | 'reading'
   editorTheme: 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
@@ -78,11 +78,7 @@ export interface WizardState {
   targetParentWritable: boolean | null
   checkingTarget: boolean
 
-  // Step 2 — Target journal
-  profileId: string | null
-  decideLater: boolean
-
-  // Step 3 — What to scaffold
+  // Step 2 — What to scaffold
   scaffold: ScaffoldKind
   importDir: string | null
   importFiles: ImportableFileRow[]
@@ -90,14 +86,14 @@ export interface WizardState {
   /** 'document' scaffold: the .docx/.pdf/.html manuscript to start from. */
   documentPath: string | null
 
-  // Step 4 — Python environment
+  // Step 3 — Python environment
   pythonChoice: PythonChoice
   existingEnvPath: string | null
   detectedEnvs: DetectedEnvRow[]
   envsScanned: boolean
   uvAvailable: boolean | null
 
-  // Step 5 — AI
+  // Step 4 — AI
   aiChoice: AiChoice
   detectedClis: ('claude' | 'codex')[]
   clisScanned: boolean
@@ -105,17 +101,17 @@ export interface WizardState {
   apiProvider: AgentProviderId | null
   apiKey: string
 
-  // Step 6 — Defaults
+  // Step 5 — Defaults. Always written into this project's suna.json; the
+  // wizard never touches global settings.
   defaults: WizardDefaults
-  saveDefaultsToProject: boolean
 
-  // Step 7 — Version control. The local repository is always created; this is
+  // Step 6 — Version control. The local repository is always created; this is
   // only about whether it also gets a remote on GitHub straight away.
   publishToGitHub: boolean
   githubRepoName: string
   githubVisibility: GitHubVisibility
 
-  // Step 7 — Review / create
+  // Step 6 — Review / create
   creating: boolean
   createError: string | null
   createWarnings: string[]
@@ -149,9 +145,6 @@ export function createInitialWizardState(
     targetParentWritable: null,
     checkingTarget: false,
 
-    profileId: null,
-    decideLater: false,
-
     scaffold: 'starter',
     importDir: null,
     importFiles: [],
@@ -172,7 +165,6 @@ export function createInitialWizardState(
     apiKey: '',
 
     defaults: FALLBACK_DEFAULTS,
-    saveDefaultsToProject: false,
 
     publishToGitHub: false,
     githubRepoName: '',
@@ -187,7 +179,7 @@ export function createInitialWizardState(
   }
 }
 
-/** The project-settings `editor` block step 6 contributes when its checkbox is on. */
+/** The project-settings `editor` block the Defaults step contributes. */
 export function defaultsToProjectSettings(defaults: WizardDefaults): ProjectSettings {
   return {
     editor: {
@@ -201,37 +193,17 @@ export function defaultsToProjectSettings(defaults: WizardDefaults): ProjectSett
 }
 
 /**
- * The GLOBAL-settings patch step 6 contributes when its "save to this project
- * instead" checkbox is off — same five values, keyed by each setting's
- * canonical global key (SETTING_KEYS' alias handling: 'editor.editorTheme'
- * writes the legacy 'editor.theme' slot, matching the Settings page).
- */
-export function defaultsToGlobalPatch(defaults: WizardDefaults): Record<string, unknown> {
-  return {
-    [SETTING_KEYS['editor.defaultMode'].globalKeys[0]]: defaults.defaultMode,
-    [SETTING_KEYS['editor.editorTheme'].globalKeys[0]]: defaults.editorTheme,
-    [SETTING_KEYS['editor.fontSizePx'].globalKeys[0]]: defaults.fontSizePx,
-    [SETTING_KEYS['editor.lineHeight'].globalKeys[0]]: defaults.lineHeight,
-    [SETTING_KEYS['editor.contentWidthCh'].globalKeys[0]]: defaults.contentWidthCh
-  }
-}
-
-/**
- * Step 7's full scaffold `settings` patch: the AI choice (step 5) is always a
- * per-project setting (there is no global fallback for it), while the
- * Defaults block (step 6) is included only when its "save to this project"
- * checkbox is on — otherwise those five values go to global settings instead
- * (see defaultsToGlobalPatch), called separately at create time.
+ * The Review step's full scaffold `settings` patch: the AI choice and the
+ * Defaults block, both written into this project's suna.json. The wizard
+ * defines project-level values only — global settings are the Settings tab's
+ * business, and a new project must not quietly rewrite them.
  */
 export function buildScaffoldSettings(state: WizardState): ProjectSettings {
-  const settings: ProjectSettings = {
+  return {
     ai: {
       mode: state.aiChoice === 'skip' ? 'none' : state.aiChoice,
       cliCommand: state.aiChoice === 'cli' ? state.aiCliCommand : null
-    }
+    },
+    editor: defaultsToProjectSettings(state.defaults).editor
   }
-  if (state.saveDefaultsToProject) {
-    settings.editor = defaultsToProjectSettings(state.defaults).editor
-  }
-  return settings
 }

@@ -43,6 +43,8 @@ function RunSpans({ runs }: { runs: readonly Run[] }): JSX.Element {
 
 interface ReferencesBlockProps {
   rootDir: string
+  /** Registry id of the document this reference list belongs to (ADR-009). */
+  documentId: string
   /** The manuscript's prose file, relative to manuscript/ (manuscript.json's `manuscriptFile`). */
   manuscriptFile: string
   /** Figures/tables from manuscript.json, for @fig:/@tbl: label numbering. */
@@ -67,6 +69,7 @@ interface ReferencesBlockProps {
  */
 export function ReferencesBlock({
   rootDir,
+  documentId,
   manuscriptFile,
   figures,
   tables,
@@ -82,8 +85,8 @@ export function ReferencesBlock({
 
   // clear the shared citation render data when the combined tab closes
   useEffect(
-    () => () => useManuscriptDocStore.getState().publishCitationRender(null),
-    []
+    () => () => useManuscriptDocStore.getState().publishCitationRender(documentId, null),
+    [documentId]
   )
 
   useEffect(() => {
@@ -139,7 +142,7 @@ export function ReferencesBlock({
       )
       // share numbering + style + labels so the editor resolves its
       // citation and cross-reference chips the same way
-      useManuscriptDocStore.getState().publishCitationRender({
+      useManuscriptDocStore.getState().publishCitationRender(documentId, {
         numbers,
         entries: entryMap,
         style: citeStyleOf(profile.citations),

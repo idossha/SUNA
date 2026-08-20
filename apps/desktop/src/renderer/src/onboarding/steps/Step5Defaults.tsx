@@ -14,8 +14,8 @@ const THEME_LABELS: Record<WizardDefaults['editorTheme'], string> = {
   jellybeans: 'Jellybeans'
 }
 
-/** Step 6 — Defaults (feature-plan-5 §5), seeded from global settings by the wizard shell. */
-export function Step6Defaults({ state, update }: StepProps): JSX.Element {
+/** Step 5 — Defaults (feature-plan-5 §5), seeded from global settings by the wizard shell. */
+export function Step5Defaults({ state, update }: StepProps): JSX.Element {
   const set = <K extends keyof WizardDefaults>(key: K, value: WizardDefaults[K]): void =>
     update({ defaults: { ...state.defaults, [key]: value } })
 
@@ -23,8 +23,8 @@ export function Step6Defaults({ state, update }: StepProps): JSX.Element {
     <div className="onboard__step-page">
       <h2 className="onboard__step-title">Defaults</h2>
       <p className="onboard__step-sub">
-        Seeded from your global settings. Leave the checkbox off to update those global defaults;
-        turn it on to pin these values to just this project instead.
+        Seeded from your global settings and saved to this project — other projects keep their
+        own. Change your global defaults any time from Settings.
       </p>
 
       <div className="onboard__field">
@@ -100,20 +100,6 @@ export function Step6Defaults({ state, update }: StepProps): JSX.Element {
         />
       </div>
 
-      <label className="onboard__choice" style={{ marginTop: 8 }}>
-        <input
-          type="checkbox"
-          checked={state.saveDefaultsToProject}
-          onChange={(e) => update({ saveDefaultsToProject: e.target.checked })}
-        />
-        <div className="onboard__choice-body">
-          <div className="onboard__choice-title">Save these to this project instead of globally</div>
-          <div className="onboard__choice-hint">
-            On: written into this project&apos;s suna.json — other projects keep their own values.
-            Off: written into your global settings — future projects start with these too.
-          </div>
-        </div>
-      </label>
     </div>
   )
 }

@@ -363,7 +363,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
             {MODE_LABEL[mode]}
           </button>
         )}
-        {sectionPath !== null && <RailToggleButton />}
+        {sectionPath !== null && <RailToggleButton docPath={sectionPath} />}
         <button
           className="editor-tab__gear"
           onClick={() => setSettingsOpen((open) => !open)}

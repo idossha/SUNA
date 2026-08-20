@@ -500,7 +500,7 @@
 .onboard__vcs {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   max-width: 560px;
   padding: 14px 16px;
   margin-bottom: 20px;
@@ -528,12 +528,18 @@
 }
 
 .onboard__vcs-fields {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
   gap: 8px;
-  padding-left: 22px;
+  padding-left: 24px;
 }
 
-.onboard__vcs-fields .view__input {
-  flex: 1;
+/* Both controls are one row, so they must agree on height and metrics —
+   the select is the taller of the two by default. */
+.onboard__vcs-fields .view__input,
+.onboard__vcs-fields .view__select {
   min-width: 0;
+  width: 100%;
+  height: 30px;
+  font-size: var(--s-text-sm);
 }
