@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LetterAssertionIdSchema, LetterKindSchema } from './letters';
 
 /**
  * Publisher profile v3 — author-guideline model (ADR-002).
@@ -28,12 +29,22 @@ export const ProfileIdSchema = z.string().regex(PROFILE_ID_RE);
 
 /**
  * How a profile value is known. 'documented' = stated verbatim in the
- * journal's author guidelines; 'counted-empirically' = measured from the
- * journal's published output (which can diverge from its own guidelines);
- * 'inferred' = not stated anywhere, filled in from family convention.
+ * journal's author guidelines, read from the cited page; 'documented-indexed'
+ * = the venue states it, but the sentence was captured from a search index
+ * because the page itself refuses to be fetched (www.science.org and
+ * www.cell.com both return HTTP 403 to a direct request);
+ * 'counted-empirically' = measured from the journal's published output (which
+ * can diverge from its own guidelines); 'inferred' = not stated anywhere,
+ * filled in from family convention.
+ *
+ * 'documented-indexed' is a union ADDITION, so every profile written against
+ * the previous three parses unchanged and schemaVersion stays 3. It exists so
+ * that a quote sitting beside a URL cannot silently imply "read from that
+ * page" when nobody has read it.
  */
 export const ProvenanceBasisSchema = z.enum([
   'documented',
+  'documented-indexed',
   'counted-empirically',
   'inferred',
 ]);
@@ -301,6 +312,80 @@ export const DocumentStyleSchema = z
   .partial();
 export type DocumentStyle = z.infer<typeof DocumentStyleSchema>;
 
+/* ------------------------------------------------------------------ */
+/* Cover-letter rules (feature-plan-12 §2c) — additive and optional      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * What one venue says about one letter assertion.
+ *
+ * `stance: 'elsewhere'` plus a `vehicle` is how a journal that wants the
+ * claim, but not in the letter, is encoded — "put your suggested reviewers in
+ * the submission form" is a different answer from both "we require it" and
+ * silence, and only one of the three should nag the author.
+ */
+export const AssertionRequirementSchema = z
+  .object({
+    id: LetterAssertionIdSchema,
+    stance: z.enum(['required', 'optional', 'discouraged', 'elsewhere']),
+    /** Where the journal says it belongs when stance is 'elsewhere'. */
+    vehicle: z
+      .enum(['cover-letter', 'submission-form', 'manuscript', 'separate-form'])
+      .nullable(),
+    limit: z
+      .object({ unit: z.enum(['characters', 'words']), max: z.number().int().positive() })
+      .nullable(),
+    /** The venue's own words. null when nobody has verified the wording. */
+    quote: z.string().min(1).nullable(),
+    source: z.url().nullable(),
+    /**
+     * HOW the quote is known. Required whenever `quote` is non-null: a quote
+     * with a URL beside it reads as "read from that page", and for venues
+     * whose sites refuse to be fetched that is not true. A quote with no
+     * basis is a claim with no evidence, so the schema refuses it.
+     */
+    basis: ProvenanceBasisSchema.nullable(),
+  })
+  .superRefine((r, ctx) => {
+    if (r.quote !== null && r.basis === null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['basis'],
+        message: 'a non-null quote must say how it is known — set basis',
+      });
+    }
+    if (r.stance === 'elsewhere' && r.vehicle === null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['vehicle'],
+        message: "stance 'elsewhere' must name the vehicle the venue wants instead",
+      });
+    }
+  });
+export type AssertionRequirement = z.infer<typeof AssertionRequirementSchema>;
+
+export const LetterRulesSchema = z.object({
+  /**
+   * Per letter kind. 'not-requested' is a REAL, SOURCED answer — PNAS says so
+   * — and must stay distinguishable from silence, which is this whole block
+   * being absent. Three states, not two:
+   *   block absent            nobody has researched this venue's letter rules
+   *   kind absent from stance researched; the venue says nothing about it
+   *   'not-requested'         the venue explicitly does not ask for one
+   */
+  stance: z.partialRecord(
+    LetterKindSchema,
+    z.enum(['required', 'optional', 'not-requested']),
+  ),
+  /** Venues that require a letter only for certain article types. */
+  requiredForArticleTypes: z.array(z.string().min(1)).default([]),
+  assertions: z.array(AssertionRequirementSchema).default([]),
+  confidentialToEditor: z.boolean().nullable(),
+  sources: z.array(z.url()),
+  provenance: z.array(ProvenanceEntrySchema).optional(),
+});
+export type LetterRules = z.infer<typeof LetterRulesSchema>;
+
 export const PublisherProfileSchema = z.object({
   schemaVersion: z.literal(3),
   id: ProfileIdSchema,
@@ -317,6 +402,13 @@ export const PublisherProfileSchema = z.object({
    * DocumentStyleSchema. Absent means "inherit the SUNA default in full".
    */
   documentStyle: DocumentStyleSchema.optional(),
+  /**
+   * Cover-letter rules (feature-plan-12 §2c). Absent means nobody has
+   * researched this venue's letter requirements — which is NOT the same as
+   * the venue not asking for a letter. schemaVersion stays 3 because this is
+   * an additive optional, exactly as `documentStyle` was.
+   */
+  letters: LetterRulesSchema.optional(),
   notes: z.array(z.string()),
 });
 export type PublisherProfile = z.infer<typeof PublisherProfileSchema>;

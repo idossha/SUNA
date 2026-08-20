@@ -1,4 +1,5 @@
 export * from './documents';
+export * from './letters';
 export * from './project';
 export * from './settings-resolve';
 export * from './authors';

@@ -14,7 +14,7 @@
     "authorYear": null,
     "referenceList": {
       "entryTemplates": {
-        "article": "{authors} {title}. {journalAbbrev} {volume}, {firstPage}–{lastPage} ({year}).",
+        "article": "{authors} {title}. {journalAbbrev} {volume}, {firstPage}\u2013{lastPage} ({year}).",
         "book": "{authors} {title} ({publisher}, {year}).",
         "preprint": "{authors} {title}. Preprint at {url} ({year}).",
         "software": "{authors} {title}. {repository} {doiUrl} ({year})."
@@ -36,12 +36,12 @@
     ],
     "provenance": [
       {
-        "claim": "mode: numeric-superscript — “When cited in the text, reference numbers are superscript, not in brackets.” Worked example: “Water flows downhill 13” with the instruction to use superscripts, not 'raised' format.",
+        "claim": "mode: numeric-superscript \u2014 \u201cWhen cited in the text, reference numbers are superscript, not in brackets.\u201d Worked example: \u201cWater flows downhill 13\u201d with the instruction to use superscripts, not 'raised' format.",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       },
       {
-        "claim": "authorTruncation: “All authors should be included in reference lists unless there are more than five, in which case only the first author should be given, followed by 'et al.'.”",
+        "claim": "authorTruncation: \u201cAll authors should be included in reference lists unless there are more than five, in which case only the first author should be given, followed by 'et al.'.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       },
@@ -51,12 +51,12 @@
         "source": null
       },
       {
-        "claim": "article maxReferences (per-type, see manuscript.articleTypes): “As a guideline, articles typically have no more than 50 references... Additional references for Methods or Supplementary Information are not included in this count.”",
+        "claim": "article maxReferences (per-type, see manuscript.articleTypes): \u201cAs a guideline, articles typically have no more than 50 references... Additional references for Methods or Supplementary Information are not included in this count.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       },
       {
-        "claim": "reference numbering order: “References are each numbered, ordered sequentially as they appear in the text, tables, boxes, figure legends, Methods, Extended Data tables and Extended Data figure legends.”",
+        "claim": "reference numbering order: \u201cReferences are each numbered, ordered sequentially as they appear in the text, tables, boxes, figure legends, Methods, Extended Data tables and Extended Data figure legends.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       }
@@ -110,37 +110,37 @@
     ],
     "provenance": [
       {
-        "claim": "widthPresetsMm/maxHeightMm: Final submission page (production spec, treated as authoritative here): “89 mm wide (single column) and 183 mm wide (double column). The full depth of a Nature page is 247 mm. Figures can also be a column-and-a-half where necessary (120–136 mm).” onehalf left null because 120–136mm is a range, not a single preset value.",
+        "claim": "widthPresetsMm/maxHeightMm: Final submission page (production spec, treated as authoritative here): \u201c89 mm wide (single column) and 183 mm wide (double column). The full depth of a Nature page is 247 mm. Figures can also be a column-and-a-half where necessary (120\u2013136 mm).\u201d onehalf left null because 120\u2013136mm is a range, not a single preset value.",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       },
       {
-        "claim": "CONFLICTING official figure dimensions (recorded, not encoded): the Formatting guide instead states “90 mm (single column) and 180 mm (double column) and the full depth of the page is 170 mm” — both pages are live and current; the 170mm-vs-247mm depth conflict is not resolved by the journal.",
+        "claim": "CONFLICTING official figure dimensions (recorded, not encoded): the Formatting guide instead states \u201c90 mm (single column) and 180 mm (double column) and the full depth of the page is 170 mm\u201d \u2014 both pages are live and current; the 170mm-vs-247mm depth conflict is not resolved by the journal.",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       },
       {
-        "claim": "minFontPt/maxFontPt: “Maximum text size for all other text should be 7 pt; minimum text size should be 5 pt.”",
+        "claim": "minFontPt/maxFontPt: \u201cMaximum text size for all other text should be 7 pt; minimum text size should be 5 pt.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       },
       {
-        "claim": "lineWeightPt: “Line weights and strokes should be set between 0.25 and 1 pt at the final size.”",
+        "claim": "lineWeightPt: \u201cLine weights and strokes should be set between 0.25 and 1 pt at the final size.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       },
       {
-        "claim": "panelLabel: “Separate panels in multi-part figures should each be labelled with 8 pt bold, upright (not italic) a, b, c.”",
+        "claim": "panelLabel: \u201cSeparate panels in multi-part figures should each be labelled with 8 pt bold, upright (not italic) a, b, c.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       },
       {
-        "claim": "palette.requirement: 'none-stated' — unlike Nature Astronomy's own branded-journals figure guide (which requires the Wong colorblind-safe palette), the flagship Nature formatting/final-submission pages state no colour-blind-safe palette or red/green rule; this profile deliberately does NOT borrow Nature Astronomy's palette requirement.",
+        "claim": "palette.requirement: 'none-stated' \u2014 unlike Nature Astronomy's own branded-journals figure guide (which requires the Wong colorblind-safe palette), the flagship Nature formatting/final-submission pages state no colour-blind-safe palette or red/green rule; this profile deliberately does NOT borrow Nature Astronomy's palette requirement.",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       },
       {
-        "claim": "formats: preferred “Layered Photoshop (PSD) or TIFF format (high resolution, 300–600 dpi)” for photos; “Adobe Illustrator (AI), Postscript, Vector EPS or PDF format” for line art; fallback JPEG accepted; explicitly rejected: Canvas, DeltaGraph, Tex, ChemDraw, SigmaPlot. minDpi 300: “All photographic images must be supplied at a minimum of 300 dpi.”",
+        "claim": "formats: preferred \u201cLayered Photoshop (PSD) or TIFF format (high resolution, 300\u2013600 dpi)\u201d for photos; \u201cAdobe Illustrator (AI), Postscript, Vector EPS or PDF format\u201d for line art; fallback JPEG accepted; explicitly rejected: Canvas, DeltaGraph, Tex, ChemDraw, SigmaPlot. minDpi 300: \u201cAll photographic images must be supplied at a minimum of 300 dpi.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/final-submission"
       }
@@ -265,17 +265,17 @@
     ],
     "provenance": [
       {
-        "claim": "requiredSections order: “title, authors, affiliations (plus present addresses), bold first paragraph, main text, main references, tables, figure legends, methods (including separate data and code availability statements), methods references, acknowledgements, funding statement, author contributions, competing interest declaration, additional information..., extended data figure/table legends.”",
+        "claim": "requiredSections order: \u201ctitle, authors, affiliations (plus present addresses), bold first paragraph, main text, main references, tables, figure legends, methods (including separate data and code availability statements), methods references, acknowledgements, funding statement, author contributions, competing interest declaration, additional information..., extended data figure/table legends.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       },
       {
-        "claim": "availabilityStatements: “Nature authors must make data and materials publicly available upon publication”; “Please provide separate Data Availability and Code Availability statements after the main text statements and before the Extended Data legends.”",
+        "claim": "availabilityStatements: \u201cNature authors must make data and materials publicly available upon publication\u201d; \u201cPlease provide separate Data Availability and Code Availability statements after the main text statements and before the Extended Data legends.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       },
       {
-        "claim": "submissionFormat.doubleSpacing/lineNumbers: “Contributions should be double-spaced”; “please include line numbers within the text.”",
+        "claim": "submissionFormat.doubleSpacing/lineNumbers: \u201cContributions should be double-spaced\u201d; \u201cplease include line numbers within the text.\u201d",
         "basis": "documented",
         "source": "https://www.nature.com/nature/for-authors/formatting-guide"
       },
@@ -292,13 +292,92 @@
     ]
   },
   "notes": [
-    "SELF-CONTRADICTION ON FIGURE DIMENSIONS between Nature's own Formatting guide (90/180mm, 170mm depth) and Final submission page (89/183mm, 247mm depth, 120-136mm column-and-a-half) — both pages are live and current. The Final submission numbers are encoded here as the production spec; the conflict is recorded in figures.provenance rather than silently resolved.",
-    "NATURE HAS NO 'LETTER' OR 'BRIEF COMMUNICATION' RESEARCH FORMAT — the current formatting guide states 'Articles are the main format for original research contributions to Nature' and lists no short-research format. Only 'article' is encoded as an articleType.",
+    "SELF-CONTRADICTION ON FIGURE DIMENSIONS between Nature's own Formatting guide (90/180mm, 170mm depth) and Final submission page (89/183mm, 247mm depth, 120-136mm column-and-a-half) \u2014 both pages are live and current. The Final submission numbers are encoded here as the production spec; the conflict is recorded in figures.provenance rather than silently resolved.",
+    "NATURE HAS NO 'LETTER' OR 'BRIEF COMMUNICATION' RESEARCH FORMAT \u2014 the current formatting guide states 'Articles are the main format for original research contributions to Nature' and lists no short-research format. Only 'article' is encoded as an articleType.",
     "LENGTH IS A PAGE BUDGET, NOT A HARD WORD CAP: Nature never states a hard maximum word count, only typical lengths tied to print pages with an explicit editorial-discretion clause. Encoded as hard: false.",
-    "The 50-reference figure is explicitly a guideline that excludes Methods/Supplementary Information references from the count — a naive whole-bibliography reference counter would produce false failures against this limit.",
-    "The abstract is a 'summary paragraph': fully referenced, a single paragraph with a prescribed internal structure (2-3 sentence intro; background/rationale; 'Here we show' conclusion; 2-3 sentences of context) but with NO section headings — structured in substance, not in formatting.",
+    "The 50-reference figure is explicitly a guideline that excludes Methods/Supplementary Information references from the count \u2014 a naive whole-bibliography reference counter would produce false failures against this limit.",
+    "The abstract is a 'summary paragraph': fully referenced, a single paragraph with a prescribed internal structure (2-3 sentence intro; background/rationale; 'Here we show' conclusion; 2-3 sentences of context) but with NO section headings \u2014 structured in substance, not in formatting.",
     "Matters Arising and Registered Reports are both described on the formatting guide but their own numeric limits live on separate pages not retrieved in this pass; neither is encoded as a distinct articleType to avoid implying limits that were never actually read.",
-    "palette.requirement is deliberately 'none-stated' for flagship Nature even though the sibling nature-astronomy.json profile requires the Wong colorblind-safe palette — that requirement comes from Nature Astronomy's OWN branded-journals figure guide and does not apply to the flagship journal; it is not borrowed here.",
-    "Retrieval note: nature.com pages were reachable directly via WebFetch in this session (unlike cell.com/pnas.org/sciencedirect.com/jneurosci.org, all of which returned HTTP 403) — this profile has direct-fetch confidence, matching the Nature research already supplied for this task."
-  ]
+    "palette.requirement is deliberately 'none-stated' for flagship Nature even though the sibling nature-astronomy.json profile requires the Wong colorblind-safe palette \u2014 that requirement comes from Nature Astronomy's OWN branded-journals figure guide and does not apply to the flagship journal; it is not borrowed here.",
+    "Retrieval note: nature.com pages were reachable directly via WebFetch in this session (unlike cell.com/pnas.org/sciencedirect.com/jneurosci.org, all of which returned HTTP 403) \u2014 this profile has direct-fetch confidence, matching the Nature research already supplied for this task.",
+    "COVER-LETTER RULES \u2014 QUOTE PROVENANCE: the `letters` block below carries source URLs but NO verbatim quotes. Every candidate quote gathered for this venue is basis 'documented-indexed' (captured from a search index because the venue's own page refuses a direct fetch), and feature-plan-12 \u00a72c gates shipping on a human reading the page in a browser and confirming the wording. Until then the diagnostics cite the URL without claiming to quote it. See docs/design/document-kinds-findings.json for the indexed candidates."
+  ],
+  "letters": {
+    "stance": {
+      "submission": "required"
+    },
+    "requiredForArticleTypes": [],
+    "assertions": [
+      {
+        "id": "journalFit",
+        "stance": "required",
+        "vehicle": null,
+        "limit": null,
+        "quote": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "basis": "documented-indexed"
+      },
+      {
+        "id": "conceptualAdvance",
+        "stance": "required",
+        "vehicle": null,
+        "limit": null,
+        "quote": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "basis": "documented-indexed"
+      },
+      {
+        "id": "background",
+        "stance": "discouraged",
+        "vehicle": null,
+        "limit": null,
+        "quote": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "basis": "documented-indexed"
+      },
+      {
+        "id": "relatedManuscripts",
+        "stance": "required",
+        "vehicle": null,
+        "limit": null,
+        "quote": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "basis": "documented-indexed"
+      },
+      {
+        "id": "competingInterests",
+        "stance": "required",
+        "vehicle": null,
+        "limit": null,
+        "quote": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "basis": "documented-indexed"
+      },
+      {
+        "id": "correspondingContact",
+        "stance": "required",
+        "vehicle": null,
+        "limit": null,
+        "quote": null,
+        "source": "https://www.nature.com/nature/for-authors/initial-submission",
+        "basis": "documented-indexed"
+      }
+    ],
+    "confidentialToEditor": true,
+    "sources": [
+      "https://www.nature.com/nature/for-authors/initial-submission"
+    ],
+    "provenance": [
+      {
+        "claim": "Nature's initial-submission page redirected (HTTP 303) to idp.nature.com on 2026-08-19, so no quote here was read from the page itself.",
+        "basis": "documented-indexed",
+        "source": "https://www.nature.com/nature/for-authors/initial-submission"
+      },
+      {
+        "claim": "Whether Nature wants suggested or excluded referees named in the cover letter is NOT STATED on the page consulted; the sentence that says so belongs to Communications Physics, a different journal, and is deliberately not inherited here.",
+        "basis": "inferred",
+        "source": null
+      }
+    ]
+  }
 }

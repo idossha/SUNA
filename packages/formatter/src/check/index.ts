@@ -5,6 +5,7 @@ export type {
   DiagnosticTarget,
 } from './types';
 export { checkFigureSvg } from './figure';
+export { checkLetter, type LetterCheckInput } from './letter';
 export {
   checkManuscript,
   countWords,
