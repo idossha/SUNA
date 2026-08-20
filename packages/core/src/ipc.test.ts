@@ -56,6 +56,7 @@ describe('CHANNELS', () => {
       'export:letter',
       'export:notes',
       'export:pdf',
+      'export:response',
       'figure:create',
       'figure:duplicate',
       'figure:export',
