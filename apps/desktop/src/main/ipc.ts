@@ -73,10 +73,10 @@ import {
   fileSize,
   readText,
   renameEntry,
-  trashEntry,
   writeBinary,
   writeText
 } from './services/fs'
+import { emptyTrash, listTrash, restoreTrash, trashEntry } from './services/trash'
 import {
   acquireLibraryPdf,
   findLibraryPdf,
@@ -518,10 +518,13 @@ export function registerIpcHandlers(): void {
   // One drop is one call: moveEntries collects per-path failures, so this
   // resolves with a partial outcome rather than rejecting the whole batch.
   handle('fs:move', ({ paths, targetDir }) => moveEntries(paths, targetDir))
-  handle('fs:delete', async ({ path }) => {
-    await trashEntry(path)
-    return {}
-  })
+  // Light files land in SUNA's own trash (restorable for the retention
+  // window); directories and heavy files go to the OS trash.
+  handle('fs:delete', ({ path }) => trashEntry(path))
+
+  handle('trash:list', async ({ dir }) => ({ entries: await listTrash(dir) }))
+  handle('trash:restore', ({ dir, ids }) => restoreTrash(dir, ids))
+  handle('trash:empty', async ({ dir, ids }) => ({ removed: await emptyTrash(dir, ids) }))
   handle('fs:mkdir', async ({ path }) => {
     await makeDir(path)
     return {}
