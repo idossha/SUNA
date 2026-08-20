@@ -2,7 +2,6 @@ import { useMemo, type JSX } from 'react'
 import type { Affiliation, Author, Manuscript } from '@suna/core'
 import { authorMarkers, numberAffiliations } from './title-page'
 import { AffiliationsEditor } from './titlepage-edit/AffiliationsEditor'
-import { ArticleTypeField } from './titlepage-edit/ArticleTypeField'
 import { AuthorsEditor } from './titlepage-edit/AuthorsEditor'
 import { EditableBlock } from './titlepage-edit/EditableBlock'
 import { EditableGroup } from './titlepage-edit/EditableGroup'
@@ -112,12 +111,6 @@ export function TitlePage({
         <h1 className="msdoc__title">
           <TexText text={manuscript.title} />
         </h1>
-      )}
-
-      {editable && (
-        <div className="tp__meta-row">
-          <ArticleTypeField rootDir={rootDir} value={manuscript.articleType} />
-        </div>
       )}
 
       {editable ? (
