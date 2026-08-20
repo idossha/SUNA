@@ -17,7 +17,7 @@ Context/
     RULES.md            #   the user's standing rules for ALL projects
   SunaContext/          # layer 2 — app-owned stock docs (this folder); replaced on update
     README.md  PROJECT-GUIDE.md  MANUSCRIPT.md  COMMENTS.md
-    FIGURES.md  LETTERS.md  MCP.md  WORKFLOW.md
+    FIGURES.md  LETTERS.md  ROUNDS.md  MCP.md  WORKFLOW.md
 ```
 
 Layer 3 is the project itself — any folder containing `suna.json`:
@@ -70,6 +70,8 @@ Reference docs, by area:
 | MANUSCRIPT.md | the manuscript.md dialect: citations, cross-refs, figure embeds, math |
 | COMMENTS.md | the review-comment sidecar: schema, anchoring, the review procedure |
 | FIGURES.md | figure folders, provenance, figure compliance |
+| LETTERS.md | cover letters: assertions the author signs, never you |
+| ROUNDS.md | importing a reviewer report: hand it over raw, and why |
 | MCP.md | the 23 MCP verbs, server launch, the file-verb fallback |
 | WORKFLOW.md | session shape: reading order, memory-file discipline, when to ask vs act |
 
