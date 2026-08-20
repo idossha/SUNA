@@ -6,8 +6,6 @@ import { MAX_READ_BINARY_BYTES } from '@suna/core'
 import { copyFileInto, moveEntries, readBinary, renameEntry } from './fs'
 import { allowRoot } from './roots'
 
-// fs.ts pulls `shell` in for trashEntry; nothing under test touches it.
-vi.mock('electron', () => ({ shell: { trashItem: vi.fn() } }))
 
 // rename() is the only call this file stubs, and only so ONE test can make it
 // fail with an empty message — no real filesystem produces that. Every other

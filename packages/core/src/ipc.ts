@@ -16,6 +16,7 @@ import {
   RoundSchema,
 } from './rounds';
 import { LoggedVersionSchema } from './versions';
+import { TrashEntrySchema } from './trash';
 import { NoteColorSchema } from './refnotes';
 import {
   AiEffortSchema,
@@ -694,10 +695,51 @@ export const CHANNELS = {
     request: z.object({ path: z.string().min(1), newName: z.string().min(1) }),
     response: z.object({ path: z.string().min(1) }),
   },
+  /**
+   * Delete an entry from the UI. Never a hard unlink: a small enough FILE is
+   * moved into SUNA's own trash (recoverable for the retention window), and
+   * everything else — directories, oversized files — goes to the OS trash.
+   * `destination` reports which happened so the caller can say so.
+   */
   'fs:delete': {
-    // moves to the OS trash, never a hard unlink
     request: z.object({ path: z.string().min(1) }),
-    response: z.object({}),
+    response: z.object({ destination: z.enum(['suna', 'system']) }),
+  },
+  /**
+   * A project's recoverable files, newest first — the trash lives in the
+   * project, under `.suna/trash/`. Purges expired entries first.
+   */
+  'trash:list': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ entries: z.array(TrashEntrySchema) }),
+  },
+  /**
+   * Put files back where they came from. PARTIAL by contract, like 'fs:move':
+   * an entry whose name is taken again is named in `failed` rather than
+   * failing the batch. A deleted original directory is recreated.
+   */
+  'trash:restore': {
+    request: z.object({
+      dir: z.string().min(1),
+      ids: z.array(z.string().min(1)).min(1),
+    }),
+    response: z.object({
+      restored: z.array(z.object({ id: z.string().min(1), path: z.string().min(1) })),
+      failed: z.array(
+        z.object({ id: z.string().min(1), reason: z.string().min(1) }),
+      ),
+    }),
+  },
+  /**
+   * Hand entries to the OS trash and drop them from the index. `ids` absent
+   * means "empty the trash" — still to the OS trash, never destroyed here.
+   */
+  'trash:empty': {
+    request: z.object({
+      dir: z.string().min(1),
+      ids: z.array(z.string().min(1)).optional(),
+    }),
+    response: z.object({ removed: z.number().int().min(0) }),
   },
   'fs:mkdir': {
     request: z.object({ path: z.string().min(1) }),

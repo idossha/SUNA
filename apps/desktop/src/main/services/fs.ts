@@ -1,4 +1,3 @@
-import { shell } from 'electron'
 import type { Dirent, Stats } from 'node:fs'
 import { constants } from 'node:fs'
 import {
@@ -15,7 +14,7 @@ import { MAX_READ_BINARY_BYTES, type FsNode } from '@suna/core'
 import { writeFileAtomic } from './atomic'
 import { assertInsideAllowedRoot } from './roots'
 
-const IGNORED_NAMES = new Set(['.git', 'node_modules', '.DS_Store', '__pycache__'])
+const IGNORED_NAMES = new Set(['.git', '.suna', 'node_modules', '.DS_Store', '__pycache__'])
 const MAX_DEPTH = 10
 
 export async function readText(path: string): Promise<string> {
@@ -206,10 +205,6 @@ async function moveOne(path: string, target: string): Promise<{ from: string; to
 }
 
 /** Move to the OS trash — never a hard unlink, so users can recover. */
-export async function trashEntry(path: string): Promise<void> {
-  await shell.trashItem(assertInsideAllowedRoot(path))
-}
-
 export async function makeDir(path: string): Promise<void> {
   await mkdir(assertInsideAllowedRoot(path), { recursive: true })
 }
