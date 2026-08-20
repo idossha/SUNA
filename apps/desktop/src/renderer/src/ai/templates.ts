@@ -295,3 +295,252 @@ export function letterDraftPrompt(input: LetterDraftPromptInput): string {
     rules
   )
 }
+
+/* -------------------------------------------------------- point reply ---- */
+
+/** One sibling point and how it was already answered — the consistency set. */
+export interface SiblingReply {
+  label: string
+  verbatim: string
+  reply: string
+  status: string
+}
+
+export interface PointReplyPromptInput {
+  /** 'draft' writes a reply into an empty box; 'polish' reworks the one there. */
+  mode: 'draft' | 'polish'
+  roundId: string
+  /** Round label, e.g. "Round 2 — Nature Neuroscience". */
+  roundLabel: string
+  /** Venue for an external round; null for an internal circulation. */
+  venue: string | null
+  /** Editor's decision on the round, if one has been recorded. */
+  decision: string | null
+  /** "Reviewer 2, point 3" — how the app names this point to the author. */
+  pointLabel: string
+  /** The reviewer's words. Immutable, and quoted here so the agent sees them. */
+  verbatim: string
+  /** The section of the paper the point targets, when the importer found one. */
+  section: string | null
+  /** Enough of the reviewer's report around this point to read it in context. */
+  reportContext: string
+  /** Points already answered in this round — the reply must not contradict them. */
+  siblings: readonly SiblingReply[]
+  /** The reply currently in the box. Required for 'polish', empty for 'draft'. */
+  currentReply: string
+  /** context/PEER-REVIEW.md verbatim, or null when the file is absent/empty. */
+  peerReviewGuidelines: string | null
+  /** Optional extra instruction the author typed for this run. */
+  instruction?: string
+}
+
+/**
+ * Draft or polish the reply to ONE reviewer point (document-kinds-ux.md §C).
+ *
+ * The answer to this prompt is not a summary of work done — it IS the reply,
+ * and it lands in the author's box as a proposal they accept or discard. So
+ * this is the one template that overrides CLOSING_LINE: anything the agent
+ * says about its own process would be pasted into a response letter.
+ *
+ * Two things make the reply good rather than merely fluent, and both are
+ * context the agent cannot get from the point alone. **The manuscript has to
+ * actually change**, or the reply is a promise — so the prompt sends it to
+ * read the prose first and to name the real location of the change. **The
+ * other replies in the round exist**, and a letter that concedes a framing in
+ * point 4 and defends it in point 11 is worse than either answer alone, so
+ * every already-written sibling reply is in CONTEXT.
+ *
+ * Nothing here may write: the reply is a proposal, the reviewer's words have
+ * no write path at all, and the point's status stays the author's call.
+ */
+export function pointReplyPrompt(input: PointReplyPromptInput): string {
+  const polishing = input.mode === 'polish'
+
+  const task = [
+    polishing
+      ? `Rework the author's existing reply to ${input.pointLabel} below. Keep every claim, concession and disagreement it makes — you are improving how it reads and how well it is evidenced, not deciding the position again.`
+      : `Write the author's reply to ${input.pointLabel} below.`,
+    ...(input.instruction !== undefined && input.instruction.trim() !== ''
+      ? ['', `The author adds: ${input.instruction.trim()}`]
+      : []),
+    '',
+    'BEFORE you write a sentence, read what you are answering about:',
+    '  1. mcp__suna__read_manuscript — the prose the point targets. A reply that describes a change nobody made is the one failure that matters here.',
+    '  2. mcp__suna__list_outline — where the change would go, so you can name the section.',
+    `  3. mcp__suna__list_review_points with roundId ${JSON.stringify(input.roundId)} — the rest of this round, if the sibling replies below are not enough.`,
+    '  4. context/PROJECT.md and context/RULES.md — what this project is and how this group works.'
+  ]
+
+  const context = [
+    `- Round: ${input.roundLabel} (id ${input.roundId})`,
+    `- Venue: ${input.venue ?? 'internal circulation — no external venue'}`,
+    `- Decision on the round: ${input.decision ?? 'none recorded yet'}`,
+    `- Point: ${input.pointLabel}${input.section !== null ? ` · targets ${input.section}` : ''}`,
+    '- The reviewer wrote, verbatim:',
+    '---',
+    input.verbatim,
+    '---',
+    ...(input.reportContext.trim() === ''
+      ? []
+      : ['- Surrounding text from the same reviewer, for context:', '---', input.reportContext, '---']),
+    ...(input.siblings.length === 0
+      ? ['- No other point in this round has been answered yet.']
+      : [
+          '- Replies already written in this round. Yours must be consistent with these — same position, same terminology, no promise that contradicts one of them:',
+          ...input.siblings.flatMap((s) => [
+            `  ${s.label} [${s.status}] — reviewer: ${JSON.stringify(clip(s.verbatim, 240))}`,
+            `      our reply: ${JSON.stringify(clip(s.reply, 400))}`
+          ])
+        ]),
+    ...(polishing
+      ? ['- The reply as the author currently has it:', '---', input.currentReply, '---']
+      : []),
+    ...(input.peerReviewGuidelines === null
+      ? ['- context/PEER-REVIEW.md is empty or absent — no house conventions were given for this project.']
+      : [
+          "- context/PEER-REVIEW.md — how this group answers reviewers. These are the author's own standing instructions and they outrank the general guidance in RULES below where the two disagree:",
+          '---',
+          input.peerReviewGuidelines,
+          '---'
+        ])
+  ]
+
+  const rules = [
+    'WHAT A GOOD REPLY DOES:',
+    '- Answer the point that was actually made. If the reviewer asked two things, answer both; if they asked one, do not answer three.',
+    '- Say what changed and where — the section, and the substance of the change. "We have revised the Methods" is not a reply; "We now report the split-half reliability (Methods, §2.3) and it is r = 0.91" is.',
+    '- Cite the manuscript\'s own numbers and text. Never invent a result, a citation, an analysis you have not seen, or a change that is not in the prose you read.',
+    '- Where the manuscript does not yet contain the change, write the reply as the change the authors WILL make and keep it specific enough to hold them to it. Do not claim it is already done.',
+    '',
+    'DISAGREEING:',
+    '- Disagreement is a legitimate reply and this project models it as a first-class outcome. If the reviewer is wrong, or is asking for work outside the scope of the paper, say so plainly and give the reason — do not concede to be agreeable.',
+    '- A rebuttal still acknowledges what the reviewer was worried about before it explains why the concern does not hold.',
+    '',
+    'REGISTER AND LENGTH:',
+    '- One to three short paragraphs. A reviewer reads dozens of these.',
+    '- Plain, courteous, unservile. No "we thank the reviewer for this insightful comment", no "we are grateful for the opportunity", no flattery of any kind — the letter thanks them once, elsewhere.',
+    '- First person plural. Address the reviewer in the third person ("the reviewer notes") only if PEER-REVIEW.md says to; otherwise write to them directly.',
+    '- SciMark: @fig:, @tab: and citation keys resolve at export, so use them rather than typing "Figure 3".',
+    '',
+    'WHAT YOU MAY NOT DO:',
+    "- Do NOT edit any file. Not the manuscript, not the round, not the reviewer's text. This run is read-only: your answer is a PROPOSAL shown to the author, who accepts or discards it.",
+    '- Do NOT set the point\'s status. Whether this counts as done or rebutted is the author\'s judgement.',
+    '- Do NOT quote the reviewer back to them at length. They know what they wrote.',
+    `- ${GIT_RULE}`,
+    '',
+    'YOUR ANSWER:',
+    '- Reply with the text of the response and NOTHING else. No preamble, no "Here is a draft", no explanation of your choices, no surrounding quotes or code fence. The whole of what you send is pasted into the response letter.',
+    ...(polishing
+      ? ['- If the existing reply is already good, send it back with only the changes that genuinely improve it.']
+      : [])
+  ]
+
+  return [
+    `You are writing one author's reply to one reviewer point in a SUNA academic-writing project. This text goes into the response letter a reviewer and an editor will read beside the revised manuscript.`,
+    '',
+    'TASK',
+    ...task,
+    '',
+    'CONTEXT',
+    ...context,
+    '',
+    'RULES',
+    ...rules
+  ].join('\n')
+}
+
+/** Sibling replies are context, not the subject — long ones are clipped. */
+function clip(text: string, n: number): string {
+  const oneLine = text.replace(/\s+/g, ' ').trim()
+  return oneLine.length <= n ? oneLine : `${oneLine.slice(0, n - 1)}…`
+}
+
+/* ------------------------------------------------ peer-review learning ---- */
+
+export interface PeerReviewLearnPromptInput {
+  /** Absolute path of the document the conventions are read off. */
+  sourcePath: string
+  /** Its extracted plain text — the app extracted it, the agent needn't. */
+  sourceText: string
+  /** Section titles SUNA's own suggested form uses, as a starting shape. */
+  sectionTitles: readonly string[]
+}
+
+/**
+ * Read a group's response-letter conventions off a letter they already sent.
+ *
+ * This exists because the alternative — asking an author to write down their
+ * house style from memory — produces an aspirational document. What a group
+ * actually does is in the letters it has already sent, and those are sitting
+ * on the author's disk.
+ *
+ * The single hard rule here is DESCRIBE, DO NOT PRESCRIBE. A model asked to
+ * "write guidelines from this letter" reliably returns generic advice about
+ * being polite and thorough, because that is what the phrase "guidelines"
+ * pulls from. Asked to report only conventions it can point at in the text,
+ * with the evidence, it returns the things that are actually specific to
+ * this group: that replies open "RE:", that revised prose is quoted inline
+ * in quotation marks, that a typo gets "Done." and nothing more.
+ *
+ * The answer IS the file — a human reads it, approves it, and it becomes the
+ * AI's standing instructions — so this template overrides CLOSING_LINE, and
+ * the output contract is strict Markdown with no preamble.
+ */
+export function peerReviewLearnPrompt(input: PeerReviewLearnPromptInput): string {
+  const task = [
+    'Read the response-to-reviewers document below and write down the conventions its authors actually follow, as instructions for writing the NEXT such letter in the same voice.',
+    '',
+    'Work from evidence, not from what a good response letter is supposed to look like. For each convention, satisfy yourself that you could point at two or more places in the document where it holds. If you cannot, leave it out — a short accurate document is worth far more here than a complete-looking one.'
+  ]
+
+  const context = [
+    `- Source document (absolute): ${input.sourcePath}`,
+    '- Its full text follows between the markers. This is the ONLY evidence; do not go looking for other files.',
+    '<<<DOCUMENT',
+    input.sourceText,
+    'DOCUMENT>>>'
+  ]
+
+  const rules = [
+    'WHAT TO LOOK FOR — these are the things that vary between groups and that a model cannot guess:',
+    '- How a reply opens and closes. Is there a prefix ("RE:", "Response:")? Is the reviewer thanked per point, once at the top, or not at all? Is the reviewer addressed directly or in the third person?',
+    '- Whether revised manuscript text is quoted inline, paraphrased, or merely pointed at by section — and if quoted, how it is marked.',
+    '- What a reply to a trivial correction looks like, versus a substantive one.',
+    '- How disagreement is expressed: how directly, whether the reviewer\'s concern is restated first, what kind of reason is given for declining requested work.',
+    '- How a point raised by two reviewers is handled, and how the letter refers to its own other replies.',
+    '- Register: sentence length, formality, first person plural or singular, recurring phrases, and anything conspicuously ABSENT (e.g. no superlatives, no apologies).',
+    '- Anything structural: numbering, per-reviewer headings, whether changes are said to be highlighted in the manuscript.',
+    '',
+    'WHAT NOT TO WRITE:',
+    '- No generic advice ("be clear", "be respectful", "address all comments"). If it would be true of every response letter ever written, it tells the next draft nothing.',
+    '- Do not invent a convention because the document is silent on it. Silence is a real finding; omit the topic.',
+    '- Do not summarize what the paper is about, and do not reproduce the reviewers\' comments or the authors\' replies at length. Short illustrative fragments only.',
+    '- Do not copy any scientific content: no results, no numbers, no citations from the source. Conventions only — this document is about HOW they wrote, never WHAT they said.',
+    '',
+    'FORMAT — a Markdown document, exactly this shape and nothing else:',
+    '- One `# Answering reviewers` heading at the top.',
+    `- Then \`##\` sections. Use these titles where they fit what you found, and add or drop sections freely: ${input.sectionTitles.join(', ')}.`,
+    '- Under each, imperative bullets addressed to whoever writes the next letter — "Open each reply with RE:", not "The authors open each reply with RE:".',
+    '- Where a convention is worth an example, put a short quoted fragment on the bullet.',
+    '- 25 bullets at the very most, across all sections.',
+    '- Write each bullet as ONE unbroken line, however long it runs. Never hard-wrap a bullet at a column width and never start a new line mid-sentence — in this project a newline begins a new block, so a wrapped sentence becomes two broken ones in the file.',
+    '',
+    'YOUR ANSWER:',
+    '- Reply with the Markdown document and NOTHING else. No preamble, no "Here is what I found", no closing summary, no code fence. What you send is shown to the author for approval and saved as the file verbatim.',
+    '- Do NOT write any file, and do not use any tool that changes anything. This run only reads and reports.',
+    `- ${GIT_RULE}`
+  ]
+
+  return [
+    'You are reading one research group\'s past response-to-reviewers letter in order to describe, precisely, the conventions they write by. Another AI will follow what you write when it drafts their next letter, and a human will read and approve it first.',
+    '',
+    'TASK',
+    ...task,
+    '',
+    'CONTEXT',
+    ...context,
+    '',
+    'RULES',
+    ...rules
+  ].join('\n')
+}

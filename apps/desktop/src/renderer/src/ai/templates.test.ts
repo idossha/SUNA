@@ -5,9 +5,13 @@ import {
   figureEditPrompt,
   shortTitle,
   uiRepairPrompt,
+  pointReplyPrompt,
+  peerReviewLearnPrompt,
   type CommentFixPromptInput,
   type FigureEditPromptInput,
-  type UiRepairPromptInput
+  type UiRepairPromptInput,
+  type PointReplyPromptInput,
+  type PeerReviewLearnPromptInput
 } from './templates'
 
 /**
@@ -315,5 +319,169 @@ describe('letterDraftPrompt', () => {
 
   it('never tells the agent to commit', () => {
     expect(letterDraftPrompt(base)).toMatch(/never commit/)
+  })
+})
+
+
+describe('pointReplyPrompt', () => {
+  const base: PointReplyPromptInput = {
+    mode: 'draft',
+    roundId: 'r2',
+    roundLabel: 'Round 2 — Nature Neuroscience',
+    venue: 'Nature Neuroscience',
+    decision: 'major-revision',
+    pointLabel: 'Reviewer 2, point 3',
+    verbatim: 'The electrode montage is underspecified.',
+    section: 'Methods',
+    reportContext: '…and further, the montage.…',
+    siblings: [],
+    currentReply: '',
+    peerReviewGuidelines: null
+  }
+
+  it('asks for the reply text alone — the answer is pasted into a letter', () => {
+    const prompt = pointReplyPrompt(base)
+    expect(prompt).toContain('Reply with the text of the response and NOTHING else')
+    // The shared closing line tells the agent to summarize what it changed;
+    // that summary would be pasted into the response letter verbatim.
+    expect(prompt).not.toContain('concise summary of exactly what you changed')
+  })
+
+  it('is read-only: no write verb, and the status stays the author’s', () => {
+    const prompt = pointReplyPrompt(base)
+    expect(prompt).toContain('Do NOT edit any file')
+    expect(prompt).toContain("Do NOT set the point's status")
+    expect(prompt).toContain('Never run destructive git commands')
+  })
+
+  it('sends the agent to read the manuscript before it answers for the authors', () => {
+    expect(pointReplyPrompt(base)).toContain('mcp__suna__read_manuscript')
+  })
+
+  it('carries the reviewer’s words and the surrounding report', () => {
+    const prompt = pointReplyPrompt(base)
+    expect(prompt).toContain('The electrode montage is underspecified.')
+    expect(prompt).toContain('…and further, the montage.…')
+    expect(prompt).toContain('targets Methods')
+  })
+
+  it('names an internal round as having no venue rather than inventing one', () => {
+    const prompt = pointReplyPrompt({ ...base, venue: null, decision: null })
+    expect(prompt).toContain('internal circulation — no external venue')
+    expect(prompt).toContain('none recorded yet')
+  })
+
+  it('polish keeps the author’s position and includes what they wrote', () => {
+    const prompt = pointReplyPrompt({
+      ...base,
+      mode: 'polish',
+      currentReply: 'We disagree; the montage is in Table 1.'
+    })
+    expect(prompt).toContain('Keep every claim, concession and disagreement it makes')
+    expect(prompt).toContain('We disagree; the montage is in Table 1.')
+  })
+
+  it('draft does not send the empty box back as if it were a draft to keep', () => {
+    expect(pointReplyPrompt(base)).not.toContain('as the author currently has it')
+  })
+
+  it('sends sibling replies so the letter cannot contradict itself', () => {
+    const prompt = pointReplyPrompt({
+      ...base,
+      siblings: [
+        {
+          label: 'Reviewer 2, point 1',
+          verbatim: 'Sample size?',
+          reply: 'We now report n = 24.',
+          status: 'done'
+        }
+      ]
+    })
+    expect(prompt).toContain('Reviewer 2, point 1')
+    expect(prompt).toContain('We now report n = 24.')
+    expect(prompt).toContain('must be consistent with these')
+  })
+
+  it('says plainly when nothing has been answered yet', () => {
+    expect(pointReplyPrompt(base)).toContain('No other point in this round has been answered yet')
+  })
+
+  it('gives the project’s own conventions precedence over the generic guidance', () => {
+    const prompt = pointReplyPrompt({
+      ...base,
+      peerReviewGuidelines: '# Answering reviewers\n- Never open with thanks.'
+    })
+    expect(prompt).toContain('Never open with thanks.')
+    expect(prompt).toContain('outrank the general guidance')
+  })
+
+  it('passes the author’s extra instruction through verbatim', () => {
+    expect(pointReplyPrompt({ ...base, instruction: 'Push back on this one.' })).toContain(
+      'The author adds: Push back on this one.'
+    )
+  })
+
+  it('clips a long sibling reply — siblings are context, not the subject', () => {
+    const prompt = pointReplyPrompt({
+      ...base,
+      siblings: [
+        {
+          label: 'Reviewer 1, point 1',
+          verbatim: 'q',
+          reply: 'z'.repeat(900),
+          status: 'done'
+        }
+      ]
+    })
+    expect(prompt).toContain('…')
+    expect(prompt).not.toContain('z'.repeat(500))
+  })
+})
+
+
+describe('peerReviewLearnPrompt', () => {
+  const base: PeerReviewLearnPromptInput = {
+    sourcePath: '/Users/x/reply-a.docx',
+    sourceText: 'Reviewer #1\n1. The main claim is unclear.\nRE: We show that…',
+    sectionTitles: ['Voice', 'Shape of one reply', 'Conceding and disagreeing']
+  }
+
+  it('sends the document text in the prompt — the agent fetches nothing', () => {
+    const prompt = peerReviewLearnPrompt(base)
+    expect(prompt).toContain('RE: We show that…')
+    expect(prompt).toContain('do not go looking for other files')
+  })
+
+  it('asks it to describe what it can see, not to prescribe good practice', () => {
+    const prompt = peerReviewLearnPrompt(base)
+    expect(prompt).toContain('point at two or more places')
+    expect(prompt).toContain('No generic advice')
+    expect(prompt).toContain('Do not invent a convention because the document is silent')
+  })
+
+  it('forbids carrying scientific content across — this is about HOW, not WHAT', () => {
+    expect(peerReviewLearnPrompt(base)).toContain('no results, no numbers, no citations')
+  })
+
+  it('is read-only and writes no file: the answer is reviewed by a human first', () => {
+    const prompt = peerReviewLearnPrompt(base)
+    expect(prompt).toContain('Do NOT write any file')
+    expect(prompt).toContain('Never run destructive git commands')
+  })
+
+  it('returns the document alone, since the answer becomes the file verbatim', () => {
+    const prompt = peerReviewLearnPrompt(base)
+    expect(prompt).toContain('Reply with the Markdown document and NOTHING else')
+    expect(prompt).not.toContain('concise summary of exactly what you changed')
+  })
+
+  it('offers our own section titles as a shape without mandating them', () => {
+    const prompt = peerReviewLearnPrompt(base)
+    expect(prompt).toContain('Voice, Shape of one reply, Conceding and disagreeing')
+    expect(prompt).toContain('add or drop sections freely')
+  })
+
+  it('asks for imperative bullets, not a report about the authors', () => {
+    expect(peerReviewLearnPrompt(base)).toContain('"Open each reply with RE:", not')
   })
 })

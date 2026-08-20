@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gateFromStatus } from './directedActions'
+import { gateFromStatus, stripFence } from './directedActions'
 
 /**
  * The pure half of cliGate (feature-plan-8 §2a/§2c): resolution must mirror
@@ -36,5 +36,20 @@ describe('gateFromStatus', () => {
   it('never falls back from an explicit claude preference to codex', () => {
     expect(gateFromStatus('claude', ['codex'])).toEqual({ ok: false, reason: INSTALL_REASON })
     expect(gateFromStatus('claude', ['claude', 'codex'])).toEqual({ ok: true })
+  })
+})
+
+describe('stripFence', () => {
+  it('unwraps a fenced answer — a fence pasted into a letter is a visible defect', () => {
+    expect(stripFence('```\nWe have revised the Methods.\n```')).toBe(
+      'We have revised the Methods.'
+    )
+    expect(stripFence('```markdown\nOne.\n\nTwo.\n```')).toBe('One.\n\nTwo.')
+  })
+
+  it('leaves ordinary prose alone, including prose containing a fence', () => {
+    expect(stripFence('  We now report n = 24.  ')).toBe('We now report n = 24.')
+    const withCode = 'We added the snippet:\n\n```py\nx = 1\n```\n\nas requested.'
+    expect(stripFence(withCode)).toBe(withCode)
   })
 })
