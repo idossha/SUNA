@@ -143,6 +143,22 @@ export function openSettingsTab(): void {
   dockApi.addPanel({ id: 'settings', component: 'settings', title: 'Settings' })
 }
 
+/**
+ * Open (or focus) the project's Trash tab. Keyed by rootDir like the other
+ * project-scoped tabs: the trash lives in the project, so a panel left over
+ * from the previous project would list files that are not there any more.
+ */
+export function openTrashTab(rootDir: string): void {
+  if (!dockApi) return
+  const id = `trash:${rootDir}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({ id, component: 'trash', title: 'Trash', params: { rootDir } })
+}
+
 /** Open (or focus) the cross-paper reading notes tab (ADR-008). */
 export function openReadingNotesTab(rootDir: string): void {
   if (!dockApi) return
@@ -303,7 +319,8 @@ export function closeProjectTabs(rootDir: string): void {
       component === 'letter' ||
       component === 'round' ||
       component === 'version' ||
-      component === 'review-import'
+      component === 'review-import' ||
+      component === 'trash'
     ) {
       if (panel.params?.['rootDir'] === rootDir) dockApi.removePanel(panel)
       continue
