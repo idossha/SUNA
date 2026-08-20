@@ -1,3 +1,19 @@
+import { createLetter, readLetterMeta, writeLetterMeta } from './services/letter-new'
+import { checkLetterDocument } from './services/letter-check'
+import {
+  analyseReviewerReport,
+  commitReviewerReports,
+  createRound,
+  extractReviewText,
+  listRounds,
+  readReviewerReports,
+  readRound,
+  writeRound
+} from './services/round-new'
+import { documentFile, projectDocument, projectDocuments } from './services/paths'
+import { readFile } from 'node:fs/promises'
+import { pointStateFor } from '@suna/core'
+import { checkResponse } from '@suna/formatter'
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { access, cp } from 'node:fs/promises'
 import { basename, join, relative, resolve, sep } from 'node:path'
@@ -309,6 +325,125 @@ export function registerIpcHandlers(): void {
     return { ...opened, migration }
   })
   handle('project:migrate', ({ dir }) => migrateProject(dir))
+
+  /* ---- documents, letters and rounds (feature-plan-12) ------------------ */
+  handle('documents:list', async ({ dir }) => ({ documents: await projectDocuments(dir) }))
+  handle('letter:new', async (input) => {
+    const res = await createLetter({
+      rootDir: input.dir,
+      id: input.id,
+      letterKind: input.letterKind,
+      targetProfileId: input.targetProfileId,
+      title: input.title,
+      salutation: input.salutation ?? null
+    })
+    return { ...res, requiredAssertions: res.requiredAssertions.map(String) }
+  })
+  handle('letter:read', async ({ dir, metaFile }) => ({
+    meta: await readLetterMeta(dir, metaFile)
+  }))
+  handle('letter:write', async ({ dir, metaFile, meta }) => {
+    await writeLetterMeta(dir, metaFile, meta)
+    return { ok: true as const }
+  })
+  handle('letter:check', async ({ dir, documentId }) => ({
+    diagnostics: await checkLetterDocument(dir, documentId)
+  }))
+
+  handle('round:new', async (input) => ({
+    round: await createRound({
+      rootDir: input.dir,
+      id: input.id,
+      kind: input.kind,
+      label: input.label,
+      venue: input.venue ?? null
+    })
+  }))
+  handle('round:list', async ({ dir }) => ({ rounds: await listRounds(dir) }))
+  handle('round:read', async ({ dir, roundId }) => ({
+    round: await readRound(dir, roundId),
+    reports: await readReviewerReports(dir, roundId)
+  }))
+  handle('round:write', async ({ dir, round }) => {
+    await writeRound(dir, round)
+    return { ok: true as const }
+  })
+
+  handle('review:analyse', async ({ text, path }) => {
+    // A file goes through the SAME extraction the DOCX importer uses —
+    // .docx via mammoth, .pdf via pdfjs text items — so the three routes in
+    // the import sheet converge on one string before anything is segmented.
+    const sourceText = text !== null ? text : await extractReviewText(path ?? '')
+    const a = analyseReviewerReport(sourceText)
+    return {
+      sourceText: a.sourceText,
+      reviewers: a.reviewers.map((r) => ({
+        index: r.index,
+        label: r.label,
+        from: r.from,
+        to: r.to,
+        points: r.points,
+        headings: r.headings
+      })),
+      preamble: a.preamble,
+      unassigned: a.unassigned,
+      coveragePercent: a.coveragePercent,
+      totalPoints: a.totalPoints,
+      unsplitReviewers: a.unsplitReviewers
+    }
+  })
+  handle('review:commit', async (input) => {
+    const reports = await commitReviewerReports({
+      rootDir: input.dir,
+      roundId: input.roundId,
+      analysis: {
+        sourceText: input.sourceText,
+        preamble: input.preamble,
+        reviewers: input.reviewers,
+        unassigned: input.unassigned,
+        coverage: 1,
+        coveragePercent: 100,
+        totalPoints: input.reviewers.reduce((n, r) => n + r.points.length, 0),
+        unsplitReviewers: []
+      }
+    })
+    return {
+      reviewers: reports.length,
+      points: reports.reduce((n, r) => n + r.points.length, 0)
+    }
+  })
+  handle('review:set-point', async (input) => {
+    const round = await readRound(input.dir, input.roundId)
+    const existing = pointStateFor(round, input.pointId)
+    const next = {
+      ...existing,
+      status: input.status,
+      assignee: input.assignee === undefined ? existing.assignee : input.assignee
+    }
+    const updated = {
+      ...round,
+      pointStates: [...round.pointStates.filter((s) => s.pointId !== input.pointId), next].sort(
+        (a, b) => a.pointId.localeCompare(b.pointId)
+      )
+    }
+    await writeRound(input.dir, updated)
+    return { round: updated }
+  })
+  handle('review:check', async ({ dir, roundId, forExport }) => {
+    const round = await readRound(dir, roundId)
+    const reports = await readReviewerReports(dir, roundId)
+    let responseText = ''
+    if (round.responseDocumentId !== null) {
+      const doc = await projectDocument(dir, round.responseDocumentId)
+      if (doc?.file != null) {
+        const abs = await documentFile(dir, doc, 'prose')
+        if (abs !== null) responseText = await readFile(abs, 'utf8').catch(() => '')
+      }
+    }
+    return {
+      diagnostics: checkResponse({ round, reports, responseText, forExport: forExport ?? false })
+    }
+  })
   handle('project:open-example', async () => {
     const dir = await ensureExampleProjectCopy()
     const { manifest } = await openProject(dir)

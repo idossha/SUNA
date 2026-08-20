@@ -16,7 +16,12 @@
 import { readFile } from 'node:fs/promises'
 import { extname } from 'node:path'
 import type { DocxAnalysis, DocxWarning } from '@suna/core'
-import { analyzeDocx, analyzeHtmlDocument, writeAnalysisIntoProject } from './docx-import'
+import {
+  analyzeDocx,
+  analyzeHtmlDocument,
+  docxToPlainText,
+  writeAnalysisIntoProject
+} from './docx-import'
 
 export type ImportableDocumentKind = 'docx' | 'html' | 'pdf'
 
@@ -183,6 +188,46 @@ interface PdfDocumentLike {
 /* ------------------------------------------------------------------ */
 /* analyze + apply                                                      */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Plain text from any supported document, for callers that want the words
+ * rather than a manuscript analysis — reviewer-report import, principally.
+ *
+ * Reuses the SAME extraction `analyzeDocument` uses (.docx through mammoth,
+ * .pdf through pdfjs text items, .html through the fragment reader), so the
+ * three routes in the import sheet converge on one string and none of them
+ * gets its own half-correct reader.
+ */
+export async function extractPlainText(path: string): Promise<string> {
+  const kind = documentKind(path)
+  if (kind === null) {
+    throw new Error(`unsupported file type: ${path}`)
+  }
+  if (kind === 'pdf') {
+    const pages = await readPdfLines(path)
+    return pages.map((lines) => lines.join('\n')).join('\n\n')
+  }
+  if (kind === 'html') {
+    return stripTags(htmlToFragment(await readFile(path, 'utf8')))
+  }
+  return stripTags(await docxToPlainText(path))
+}
+
+/** HTML -> text, preserving paragraph and list-item breaks. */
+function stripTags(html: string): string {
+  return html
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
 
 /** Analyzes any supported manuscript file. Writes nothing. */
 export async function analyzeDocument(path: string): Promise<DocxAnalysis> {

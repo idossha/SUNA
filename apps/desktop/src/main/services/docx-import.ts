@@ -228,6 +228,15 @@ function frontMatterExcludedIndices(
   return excluded
 }
 
+/**
+ * A .docx as plain text, images dropped. For callers that want the words and
+ * not a manuscript analysis — reviewer-report import, principally.
+ */
+export async function docxToPlainText(docxPath: string): Promise<string> {
+  const { value } = await mammoth.convertToHtml({ path: docxPath }, { convertImage: undefined })
+  return value
+}
+
 export async function analyzeDocx(docxPath: string): Promise<DocxAnalysis> {
   const tempDir = join(tmpdir(), `suna-docx-import-${randomBytes(6).toString('hex')}`)
   const { html, figures, warnings } = await extractDocument(docxPath, tempDir)

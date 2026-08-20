@@ -22,6 +22,9 @@ import { ImageTab } from './viewer/ImageTab'
 import { CommandPalette } from './palette/CommandPalette'
 import { HelpOverlay } from './shell/help/HelpOverlay'
 import { RepairPicker } from './shell/repair/RepairPicker'
+import { LetterTab } from './documents/LetterTab'
+import { RoundTab } from './documents/RoundTab'
+import { ReviewImportTab } from './documents/ReviewImportTab'
 import { useUiStore } from './state/ui'
 import { useEditorSettings } from './editor/settings'
 import { setDockApi } from './state/dock'
@@ -37,6 +40,9 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   canvas: CanvasTab,
   dataview: DataGridTab,
   manuscript: ManuscriptTab,
+  letter: LetterTab,
+  round: RoundTab,
+  'review-import': ReviewImportTab,
   onboarding: OnboardingTab,
   'docx-import': DocxImportTab,
   export: ExportDialog,

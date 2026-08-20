@@ -47,6 +47,16 @@ export const ReviewerBlockSchema = z.object({
   from: z.number().int().nonnegative(),
   to: z.number().int().nonnegative(),
   points: z.array(ReviewPointSchema),
+  /**
+   * Section-heading line spans ("Major comments", "Minor issues") inside this
+   * block. Recognised STRUCTURE, not content — so they belong to no point and
+   * are not unassigned text either. Recorded so the coverage meter can tell
+   * the two apart: reporting a heading we understood as a lost paragraph is
+   * exactly the false alarm that makes a safety rail stop being read.
+   */
+  headings: z
+    .array(z.object({ from: z.number().int().nonnegative(), to: z.number().int().nonnegative() }))
+    .default([]),
 });
 export type ReviewerBlock = z.infer<typeof ReviewerBlockSchema>;
 
@@ -162,6 +172,7 @@ function buildBlock(
 ): ReviewerBlock {
   const body = lines.slice(startLine, endLine);
   const points: ReviewPoint[] = [];
+  const headings: { from: number; to: number }[] = [];
 
   // ---- 2. section headings inside the block ------------------------------
   const sections: { title: string | null; start: number; end: number }[] = [];
@@ -171,6 +182,7 @@ function buildBlock(
     if (SECTION_RE.test(line.probe) && line.probe.length <= 60) {
       if (i > cursor) sections.push({ title: current, start: cursor, end: i });
       current = line.probe.replace(/:$/, '');
+      headings.push({ from: line.from, to: line.to });
       cursor = i + 1;
     }
   });
@@ -246,7 +258,7 @@ function buildBlock(
 
   const from = body[0]?.from ?? 0;
   const to = body[body.length - 1]?.to ?? from;
-  return { index, label, from, to, points };
+  return { index, label, from, to, points, headings };
 }
 
 function lastNonBlank(lines: Line[], start: number, end: number): number | null {
@@ -267,15 +279,23 @@ function finish(
   for (const r of reviewers) for (const p of r.points) claimed.push({ from: p.from, to: p.to });
   claimed.sort((a, b) => a.from - b.from);
 
+  // Headings are structure we recognised. They belong to no point, and they
+  // are not lost text — so they come out of BOTH the denominator and the gap
+  // scan, or every sectioned report reads as 95% with two "missing" spans.
+  const headingSpans: { from: number; to: number }[] = [];
+  for (const r of reviewers) headingSpans.push(...r.headings);
+
   let inBlocks = 0;
   for (const r of reviewers) inBlocks += nonWs(source.slice(r.from, r.to));
+  for (const h of headingSpans) inBlocks -= nonWs(source.slice(h.from, h.to));
   let inPoints = 0;
   for (const c of claimed) inPoints += nonWs(source.slice(c.from, c.to));
 
+  const skip = [...claimed, ...headingSpans].sort((a, b) => a.from - b.from);
   const unassigned: UnassignedSpan[] = [];
   for (const r of reviewers) {
     let at = r.from;
-    for (const c of claimed) {
+    for (const c of skip) {
       if (c.to <= r.from || c.from >= r.to) continue;
       if (c.from > at) pushGap(unassigned, source, at, c.from);
       at = Math.max(at, c.to);
