@@ -32,6 +32,23 @@ export const COMPRESSED_JPEG_QUALITY = 0.72
 export interface RasterizeOptions {
   /** Re-encode at COMPRESSED_DPI as JPEG rather than at the profile dpi as PNG. */
   compress?: boolean
+  /**
+   * Skip the encode when this figure's SVG has not changed since the last
+   * pass at the same width/dpi/encoding. Only the live preview sets this:
+   * it re-rasterizes on every styling change, and re-encoding an unchanged
+   * figure is the slowest thing in that loop by an order of magnitude. A
+   * real export never takes the cache — it always writes the bytes it is
+   * about to embed.
+   */
+  cache?: boolean
+}
+
+/** `<figureId>|<widthMm>|<dpi>|<png|jpg>` -> the SVG it was rasterized from, and where it landed. */
+const rasterCache = new Map<string, { svg: string; path: string }>()
+
+/** Drops every cached raster — a project switch invalidates all of them at once. */
+export function clearRasterCache(): void {
+  rasterCache.clear()
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -72,8 +89,19 @@ async function rasterizeOne(
   canvasRef: string,
   widthMm: number,
   dpi: number,
-  compress: boolean
+  compress: boolean,
+  cache: boolean
 ): Promise<string> {
+  const cacheKey = `${figureId}|${widthMm}|${dpi}|${compress ? 'jpg' : 'png'}`
+  // The SVG is the figure's whole truth, so its text IS the cache stamp —
+  // read first (one cheap IPC), and on a hit nothing else in this function
+  // needs to run at all.
+  const { content: svgText } = await window.suna.invoke('fs:read-text', { path: `${rootDir}/${canvasRef}` })
+  if (cache) {
+    const hit = rasterCache.get(cacheKey)
+    if (hit !== undefined && hit.svg === svgText) return hit.path
+  }
+
   let parsed: { path: string; widthPx: number; heightPx: number } | null = null
   try {
     await window.suna.invoke('figure:export', {
@@ -93,7 +121,6 @@ async function rasterizeOne(
   // it writes a sibling JPEG that only the compressed document embeds.
   const path = compress ? parsed.path.replace(/\.png$/i, '-compressed.jpg') : parsed.path
 
-  const { content: svgText } = await window.suna.invoke('fs:read-text', { path: `${rootDir}/${canvasRef}` })
   const blob = new Blob([svgText], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   try {
@@ -111,6 +138,7 @@ async function rasterizeOne(
       : await canvasToBlob(canvas, 'image/png')
     const base64 = await blobToBase64(encoded)
     await window.suna.invoke('figure:write-binary', { path, base64 })
+    if (cache) rasterCache.set(cacheKey, { svg: svgText, path })
     return path
   } finally {
     URL.revokeObjectURL(url)
@@ -124,12 +152,13 @@ export async function rasterizeManuscriptFigures(
   options: RasterizeOptions = {}
 ): Promise<Record<string, string>> {
   const compress = options.compress ?? false
+  const cache = options.cache ?? false
   const presets = widthPresetsFor(profile)
   const dpi = compress ? Math.min(defaultDpi(profile), COMPRESSED_DPI) : defaultDpi(profile)
   const out: Record<string, string> = {}
   for (const figure of manuscript.figures) {
     const widthMm = presets.find((p) => p.key === figure.widthPreset)?.widthMm ?? presets[0]?.widthMm ?? 89
-    out[figure.id] = await rasterizeOne(rootDir, figure.id, figure.canvasRef, widthMm, dpi, compress)
+    out[figure.id] = await rasterizeOne(rootDir, figure.id, figure.canvasRef, widthMm, dpi, compress, cache)
   }
   return out
 }
