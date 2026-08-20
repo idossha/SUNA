@@ -35,6 +35,7 @@ export function DocumentsView(): JSX.Element {
   const saveBump = useProjectStore((s) => s.saveBump)
   const documents = useDocumentsStore((s) => s.documents)
   const rounds = useDocumentsStore((s) => s.rounds)
+  const missing = useDocumentsStore((s) => s.missing)
   const activeDocumentId = useManuscriptDocStore((s) => s.activeDocumentId)
   const [menuOpen, setMenuOpen] = useState(false)
   const [sheet, setSheet] = useState<'letter' | 'round' | null>(null)
@@ -84,7 +85,12 @@ export function DocumentsView(): JSX.Element {
       {others.length > 0 && (
         <ul className="docs__list">
           {others.map((doc) => (
-            <DocumentRow key={doc.id} doc={doc} rootDir={rootDir} />
+            <DocumentRow
+              key={doc.id}
+              doc={doc}
+              rootDir={rootDir}
+              missing={missing.includes(doc.id)}
+            />
           ))}
         </ul>
       )}
@@ -140,11 +146,41 @@ export function DocumentsView(): JSX.Element {
 
 function DocumentRow({
   doc,
-  rootDir
+  rootDir,
+  missing
 }: {
   doc: DocumentEntry
   rootDir: string | null
+  missing: boolean
 }): JSX.Element {
+  // The filename, not the folder. Two letters to the same journal can carry
+  // the same title, and the thing that tells them apart is the file — so the
+  // row shows it rather than making the user open both to find out.
+  const fileName = doc.file === null ? null : (doc.file.split('/').pop() ?? doc.file)
+
+  if (missing) {
+    return (
+      <li>
+        <div className="docs__row docs__row--missing" title={doc.file ?? doc.title}>
+          <span className="docs__badge">{KIND_LABEL[doc.kind] ?? doc.kind}</span>
+          <span className="docs__row-body">
+            <span className="docs__row-title">{doc.title}</span>
+            <span className="docs__row-file">file is gone — {fileName}</span>
+          </span>
+          <button
+            className="docs__row-forget"
+            title="Remove from the registry. Deletes nothing."
+            onClick={() => {
+              if (rootDir !== null) void useDocumentsStore.getState().remove(rootDir, doc.id)
+            }}
+          >
+            Forget
+          </button>
+        </div>
+      </li>
+    )
+  }
+
   return (
     <li>
       <button
@@ -153,7 +189,10 @@ function DocumentRow({
         title={doc.file ?? doc.title}
       >
         <span className="docs__badge">{KIND_LABEL[doc.kind] ?? doc.kind}</span>
-        <span className="docs__row-title">{doc.title}</span>
+        <span className="docs__row-body">
+          <span className="docs__row-title">{doc.title}</span>
+          {fileName !== null && <span className="docs__row-file">{fileName}</span>}
+        </span>
       </button>
     </li>
   )

@@ -1,9 +1,10 @@
-import { useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import type { LetterKind } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
 import { useProjectStore } from '../state/project'
 import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { openDocumentTab } from '../state/dock'
+import { cliGate, runLetterDraft } from '../ai/directedActions'
 import './documents.css'
 
 /**
@@ -27,7 +28,7 @@ const KINDS: { id: LetterKind; label: string; hint: string; disabled?: boolean }
   }
 ]
 
-type StartFrom = 'skeleton' | 'seeded'
+type StartFrom = 'basic' | 'ai'
 
 const slugify = (s: string): string =>
   s
@@ -42,27 +43,42 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
 
   const [letterKind, setLetterKind] = useState<LetterKind>('submission')
   const [profileId, setProfileId] = useState<string>(activeProfileId ?? 'nature')
-  const [startFrom, setStartFrom] = useState<StartFrom>('seeded')
+  const [startFrom, setStartFrom] = useState<StartFrom>('basic')
+  const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void cliGate().then((gate) => {
+      if (!cancelled) setAiAvailable(gate.ok)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const profile = useMemo(() => getBundledProfile(profileId), [profileId])
   const letters = profile?.letters
   const documents = useDocumentsStore((s) => s.documents)
 
-  // A second letter to the same journal is a normal thing to want — a
-  // revision cover letter beside the submission one, or a fresh attempt after
-  // a rejection. Finding a free id here means the collision shows up as the
-  // filename under the buttons, rather than as an error after Create.
+  // The name the user typed, or a sensible default from the venue. It drives
+  // BOTH the row in the sidebar and the filename, so two letters to the same
+  // journal are told apart by something the author chose rather than by a
+  // numeric suffix nobody can read.
+  const defaultName = `Cover letter — ${profile?.journalName ?? profileId}`
+  const effectiveName = name.trim() === '' ? defaultName : name.trim()
+
   const id = useMemo(() => {
-    const base = slugify(`cover-${profile?.journalName ?? profileId}`)
+    const base = slugify(effectiveName) === '' ? 'cover-letter' : slugify(effectiveName)
     const taken = new Set(documents.map((d) => d.id))
     if (!taken.has(base)) return base
     for (let n = 2; n < 100; n += 1) {
       if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
     }
     return `${base}-${Date.now()}`
-  }, [profile, profileId, documents])
+  }, [effectiveName, documents])
 
   const create = async (): Promise<void> => {
     if (rootDir === null || busy) return
@@ -74,20 +90,27 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
         id,
         letterKind,
         targetProfileId: profileId,
-        title: `Cover letter — ${profile?.journalName ?? profileId}`
+        title: effectiveName
       })
-      // The skeleton mode differs from seeded only in whether the seeded
-      // paragraphs survive; both write the same assertion set, because the
-      // affidavit is not optional in either.
-      if (startFrom === 'skeleton') {
-        await window.suna.invoke('fs:write-text', {
-          path: `${rootDir}/manuscript/${res.proseFile}`,
-          content: skeletonOnly(res.requiredAssertions)
-        })
-      }
       refreshDocuments()
       openDocumentTab(rootDir, res.documentId)
       onClose()
+
+      // The AI route runs AFTER the letter exists and is on screen, so the
+      // draft arrives into a document the author is already looking at rather
+      // than behind a spinner in a modal. Progress and Cancel live in the
+      // Agent panel, the same as every other directed action.
+      if (startFrom === 'ai') {
+        void runLetterDraft({
+          rootDir,
+          documentId: res.documentId,
+          letterPath: `${rootDir}/manuscript/${res.proseFile}`,
+          letterFile: res.proseFile,
+          journalName: profile?.journalName ?? profileId,
+          letterKind,
+          requiredAssertions: res.requiredAssertions
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setBusy(false)
@@ -110,6 +133,17 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
         </header>
 
         <div className="sheet__body">
+          <div className="sheet__field">
+            <label htmlFor="letter-name">Name</label>
+            <input
+              id="letter-name"
+              type="text"
+              value={name}
+              placeholder={defaultName}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
           <fieldset className="sheet__field">
             <legend>Kind</legend>
             {KINDS.map((k) => (
@@ -154,33 +188,43 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
               <input
                 type="radio"
                 name="start-from"
-                checked={startFrom === 'seeded'}
-                onChange={() => setStartFrom('seeded')}
+                checked={startFrom === 'basic'}
+                onChange={() => setStartFrom('basic')}
               />
               <span>
-                Seeded from the manuscript
+                Basic
                 <em>
-                  Title, article type, the venue’s name and your corresponding author, filled in.
-                  Offline and instant. The paragraphs that argue the paper are left for you.
+                  Title, article type, the venue’s name and your corresponding author, filled in
+                  from the project. Offline and instant. The paragraphs that argue the paper are
+                  left for you.
                 </em>
               </span>
             </label>
-            <label className="sheet__radio">
+            <label
+              className={`sheet__radio${aiAvailable === false ? ' is-disabled' : ''}`}
+              title={aiAvailable === false ? 'No agent CLI was found on this machine' : undefined}
+            >
               <input
                 type="radio"
                 name="start-from"
-                checked={startFrom === 'skeleton'}
-                onChange={() => setStartFrom('skeleton')}
+                checked={startFrom === 'ai'}
+                disabled={aiAvailable === false}
+                onChange={() => setStartFrom('ai')}
               />
               <span>
-                Empty skeleton
-                <em>Headings and the assertion list only.</em>
+                AI draft
+                <em>
+                  Everything Basic does, then the agent reads the manuscript, its metadata and
+                  your project context and writes the argument — professionally, and grounded in
+                  what the paper actually says.
+                  {aiAvailable === false && ' Unavailable: no agent CLI found.'}
+                </em>
               </span>
             </label>
             <p className="sheet__note">
-              An AI draft is written into the letter as a reviewable diff once you have one — use
-              the Agent panel with the letter open. SUNA never fills in an assertion either way:
-              those are your claims to an editor, so only you sign them.
+              Either way SUNA never fills in an assertion. Those are your factual claims to an
+              editor, made over your signature, so only you answer them — the agent is told to
+              leave every ⟦ unanswered ⟧ marker exactly where it is.
             </p>
           </fieldset>
 
@@ -284,15 +328,4 @@ function RequirementsPreview({
       )}
     </div>
   )
-}
-
-/** The skeleton without the seeded opening — assertions only. */
-function skeletonOnly(requiredAssertions: readonly string[]): string {
-  const lines = ['Dear Editor,', '']
-  lines.push('<!-- Your letter. -->', '')
-  for (const id of requiredAssertions) {
-    lines.push(`⟦ unanswered — ${id} ⟧ ::assert{${id}}`, '')
-  }
-  lines.push('Sincerely,', '')
-  return `${lines.join('\n')}\n`
 }

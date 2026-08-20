@@ -385,6 +385,8 @@ button:disabled {
 
 .docs__badge {
   font-size: 9px;
+  align-self: flex-start;
+  margin-top: 2px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 2px 5px;
@@ -404,10 +406,53 @@ button:disabled {
   color: var(--s-warn);
 }
 
+.docs__row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .docs__row-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Two letters to the same venue share a title; the file is what differs. */
+.docs__row-file {
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs__row--missing {
+  cursor: default;
+}
+
+.docs__row--missing .docs__row-file {
+  color: var(--s-warn);
+}
+
+.docs__row-forget {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: var(--s-text-xs);
+  padding: 1px 7px;
+  cursor: pointer;
+}
+
+.docs__row-forget:hover {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
 }
 
 .docs__row-meta {

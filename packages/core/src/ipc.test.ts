@@ -43,6 +43,7 @@ describe('CHANNELS', () => {
       'dialog:pick-directory',
       'dialog:pick-file',
       'documents:list',
+      'documents:remove',
       'docx:analyze',
       'docx:commit',
       'env:create',

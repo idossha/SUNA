@@ -268,6 +268,20 @@ export const CHANNELS = {
   /** The project's document registry, resolved (synthesized when absent). */
   'documents:list': {
     request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      documents: z.array(DocumentEntrySchema),
+      /**
+       * Registry ids whose prose file is no longer on disk. The registry is a
+       * plain JSON file people edit, move and delete around; an entry whose
+       * file has gone is shown as missing rather than silently opening an
+       * empty editor.
+       */
+      missing: z.array(z.string()),
+    }),
+  },
+  /** Drop one entry from suna.json's registry. Deletes no file. */
+  'documents:remove': {
+    request: z.object({ dir: z.string().min(1), documentId: z.string().min(1) }),
     response: z.object({ documents: z.array(DocumentEntrySchema) }),
   },
   /** Create a cover letter: prose + sidecar + gitignored private sidecar. */
