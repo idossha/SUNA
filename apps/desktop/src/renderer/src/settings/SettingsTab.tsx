@@ -14,6 +14,7 @@ import {
   LIT_PROVIDER_IDS,
   LIT_PROVIDER_META,
   SETTINGS_LIMITS,
+  TRASH_LIMITS,
   UI_LIT_PROVIDER_IDS,
   type AiEffort,
   type AiMode,
@@ -34,7 +35,7 @@ import {
 import { BUNDLED_PROFILE_IDS, PICKER_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from './aiChoice'
 import { GitHubAccount } from '../views/GitHubAccount'
-import { openFileTab } from '../state/dock'
+import { openFileTab, openTrashTab } from '../state/dock'
 import { profileLabel } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
 import {
@@ -1134,6 +1135,119 @@ function GlobalAiChoiceFields(): JSX.Element {
   )
 }
 
+/**
+ * Deleting from the UI has two outcomes, and this section is where the line
+ * between them is drawn: a file at or under the size limit goes to the
+ * project's own trash and stays restorable for the retention window; a
+ * directory, or a file over the limit, goes straight to the system trash.
+ * The trash itself is per-project (it lives in `.suna/trash/`); the POLICY is
+ * global — a recycle bin whose rules changed per project is a bin nobody
+ * trusts.
+ */
+function TrashSection(): JSX.Element {
+  const rootDir = useProjectStore((s) => s.rootDir)
+  const settings = useSettingsStore((s) => s.settings)
+  const update = useSettingsStore((s) => s.update)
+  const [sizeDraft, setSizeDraft] = useState(String(settings['trash.maxFileMb']))
+  const [daysDraft, setDaysDraft] = useState(String(settings['trash.retentionDays']))
+
+  useEffect(() => {
+    setSizeDraft(String(settings['trash.maxFileMb']))
+  }, [settings])
+
+  useEffect(() => {
+    setDaysDraft(String(settings['trash.retentionDays']))
+  }, [settings])
+
+  const commit = (
+    key: 'trash.maxFileMb' | 'trash.retentionDays',
+    draft: string,
+    limits: { min: number; max: number },
+    reset: (value: string) => void
+  ): void => {
+    const num = Number(draft)
+    if (Number.isFinite(num) && num >= limits.min && num <= limits.max) {
+      if (num !== settings[key]) void update(key, num)
+    } else {
+      reset(String(settings[key]))
+    }
+  }
+
+  return (
+    <>
+      <div className="settings-tab__row">
+        <label htmlFor="set-trash-size">
+          Keep files under
+          <span className="settings-tab__hint">
+            Megabytes. Deleted files this size or smaller — Markdown, JSON, BibTeX, LaTeX, SVG —
+            go to SUNA&apos;s trash and can be restored. Bigger files and folders go straight to
+            the system trash. 0 sends everything to the system trash.
+          </span>
+        </label>
+        <input
+          id="set-trash-size"
+          type="number"
+          min={TRASH_LIMITS.maxFileMb.min}
+          max={TRASH_LIMITS.maxFileMb.max}
+          step={0.5}
+          value={sizeDraft}
+          onChange={(e) => setSizeDraft(e.target.value)}
+          onBlur={() => commit('trash.maxFileMb', sizeDraft, TRASH_LIMITS.maxFileMb, setSizeDraft)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              commit('trash.maxFileMb', sizeDraft, TRASH_LIMITS.maxFileMb, setSizeDraft)
+            }
+          }}
+        />
+      </div>
+      <div className="settings-tab__row">
+        <label htmlFor="set-trash-days">
+          Keep them for
+          <span className="settings-tab__hint">
+            Days before a trashed file is passed on to the system trash. Changing this applies to
+            files deleted from now on — what is already in the trash keeps the window it was given.
+          </span>
+        </label>
+        <input
+          id="set-trash-days"
+          type="number"
+          min={TRASH_LIMITS.retentionDays.min}
+          max={TRASH_LIMITS.retentionDays.max}
+          step={1}
+          value={daysDraft}
+          onChange={(e) => setDaysDraft(e.target.value)}
+          onBlur={() =>
+            commit('trash.retentionDays', daysDraft, TRASH_LIMITS.retentionDays, setDaysDraft)
+          }
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              commit('trash.retentionDays', daysDraft, TRASH_LIMITS.retentionDays, setDaysDraft)
+            }
+          }}
+        />
+      </div>
+      <div className="settings-tab__row">
+        <label>
+          Trash
+          <span className="settings-tab__hint">
+            Each project keeps its own trash, in <code>.suna/trash/</code> beside its files
+            (git-ignored). Restore deleted files, or empty it, from there.
+          </span>
+        </label>
+        <button
+          type="button"
+          disabled={rootDir === null}
+          onClick={() => {
+            if (rootDir !== null) openTrashTab(rootDir)
+          }}
+        >
+          Open Trash
+        </button>
+      </div>
+    </>
+  )
+}
+
 /** Global Settings dock tab, persisted app-wide via settings:get / settings:set. */
 export function SettingsTab(): JSX.Element {
   const settings = useSettingsStore((s) => s.settings)
@@ -1352,6 +1466,9 @@ export function SettingsTab(): JSX.Element {
               onChange={(e) => void update('references.autoOpenPdf', e.target.checked)}
             />
           </div>
+
+          <h3 className="settings-tab__section">Trash</h3>
+          <TrashSection />
 
           <h3 className="settings-tab__section">AI</h3>
           <GlobalAiChoiceFields />
