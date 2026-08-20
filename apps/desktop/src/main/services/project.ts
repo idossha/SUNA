@@ -12,6 +12,7 @@ import {
   mergeProjectSettings,
   type AuthorsFile,
   type Manuscript,
+  LETTER_PRIVATE_GITIGNORE_LINE,
   type ProjectSettings,
   type SunaProjectManifest
 } from '@suna/core'
@@ -20,8 +21,11 @@ import { writeFileAtomic } from './atomic'
 import {
   STARTER_BIB,
   STARTER_MANUSCRIPT_MD,
+  starterDocuments,
   starterManuscript,
-  writeStarterFigure
+  writeStarterFigure,
+  writeStarterLetter,
+  writeStarterRound
 } from './starter-scaffold'
 import { allowRoot, assertInsideAllowedRoot } from './roots'
 import { importDocumentIntoProject } from './document-import'
@@ -44,6 +48,7 @@ __pycache__/
 .venv/
 .mcp.json
 .suna/
+${LETTER_PRIVATE_GITIGNORE_LINE}
 `
 
 /**
@@ -130,6 +135,10 @@ export async function createProject(
     // profile when they know where they are submitting.
     activeProfileId: 'suna',
     directories: DEFAULT_PROJECT_DIRS,
+    // The starter is a document SET, not one manuscript: it ships a cover
+    // letter beside the paper, so the registry is declared rather than
+    // synthesized (ADR-009).
+    documents: starterDocuments(),
     createdAt: new Date().toISOString()
   })
 
@@ -142,7 +151,11 @@ export async function createProject(
   await writeFile(join(dir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
   await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
   await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
+  // .gitignore BEFORE the letter: it carries the `*.private.json` line, and a
+  // confidential sidecar must never exist in a tree that is not ignoring it.
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
+  await writeStarterLetter(manuscriptDir, name, manifest.activeProfileId)
+  await writeStarterRound(dir, manifest.createdAt)
 
   // Agent layer before git init so the stubs + context/ land in the initial
   // commit (.mcp.json stays out — it is in PROJECT_GITIGNORE). Best-effort:
@@ -382,6 +395,10 @@ export async function scaffoldProject(
     activeProfileId,
     directories: DEFAULT_PROJECT_DIRS,
     createdAt: new Date().toISOString(),
+    // Only the starter ships a letter, so only the starter declares a
+    // registry. Every other scaffold keeps the synthesized one-manuscript
+    // registry it has always had — a zero-file difference (ADR-009).
+    ...(scaffold === 'starter' ? { documents: starterDocuments() } : {}),
     ...(settingsBlock !== undefined ? { settings: settingsBlock } : {})
   })
 
@@ -392,10 +409,17 @@ export async function scaffoldProject(
   const manuscriptDir = join(dir, DEFAULT_PROJECT_DIRS.manuscript)
 
   await writeFile(join(dir, 'suna.json'), JSON.stringify(manifest, null, 2) + '\n')
+  // Written BEFORE any scaffold, because it carries the `*.private.json` line
+  // that keeps a letter's confidential reviewer lists out of git. The window
+  // between writing such a sidecar and ignoring it is small and the
+  // consequence is permanent, so the ignore always lands first.
+  await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
 
   if (scaffold === 'starter') {
     await writeManuscriptDir(manuscriptDir, starterManuscript(name), STARTER_MANUSCRIPT_MD, STARTER_BIB)
     await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
+    await writeStarterLetter(manuscriptDir, name, activeProfileId)
+    await writeStarterRound(dir, manifest.createdAt)
   } else if (scaffold === 'blank') {
     await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
   } else if (scaffold === 'document') {
@@ -433,8 +457,6 @@ export async function scaffoldProject(
       bibliography === null ? '' : null
     )
   }
-
-  await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
 
   // Agent layer before git init so the stubs + context/ land in the initial
   // commit (.mcp.json stays out — it is in PROJECT_GITIGNORE).

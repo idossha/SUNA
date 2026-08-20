@@ -14,7 +14,7 @@ const SCAFFOLD_OPTIONS: { id: ScaffoldKind; title: string; hint: string }[] = [
   {
     id: 'starter',
     title: 'Starter',
-    hint: 'A one-section manuscript with demo prose, a citation, and a figure script, so you can see how everything fits together.'
+    hint: 'A short manuscript with demo prose, a citation and a figure, plus a cover letter and a demonstration review round — one of everything, so you can see how the whole paper fits together.'
   },
   {
     id: 'document',

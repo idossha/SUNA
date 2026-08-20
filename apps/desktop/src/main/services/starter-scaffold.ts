@@ -1,6 +1,20 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { ManuscriptSchema, type Manuscript } from '@suna/core'
+import {
+  CoverLetterMetaSchema,
+  DocumentEntrySchema,
+  ManuscriptSchema,
+  ReviewerReportSchema,
+  RoundSchema,
+  RoundsIndexSchema,
+  reportIsFaithful,
+  segmentReviewerReport,
+  unansweredMarker,
+  type CoverLetterMeta,
+  type DocumentEntry,
+  type Manuscript,
+  type Round
+} from '@suna/core'
 
 /**
  * The "Starter" scaffold: a Hello-SUNA manuscript that is a working tour of
@@ -66,6 +80,8 @@ Two things worth trying before you delete this file:
 
 1. Open \`figures/hello/figure.svg\` to edit the figure on the canvas.
 2. Open the Export tab to see the profile's requirements and export a PDF.
+3. Open the cover letter and the review round in the Writing panel — a paper is
+   more than its manuscript, and both are here already.
 `
 
 /** The whole starter manuscript in ONE file — sections are Markdown headings. */
@@ -264,4 +280,265 @@ export async function writeStarterFigure(projectDir: string, figuresDir: string)
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, 'figure.svg'), STARTER_FIGURE_SVG)
   await writeFile(join(dir, 'figure.json'), JSON.stringify(starterFigureDoc(), null, 2) + '\n')
+}
+
+/* ------------------------------------------------------------------ */
+/* The starter cover letter (ADR-009, feature-plan-12 §2)              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A paper is not just its manuscript, and the starter says so on day one.
+ *
+ * The letter is the smallest honest demonstration of the assertion model:
+ * ONE assertion the author has answered, and ONE left unanswered so that the
+ * Assertions panel has something to report and the marker is visible in the
+ * prose where an author will meet it. The unanswered marker is built by
+ * `unansweredMarker` rather than typed, so it cannot drift from the parser
+ * that finds it.
+ *
+ * SUNA never writes an assertion's text on the author's behalf — every
+ * sentence below is either about the starter project itself or is a
+ * placeholder that says so.
+ */
+export const STARTER_LETTER_ID = 'cover'
+
+export const STARTER_LETTER_MD = `Dear Editor,
+
+This is the starter cover letter. A letter lives under \`manuscript/letters/\`, which means it gets the same editor, comment gutter and version history the manuscript has — it is prose, not a form.
+
+Here is where you make the case for the paper: what the result is, why it is new, and why it belongs in this journal rather than a more specialist one. Two or three paragraphs in your own words. Notice that the abstract has not been pasted in for you; several venues explicitly ask that a letter not repeat it.
+
+What a letter also has to do is make factual claims on your behalf, and those are tracked rather than trusted to prose. A claim is placed with a directive and answered in the sidecar beside this file:
+
+::assert{competingInterests}
+The authors declare no competing interests.
+
+The next one has been left for you, which is why it shows a marker instead of a sentence. SUNA will not write it, and neither should an agent — the AI drafts the argument, the human signs the affidavit:
+
+${unansweredMarker('dataLocation')} ::assert{dataLocation}
+
+Both appear in the Assertions panel beside this letter. Answering the second one — in the panel, in your own words — clears the marker. Once a venue's cover-letter requirements have been recorded in its profile, that panel also reports the claims the venue asks for and you have not made.
+
+Sincerely,
+
+Your Name
+`
+
+export function starterLetterMeta(projectName: string, targetProfileId: string): CoverLetterMeta {
+  return CoverLetterMetaSchema.parse({
+    schemaVersion: 1,
+    kind: 'cover-letter',
+    letterKind: 'submission',
+    targetProfileId,
+    salutation: 'Dear Editor,',
+    identityId: null,
+    signerIds: [],
+    covers: [
+      {
+        documentId: 'manuscript',
+        siblingProjectPath: null,
+        title: projectName,
+        articleType: 'article',
+        authorsLine: null
+      }
+    ],
+    assertions: [
+      {
+        id: 'competingInterests',
+        placement: 'directive',
+        text: 'The authors declare no competing interests.',
+        reason: null
+      },
+      // Deliberately unanswered: `text: null` is what the checker reports and
+      // what the marker in the prose stands for. A starter that pre-answered
+      // everything would demonstrate nothing.
+      { id: 'dataLocation', placement: 'directive', text: null, reason: null }
+    ],
+    dataLocations: [],
+    abbreviatedSummary: null,
+    priorSubmissions: [],
+    reviewRoundId: null
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* The starter review round (feature-plan-12 §3, §6)                   */
+/* ------------------------------------------------------------------ */
+
+export const STARTER_ROUND_ID = 'round-1'
+
+/**
+ * A demonstration decision letter, written to be unmistakably a joke about
+ * the starter project rather than plausible feedback on anybody's research.
+ * That is the point: a new project has not been submitted anywhere, so the
+ * only honest reviewer text is text that admits what it is.
+ *
+ * It is segmented at scaffold time by the SAME offline segmenter a real
+ * import runs, so the round on disk is a real round — every point's verbatim
+ * is a contiguous slice of this string, with the offsets to prove it.
+ */
+export const STARTER_REVIEW_TEXT = `Dear Author,
+
+This is a demonstration decision letter. It came with your starter project so that the peer-review panel has something in it, and it is about the starter manuscript, not about your work. Delete the rounds/ directory whenever you like.
+
+Two referees have seen the manuscript. Their reports follow.
+
+Sincerely,
+
+The Editor
+
+Reviewer #1 (Comments for the Author):
+
+1. The manuscript is a tour of a text editor rather than a study, and I was unable to locate a hypothesis anywhere in it. The authors may wish to consider writing a paper instead.
+
+2. Equation (1) asserts that a manuscript is prose plus figures plus references. This omits the coffee term.
+
+3. Figure 1 appears to have been drawn by hand. I mean this as a compliment; the journal may not.
+
+Reviewer #2 (Comments for the Author):
+
+1. Please state how many times the corresponding author rewrote the first sentence before giving up and shipping this one.
+
+2. Table 1 is accurate and I have nothing to add. I would like that noted in the record.
+`
+
+/** The reply the starter has already written, so the reply pane is not empty. */
+const STARTER_FIRST_REPLY = `This is your reply to the referee, written beside their words rather than in a separate document. The reviewer's text above is read-only — nothing in SUNA offers an edit control for it, because editing a referee's words is misconduct.
+
+Mark a point Done when you have handled it, or Rebutted when you disagree. Rebutted is a real outcome, not a failure: the counter at the top of this tab treats it as answered, because arguing back is part of the job.`
+
+export interface StarterRound {
+  round: Round
+  reports: ReturnType<typeof ReviewerReportSchema.parse>[]
+  preamble: string
+}
+
+/**
+ * Build the starter round from STARTER_REVIEW_TEXT. Pure and deterministic,
+ * so the wizard preview and the writer cannot disagree about what lands.
+ *
+ * Throws if the segmentation is not faithful. That can only happen if someone
+ * edits STARTER_REVIEW_TEXT into a shape the segmenter reads differently, and
+ * shipping a round whose verbatim does not match its source is the one thing
+ * this model exists to prevent — so it fails loudly at the seam rather than
+ * quietly on an author's disk.
+ */
+export function starterRound(createdAt: string): StarterRound {
+  const analysis = segmentReviewerReport(STARTER_REVIEW_TEXT)
+  const reports = analysis.reviewers.map((block) => {
+    const report = ReviewerReportSchema.parse({
+      schemaVersion: 1,
+      index: block.index,
+      label: block.label,
+      sourceText: STARTER_REVIEW_TEXT,
+      points: block.points.map((p) => ({
+        id: p.id,
+        reviewerIndex: p.reviewerIndex,
+        pointIndex: p.pointIndex,
+        section: p.section,
+        verbatim: p.verbatim,
+        from: p.from,
+        to: p.to,
+        reason: p.reason
+      })),
+      unassigned: analysis.unassigned
+        .filter((u) => u.from >= block.from && u.to <= block.to)
+        .map((u) => ({ from: u.from, to: u.to }))
+    })
+    if (!reportIsFaithful(report)) {
+      throw new Error(`starter round: reviewer ${block.index} verbatim does not match its source`)
+    }
+    return report
+  })
+
+  const allPoints = reports.flatMap((r) => r.points)
+  const round = RoundSchema.parse({
+    schemaVersion: 1,
+    id: STARTER_ROUND_ID,
+    kind: 'external',
+    label: 'Round 1 — demonstration',
+    venue: 'A journal you have not chosen yet',
+    state: 'returned',
+    createdAt,
+    freeze: null,
+    recipients: [],
+    // One point answered and the rest not, so the tab opens on a real
+    // "1 of N addressed" and the completeness check has something to say.
+    pointStates: allPoints.map((p, i) => ({
+      pointId: p.id,
+      status: i === 0 ? 'done' : 'unaddressed',
+      assignee: null,
+      reply: i === 0 ? STARTER_FIRST_REPLY : '',
+      links: []
+    })),
+    decision: 'major-revision',
+    decidedAt: createdAt,
+    responseDocumentId: null
+  })
+
+  return { round, reports, preamble: analysis.preamble }
+}
+
+/* ------------------------------------------------------------------ */
+/* Writers                                                             */
+/* ------------------------------------------------------------------ */
+
+/** `manuscript/letters/<id>.md` + `<id>.json`. */
+export async function writeStarterLetter(
+  manuscriptDir: string,
+  projectName: string,
+  targetProfileId: string
+): Promise<void> {
+  const dir = join(manuscriptDir, 'letters')
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, `${STARTER_LETTER_ID}.md`), STARTER_LETTER_MD)
+  await writeFile(
+    join(dir, `${STARTER_LETTER_ID}.json`),
+    JSON.stringify(starterLetterMeta(projectName, targetProfileId), null, 2) + '\n'
+  )
+}
+
+/** `rounds/index.json` + `rounds/<id>/…`, laid out exactly as an import would. */
+export async function writeStarterRound(projectDir: string, createdAt: string): Promise<void> {
+  const { round, reports, preamble } = starterRound(createdAt)
+  const dir = join(projectDir, 'rounds', STARTER_ROUND_ID)
+  await mkdir(join(dir, 'reviewers'), { recursive: true })
+  await writeFile(join(dir, 'round.json'), JSON.stringify(round, null, 2) + '\n')
+  for (const report of reports) {
+    await writeFile(
+      join(dir, 'reviewers', `${report.index}.json`),
+      JSON.stringify(report, null, 2) + '\n'
+    )
+  }
+  if (preamble.trim() !== '') {
+    await writeFile(join(dir, 'editor-letter.txt'), `${preamble.trimEnd()}\n`)
+  }
+  await writeFile(
+    join(projectDir, 'rounds', 'index.json'),
+    JSON.stringify(RoundsIndexSchema.parse({ schemaVersion: 1, rounds: [STARTER_ROUND_ID] }), null, 2) + '\n'
+  )
+}
+
+/**
+ * The registry the starter declares. The manuscript entry is listed
+ * explicitly rather than left to `resolveDocuments`' synthesized one, because
+ * a manifest that declares ANY document has to declare them all.
+ */
+export function starterDocuments(): DocumentEntry[] {
+  return [
+    DocumentEntrySchema.parse({
+      id: 'manuscript',
+      kind: 'manuscript',
+      file: null,
+      meta: 'manuscript.json',
+      title: 'Manuscript'
+    }),
+    DocumentEntrySchema.parse({
+      id: STARTER_LETTER_ID,
+      kind: 'cover-letter',
+      file: `letters/${STARTER_LETTER_ID}.md`,
+      meta: `letters/${STARTER_LETTER_ID}.json`,
+      title: 'Cover letter'
+    })
+  ]
 }
