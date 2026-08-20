@@ -3,6 +3,7 @@ export * from './letters';
 export * from './letter-seed';
 export * from './review-import';
 export * from './rounds';
+export * from './versions';
 export * from './project';
 export * from './settings-resolve';
 export * from './authors';
