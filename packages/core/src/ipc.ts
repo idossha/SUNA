@@ -15,6 +15,7 @@ import {
   RoundKindSchema,
   RoundSchema,
 } from './rounds';
+import { LoggedVersionSchema } from './versions';
 import { NoteColorSchema } from './refnotes';
 import {
   AiEffortSchema,
@@ -346,6 +347,32 @@ export const CHANNELS = {
   'round:write': {
     request: z.object({ dir: z.string().min(1), round: RoundSchema }),
     response: z.object({ ok: z.literal(true) }),
+  },
+
+  /**
+   * Logged manuscript versions (versions.ts). 'version:log' copies the whole
+   * manuscript into manuscript/archive/v<stage>.<minor>/; there is no write
+   * counterpart, which is what makes an archived version read-only.
+   */
+  'version:list': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ versions: z.array(LoggedVersionSchema) }),
+  },
+  'version:log': {
+    request: z.object({
+      dir: z.string().min(1),
+      stage: z.number().int().nonnegative().optional(),
+      note: z.string().optional(),
+    }),
+    response: z.object({ version: LoggedVersionSchema }),
+  },
+  'version:read-file': {
+    request: z.object({
+      dir: z.string().min(1),
+      versionId: z.string().min(1),
+      path: z.string().min(1),
+    }),
+    response: z.object({ text: z.string() }),
   },
   /**
    * Pass 1 of reviewer import: analyse text, or extract it from a file first.

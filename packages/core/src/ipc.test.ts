@@ -157,6 +157,9 @@ describe('CHANNELS', () => {
       'term:kill',
       'term:resize',
       'term:write',
+      'version:list',
+      'version:log',
+      'version:read-file',
     ]);
   });
 
