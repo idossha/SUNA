@@ -22,3 +22,4 @@ export * from './ipc';
 export * from './word-diff';
 export * from './merge3';
 export * from './revisions';
+export * from './trash';
