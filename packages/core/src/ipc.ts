@@ -1981,6 +1981,33 @@ export const CHANNELS = {
     }),
   },
   /**
+   * A letter's pages, rendered in memory for the Pages view
+   * (feature-plan-13 §B5).
+   *
+   * Deliberately its own channel rather than a `target` on 'export:preview':
+   * a cover letter goes through the simpler export-letter.ts pipeline, which
+   * has no profile to resolve, no figures to rasterize and no submission
+   * options — every field that contract requires would be a field with no
+   * meaning here.
+   *
+   * Unlike 'letter:export' this does NOT refuse a letter with unanswered
+   * assertions. A page view is for a letter still being written; an
+   * unanswered directive contributes nothing to the text, exactly as it would
+   * on export, so the pages show what sending it today would produce.
+   */
+  'letter:preview': {
+    request: z.object({
+      dir: z.string().min(1),
+      documentId: z.string().min(1),
+    }),
+    response: z.object({
+      /** Base64 PDF bytes — the same print the letter's PDF export performs. */
+      data: z.string(),
+      /** Server-side render time in ms, for the same reason 'export:preview' reports it. */
+      ms: z.number().int().nonnegative(),
+    }),
+  },
+  /**
    * Reading-notes export: the literature note as a document, in the ONE shape
    * the Reading Notes tab already shows on screen — the filtered selection,
    * grouped by paper, quote + written note + page.

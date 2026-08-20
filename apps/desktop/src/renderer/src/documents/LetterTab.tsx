@@ -17,7 +17,9 @@ import { useUiStore } from '../state/ui'
 import { useEditorSettings } from '../editor/settings'
 import { DivergenceBanner } from '../editor/DivergenceBanner'
 import { ReviewBar } from '../editor/ReviewBar'
-import type { EditorViewMode } from '../editor/EditorTab'
+import { DOC_MODE_OPTIONS, nextDocMode, type DocViewMode, type EditorViewMode } from '../editor/settings'
+import { DocumentPages } from '../export/DocumentPages'
+import { SegmentedControl } from '../shell/SegmentedControl'
 import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
@@ -30,10 +32,6 @@ import '../manuscript/manuscript.css'
 import './documents.css'
 
 /** Same labels as the manuscript tab's toolbar, so the two read alike. */
-const MODE_LABEL: Record<EditorViewMode, string> = {
-  source: 'Source',
-  reading: 'Reading'
-}
 /** .msdoc__toolbar's height — kept clear when scrolling to a heading. */
 const TOOLBAR_HEIGHT_PX = 40
 
@@ -77,13 +75,22 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
   const editorTheme = useEditorSettings((s) => s.editorTheme)
 
   const defaultMode = useResolved('editor.defaultMode').value as EditorViewMode
-  const [mode, setMode] = useState<EditorViewMode>(() => getResolved('editor.defaultMode').value)
+  const [mode, setMode] = useState<DocViewMode>(() => getResolved('editor.defaultMode').value)
   const userPickedModeRef = useRef(false)
 
+  /** One place both the segmented control and ⌘E land in. */
+  const pickMode = useCallback((next: DocViewMode): void => {
+    userPickedModeRef.current = true
+    editorRef.current?.setLive(next === 'reading')
+    setMode(next)
+  }, [])
+
+  // ⌘E still cycles. The control shows every mode, so the shortcut is now a
+  // convenience rather than the only way to discover the others.
   const toggleMode = useCallback((): void => {
     userPickedModeRef.current = true
     setMode((current) => {
-      const next: EditorViewMode = current === 'source' ? 'reading' : 'source'
+      const next = nextDocMode(current)
       editorRef.current?.setLive(next === 'reading')
       return next
     })
@@ -217,13 +224,13 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
       >
         <div className="msdoc__toolbar">
           {dirty && <span className="msdoc__dirty" aria-hidden="true" />}
-          <button
-            className="editor-tab__mode"
-            onClick={toggleMode}
-            title="Toggle reading / source (⌘E)"
-          >
-            {MODE_LABEL[mode]}
-          </button>
+          <SegmentedControl
+            className="msdoc__modes"
+            label="View"
+            value={mode}
+            options={DOC_MODE_OPTIONS}
+            onChange={pickMode}
+          />
           <RailToggleButton docPath={doc.file} />
           <LetterExportButton
             rootDir={rootDir}
@@ -249,6 +256,9 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
         {doc.file !== null && <DivergenceBanner path={`${rootDir}/manuscript/${doc.file}`} />}
         <ReviewBar sectionPath={doc.file} getView={getEditorView} />
 
+        {mode === 'pages' ? (
+          <DocumentPages source={{ kind: 'letter', documentId }} />
+        ) : (
         <div className="msdoc__body">
           <div className="msdoc__page">
             <header className="letter__head">
@@ -294,6 +304,7 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       <AssertionsPanel
@@ -305,7 +316,7 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
         onChange={(next) => void save(next)}
       />
 
-      {doc.file !== null && (
+      {mode !== 'pages' && doc.file !== null && (
         <CommentsRail
           comments={allComments.filter(
             (c) => c.target.kind === 'section' && c.target.path === doc.file

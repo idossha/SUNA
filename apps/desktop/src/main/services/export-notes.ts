@@ -273,16 +273,29 @@ function buildNotesDocx(req: ExportNotesRequest): Document {
   })
 }
 
-/** Print built HTML through a hidden window, the same way export-pdf.ts
- *  prints a manuscript — no LaTeX, no external binary. Shared with the
- *  letter export (export-letter.ts), which prints the same way. */
-export async function printHtmlToPdf(html: string, target: string): Promise<void> {
+/**
+ * Print built HTML through a hidden window, the same way export-pdf.ts prints
+ * a manuscript — no LaTeX, no external binary. Shared with the letter export
+ * (export-letter.ts), which prints the same way.
+ *
+ * The simple pipeline's HTML -> PDF pass, with no opinion about where the
+ * bytes go (feature-plan-13 §B5, mirroring what commit 15b6231 did for the
+ * manuscript exporter).
+ *
+ * Splitting this out of printHtmlToPdf is what lets a letter be PREVIEWED:
+ * a page view needs the bytes, and a function that only ever wrote them to a
+ * path had nothing to offer it. `win` lets a caller print in a long-lived
+ * hidden window instead of paying to create and destroy one — the preview
+ * passes the shared window here for exactly the reason export-pdf.ts does.
+ */
+export async function renderHtmlToPdf(html: string, win?: BrowserWindow): Promise<Buffer> {
   const hostPath = join(app.getPath('temp'), `suna-notes-${process.pid}-${Date.now()}.html`)
   await writeFileAtomic(hostPath, html)
-  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } })
+  const own = win === undefined
+  const target = win ?? new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } })
   try {
-    await win.loadFile(hostPath)
-    const pdf = await win.webContents.printToPDF({
+    await target.loadFile(hostPath)
+    return await target.webContents.printToPDF({
       pageSize: { width: 8.5, height: 11 },
       margins: { top: 0.75, bottom: 0.75, left: 0.75, right: 0.75 },
       printBackground: true,
@@ -291,11 +304,14 @@ export async function printHtmlToPdf(html: string, target: string): Promise<void
       footerTemplate:
         '<div style="font-size:9px;width:100%;text-align:center;color:#666;"><span class="pageNumber"></span></div>'
     })
-    await writeFileAtomic(target, pdf)
   } finally {
-    win.destroy()
+    if (own) target.destroy()
     await unlink(hostPath).catch(() => undefined)
   }
+}
+
+export async function printHtmlToPdf(html: string, target: string): Promise<void> {
+  await writeFileAtomic(target, await renderHtmlToPdf(html))
 }
 
 /** Notes land in their OWN folder under output/. A literature note is not a

@@ -58,10 +58,10 @@ import { analyzeDocx, commitDocxAnalysis } from './services/docx-import'
 import { exportDocx } from './services/export-docx'
 import { exportHtml } from './services/export-html'
 import { exportNotes } from './services/export-notes'
-import { exportLetter } from './services/export-letter'
+import { exportLetter, renderLetterPdf } from './services/export-letter'
 import { exportResponse } from './services/export-response'
 import { exportPdf } from './services/export-pdf'
-import { exportPreview } from './services/export-preview'
+import { exportPreview, withPreviewWindow } from './services/export-preview'
 import { createFigure } from './services/figure-create'
 import { duplicateFigure } from './services/figure-duplicate'
 import { exportFigure } from './services/figure-export'
@@ -725,6 +725,13 @@ export function registerIpcHandlers(): void {
   handle('figure:create', ({ dir, name, widthMm }) => createFigure(dir, name, widthMm))
 
   handle('export:letter', (req) => exportLetter(req))
+  handle('letter:preview', async (req) => {
+    const started = Date.now()
+    // Prints in the shared hidden window the manuscript preview uses, so a
+    // page view never costs a second BrowserWindow.
+    const pdf = await withPreviewWindow((win) => renderLetterPdf(req.dir, req.documentId, win))
+    return { data: pdf.toString('base64'), ms: Date.now() - started }
+  })
   handle('export:response', (req) => exportResponse(req))
   handle('export:docx', (req) => exportDocx(req))
   handle('export:html', (req) => exportHtml(req))
