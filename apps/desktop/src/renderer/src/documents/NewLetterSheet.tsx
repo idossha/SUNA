@@ -7,6 +7,7 @@ import { openDocumentTab } from '../state/dock'
 import { cliGate, runLetterDraft } from '../ai/directedActions'
 import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from '../settings/aiChoice'
 import { AI_EFFORTS, AI_MODELS, type AiEffort, type AiModel } from '@suna/core'
+import { Sheet } from './Sheet'
 import './documents.css'
 
 /**
@@ -31,6 +32,16 @@ const KINDS: { id: LetterKind; label: string; hint: string; disabled?: boolean }
 ]
 
 type StartFrom = 'basic' | 'ai'
+
+/**
+ * Assertion ids are code (`journalFit`, `relatedManuscripts`). The list in
+ * this sheet is read by an author deciding where to submit, not by a
+ * developer, so it shows the same rule as a phrase.
+ */
+const assertionLabel = (id: string): string => {
+  const words = id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
 
 const slugify = (s: string): string =>
   s
@@ -134,173 +145,166 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
   }
 
   return (
-    <div className="sheet__scrim" onClick={onClose} role="presentation">
-      <div
-        className="sheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="New letter"
-      >
-        <header className="sheet__head">
-          <h2>New letter</h2>
-          <button className="sheet__close" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
+    <Sheet label="New letter" onClose={onClose}>
+      <header className="sheet__head">
+        <h2>New letter</h2>
+        <button className="sheet__close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+      </header>
 
-        <div className="sheet__body">
-          <div className="sheet__field">
-            <label htmlFor="letter-name">Name</label>
-            <input
-              id="letter-name"
-              type="text"
-              value={name}
-              placeholder={defaultName}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-
-          <fieldset className="sheet__field">
-            <legend>Kind</legend>
-            {KINDS.map((k) => (
-              <label key={k.id} className={`sheet__radio${k.disabled === true ? ' is-disabled' : ''}`}>
-                <input
-                  type="radio"
-                  name="letter-kind"
-                  checked={letterKind === k.id}
-                  disabled={k.disabled === true}
-                  onChange={() => setLetterKind(k.id)}
-                />
-                <span>
-                  {k.label}
-                  <em>{k.hint}</em>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-
-          <div className="sheet__field">
-            <label htmlFor="letter-journal">Journal</label>
-            <select
-              id="letter-journal"
-              value={profileId}
-              onChange={(e) => setProfileId(e.target.value)}
-            >
-              {BUNDLED_PROFILE_IDS.map((pid) => {
-                const p = getBundledProfile(pid)
-                return (
-                  <option key={pid} value={pid}>
-                    {p?.journalName ?? pid}
-                  </option>
-                )
-              })}
-            </select>
-            <RequirementsPreview profileId={profileId} letterKind={letterKind} />
-          </div>
-
-          <fieldset className="sheet__field">
-            <legend>Start from</legend>
-            <label className="sheet__radio">
-              <input
-                type="radio"
-                name="start-from"
-                checked={startFrom === 'basic'}
-                onChange={() => setStartFrom('basic')}
-              />
-              <span>
-                Basic
-                <em>
-                  Title, article type, the venue’s name and your corresponding author, filled in
-                  from the project. Offline and instant. The paragraphs that argue the paper are
-                  left for you.
-                </em>
-              </span>
-            </label>
-            <label
-              className={`sheet__radio${aiAvailable === false ? ' is-disabled' : ''}`}
-              title={aiAvailable === false ? 'No agent CLI was found on this machine' : undefined}
-            >
-              <input
-                type="radio"
-                name="start-from"
-                checked={startFrom === 'ai'}
-                disabled={aiAvailable === false}
-                onChange={() => setStartFrom('ai')}
-              />
-              <span>
-                AI draft
-                <em>
-                  Everything Basic does, then the agent reads the manuscript, its metadata and
-                  your project context and writes the argument — professionally, and grounded in
-                  what the paper actually says.
-                  {aiAvailable === false && ' Unavailable: no agent CLI found.'}
-                </em>
-              </span>
-            </label>
-            {startFrom === 'ai' && (
-              <div className="sheet__ai-opts">
-                <label>
-                  Model
-                  <select
-                    value={model ?? ''}
-                    onChange={(e) => setModel(e.target.value === '' ? null : (e.target.value as AiModel))}
-                  >
-                    <option value="">Project default</option>
-                    {AI_MODELS.map((m) => (
-                      <option key={m} value={m}>
-                        {AI_MODEL_LABELS[m]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Effort
-                  <select
-                    value={effort ?? ''}
-                    onChange={(e) => setEffort(e.target.value === '' ? null : (e.target.value as AiEffort))}
-                  >
-                    <option value="">Project default</option>
-                    {AI_EFFORTS.map((x) => (
-                      <option key={x} value={x}>
-                        {AI_EFFORT_LABELS[x]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <p className="sheet__ai-hint">
-                  For this run only. A letter is short and read by one editor, so a
-                  slower model is usually worth it here even when the project runs on a
-                  faster one.
-                </p>
-              </div>
-            )}
-
-            <p className="sheet__note">
-              Either way SUNA never fills in an assertion. Those are your factual claims to an
-              editor, made over your signature, so only you answer them — the agent is told to
-              leave every ⟦ unanswered ⟧ marker exactly where it is.
-            </p>
-          </fieldset>
-
-          {error !== null && <p className="sheet__error">{error}</p>}
+      <div className="sheet__body">
+        <div className="sheet__field">
+          <label htmlFor="letter-name">Name</label>
+          <input
+            id="letter-name"
+            type="text"
+            value={name}
+            placeholder={defaultName}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
 
-        <footer className="sheet__foot">
-          <span className="sheet__path">
-            manuscript/letters/{id}.md
-            {letters === undefined && ' · no letter rules researched for this journal yet'}
-          </span>
-          <div className="sheet__actions">
-            <button onClick={onClose} disabled={busy}>
-              Cancel
-            </button>
-            <button className="is-primary" onClick={() => void create()} disabled={busy || rootDir === null}>
-              {busy ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </footer>
+        <fieldset className="sheet__field">
+          <legend>Kind</legend>
+          {KINDS.map((k) => (
+            <label key={k.id} className={`sheet__radio${k.disabled === true ? ' is-disabled' : ''}`}>
+              <input
+                type="radio"
+                name="letter-kind"
+                checked={letterKind === k.id}
+                disabled={k.disabled === true}
+                onChange={() => setLetterKind(k.id)}
+              />
+              <span>
+                {k.label}
+                <em>{k.hint}</em>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        <div className="sheet__field">
+          <label htmlFor="letter-journal">Journal</label>
+          <select
+            id="letter-journal"
+            value={profileId}
+            onChange={(e) => setProfileId(e.target.value)}
+          >
+            {BUNDLED_PROFILE_IDS.map((pid) => {
+              const p = getBundledProfile(pid)
+              return (
+                <option key={pid} value={pid}>
+                  {p?.journalName ?? pid}
+                </option>
+              )
+            })}
+          </select>
+          <RequirementsPreview profileId={profileId} letterKind={letterKind} />
+        </div>
+
+        <fieldset className="sheet__field">
+          <legend>Start from</legend>
+          <label className="sheet__radio">
+            <input
+              type="radio"
+              name="start-from"
+              checked={startFrom === 'basic'}
+              onChange={() => setStartFrom('basic')}
+            />
+            <span>
+              Basic
+              <em>
+                Title, article type, the venue’s name and your corresponding author, filled in
+                from the project. Offline and instant. The paragraphs that argue the paper are
+                left for you.
+              </em>
+            </span>
+          </label>
+          <label
+            className={`sheet__radio${aiAvailable === false ? ' is-disabled' : ''}`}
+            title={aiAvailable === false ? 'No agent CLI was found on this machine' : undefined}
+          >
+            <input
+              type="radio"
+              name="start-from"
+              checked={startFrom === 'ai'}
+              disabled={aiAvailable === false}
+              onChange={() => setStartFrom('ai')}
+            />
+            <span>
+              AI draft
+              <em>
+                Everything Basic does, then the agent reads the manuscript, its metadata and
+                your project context and writes the argument — professionally, and grounded in
+                what the paper actually says.
+                {aiAvailable === false && ' Unavailable: no agent CLI found.'}
+              </em>
+            </span>
+          </label>
+          {startFrom === 'ai' && (
+            <div className="sheet__ai-opts">
+              <label>
+                Model
+                <select
+                  value={model ?? ''}
+                  onChange={(e) => setModel(e.target.value === '' ? null : (e.target.value as AiModel))}
+                >
+                  <option value="">Project default</option>
+                  {AI_MODELS.map((m) => (
+                    <option key={m} value={m}>
+                      {AI_MODEL_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Effort
+                <select
+                  value={effort ?? ''}
+                  onChange={(e) => setEffort(e.target.value === '' ? null : (e.target.value as AiEffort))}
+                >
+                  <option value="">Project default</option>
+                  {AI_EFFORTS.map((x) => (
+                    <option key={x} value={x}>
+                      {AI_EFFORT_LABELS[x]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="sheet__ai-hint">
+                For this run only. A letter is short and read by one editor, so a
+                slower model is usually worth it here even when the project runs on a
+                faster one.
+              </p>
+            </div>
+          )}
+
+          <p className="sheet__note">
+            Either way SUNA never fills in an assertion. Those are your factual claims to an
+            editor, made over your signature, so only you answer them — the agent is told to
+            leave every ⟦ unanswered ⟧ marker exactly where it is.
+          </p>
+        </fieldset>
+
+        {error !== null && <p className="sheet__error">{error}</p>}
       </div>
-    </div>
+
+      <footer className="sheet__foot">
+        <span className="sheet__path">
+          manuscript/letters/{id}.md
+          {letters === undefined && ' · no letter rules researched for this journal yet'}
+        </span>
+        <div className="sheet__actions">
+          <button onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button className="is-primary" onClick={() => void create()} disabled={busy || rootDir === null}>
+            {busy ? 'Creating…' : 'Create'}
+          </button>
+        </div>
+      </footer>
+    </Sheet>
   )
 }
 
@@ -362,14 +366,14 @@ function RequirementsPreview({
         {required.map((a) => (
           <li key={a.id}>
             <span className="reqs__dot reqs__dot--req" />
-            {a.id}
+            {assertionLabel(a.id)}
             <span className="reqs__stance">required</span>
           </li>
         ))}
         {optional.map((a) => (
           <li key={a.id}>
             <span className="reqs__dot" />
-            {a.id}
+            {assertionLabel(a.id)}
             <span className="reqs__stance">{a.stance}</span>
           </li>
         ))}
