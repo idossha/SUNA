@@ -342,16 +342,15 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
             <p className="export-dialog__hint">No manuscript to export in this project yet.</p>
           ) : (
             <>
-              <label className="export-dialog__field export-dialog__field--wide">
-                <span>Document</span>
-                <select value={target} onChange={(e) => setTarget(e.target.value as ExportTarget)}>
-                  <option value="manuscript">Manuscript</option>
-                  <option value="supplement" disabled={supplementAvailable !== true}>
-                    Supplementary Information
-                    {supplementAvailable === false ? ` (no ${SUPPLEMENT_FILE})` : ''}
-                  </option>
-                </select>
-              </label>
+              {supplementAvailable === true && (
+                <label className="export-dialog__field export-dialog__field--wide">
+                  <span>Document</span>
+                  <select value={target} onChange={(e) => setTarget(e.target.value as ExportTarget)}>
+                    <option value="manuscript">Manuscript</option>
+                    <option value="supplement">Supplementary Information</option>
+                  </select>
+                </label>
+              )}
 
               <div className="export-dialog__row">
                 <label className="export-dialog__field">
