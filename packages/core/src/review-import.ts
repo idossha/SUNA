@@ -37,6 +37,24 @@ export const ReviewPointSchema = z.object({
   verbatim: z.string().min(1),
   /** Why the segmenter believed this was a point. Shown on the card. */
   reason: z.string().min(1),
+  /**
+   * When the source was a RESPONSE document rather than a bare decision
+   * letter, the author's own reply sits in the same paragraph as the point,
+   * behind an "RE12:" marker. `from`/`to` then cover the reviewer's words
+   * only, and this covers the reply — so re-importing last round's response
+   * recovers both sides instead of quoting our own prose back at the
+   * reviewer. Null when the source held no reply for this point.
+   */
+  reply: z
+    .object({
+      /** The number in the marker: 12 for "RE12:". */
+      number: z.number().int().positive(),
+      from: z.number().int().nonnegative(),
+      to: z.number().int().nonnegative(),
+      text: z.string(),
+    })
+    .nullable()
+    .default(null),
 });
 export type ReviewPoint = z.infer<typeof ReviewPointSchema>;
 
@@ -76,6 +94,13 @@ export interface SegmentationResult {
   coverage: number;
   /** Reviewer blocks this could not break into more than one point. */
   unsplitReviewers: number[];
+  /**
+   * Reply numbers that the source skips — "RE57" and "RE59" present, "RE58"
+   * absent. Only meaningful when importing a response document. This is the
+   * defect in the evidence set that a hand-maintained numbering reached RE83
+   * with RE58 silently missing; a machine that reads the numbers can say so.
+   */
+  replyGaps: number[];
 }
 
 interface Line {
@@ -116,12 +141,64 @@ function toLines(source: string): Line[] {
 const REVIEWER_RE = /^(?:reviewer|referee)\s*#?\s*(\d+)\b/i;
 
 /**
- * Section headings a reviewer report actually uses. Deliberately a closed
- * list: a heuristic that promoted any short line to a heading would swallow
+ * Section headings a reviewer report actually uses. Deliberately closed
+ * lists: a heuristic that promoted any short line to a heading would swallow
  * the first sentence of a point.
+ *
+ * Three recognised shapes, because real reports use all three and a report
+ * that mixes them is the common case, not the exotic one:
+ *
+ *  1. "Major comments", "Minor issues/questions", "Detailed comments:"
+ *  2. a manuscript section used as a divider — "Methods", "Introduction:",
+ *     "Figures" — which is how a reviewer walks the paper front to back
+ *  3. a markdown ATX heading ("### COMMENTS PER SECTION") or a short
+ *     ALL-CAPS line ("OVERALL", "LIMITATIONS AND SAFETY CONSIDERATIONS"),
+ *     which is how a domain-organised report labels its blocks
+ *
+ * Getting these wrong is not cosmetic. An unrecognised heading is not
+ * ignored — it is absorbed into the end of the point above it, so the last
+ * point of every section quotes a stray word the reviewer never wrote there.
  */
 const SECTION_RE =
-  /^(major|minor|main|general|specific|substantive|additional)\b[^.?!]{0,40}?\b(comments?|issues?|points?|concerns?|revisions?|questions?|remarks?)\b\s*:?$/i;
+  /^(major|minor|main|general|specific|substantive|additional|detailed|further|other)\b[^.?!]{0,40}?\b(comments?|issues?|points?|concerns?|revisions?|questions?|remarks?|suggestions?|feedback)\b\s*:?$/i;
+
+/** A manuscript section used as a divider inside a reviewer's report. */
+const MANUSCRIPT_SECTION_RE =
+  /^(title|abstract|introduction|background|methods?|materials and methods|results?|discussion|conclusions?|limitations?|figures?|tables?|figures and tables|references|bibliography|supplement(?:ary|ary information|ary material)?|abbreviations|language)\b[^.?!]{0,20}\s*:?$/i;
+
+/** A markdown ATX heading, whatever a .docx → text conversion left behind. */
+const ATX_RE = /^#{1,6}\s+(\S.*?)\s*#*$/;
+
+/**
+ * A short ALL-CAPS line. Interior periods are allowed — "INDIVIDUALIZED VS.
+ * GENERALIZED MODELS" is a heading, and rejecting it silently glued that
+ * whole block onto the point above — but a TERMINAL "." "?" or "!" is not,
+ * which is what keeps a shouted sentence out.
+ */
+const ALLCAPS_RE = /^[A-Z][A-Z0-9 .&/,'’()-]{2,58}[A-Z0-9)]$/;
+
+/**
+ * The author's reply marker inside a response document: "RE12:", "RE 12 :",
+ * and the "[RE44:]{.mark}" that pandoc leaves when the reply was highlighted.
+ */
+const REPLY_RE = /\[?\bRE\s?(\d{1,3})\s*:\]?/;
+const REPLY_RE_ALL = new RegExp(REPLY_RE.source, 'g');
+
+/**
+ * Recognise a heading line, returning its title, or null. `probe` is the
+ * demarked line; matching never touches the offsets used for extraction.
+ */
+function headingTitle(probe: string): string | null {
+  if (probe.length === 0) return null;
+  const atx = ATX_RE.exec(probe);
+  if (atx !== null) return atx[1]!;
+  if (probe.length > 60) return null;
+  if (SECTION_RE.test(probe)) return probe.replace(/:$/, '');
+  if (MANUSCRIPT_SECTION_RE.test(probe)) return probe.replace(/:$/, '');
+  // ALL-CAPS needs real letters, not "I." or an acronym list.
+  if (ALLCAPS_RE.test(probe) && /[A-Z]{3}/.test(probe)) return probe.replace(/:$/, '');
+  return null;
+}
 
 /** A numbered point: "1.", "2\.", "(3)", "4)" — at the head of a line. */
 const NUMBERED_RE = /^\(?(\d{1,3})\s*[.)]/;
@@ -135,42 +212,90 @@ export function segmentReviewerReport(source: string): SegmentationResult {
   const lines = toLines(source);
 
   // ---- 1. reviewer blocks ------------------------------------------------
-  const heads: { index: number; label: string; line: number }[] = [];
-  lines.forEach((line, i) => {
-    const m = REVIEWER_RE.exec(line.probe);
-    // A reviewer heading is a SHORT line. "Reviewer 2 asked us to…" inside a
-    // paragraph is prose, not a delimiter.
-    if (m !== null && line.probe.length <= 80) {
-      heads.push({ index: Number(m[1]), label: line.probe, line: i });
-    }
-  });
+  const heads = lines
+    .map((line, i) => {
+      const head = reviewerHeadOf(line);
+      return head === null ? null : { ...head, line: i };
+    })
+    .filter((h): h is { index: number; label: string; splitAt: number | null; line: number } =>
+      h !== null,
+    );
 
   if (heads.length === 0) {
     // No reviewer delimiters at all: treat the whole thing as one reviewer, so
     // a single-reviewer report or a pasted fragment still segments.
-    const block = buildBlock(1, 'Reviewer 1', lines, 0, lines.length, source);
+    const block = buildBlock(1, 'Reviewer 1', lines, source);
     return finish([block], '', source);
   }
 
   const preamble = source.slice(0, lines[heads[0]!.line]!.from).trim();
   const blocks: ReviewerBlock[] = heads.map((head, n) => {
-    const startLine = head.line + 1;
     const endLine = n + 1 < heads.length ? heads[n + 1]!.line : lines.length;
-    return buildBlock(head.index, head.label, lines, startLine, endLine, source);
+    const body = bodyLines(lines, head.line, endLine, head.splitAt);
+    return buildBlock(head.index, head.label, body, source);
   });
 
   return finish(blocks, preamble, source);
 }
 
+/**
+ * Is this line a reviewer delimiter, and if so where does the reviewer's
+ * text start?
+ *
+ * Two forms occur, and only one of them was handled before:
+ *
+ *   **Reviewer #1**:                    ← its own line (a .docx export)
+ *   Reviewer #1: The authors present…   ← inline (every editorial system's
+ *                                         plain-text decision letter)
+ *
+ * The inline form is the one that arrives by email, and it is a LONG line, so
+ * a short-line rule rejects it and the whole report collapses into a single
+ * reviewer. `splitAt` is the absolute source offset just past the colon, so
+ * the block starts mid-line without the label being re-attributed as content.
+ */
+function reviewerHeadOf(line: Line): { index: number; label: string; splitAt: number | null } | null {
+  if (REVIEWER_RE.exec(line.probe) === null) return null;
+  // Short line: the whole line is the heading. This also covers labels with a
+  // parenthetical, e.g. "Reviewer #3 (Comments for the Author):".
+  if (line.probe.length <= 80) {
+    const m = REVIEWER_RE.exec(line.probe)!;
+    return { index: Number(m[1]), label: line.probe, splitAt: null };
+  }
+  // Long line: only a delimiter if a colon closes a short label prefix.
+  // "We agree with the point Reviewer 2 raised…" has no such colon and stays
+  // prose, which is the case that makes the short-line rule worth keeping.
+  const colon = line.raw.indexOf(':');
+  if (colon < 0 || colon > 80) return null;
+  const label = probeOf(line.raw.slice(0, colon + 1));
+  const m = REVIEWER_RE.exec(label);
+  if (m === null) return null;
+  return { index: Number(m[1]), label, splitAt: line.from + colon + 1 };
+}
+
+/**
+ * The lines of one reviewer's block. When the heading was inline, the first
+ * element is the REMAINDER of the heading line — carrying its true offset, so
+ * every verbatim cut from it is still a slice of the original source.
+ */
+function bodyLines(
+  lines: Line[],
+  headLine: number,
+  endLine: number,
+  splitAt: number | null,
+): Line[] {
+  const rest = lines.slice(headLine + 1, endLine);
+  if (splitAt === null) return rest;
+  const head = lines[headLine]!;
+  const raw = head.raw.slice(splitAt - head.from);
+  return [{ raw, probe: probeOf(raw), from: splitAt, to: head.to }, ...rest];
+}
+
 function buildBlock(
   index: number,
   label: string,
-  lines: Line[],
-  startLine: number,
-  endLine: number,
+  body: Line[],
   source: string,
 ): ReviewerBlock {
-  const body = lines.slice(startLine, endLine);
   const points: ReviewPoint[] = [];
   const headings: { from: number; to: number }[] = [];
 
@@ -179,9 +304,10 @@ function buildBlock(
   let cursor = 0;
   let current: string | null = null;
   body.forEach((line, i) => {
-    if (SECTION_RE.test(line.probe) && line.probe.length <= 60) {
+    const title = headingTitle(line.probe);
+    if (title !== null) {
       if (i > cursor) sections.push({ title: current, start: cursor, end: i });
-      current = line.probe.replace(/:$/, '');
+      current = title;
       headings.push({ from: line.from, to: line.to });
       cursor = i + 1;
     }
@@ -192,56 +318,15 @@ function buildBlock(
   // ---- 3. points inside each section -------------------------------------
   for (const section of sections) {
     const slice = body.slice(section.start, section.end);
-    const marked: number[] = [];
-    slice.forEach((line, i) => {
-      if (NUMBERED_RE.test(line.probe) || BULLET_RE.test(line.probe)) marked.push(i);
-    });
-
-    const ranges: { start: number; end: number; reason: string }[] = [];
-    if (marked.length > 0) {
-      marked.forEach((start, n) => {
-        const end = n + 1 < marked.length ? marked[n + 1]! : slice.length;
-        const numbered = NUMBERED_RE.test(slice[start]!.probe);
-        ranges.push({
-          start,
-          end,
-          reason: numbered
-            ? `numbered point${section.title === null ? '' : ` under “${section.title}”`}`
-            : `bulleted point${section.title === null ? '' : ` under “${section.title}”`}`,
-        });
-      });
-    } else {
-      // No markers: fall back to blank-line-separated paragraphs, which is how
-      // an unnumbered "Major comments" block is actually written.
-      let start: number | null = null;
-      slice.forEach((line, i) => {
-        const blank = line.probe === '';
-        if (!blank && start === null) start = i;
-        if (blank && start !== null) {
-          ranges.push({
-            start,
-            end: i,
-            reason: `paragraph${section.title === null ? '' : ` under “${section.title}”`}`,
-          });
-          start = null;
-        }
-      });
-      if (start !== null) {
-        ranges.push({
-          start,
-          end: slice.length,
-          reason: `paragraph${section.title === null ? '' : ` under “${section.title}”`}`,
-        });
-      }
-    }
+    const ranges = rangesIn(slice, section.title);
 
     for (const range of ranges) {
       const first = slice[range.start];
       const lastIdx = lastNonBlank(slice, range.start, range.end);
       if (first === undefined || lastIdx === null) continue;
       const from = first.from;
-      const to = slice[lastIdx]!.to;
-      const verbatim = source.slice(from, to);
+      const split = splitReply(source, from, slice[lastIdx]!.to);
+      const verbatim = source.slice(from, split.to);
       if (verbatim.trim().length < MIN_POINT_CHARS) continue;
       points.push({
         id: `r${index}.${points.length + 1}`,
@@ -249,9 +334,10 @@ function buildBlock(
         pointIndex: points.length + 1,
         section: section.title,
         from,
-        to,
+        to: split.to,
         verbatim,
         reason: range.reason,
+        reply: split.reply,
       });
     }
   }
@@ -259,6 +345,77 @@ function buildBlock(
   const from = body[0]?.from ?? 0;
   const to = body[body.length - 1]?.to ?? from;
   return { index, label, from, to, points, headings };
+}
+
+/**
+ * Cut one section of a reviewer's block into point ranges.
+ *
+ * Two boundaries, applied together — which is the whole point. Treating the
+ * two as alternatives is what broke: a block that opens with a paragraph and
+ * then turns into a bullet list took the marker path, and every word before
+ * the first bullet was silently dropped while the last bullet swallowed the
+ * closing paragraph. Reviewers write exactly that shape all the time.
+ *
+ *  - a blank line ends a range (paragraph prose, and bullets spaced apart)
+ *  - a marker line starts one (bullets and numbers packed with no blank
+ *    between them, which is the other common list style)
+ */
+function rangesIn(
+  slice: Line[],
+  title: string | null,
+): { start: number; end: number; reason: string }[] {
+  const under = title === null ? '' : ` under “${title}”`;
+  const starts: number[] = [];
+  slice.forEach((line, i) => {
+    if (line.probe === '') return;
+    const isMarked = NUMBERED_RE.test(line.probe) || BULLET_RE.test(line.probe);
+    const afterBlank = i === 0 || slice[i - 1]!.probe === '';
+    if (isMarked || afterBlank) starts.push(i);
+  });
+
+  return starts.map((start, n) => {
+    const end = n + 1 < starts.length ? starts[n + 1]! : slice.length;
+    const probe = slice[start]!.probe;
+    const reason = NUMBERED_RE.test(probe)
+      ? `numbered point${under}`
+      : BULLET_RE.test(probe)
+        ? `bulleted point${under}`
+        : `paragraph${under}`;
+    return { start, end, reason };
+  });
+}
+
+/**
+ * Cut the author's reply off the end of a point.
+ *
+ * In a response document the reviewer's paragraph and our answer to it are
+ * one paragraph, joined by "RE12:". Left alone the reply lands inside
+ * `verbatim`, and the next round quotes our own prose back at the reviewer as
+ * if they had written it. The reviewer's words end where the marker begins,
+ * minus the whitespace between — so the offsets stay a real slice of the
+ * source and no character is invented.
+ */
+function splitReply(
+  source: string,
+  from: number,
+  to: number,
+): { to: number; reply: ReviewPoint['reply'] } {
+  const span = source.slice(from, to);
+  const m = REPLY_RE.exec(span);
+  if (m === null || m.index === 0) return { to, reply: null };
+  const markerAt = from + m.index;
+  let end = markerAt;
+  while (end > from && /\s/.test(source[end - 1]!)) end -= 1;
+  if (end - from < MIN_POINT_CHARS) return { to, reply: null };
+  return {
+    to: end,
+    reply: {
+      number: Number(m[1]),
+      from: markerAt,
+      to,
+      text: source.slice(markerAt, to),
+    },
+  };
 }
 
 function lastNonBlank(lines: Line[], start: number, end: number): number | null {
@@ -276,7 +433,16 @@ function finish(
   // Coverage is measured over the reviewer blocks only — the editor's covering
   // letter is not a reviewer point and should not drag the number down.
   const claimed: { from: number; to: number }[] = [];
-  for (const r of reviewers) for (const p of r.points) claimed.push({ from: p.from, to: p.to });
+  for (const r of reviewers) {
+    for (const p of r.points) {
+      claimed.push({ from: p.from, to: p.to });
+      // A reply is text we understood and attributed, just not to the
+      // reviewer. It is neither a point nor a lost paragraph, so it counts as
+      // covered — otherwise importing a response document reads as half the
+      // text missing.
+      if (p.reply !== null) claimed.push({ from: p.reply.from, to: p.reply.to });
+    }
+  }
   claimed.sort((a, b) => a.from - b.from);
 
   // Headings are structure we recognised. They belong to no point, and they
@@ -309,7 +475,39 @@ function finish(
     unassigned,
     coverage: inBlocks === 0 ? 1 : inPoints / inBlocks,
     unsplitReviewers: reviewers.filter((r) => r.points.length <= 1).map((r) => r.index),
+    replyGaps: gapsIn(replyNumbersIn(reviewers, source)),
   };
+}
+
+/**
+ * Every reply number PRESENT in the reviewer blocks — read off the text, not
+ * off the points.
+ *
+ * A point that answers two comments at once carries two markers and only the
+ * first becomes its `reply`; counting attached replies then reports the second
+ * as missing. On the evidence document that turned one true gap into seven,
+ * six of them wrong — and a safety rail that cries wolf is one nobody reads.
+ * The question this answers is "does the source skip a number", so the source
+ * is what it reads.
+ */
+function replyNumbersIn(reviewers: ReviewerBlock[], source: string): number[] {
+  const out: number[] = [];
+  for (const r of reviewers) {
+    const span = source.slice(r.from, r.to);
+    for (const m of span.matchAll(REPLY_RE_ALL)) out.push(Number(m[1]));
+  }
+  return out;
+}
+
+/** Numbers missing from an otherwise consecutive run. [1,2,4] -> [3]. */
+function gapsIn(numbers: number[]): number[] {
+  if (numbers.length === 0) return [];
+  const seen = new Set(numbers);
+  const out: number[] = [];
+  for (let n = Math.min(...numbers); n <= Math.max(...numbers); n += 1) {
+    if (!seen.has(n)) out.push(n);
+  }
+  return out;
 }
 
 /**

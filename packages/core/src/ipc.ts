@@ -265,6 +265,16 @@ export const ReviewPointWireSchema = z.object({
   to: z.number(),
   verbatim: z.string(),
   reason: z.string(),
+  /** The author's own reply, when the source was a response document. */
+  reply: z
+    .object({
+      number: z.number(),
+      from: z.number(),
+      to: z.number(),
+      text: z.string(),
+    })
+    .nullable()
+    .default(null),
 });
 
 export const CHANNELS = {
@@ -407,6 +417,8 @@ export const CHANNELS = {
       coveragePercent: z.number(),
       totalPoints: z.number(),
       unsplitReviewers: z.array(z.number()),
+      /** Reply numbers the source skips — RE57 and RE59 present, RE58 not. */
+      replyGaps: z.array(z.number()).default([]),
     }),
   },
   /** Pass 2: write the reviewer records the user confirmed. */
