@@ -346,8 +346,17 @@ export async function ensureProjectAgentLayer(
   return { created }
 }
 
-/** Ensure .gitignore contains `line` exactly; additive append, never rewrites. */
-async function ensureGitignoreLine(root: string, line: string): Promise<boolean> {
+/**
+ * Ensure .gitignore contains `line` exactly; additive append, never rewrites.
+ *
+ * Exported since feature-plan-12 §2a: creating a cover letter has to ignore
+ * the private-letter glob under manuscript/ (suggested and excluded
+ * reviewers carry other people's names, emails and conflict reasons)
+ * BEFORE it writes the file, and a project scaffolded before that feature
+ * never gains the stanza on its own — PROJECT_GITIGNORE is written only at
+ * scaffold and at import.
+ */
+export async function ensureGitignoreLine(root: string, line: string): Promise<boolean> {
   const path = join(root, '.gitignore')
   let current: string | null = null
   try {
