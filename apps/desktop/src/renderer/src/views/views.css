@@ -113,6 +113,16 @@
 
 /* ---- manuscript view ------------------------------------------------------ */
 
+.ms__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms__title-row .ms__title {
+  margin-right: auto;
+}
+
 .ms__title {
   font-family: var(--s-font-serif);
   font-size: var(--s-text-lg);

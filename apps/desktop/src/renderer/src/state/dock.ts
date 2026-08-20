@@ -215,6 +215,29 @@ export function openDocumentTab(
   })
 }
 
+/**
+ * Open (or focus) a logged version, read-only.
+ *
+ * A separate component from the manuscript tab on purpose: an archived
+ * version has no editing surface at all, so there is nothing to disable and
+ * no way for a keystroke to reach a file under archive/.
+ */
+export function openVersionTab(rootDir: string, versionId: string): void {
+  if (!dockApi) return
+  const id = `version:${rootDir}:${versionId}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'version',
+    title: versionId,
+    params: { rootDir, versionId }
+  })
+}
+
 /** Open (or focus) the reviewer-comment import screen. */
 export function openReviewImportTab(rootDir: string): void {
   if (!dockApi) return
@@ -279,6 +302,7 @@ export function closeProjectTabs(rootDir: string): void {
       component === 'manuscript' ||
       component === 'letter' ||
       component === 'round' ||
+      component === 'version' ||
       component === 'review-import'
     ) {
       if (panel.params?.['rootDir'] === rootDir) dockApi.removePanel(panel)
