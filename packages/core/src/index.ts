@@ -1,6 +1,7 @@
 export * from './documents';
 export * from './letters';
 export * from './letter-seed';
+export * from './peer-review-guide';
 export * from './review-import';
 export * from './rounds';
 export * from './versions';
