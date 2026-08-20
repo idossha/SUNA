@@ -107,6 +107,27 @@ export const ExportOptionsSchema = z.object({
 export type ExportOptions = z.infer<typeof ExportOptionsSchema>;
 
 /**
+ * A table or figure the printed page cannot hold (feature-plan-13 §A4).
+ *
+ * The print stylesheet keeps tables and figures whole across a page boundary
+ * (`break-inside: avoid`) right up to the point where the block is taller
+ * than the page itself — then there is nowhere for it to go and the rule is
+ * ignored. The export still succeeds and the table's header row repeats on
+ * the continuation, but only the author can actually fix it, by moving the
+ * table to the supplement or cutting columns. So the overrun is measured in
+ * the print window and reported, rather than left to be discovered in the
+ * PDF an editor is already reading.
+ */
+export const OversizedBlockSchema = z.object({
+  kind: z.enum(['table', 'figure']),
+  /** The block's derived label where it has one ("Table 3"), else a positional name. */
+  label: z.string(),
+  /** Printable-page heights the block occupies; 1.4 means it overruns by 40%. */
+  heightRatio: z.number().positive(),
+});
+export type OversizedBlock = z.infer<typeof OversizedBlockSchema>;
+
+/**
  * The outcome of the flat-layout migration (feature-plan-7 §1). Rides along on
  * every project open so the renderer can tell the user what happened to their
  * files, and is the response of the manual 'project:migrate' trigger.
@@ -1915,7 +1936,7 @@ export const CHANNELS = {
       options: ExportOptionsSchema,
       target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
-    response: z.object({ path: z.string().min(1) }),
+    response: z.object({ path: z.string().min(1), oversized: z.array(OversizedBlockSchema).default([]) }),
   },
   /**
    * Live export preview: the SAME build the real exporters run, rendered to
@@ -1955,6 +1976,8 @@ export const CHANNELS = {
       approximate: z.boolean(),
       /** Server-side render time in ms — drives nothing, but makes a slow preview legible. */
       ms: z.number().int().nonnegative(),
+      /** Tables/figures taller than the printable page; empty in the good case. */
+      oversized: z.array(OversizedBlockSchema).default([]),
     }),
   },
   /**

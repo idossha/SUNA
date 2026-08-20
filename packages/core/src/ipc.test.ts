@@ -847,8 +847,19 @@ describe('CHANNELS', () => {
       target: 'manuscript',
     };
     expect(CHANNELS['export:pdf'].request.parse(req)).toEqual(req);
-    const res: ResponseOf<'export:pdf'> = { path: '/work/my-paper/output/my-paper.pdf' };
+    const res: ResponseOf<'export:pdf'> = { path: '/work/my-paper/output/my-paper.pdf', oversized: [] };
     expect(CHANNELS['export:pdf'].response.parse(res)).toEqual(res);
+    // `oversized` defaults, so a handler that reports no overrun may omit it.
+    expect(CHANNELS['export:pdf'].response.parse({ path: '/p.pdf' })).toEqual({
+      path: '/p.pdf',
+      oversized: [],
+    });
+    expect(
+      CHANNELS['export:pdf'].response.parse({
+        path: '/p.pdf',
+        oversized: [{ kind: 'table', label: 'Table 3', heightRatio: 1.4 }],
+      }),
+    ).toEqual({ path: '/p.pdf', oversized: [{ kind: 'table', label: 'Table 3', heightRatio: 1.4 }] });
   });
 
   it('validates export:notes request/response shapes', () => {
