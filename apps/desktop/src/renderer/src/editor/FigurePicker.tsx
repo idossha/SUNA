@@ -31,6 +31,11 @@ import { scanFigures, svgDataUrl } from '../views/figures-scan'
 import { loadAsset } from './figureAssets'
 import { figureChoices, filterFigureChoices, type FigureChoice } from './figureChoices'
 import { insertCrossReference, insertFigureEmbed } from './markdownCommands'
+import {
+  nextActiveIndex,
+  pickerNavDirection,
+  scrollActiveIntoView
+} from './pickerNavigation'
 import './formatting.css'
 
 export { figureChoices, filterFigureChoices, type FigureChoice } from './figureChoices'
@@ -79,6 +84,7 @@ export function FigurePicker({ view, onClose }: FigurePickerProps): JSX.Element 
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const rootDir = useProjectStore((s) => s.rootDir)
   const tree = useProjectStore((s) => s.tree)
   const manuscript = useManuscriptStore((s) => s.manuscript)
@@ -96,6 +102,13 @@ export function FigurePicker({ view, onClose }: FigurePickerProps): JSX.Element 
   useEffect(() => {
     setActiveIndex(0)
   }, [filtered.length, query])
+
+  // keep the highlighted row on screen — the list scrolls, the arrow keys
+  // walk past its bottom edge, and an off-screen highlight reads as "nothing
+  // is selected"
+  useEffect(() => {
+    scrollActiveIntoView(listRef.current, activeIndex)
+  }, [activeIndex, filtered])
 
   /** Enter places the figure; ⇧Enter references it mid-sentence. */
   const insert = (choice: FigureChoice, asReference: boolean): void => {
@@ -145,14 +158,10 @@ export function FigurePicker({ view, onClose }: FigurePickerProps): JSX.Element 
               onClose()
               return
             }
-            if (event.key === 'ArrowDown') {
+            const direction = pickerNavDirection(event)
+            if (direction !== null) {
               event.preventDefault()
-              setActiveIndex((i) => Math.min(i + 1, filtered.length - 1))
-              return
-            }
-            if (event.key === 'ArrowUp') {
-              event.preventDefault()
-              setActiveIndex((i) => Math.max(i - 1, 0))
+              setActiveIndex((i) => nextActiveIndex(i, direction, filtered.length))
               return
             }
             if (event.key === 'Enter') {
@@ -162,13 +171,14 @@ export function FigurePicker({ view, onClose }: FigurePickerProps): JSX.Element 
             }
           }}
         />
-        <div className="md-figpicker__list">
+        <div className="md-figpicker__list" ref={listRef}>
           {filtered.length === 0 && <div className="md-figpicker__empty">{empty}</div>}
           {filtered.map((choice, i) => (
             <button
               key={choice.id}
               type="button"
               data-figure-id={choice.id}
+              data-picker-item=""
               className={
                 'md-figpicker__item' + (i === activeIndex ? ' md-figpicker__item--active' : '')
               }
