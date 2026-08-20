@@ -11,5 +11,66 @@
     "results": "results",
     "output": "output"
   },
+  "documents": [
+    {
+      "id": "manuscript",
+      "kind": "manuscript",
+      "file": null,
+      "meta": "manuscript.json",
+      "title": "Manuscript",
+      "profile": null,
+      "roundId": null,
+      "archived": false
+    },
+    {
+      "id": "supplement",
+      "kind": "supplement",
+      "file": "supplementary.md",
+      "meta": null,
+      "title": "Supplementary Information",
+      "profile": null,
+      "roundId": null,
+      "archived": false
+    },
+    {
+      "id": "cover-nature-astronomy",
+      "kind": "cover-letter",
+      "file": "letters/cover-nature-astronomy.md",
+      "meta": "letters/cover-nature-astronomy.json",
+      "title": "Cover letter — Nature Astronomy",
+      "profile": {
+        "registry": "journal",
+        "id": "nature-astronomy"
+      },
+      "roundId": null,
+      "archived": false
+    },
+    {
+      "id": "cover-revision-nature-astronomy",
+      "kind": "cover-letter",
+      "file": "letters/cover-revision-nature-astronomy.md",
+      "meta": "letters/cover-revision-nature-astronomy.json",
+      "title": "Revision letter — Nature Astronomy",
+      "profile": {
+        "registry": "journal",
+        "id": "nature-astronomy"
+      },
+      "roundId": "r2-nature-astronomy",
+      "archived": false
+    },
+    {
+      "id": "response-r2",
+      "kind": "response",
+      "file": "response-r2.md",
+      "meta": null,
+      "title": "Response to referees — Round 1",
+      "profile": {
+        "registry": "journal",
+        "id": "nature-astronomy"
+      },
+      "roundId": "r2-nature-astronomy",
+      "archived": false
+    }
+  ],
   "createdAt": "2026-08-14T00:00:00.000Z"
 }
