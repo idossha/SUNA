@@ -1434,3 +1434,139 @@ button:disabled {
   color: var(--s-ink);
   font-weight: 600;
 }
+
+/* ------------------------------------------------ the letter being drafted */
+
+/*
+ * An agent run takes minutes and used to look like nothing happening at all,
+ * then prose appearing at once. This is the "something IS happening" state:
+ * it names what the agent is doing now, says the draft lands in one piece so
+ * an empty letter is not read as a failure, and carries the Cancel.
+ */
+.letter__drafting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--s-border);
+  background: var(--s-bg-active);
+  font-size: var(--s-text-sm);
+  flex-shrink: 0;
+}
+
+.letter__drafting-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--s-accent);
+  flex-shrink: 0;
+  animation: letter-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes letter-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .letter__drafting-pulse {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.letter__drafting-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.letter__drafting-note {
+  color: var(--s-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.letter__drafting-hint {
+  margin-left: auto;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+  text-align: right;
+}
+
+.letter__drafting-cancel {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: var(--s-text-xs);
+  padding: 3px 11px;
+  cursor: pointer;
+}
+
+.letter__drafting-cancel:hover {
+  color: var(--s-ink);
+}
+
+/*
+ * Typing into a file the agent is about to rewrite loses the typing, so the
+ * editor is inert while a draft runs — dimmed, and not a target for clicks.
+ */
+.letter__editor.is-drafting {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* ------------------------------------------- per-run model / effort ------- */
+
+.sheet__ai-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 10px 12px;
+  margin-left: 30px;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-shell);
+}
+
+.sheet__ai-opts label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--s-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-ink-muted);
+}
+
+.sheet__ai-opts select {
+  background: var(--s-bg-editor);
+  color: var(--s-ink);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  padding: 4px 7px;
+  font: inherit;
+  font-size: var(--s-text-sm);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.sheet__ai-hint {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+  color: var(--s-ink-faint);
+}

@@ -9,6 +9,7 @@
  * status bar shows the CLI's message verbatim.
  */
 import { LIT_CLI_IDS, type LitCliId, type LitCliPreference } from '@suna/core'
+import type { AiEffort, AiModel } from '@suna/core'
 import { startAiAsk, type AiAskOutcome } from '../palette/aiAsk'
 import { useAgentChatStore } from '../state/agentChat'
 import {
@@ -117,6 +118,10 @@ export async function cliGate(): Promise<CliGateResult> {
 
 interface DirectedSpec {
   key: string
+  /** Per-task model tier; omit to use the project/global setting. */
+  model?: AiModel
+  /** Per-task reasoning effort; omit to use the project/global setting. */
+  effort?: AiEffort
   /** One-line transcript label — the user-side bubble, never the full prompt. */
   title: string
   prompt: string
@@ -162,7 +167,14 @@ async function runDirected(spec: DirectedSpec): Promise<AiAskOutcome> {
       spec.dir,
       (status) => useAiActionsStore.getState().progress(spec.key, status),
       settle,
-      { allowedTools: spec.allowedTools, useMcp: spec.useMcp, viaStdin: true, label: spec.title }
+      {
+        allowedTools: spec.allowedTools,
+        useMcp: spec.useMcp,
+        viaStdin: true,
+        label: spec.title,
+        model: spec.model,
+        effort: spec.effort
+      }
     )
       .then((handle) => {
         if (cancelRequested) {
@@ -239,6 +251,9 @@ export async function runUiRepair(args: UiRepairArgs): Promise<AiAskOutcome> {
 export interface LetterDraftArgs extends LetterDraftPromptInput {
   /** Project root: child cwd, and where .mcp.json lives. */
   rootDir: string
+  /** Chosen in the New Letter sheet for this run only. */
+  model?: AiModel
+  effort?: AiEffort
 }
 
 /** The New Letter sheet's "AI draft" mode. Keyed 'letter:<documentId>'. */
@@ -250,6 +265,8 @@ export async function runLetterDraft(args: LetterDraftArgs): Promise<AiAskOutcom
     dir: args.rootDir,
     allowedTools: LETTER_TOOLS,
     useMcp: true,
+    model: args.model,
+    effort: args.effort,
     successNote: 'AI drafted the letter — review the change before sending.'
   })
 }

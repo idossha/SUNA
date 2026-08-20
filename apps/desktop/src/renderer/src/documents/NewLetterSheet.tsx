@@ -5,6 +5,8 @@ import { useProjectStore } from '../state/project'
 import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { openDocumentTab } from '../state/dock'
 import { cliGate, runLetterDraft } from '../ai/directedActions'
+import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from '../settings/aiChoice'
+import { AI_EFFORTS, AI_MODELS, type AiEffort, type AiModel } from '@suna/core'
 import './documents.css'
 
 /**
@@ -48,6 +50,11 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null)
+  // Per-run, not persisted: "this one letter is worth Opus" is a decision
+  // about the task, not about the project. null means "use the project's
+  // setting", which is what the Settings tab is for.
+  const [model, setModel] = useState<AiModel | null>(null)
+  const [effort, setEffort] = useState<AiEffort | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -108,7 +115,16 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
           letterFile: res.proseFile,
           journalName: profile?.journalName ?? profileId,
           letterKind,
-          requiredAssertions: res.requiredAssertions
+          requiredAssertions: res.requiredAssertions,
+          // The venue's own stated requirements travel INTO the prompt, so the
+          // agent argues against what this journal actually asks for rather
+          // than a generic idea of a cover letter.
+          venueRequirements: (letters?.assertions ?? []).map((a) =>
+            `${a.id} (${a.stance})${a.quote === null ? '' : ` — "${a.quote}"`}`
+          ),
+          placeholder: '<!-- Why this work matters',
+          ...(model === null ? {} : { model }),
+          ...(effort === null ? {} : { effort })
         })
       }
     } catch (err) {
@@ -221,6 +237,44 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
                 </em>
               </span>
             </label>
+            {startFrom === 'ai' && (
+              <div className="sheet__ai-opts">
+                <label>
+                  Model
+                  <select
+                    value={model ?? ''}
+                    onChange={(e) => setModel(e.target.value === '' ? null : (e.target.value as AiModel))}
+                  >
+                    <option value="">Project default</option>
+                    {AI_MODELS.map((m) => (
+                      <option key={m} value={m}>
+                        {AI_MODEL_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Effort
+                  <select
+                    value={effort ?? ''}
+                    onChange={(e) => setEffort(e.target.value === '' ? null : (e.target.value as AiEffort))}
+                  >
+                    <option value="">Project default</option>
+                    {AI_EFFORTS.map((x) => (
+                      <option key={x} value={x}>
+                        {AI_EFFORT_LABELS[x]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="sheet__ai-hint">
+                  For this run only. A letter is short and read by one editor, so a
+                  slower model is usually worth it here even when the project runs on a
+                  faster one.
+                </p>
+              </div>
+            )}
+
             <p className="sheet__note">
               Either way SUNA never fills in an assertion. Those are your factual claims to an
               editor, made over your signature, so only you answer them — the agent is told to

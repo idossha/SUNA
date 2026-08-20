@@ -10,6 +10,8 @@ import { RailToggleButton } from '../comments/RailToggleButton'
 import { CommentsRail } from '../comments/CommentsRail'
 import { useCommentsStore } from '../state/comments'
 import { docSlice, useManuscriptDocStore } from '../state/manuscriptDoc'
+import { useAiActionsStore } from '../state/aiActions'
+import { letterRunKey } from '../ai/directedActions'
 import './documents.css'
 
 /**
@@ -33,6 +35,10 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
   const getEditorView = useCallback((): EditorView | null => editorRef.current?.getView() ?? null, [])
   const getScrollElement = useCallback((): HTMLElement | null => rootRef.current, [])
   const allComments = useCommentsStore((s) => s.comments)
+  // A directed run survives this component unmounting (dockview detaches
+  // hidden panels), so the working state is read from the store rather than
+  // held here.
+  const draftRun = useAiActionsStore((s) => s.runs[letterRunKey(documentId)])
 
   const [doc, setDoc] = useState<DocumentEntry | null>(null)
   const [meta, setMeta] = useState<CoverLetterMeta | null>(null)
@@ -127,8 +133,25 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
         </div>
       </header>
 
+      {draftRun !== undefined && (
+        <div className="letter__drafting" role="status" aria-live="polite">
+          <span className="letter__drafting-pulse" aria-hidden="true" />
+          <span className="letter__drafting-body">
+            <strong>Drafting the letter…</strong>
+            <span className="letter__drafting-note">{draftRun.note}</span>
+          </span>
+          <span className="letter__drafting-hint">
+            The agent is reading the manuscript first. The draft arrives in one piece,
+            as a change you review.
+          </span>
+          <button className="letter__drafting-cancel" onClick={() => draftRun.cancel()}>
+            Cancel
+          </button>
+        </div>
+      )}
+
       <div className="letter__body" ref={rootRef}>
-        <div className="letter__editor">
+        <div className={`letter__editor${draftRun === undefined ? '' : ' is-drafting'}`}>
           {doc.file !== null && (
             <ManuscriptEditor
               ref={editorRef}

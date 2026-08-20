@@ -17,6 +17,8 @@ import {
 } from './rounds';
 import { NoteColorSchema } from './refnotes';
 import {
+  AiEffortSchema,
+  AiModelSchema,
   ProjectDirKeySchema,
   ProjectSettingsSchema,
   RecentProjectSchema,
@@ -1599,6 +1601,15 @@ export const CHANNELS = {
       useMcp: z.boolean().optional(),
       /** Deliver the prompt over stdin: no argv length limit, and it never shows in `ps`. */
       viaStdin: z.boolean().optional(),
+      /**
+       * Per-TASK override of the model tier and reasoning effort. Absent means
+       * "resolve from this project's suna.json over global settings", which is
+       * what every call did before. Present means the user chose for this one
+       * run — drafting a cover letter is worth Opus even when the project runs
+       * on Haiku, and the reverse is just as true.
+       */
+      model: AiModelSchema.optional(),
+      effort: AiEffortSchema.optional(),
     }),
     response: z.object({ askId: z.string().min(1) }),
   },

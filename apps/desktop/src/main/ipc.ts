@@ -650,13 +650,18 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  handle('ai:ask', async ({ prompt, dir, allowedTools, useMcp, viaStdin }, event) => {
+  handle('ai:ask', async (input, event) => {
+    const { prompt, dir, allowedTools, useMcp, viaStdin } = input
     const askId = `ai-ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const webContents = event.sender
     const cliPreference = await litCliPreference()
     // Model/effort resolve from this project's suna.json over global settings,
-    // so a hand-edited manifest reaches the spawn without renderer help.
-    const { model, effort } = await resolveAiChoice(dir)
+    // so a hand-edited manifest reaches the spawn without renderer help — and
+    // a per-task choice from the caller beats both, because "this one letter
+    // is worth Opus" is a decision about the task, not about the project.
+    const resolved = await resolveAiChoice(dir)
+    const model = input.model ?? resolved.model
+    const effort = input.effort ?? resolved.effort
 
     // Fire-and-forget: the child keeps running after this handler returns.
     // Progress/outcome arrive over EVENT_CHANNELS.aiAskProgress/aiAskDone(askId).
