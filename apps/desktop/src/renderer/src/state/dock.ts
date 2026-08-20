@@ -565,6 +565,14 @@ export const dockDevSeam = {
    * already active, so a driver cannot use it idempotently.
    */
   openManuscriptTab,
+  /**
+   * feature-plan-13 §B: open a typed document's own tab — a cover letter's,
+   * in practice. Its UI route is the Documents sidebar list, which a driver
+   * can only reach by matching row text, and a probe that cannot open a
+   * letter deterministically ends up asserting against whatever tab happened
+   * to be focused instead.
+   */
+  openDocumentTab,
   openReadingNotesTab,
   /**
    * feature-plan-12 §6: open the reviewer-import screen. Its UI route is a

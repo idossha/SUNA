@@ -17,6 +17,7 @@
  *      height to fit into. Inside an `overflow-y: auto` ancestor the client
  *      height is the content height, the fit silently degrades to fit-width,
  *      and a page end is never on screen — which would defeat the point.
+ *   5. A letter paginates too, through its own exporter.
  *
  * Run:  node scripts/e2e/drive.mjs --boot --example
  *       node scripts/e2e/drive.mjs run scripts/e2e/probes/pages-mode.mjs
@@ -194,6 +195,44 @@ export default async (ctx) => {
     typeof exported === 'number' && exported === pageCount,
     `view showed ${pageCount}, a fresh export has ${json(exported)}`
   )
+
+  // ------------------------------------------------------------- 5. a letter
+  const letter = await ctx.evalJs(`(() => {
+    const docs = window.__sunaDev.projectStore.getState().manifest?.documents ?? []
+    const found = docs.find((d) => d.kind === 'cover-letter')
+    return found ? { id: found.id, kind: found.kind, file: found.file ?? null } : null
+  })()`)
+  assert(
+    letter !== null,
+    'this project has no cover letter, so the letter half of pages mode cannot be checked'
+  )
+
+  // Opened through the dev seam, NOT by falling back to the manuscript tab.
+  // An earlier version of this probe did fall back, and then asserted on the
+  // manuscript's pages while reporting that a letter had paginated — a check
+  // that could not fail. Getting a letter tab on screen is now an assertion
+  // of its own.
+  await ctx.evalJs(
+    `window.__sunaDev.dock.openDocumentTab(${json(rootDir)}, ${json(letter.id)}, ${json(letter.kind)}, ${json(letter.file)})`
+  )
+  await ctx.waitFor(`!!document.querySelector('.letter__head')`, {
+    timeoutMs: 20000,
+    desc: 'the letter tab'
+  })
+  assert(await pickMode(ctx, 'Pages'), 'the letter tab has no Pages mode to switch to')
+
+  const letterPages = await waitForPages(ctx, 'the letter’s pages')
+  const letterState = await ctx.evalJs(`(() => ({
+    onLetter: !!document.querySelector('.letter__head') || !!document.querySelector('.mstab'),
+    error: document.querySelector('.paged-doc__error')?.textContent ?? null,
+    editors: document.querySelectorAll('.cm-editor').length
+  }))()`)
+  check(
+    'a letter paginates through its own exporter',
+    letterPages > 0 && letterState.error === null,
+    letterState.error ?? `page count ${letterPages}`
+  )
+  check('the letter’s pages mode has no editor either', letterState.editors === 0, `${letterState.editors} mounted`)
 
   if (failures.length > 0) throw new Error(`${failures.length} check(s) failed: ${failures.join(', ')}`)
   console.log('pages-mode: all checks passed')

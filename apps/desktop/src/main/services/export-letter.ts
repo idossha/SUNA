@@ -1,3 +1,4 @@
+import type { BrowserWindow } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Document, HeadingLevel, Packer, Paragraph, TextRun, convertMillimetersToTwip } from 'docx'
@@ -8,7 +9,7 @@ import { getBundledProfile } from '@suna/formatter'
 import { writeFileAtomic } from './atomic'
 import { readLetterMeta } from './letter-new'
 import { documentFile, projectDocument, projectSubdir } from './paths'
-import { escapeHtml, printHtmlToPdf } from './export-notes'
+import { escapeHtml, printHtmlToPdf, renderHtmlToPdf } from './export-notes'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
@@ -213,20 +214,73 @@ function buildLetterDocx(title: string, subtitle: string, blocks: readonly Lette
   })
 }
 
-export async function exportLetter(req: ExportLetterRequest): Promise<ExportLetterResult> {
-  const root = assertInsideAllowedRoot(req.dir)
-  const doc = await projectDocument(root, req.documentId)
-  if (doc === null) throw new Error(`no document "${req.documentId}" in this project`)
+/** A letter resolved into the three things every output format needs. */
+interface LetterDocument {
+  title: string
+  subtitle: string
+  blocks: LetterBlock[]
+  /** Assertion ids still unanswered — the export gate's business, not the preview's. */
+  unanswered: LetterAssertionId[]
+}
+
+/**
+ * Everything between "a document id" and "something to lay out": read the
+ * prose, put the author's answers back where the `::assert{id}` markers are,
+ * and derive the subtitle.
+ *
+ * Split out of exportLetter (feature-plan-13 §B5) so the page view can have
+ * the same letter the export would produce WITHOUT writing a file. It does
+ * not decide whether an unanswered assertion is allowed through — it reports
+ * them and lets the caller decide, because a preview and an export answer
+ * that question differently: a draft you are still writing should be
+ * previewable, and a draft you are sending should not be silently shipped.
+ */
+async function buildLetterDocument(dir: string, documentId: string): Promise<LetterDocument> {
+  const root = assertInsideAllowedRoot(dir)
+  const doc = await projectDocument(root, documentId)
+  if (doc === null) throw new Error(`no document "${documentId}" in this project`)
   if (doc.kind !== 'cover-letter' || doc.meta === null) {
-    throw new Error(`document "${req.documentId}" is not a cover letter`)
+    throw new Error(`document "${documentId}" is not a cover letter`)
   }
 
   const prosePath = await documentFile(root, doc, 'prose')
-  if (prosePath === null) throw new Error(`document "${req.documentId}" has no prose file`)
+  if (prosePath === null) throw new Error(`document "${documentId}" has no prose file`)
   const markdown = await readFile(assertInsideAllowedRoot(prosePath), 'utf8')
 
   const meta = await readLetterMeta(root, doc.meta)
-  const unanswered = unansweredForExport(markdown, meta)
+  const profile = getBundledProfile(meta.targetProfileId)
+  const journalName = profile?.journalName ?? meta.targetProfileId
+  return {
+    title: doc.title,
+    subtitle: `${meta.letterKind} · addressed to ${journalName}`,
+    blocks: letterBlocks(resolveAssertions(markdown, meta)),
+    unanswered: unansweredForExport(markdown, meta)
+  }
+}
+
+/**
+ * The letter as PDF bytes, for the page view — the same HTML the export
+ * prints, printed the same way, and never written to disk.
+ *
+ * Deliberately does NOT apply the unanswered-assertion gate: a page view is
+ * for a letter you are still writing, and refusing to show it until every
+ * assertion is answered would make the mode useless exactly when it is most
+ * wanted. An unanswered directive contributes nothing to the text, here as in
+ * the export, so what you see is what you would get if you sent it today.
+ */
+export async function renderLetterPdf(
+  dir: string,
+  documentId: string,
+  win?: BrowserWindow
+): Promise<Buffer> {
+  const letter = await buildLetterDocument(dir, documentId)
+  return renderHtmlToPdf(buildLetterHtml(letter.title, letter.subtitle, letter.blocks), win)
+}
+
+export async function exportLetter(req: ExportLetterRequest): Promise<ExportLetterResult> {
+  const root = assertInsideAllowedRoot(req.dir)
+  const { title, subtitle, blocks, unanswered } = await buildLetterDocument(root, req.documentId)
+
   // Stop once, by name. An author who has read that list and asks again gets
   // the file: an unanswered assertion may well belong in the submission
   // portal, or this may be a draft going to a co-author, and neither is
@@ -239,20 +293,15 @@ export async function exportLetter(req: ExportLetterRequest): Promise<ExportLett
     )
   }
 
-  const profile = getBundledProfile(meta.targetProfileId)
-  const journalName = profile?.journalName ?? meta.targetProfileId
-  const blocks = letterBlocks(resolveAssertions(markdown, meta))
-  const subtitle = `${meta.letterKind} · addressed to ${journalName}`
-
   const outputDir = join(await projectSubdir(root, 'output'), LETTERS_OUTPUT_SUBDIR)
   const target = join(outputDir, `${req.outputName}.${req.format}`)
 
   if (req.format === 'html') {
-    await writeFileAtomic(target, buildLetterHtml(doc.title, subtitle, blocks))
+    await writeFileAtomic(target, buildLetterHtml(title, subtitle, blocks))
   } else if (req.format === 'docx') {
-    await writeFileAtomic(target, await Packer.toBuffer(buildLetterDocx(doc.title, subtitle, blocks)))
+    await writeFileAtomic(target, await Packer.toBuffer(buildLetterDocx(title, subtitle, blocks)))
   } else {
-    await printHtmlToPdf(buildLetterHtml(doc.title, subtitle, blocks), target)
+    await printHtmlToPdf(buildLetterHtml(title, subtitle, blocks), target)
   }
 
   return { path: target }

@@ -112,6 +112,7 @@ describe('CHANNELS', () => {
       'github:sign-out',
       'letter:check',
       'letter:new',
+      'letter:preview',
       'letter:read',
       'letter:write',
       'library:acquire-pdf',

@@ -41,11 +41,11 @@ import { rasterizeManuscriptFigures } from './rasterizeFigures'
 const DEBOUNCE_MS = 250
 
 /**
- * Which document to lay out. Only the manuscript so far — a letter goes
- * through its own simpler exporter, which has no in-memory render to draw
- * from yet.
+ * Which document to lay out. A manuscript goes through the profile-driven
+ * export pipeline; a letter goes through its own simpler one, and says so
+ * rather than pretending a letter has a journal profile and figures.
  */
-export type PagesSource = { kind: 'manuscript' }
+export type PagesSource = { kind: 'manuscript' } | { kind: 'letter'; documentId: string }
 
 export function DocumentPages({ source }: { source: PagesSource }): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
@@ -63,6 +63,23 @@ export function DocumentPages({ source }: { source: PagesSource }): JSX.Element 
 
   const run = useCallback(async (): Promise<void> => {
     if (rootDir === null) return
+    if (source.kind === 'letter') {
+      setRendering(true)
+      setError(null)
+      try {
+        const res = await window.suna.invoke('letter:preview', {
+          dir: rootDir,
+          documentId: source.documentId
+        })
+        setOversized([])
+        setData(res.data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setRendering(false)
+      }
+      return
+    }
     if (manuscript === null) return
     const profile = getBundledProfile(profileId)
     if (profile === null || profile === undefined) {
@@ -136,7 +153,7 @@ export function DocumentPages({ source }: { source: PagesSource }): JSX.Element 
       status={status}
       banner={banner}
       fit="page"
-      emptyLabel="Laying the manuscript out as pages…"
+      emptyLabel={source.kind === 'letter' ? 'Laying the letter out as pages…' : 'Laying the manuscript out as pages…'}
     />
   )
 }
