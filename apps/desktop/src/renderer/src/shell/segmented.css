@@ -1,0 +1,51 @@
+/* Segmented control (shell/SegmentedControl.tsx).
+
+   Visually the round workspace's Focus / Continuous switch
+   (documents.css `.round__modes`), which is the same gesture — pick a way of
+   viewing this document. Kept as its own class so the two surfaces share a
+   look without sharing ownership.
+
+   Colours come from the EDITOR palette with the app chrome as fallback
+   (`var(--ed-*, var(--s-*))`), the same way `.msdoc__export-btn` and the
+   CodeMirror theme resolve them. That matters because this control's home is
+   a document toolbar inside `.editor-tab`, where a themed editor (gruvbox,
+   jellybeans) repaints everything around it: a control pinned to the chrome
+   tokens would be the one element still wearing the app's colours. Outside an
+   editor the `--ed-*` tokens are simply undefined and the fallbacks apply. */
+
+.seg {
+  display: flex;
+  gap: 2px;
+  background: var(--ed-bg, var(--s-bg-editor));
+  border: 1px solid var(--ed-border, var(--s-border));
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.seg__option {
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--ed-ink-muted, var(--s-ink-muted));
+  font: inherit;
+  font-size: 11.5px;
+  padding: 3px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg__option:hover {
+  color: var(--ed-ink, var(--s-ink));
+}
+
+.seg__option.is-on {
+  background: var(--ed-border, var(--s-bg-panel));
+  color: var(--ed-ink, var(--s-ink));
+}
+
+/* Keyboard focus has to stay visible on the UNLIT segments, which carry no
+   background of their own to be distinguished by. */
+.seg__option:focus-visible {
+  outline: 1px solid var(--ed-accent, var(--s-accent));
+  outline-offset: -1px;
+}
