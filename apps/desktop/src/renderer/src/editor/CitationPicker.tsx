@@ -23,6 +23,11 @@ import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
 import { insertCitation } from './markdownCommands'
 import { authorSummary, filterBibEntries } from './bibFilter'
+import {
+  nextActiveIndex,
+  pickerNavDirection,
+  scrollActiveIntoView
+} from './pickerNavigation'
 import './formatting.css'
 
 export { authorSummary, filterBibEntries } from './bibFilter'
@@ -41,6 +46,7 @@ export function CitationPicker({ view, onClose }: CitationPickerProps): JSX.Elem
   const [error, setError] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const rootDir = useProjectStore((s) => s.rootDir)
 
   useEffect(() => {
@@ -74,6 +80,13 @@ export function CitationPicker({ view, onClose }: CitationPickerProps): JSX.Elem
   useEffect(() => {
     setActiveIndex(0)
   }, [filtered.length, query])
+
+  // keep the highlighted row on screen — the list scrolls, the arrow keys
+  // walk past its bottom edge, and an off-screen highlight reads as "nothing
+  // is selected"
+  useEffect(() => {
+    scrollActiveIntoView(listRef.current, activeIndex)
+  }, [activeIndex, filtered])
 
   const insert = (key: string): void => {
     insertCitation(key)(view)
@@ -113,14 +126,10 @@ export function CitationPicker({ view, onClose }: CitationPickerProps): JSX.Elem
               onClose()
               return
             }
-            if (event.key === 'ArrowDown') {
+            const direction = pickerNavDirection(event)
+            if (direction !== null) {
               event.preventDefault()
-              setActiveIndex((i) => Math.min(i + 1, filtered.length - 1))
-              return
-            }
-            if (event.key === 'ArrowUp') {
-              event.preventDefault()
-              setActiveIndex((i) => Math.max(i - 1, 0))
+              setActiveIndex((i) => nextActiveIndex(i, direction, filtered.length))
               return
             }
             if (event.key === 'Enter') {
@@ -130,7 +139,7 @@ export function CitationPicker({ view, onClose }: CitationPickerProps): JSX.Elem
             }
           }}
         />
-        <div className="md-citepicker__list">
+        <div className="md-citepicker__list" ref={listRef}>
           {error !== null && <div className="md-citepicker__empty">{error}</div>}
           {error === null && entries === null && <div className="md-citepicker__empty">Loading…</div>}
           {error === null && entries !== null && filtered.length === 0 && (
@@ -141,6 +150,7 @@ export function CitationPicker({ view, onClose }: CitationPickerProps): JSX.Elem
               key={entry.key}
               type="button"
               data-key={entry.key}
+              data-picker-item=""
               className={
                 'md-citepicker__item' + (i === activeIndex ? ' md-citepicker__item--active' : '')
               }
