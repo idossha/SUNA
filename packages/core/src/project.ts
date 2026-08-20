@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { UiLitProviderIdSchema } from './lit';
 import { DocumentEntrySchema } from './documents';
+import { ProjectApprovalsSchema } from './peer-review-guide';
 
 export const PROJECT_DIR_KEYS = [
   'manuscript',
@@ -156,6 +157,13 @@ export const SunaProjectManifestSchema = z.object({
    * block, and `schemaVersion` stays 1 for the same reason it did then.
    */
   documents: z.array(DocumentEntrySchema).optional(),
+  /**
+   * Recorded human approvals that gate an AI capability (currently only
+   * reviewer-reply drafting). Optional and additive for the same reason
+   * `settings` and `documents` are: every project predating it must open
+   * unchanged, and an absent block simply means nothing has been approved.
+   */
+  approvals: ProjectApprovalsSchema.optional(),
 });
 export type SunaProjectManifest = z.infer<typeof SunaProjectManifestSchema>;
 

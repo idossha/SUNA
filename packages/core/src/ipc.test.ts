@@ -124,6 +124,7 @@ describe('CHANNELS', () => {
       'lit:search',
       'lit:set-key',
       'manuscript:update',
+      'peer-review:approve',
       'project:check-target',
       'project:create',
       'project:forget-recent',
