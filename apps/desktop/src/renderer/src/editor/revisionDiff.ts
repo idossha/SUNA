@@ -179,7 +179,7 @@ const diffTheme = EditorView.baseTheme({
   '.cm-sunaDiff-ins': {
     // The word itself carries the saturated tint; the surrounding line is left
     // alone so a one-word change does not read as a whole-line rewrite.
-    backgroundColor: 'color-mix(in srgb, var(--s-ok) 30%, transparent)',
+    backgroundColor: 'color-mix(in srgb, var(--s-diff-ins, var(--s-ok)) 30%, transparent)',
     borderRadius: '2px'
   },
   '.cm-sunaDiff-del': {
