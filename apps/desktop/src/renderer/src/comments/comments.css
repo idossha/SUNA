@@ -600,6 +600,14 @@
   background: var(--s-bg-raised);
   font-size: 12px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--s-text);
+}
+
+.cmt-rail-toggle__icon {
+  display: block;
 }
 
 .cmt-rail-toggle--on {

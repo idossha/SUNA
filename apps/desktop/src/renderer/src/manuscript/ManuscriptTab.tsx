@@ -16,6 +16,7 @@ import type { EditorViewMode } from '../editor/EditorTab'
 import { getResolved, useResolved } from '../state/settings'
 import { EDITOR_THEME_CLASS } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
+import { GearIcon } from '../editor/GearIcon'
 import '../editor/editor.css'
 import { cancelAnchorPin } from '../comments/anchorExtension'
 import { CommentsRail } from '../comments/CommentsRail'
@@ -37,25 +38,6 @@ const MODE_LABEL: Record<EditorViewMode, string> = {
 const ACTIVE_BAND_PX = 96
 /** manuscript.css's .msdoc__toolbar height — kept clear of the sticky toolbar when scrolling to a heading. */
 const TOOLBAR_HEIGHT_PX = 40
-
-/**
- * Local copy of EditorTab's gear glyph — EditorTab doesn't export its
- * (unexported) `GearIcon`, and the zone for this work item is manuscript/
- * only, so this is the "thin local equivalent" the plan allows for rather
- * than reaching into editor/EditorTab.tsx.
- */
-function GearIcon(): JSX.Element {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M8 5.25A2.75 2.75 0 1 0 8 10.75 2.75 2.75 0 0 0 8 5.25Zm0-3.75.9 1.9 2.05-.55.55 2.05 1.9.9-1.35 1.6 1.35 1.6-1.9.9-.55 2.05-2.05-.55-.9 1.9-.9-1.9-2.05.55-.55-2.05-1.9-.9L3.95 8 2.6 6.4l1.9-.9.55-2.05 2.05.55.9-1.9Z"
-        stroke="currentColor"
-        strokeWidth="1.1"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 /**
  * The combined manuscript document: one scrollable page with the rendered

@@ -47,7 +47,22 @@ export function RailToggleButton({
       aria-label="Toggle comments"
       aria-pressed={visible}
     >
-      💬
+      <svg
+        className="cmt-rail-toggle__icon"
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M3 3.2h10c.6 0 1 .5 1 1.1v5.1c0 .6-.4 1.1-1 1.1H7.1L4.3 13v-2.5H3c-.6 0-1-.5-1-1.1V4.3c0-.6.4-1.1 1-1.1Z"
+          stroke="currentColor"
+          strokeWidth="1.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
       {openCount > 0 && <span className="cmt-rail-toggle__badge">{openCount}</span>}
     </button>
   )
