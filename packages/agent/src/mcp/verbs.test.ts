@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DEFAULT_PROJECT_DIRS } from '@suna/core'
+import { synthesizedRegistry, DEFAULT_PROJECT_DIRS } from '@suna/core'
 import {
   callTool,
   checkManuscriptCompliance,
@@ -45,7 +45,7 @@ beforeEach(async () => {
     JSON.stringify({ schemaVersion: 1, authors: [], affiliations: [] }, null, 2),
     'utf8'
   )
-  ctx = { root: dir, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS } }
+  ctx = { root: dir, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS }, documents: synthesizedRegistry() }
 })
 
 afterEach(async () => {

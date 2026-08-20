@@ -3,6 +3,9 @@ import { resolve, sep } from 'node:path'
 import {
   DEFAULT_PROJECT_DIRS,
   SunaProjectManifestSchema,
+  resolveDocuments,
+  synthesizedRegistry,
+  type DocumentEntry,
   type ProjectDirKey
 } from '@suna/core'
 
@@ -20,6 +23,11 @@ export interface ProjectContext {
   activeProfileId: string | null
   /** Directory names keyed by role (manuscript, figures, …). */
   dirs: Record<ProjectDirKey, string>
+  /**
+   * The document registry (ADR-009) — the declared one, or the synthesized
+   * one-manuscript registry for a project written before it existed.
+   */
+  documents: DocumentEntry[]
 }
 
 /**
@@ -32,6 +40,7 @@ export async function loadProjectContext(rootDir: string): Promise<ProjectContex
   let name: string | null = null
   let activeProfileId: string | null = null
   let dirs: Record<ProjectDirKey, string> = { ...DEFAULT_PROJECT_DIRS }
+  let documents: DocumentEntry[] = synthesizedRegistry()
   try {
     const raw: unknown = JSON.parse(await readFile(resolve(root, 'suna.json'), 'utf8'))
     const parsed = SunaProjectManifestSchema.safeParse(raw)
@@ -39,11 +48,12 @@ export async function loadProjectContext(rootDir: string): Promise<ProjectContex
       name = parsed.data.name
       activeProfileId = parsed.data.activeProfileId
       dirs = { ...DEFAULT_PROJECT_DIRS, ...parsed.data.directories }
+      documents = resolveDocuments(parsed.data)
     }
   } catch {
     // no manifest — file verbs still operate on the default layout
   }
-  return { root, name, activeProfileId, dirs }
+  return { root, name, activeProfileId, dirs, documents }
 }
 
 /**

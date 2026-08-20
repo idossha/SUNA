@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  synthesizedRegistry,
   DEFAULT_LIBRARY_CONFIG,
   DEFAULT_PROJECT_DIRS,
   type LitProviderId,
@@ -48,7 +49,7 @@ beforeEach(async () => {
   libraryDir = join(base, 'library')
   await mkdir(join(projectDir, 'manuscript'), { recursive: true })
   await mkdir(libraryDir, { recursive: true })
-  ctx = { root: projectDir, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS } }
+  ctx = { root: projectDir, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS }, documents: synthesizedRegistry() }
 })
 
 afterEach(async () => {

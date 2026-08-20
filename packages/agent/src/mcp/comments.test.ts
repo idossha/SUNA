@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DEFAULT_PROJECT_DIRS, type CommentsFile } from '@suna/core'
+import { synthesizedRegistry, DEFAULT_PROJECT_DIRS, type CommentsFile } from '@suna/core'
 import {
   addComment,
   agentAuthor,
@@ -23,7 +23,13 @@ beforeEach(async () => {
     'We measured a best-fit centroid of 6563.3 Å with high confidence.',
     'utf8'
   )
-  ctx = { root: dir, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS } }
+  ctx = {
+    root: dir,
+    name: 'test',
+    activeProfileId: null,
+    dirs: { ...DEFAULT_PROJECT_DIRS },
+    documents: synthesizedRegistry()
+  }
 })
 
 afterEach(async () => {

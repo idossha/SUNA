@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chmod, mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DEFAULT_PROJECT_DIRS } from '@suna/core'
+import { synthesizedRegistry, DEFAULT_PROJECT_DIRS } from '@suna/core'
 import { addReference, lookupDoiTool, searchLiteratureTool } from './lit'
 import type { ProjectContext } from './project'
 
@@ -40,7 +40,13 @@ let ctx: ProjectContext
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'suna-mcp-lit-'))
   await mkdir(join(dir, 'manuscript'), { recursive: true })
-  ctx = { root: dir, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS } }
+  ctx = {
+    root: dir,
+    name: 'test',
+    activeProfileId: null,
+    dirs: { ...DEFAULT_PROJECT_DIRS },
+    documents: synthesizedRegistry()
+  }
 })
 
 afterEach(async () => {

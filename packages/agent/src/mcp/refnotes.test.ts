@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_PROJECT_DIRS } from '@suna/core';
+import { synthesizedRegistry, DEFAULT_PROJECT_DIRS } from '@suna/core';
 import { listReferenceNotes } from './refnotes';
 import type { ProjectContext } from './project';
 
@@ -32,7 +32,7 @@ async function project(options: {
       'utf8',
     );
   }
-  return { root, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS } };
+  return { root, name: 'test', activeProfileId: null, dirs: { ...DEFAULT_PROJECT_DIRS }, documents: synthesizedRegistry() };
 }
 
 const note = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
