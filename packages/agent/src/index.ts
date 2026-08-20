@@ -22,6 +22,7 @@ export { ollamaProvider } from './ollama'
 export { openaiProvider } from './openai'
 export {
   ensureProjectAgentLayer,
+  ensureGitignoreLine,
   ensureSunaConfig,
   type EnsureResult,
   type McpInvocation
