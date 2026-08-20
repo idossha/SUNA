@@ -411,7 +411,8 @@ export function registerIpcHandlers(): void {
       unassigned: a.unassigned,
       coveragePercent: a.coveragePercent,
       totalPoints: a.totalPoints,
-      unsplitReviewers: a.unsplitReviewers
+      unsplitReviewers: a.unsplitReviewers,
+      replyGaps: a.replyGaps
     }
   })
   handle('review:commit', async (input) => {
@@ -426,7 +427,8 @@ export function registerIpcHandlers(): void {
         coverage: 1,
         coveragePercent: 100,
         totalPoints: input.reviewers.reduce((n, r) => n + r.points.length, 0),
-        unsplitReviewers: []
+        unsplitReviewers: [],
+        replyGaps: []
       }
     })
     return {

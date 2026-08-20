@@ -27,6 +27,8 @@ interface WirePoint {
   to: number
   verbatim: string
   reason: string
+  /** The author's own reply, when the source was a response document. */
+  reply: { number: number; from: number; to: number; text: string } | null
 }
 interface WireReviewer {
   index: number
@@ -44,6 +46,7 @@ interface Analysis {
   coveragePercent: number
   totalPoints: number
   unsplitReviewers: number[]
+  replyGaps: number[]
 }
 
 export function ReviewImportTab({ params }: DockPanelProps): JSX.Element {
@@ -147,6 +150,11 @@ export function ReviewImportTab({ params }: DockPanelProps): JSX.Element {
         <header className="rvimp__head">
           <h2>Import reviewer comments</h2>
           <p>Drop the decision letter, or paste it below. Nothing is written until you confirm.</p>
+          <p className="rvimp__hint">
+            Paste it <strong>exactly as it arrived</strong> — blank lines, numbering and
+            reviewer headings are what the split reads. Tidying the letter first is the
+            usual reason a point goes missing.
+          </p>
         </header>
 
         <div
@@ -340,6 +348,12 @@ function ReviewScreen(props: {
                     </span>
                   </header>
                   <p>{p.verbatim.replace(/\s+/g, ' ').trim()}</p>
+                  {p.reply !== null && (
+                    <p className="rvimp__reply">
+                      <span>RE{p.reply.number}</span>
+                      {p.reply.text.replace(/^\[?RE\s?\d{1,3}\s*:\]?/, '').replace(/\s+/g, ' ').trim()}
+                    </p>
+                  )}
                   <footer>
                     <button onClick={() => mergeUp(r.index, p.id)} disabled={p.pointIndex === 1}>
                       Merge up
@@ -365,6 +379,13 @@ function ReviewScreen(props: {
                 {' '}
                 · {analysis.unassigned.length} unassigned span
                 {analysis.unassigned.length === 1 ? '' : 's'}
+              </strong>
+            )}
+            {analysis.replyGaps.length > 0 && (
+              <strong>
+                {' '}
+                · reply {analysis.replyGaps.length === 1 ? 'number' : 'numbers'}{' '}
+                {analysis.replyGaps.join(', ')} missing from the source
               </strong>
             )}
           </span>

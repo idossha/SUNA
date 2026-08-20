@@ -689,6 +689,28 @@ button:disabled {
   color: var(--s-ink-faint);
 }
 
+/* The reply recovered from a response document, beside the point it answers —
+   visibly OURS, so it can never be mistaken for the reviewer's words. */
+.rvimp__reply {
+  border-left: 2px solid var(--s-accent);
+  padding-left: 7px;
+  color: var(--s-ink-faint);
+}
+
+.rvimp__reply span {
+  font-family: var(--s-font-mono);
+  font-size: 10.5px;
+  color: var(--s-accent);
+  margin-right: 6px;
+}
+
+.rvimp__hint {
+  font-size: 11.5px;
+  color: var(--s-ink-faint);
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
 .rvimp__card p {
   margin: 0 0 7px;
   font-size: 12.5px;

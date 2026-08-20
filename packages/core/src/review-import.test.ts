@@ -241,3 +241,184 @@ describe('degenerate input', () => {
     expect(pointCount(r)).toBe(0);
   });
 });
+
+/**
+ * The shape a decision letter has when it arrives from an editorial system:
+ * the reviewer label and the reviewer's first paragraph share ONE long line,
+ * and the report walks the manuscript using its own section names as
+ * dividers. The grammar is reproduced here; the documents are private.
+ */
+const INLINE_HEADINGS = `Reviewer #1: The authors present a containerized pipeline that unifies the workflow from preprocessing through visualization, accessible via both GUI and CLI, which lowers technical barriers for groups without bespoke infrastructure.
+
+Major comments
+Fixing per-pair current while optimizing only electrode positions is inappropriate here, because current allocation is a primary control knob for intensity and focality.
+
+The manuscript relies primarily on one search strategy and discusses the alternative only briefly in the Supplementary Information.
+
+Minor comments
+Several figures are low resolution and are effectively unreadable at print scale.
+
+Reviewer #2: The paper represents a kind of white paper report on a new computational tool, which I appreciate, and it is useful to the community.
+
+- the paper is well-written and technically sound, with only very minor typos.
+
+- the second paragraph of the introduction contains inaccuracies that should be revised before acceptance.
+
+The tool is valuable and I recommend acceptance after the introduction is corrected.
+
+Reviewer #3: Dear Authors,
+
+Below I provide detailed comments organized by conceptual domains.
+
+### COMMENTS PER SECTION
+
+OVERALL
+This work is technically rigorous, but its dense technical presentation may obscure the take-home message.
+
+INDIVIDUALIZED VS. GENERALIZED MODELS
+The finding that individualized models yield large focality benefits is important and deserves expansion.
+
+METHODS
+
+- The modular description is comprehensive but lengthy; a summarizing table would enhance clarity.
+- Include brief mention of expected computational time per subject.
+
+RESULTS
+
+- Explicitly indicate whether reported p-values were corrected for multiple comparisons.
+`;
+
+describe('inline "Reviewer #N:" headings', () => {
+  it('splits reviewers when the label shares a line with the reviewer text', () => {
+    // The whole-line rule found ONE reviewer here and dropped the rest into a
+    // single block; this is the format every editorial system emails out.
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    expect(r.reviewers.map((x) => x.index)).toEqual([1, 2, 3]);
+  });
+
+  it('keeps the label out of the reviewer text but the text itself intact', () => {
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    const first = r.reviewers[0]?.points[0];
+    expect(first?.verbatim).toContain('The authors present a containerized pipeline');
+    expect(first?.verbatim).not.toContain('Reviewer #1');
+  });
+
+  it('still slices verbatim out of the original source when a block starts mid-line', () => {
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    expect(verbatimIsContiguous(r, INLINE_HEADINGS)).toBe(true);
+  });
+
+  it('leaves a mid-sentence mention of a reviewer alone', () => {
+    const src = `**Reviewer #1**:
+
+We disagree with the claim that Reviewer 2 made about normalization, and the revised methods now address it directly and at length.
+`;
+    expect(segmentReviewerReport(src).reviewers).toHaveLength(1);
+  });
+});
+
+describe('section headings beyond "Major/Minor comments"', () => {
+  it('reads manuscript sections, ALL-CAPS domains and ATX headings as dividers', () => {
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    const sections = r.reviewers[2]!.points.map((p) => p.section);
+    expect(sections).toContain('OVERALL');
+    expect(sections).toContain('METHODS');
+    expect(sections).toContain('RESULTS');
+  });
+
+  it('does not lose an ALL-CAPS heading containing a period', () => {
+    // "INDIVIDUALIZED VS. GENERALIZED MODELS" — rejecting it glued the whole
+    // block onto the end of the point above.
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    const sections = r.reviewers[2]!.points.map((p) => p.section);
+    expect(sections).toContain('INDIVIDUALIZED VS. GENERALIZED MODELS');
+    for (const p of r.reviewers[2]!.points) {
+      expect(p.verbatim).not.toContain('INDIVIDUALIZED VS.');
+    }
+  });
+
+  it('never absorbs a heading into the point above it', () => {
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    for (const rev of r.reviewers) {
+      for (const p of rev.points) {
+        expect(p.verbatim).not.toMatch(/\n(METHODS|RESULTS|OVERALL|Minor comments)\s*$/);
+      }
+    }
+  });
+});
+
+describe('blocks that mix paragraphs and bullets', () => {
+  it('keeps the paragraph before the first bullet and the one after the last', () => {
+    // Taking the marker path wholesale dropped everything before the first
+    // bullet and let the last bullet swallow the closing paragraph.
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    const texts = r.reviewers[1]!.points.map((p) => p.verbatim);
+    expect(texts.some((t) => t.includes('white paper report'))).toBe(true);
+    expect(texts.some((t) => t.trimStart().startsWith('The tool is valuable'))).toBe(true);
+    const bullet = texts.find((t) => t.includes('well-written and technically sound'));
+    expect(bullet).not.toContain('The tool is valuable');
+  });
+
+  it('accounts for every word of a real-shaped report', () => {
+    const r = segmentReviewerReport(INLINE_HEADINGS);
+    expect(r.unassigned).toEqual([]);
+    expect(r.coverage).toBe(1);
+  });
+});
+
+describe('re-importing a response document', () => {
+  const RESPONSE = `**Reviewer #1**:
+
+The manuscript relies primarily on a genetic algorithm and should report wall-clock runtimes for both approaches. RE1: Thank you for this point. We now added a benchmarking table as Table 1.
+
+Figure 4 requires clarification, because the channel layout appears unevenly spaced. RE2: We have standardized the projection so the spacing is uniform.
+
+The placement of Section 3.4 feels disconnected from the paper's main thread. RE4: We have moved the variability analysis to follow Section 3.3.
+`;
+
+  it('cuts the author reply off the reviewer verbatim', () => {
+    const r = segmentReviewerReport(RESPONSE);
+    const first = r.reviewers[0]!.points[0]!;
+    expect(first.verbatim).toContain('wall-clock runtimes');
+    expect(first.verbatim).not.toContain('RE1:');
+    expect(first.verbatim).not.toContain('benchmarking table');
+    expect(first.reply?.number).toBe(1);
+    expect(first.reply?.text).toContain('benchmarking table');
+  });
+
+  it('keeps the reviewer verbatim a contiguous slice after the reply is cut', () => {
+    const r = segmentReviewerReport(RESPONSE);
+    expect(verbatimIsContiguous(r, RESPONSE)).toBe(true);
+    for (const p of r.reviewers[0]!.points) {
+      expect(RESPONSE.slice(p.reply!.from, p.reply!.to)).toBe(p.reply!.text);
+    }
+  });
+
+  it('reports a skipped reply number rather than letting it pass', () => {
+    // The evidence document numbered replies to RE83 with RE58 missing. A
+    // hand-maintained sequence cannot see its own gap; this can.
+    expect(segmentReviewerReport(RESPONSE).replyGaps).toEqual([3]);
+  });
+
+  it('counts a reply as accounted-for text, not as a lost paragraph', () => {
+    const r = segmentReviewerReport(RESPONSE);
+    expect(r.unassigned).toEqual([]);
+  });
+
+  it('does not invent a gap when one paragraph answers two comments', () => {
+    // A point carrying "RE5:" and "RE6:" attaches only the first as its
+    // reply. Counting ATTACHED replies then reports RE6 as missing — on the
+    // real document that turned one true gap into seven, six of them wrong.
+    const src = `**Reviewer #1**:
+
+The first concern is runtime and the second is focality. RE5: We added Table 1. RE6: We added a focality column to it.
+
+Figure 4 is hard to read at print size. RE7: We split it into two panels.
+`;
+    expect(segmentReviewerReport(src).replyGaps).toEqual([]);
+  });
+
+  it('reports no gaps for a report that carries no replies', () => {
+    expect(segmentReviewerReport(INLINE_HEADINGS).replyGaps).toEqual([]);
+  });
+});
