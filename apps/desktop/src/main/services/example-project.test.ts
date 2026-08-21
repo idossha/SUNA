@@ -12,8 +12,8 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import {
   SunaProjectManifestSchema, ManuscriptSchema, AuthorsFileSchema,
-  CoverLetterMetaSchema, RoundSchema, RoundsIndexSchema, ReviewerReportSchema,
-  FigureDocumentSchema, baselineVersionFor,
+  CommentsFileSchema, CoverLetterMetaSchema, RoundSchema, RoundsIndexSchema,
+  ReviewerReportSchema, FigureDocumentSchema, baselineVersionFor, locate,
   reportIsFaithful, resolveDocuments, documentPaths
 } from '@suna/core'
 
@@ -25,6 +25,7 @@ it('every JSON in the shipped example parses under its schema', async () => {
   ManuscriptSchema.parse(await read('manuscript/manuscript.json'))
   AuthorsFileSchema.parse(await read('manuscript/authors.json'))
   CoverLetterMetaSchema.parse(await read('manuscript/letters/cover.json'))
+  CommentsFileSchema.parse(await read('manuscript/comments.json'))
   for (const id of ['hello', 'timesheet']) FigureDocumentSchema.parse(await read(`figures/${id}/figure.json`))
 
   // The round ledger lives at the project root, not under manuscript/
@@ -47,4 +48,29 @@ it('every JSON in the shipped example parses under its schema', async () => {
     if (paths.prose !== null) expect((await readFile(paths.prose, 'utf8')).length).toBeGreaterThan(0)
     if (paths.meta !== null) expect((await readFile(paths.meta, 'utf8')).length).toBeGreaterThan(0)
   }
+})
+
+/**
+ * The example ships its review threads, because the guided tour stops on the
+ * comment rail and describes what is in it (tour/steps.ts, `comments-rail`).
+ * A quote that no longer appears in the prose would open that rail with every
+ * thread detached — technically valid, and a worse first impression than an
+ * empty one — so each anchor is resolved here against the manuscript exactly
+ * as the editor resolves it.
+ */
+it('every shipped comment anchors to prose that is still there', async () => {
+  const file = CommentsFileSchema.parse(await read('manuscript/comments.json'))
+  const prose = await readFile(join(E, 'manuscript', 'manuscript.md'), 'utf8')
+  expect(file.comments.length).toBeGreaterThan(0)
+  for (const comment of file.comments) {
+    expect(comment.detached).toBe(false)
+    expect(comment.target.kind).toBe('section')
+    if (comment.target.kind !== 'section') continue
+    expect(comment.target.path).toBe('manuscript.md')
+    expect(locate(prose, comment.target.anchor)).not.toBeNull()
+  }
+  // The rail's two halves are both worth showing on open: work still owed,
+  // and work already settled in the History section.
+  expect(file.comments.some((c) => !c.resolved)).toBe(true)
+  expect(file.comments.some((c) => c.resolved)).toBe(true)
 })
