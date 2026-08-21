@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   AuthorsFileSchema,
+  CommentsFileSchema,
   CoverLetterMetaSchema,
   DEFAULT_PROJECT_DIRS,
   LETTER_PRIVATE_GITIGNORE_LINE,
@@ -15,6 +16,7 @@ import {
   RoundsIndexSchema,
   SunaProjectManifestSchema,
   documentPaths,
+  locate,
   reportIsFaithful,
   resolveDocuments,
   unansweredIn
@@ -441,6 +443,37 @@ describe('the starter scaffold ships a letter and a review round', () => {
     }
   })
 
+  /**
+   * The comment rail is the one part of the tour that used to open empty:
+   * the guided tour describes what is in it (tour/steps.ts, `comments-rail`)
+   * while the scaffold wrote no comments.json at all, so a new project met
+   * that step with an empty gutter. The starter now ships the threads the
+   * step is describing — one the agent answered without closing, one the
+   * agent raised — anchored to prose that is really there.
+   */
+  it('writes a comments sidecar whose threads anchor to the starter prose', async () => {
+    await makeStarter()
+    const manuscriptDir = join(target, DEFAULT_PROJECT_DIRS.manuscript)
+    const file = CommentsFileSchema.parse(
+      JSON.parse(await readFile(join(manuscriptDir, 'comments.json'), 'utf8'))
+    )
+    const prose = await readFile(join(manuscriptDir, 'manuscript.md'), 'utf8')
+    expect(file.comments).toHaveLength(2)
+    for (const comment of file.comments) {
+      expect(comment.resolved).toBe(false)
+      expect(comment.detached).toBe(false)
+      if (comment.target.kind !== 'section') throw new Error('expected a section target')
+      expect(comment.target.path).toBe('manuscript.md')
+      expect(locate(prose, comment.target.anchor)).not.toBeNull()
+    }
+    // Both voices the rail carries, and the rule that separates them: the
+    // agent answers a thread and raises a thread, and resolves neither.
+    const authors = file.comments.map((c) => c.author.kind)
+    expect(authors).toContain('human')
+    expect(authors).toContain('agent')
+    expect(file.comments.flatMap((c) => c.replies).map((r) => r.author.kind)).toContain('agent')
+  })
+
   it('gives no other scaffold a registry, a letter or a round', async () => {
     for (const scaffold of ['blank', 'document'] as const) {
       const dirName = join(parent, `plain-${scaffold}`)
@@ -458,6 +491,9 @@ describe('the starter scaffold ships a letter and a review round', () => {
       await expect(readdir(join(dirName, 'rounds'))).rejects.toThrow()
       await expect(
         readdir(join(dirName, DEFAULT_PROJECT_DIRS.manuscript, 'letters'))
+      ).rejects.toThrow()
+      await expect(
+        readFile(join(dirName, DEFAULT_PROJECT_DIRS.manuscript, 'comments.json'), 'utf8')
       ).rejects.toThrow()
     }
   })
