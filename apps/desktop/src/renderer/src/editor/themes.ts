@@ -57,7 +57,13 @@ function chrome(dark: boolean): Extension {
 const darkChrome = chrome(true)
 const lightChrome = chrome(false)
 
-const sunaSyntax = HighlightStyle.define([
+/**
+ * The one syntax palette in the app. Exported because reading mode's fenced
+ * code blocks highlight against it directly (see codeHighlight.ts) rather
+ * than through an editor — that is what keeps a fence's colours identical to
+ * the same code in the source view, under every theme.
+ */
+export const sunaSyntax = HighlightStyle.define([
   { tag: tags.heading, color: 'var(--ed-syn-heading)', fontWeight: '600' },
   { tag: tags.emphasis, fontStyle: 'italic', color: 'var(--ed-syn-em)' },
   { tag: tags.strong, fontWeight: '700', color: 'var(--ed-syn-strong)' },

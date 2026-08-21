@@ -25,6 +25,8 @@ import {
   type FigureAsset
 } from './figureAssets'
 import { loadFigureCaption, loadTableCaption, saveFigureCaption, saveTableCaption } from './captionMeta'
+import { tokenizeCode } from './codeHighlight'
+import { sunaSyntax } from './themes'
 
 /**
  * Where the editor's images live. Carried in a facet rather than closed over
@@ -1349,9 +1351,14 @@ class ImageWidget extends WidgetType {
 }
 
 /**
- * A fenced code block: monospace, boxed, with the info string shown as a tag.
- * `textContent` (never innerHTML) is what keeps the code literal — a fence
- * holding markup must render as characters, not as DOM.
+ * A fenced code block: monospace, boxed, syntax-coloured, with the info string
+ * shown as a tag. Colour comes from CodeMirror's own parsers and the editor's
+ * own HighlightStyle (see codeHighlight.ts), so a fence looks the same here as
+ * the same code does in the source view. An unrecognised or absent info string
+ * is not a failure — the block renders plain.
+ *
+ * Text goes in through `textContent`/`createTextNode`, never innerHTML: a
+ * fence holding markup must render as characters, not as DOM.
  */
 class CodeBlockWidget extends WidgetType {
   constructor(
@@ -1368,7 +1375,21 @@ class CodeBlockWidget extends WidgetType {
     el.className = 'cm-lp-code-block'
     const pre = document.createElement('pre')
     const code = document.createElement('code')
-    code.textContent = this.value
+    const tokens = tokenizeCode(this.value, this.lang, sunaSyntax)
+    if (tokens === null) {
+      code.textContent = this.value
+    } else {
+      for (const token of tokens) {
+        if (token.classes === '') {
+          code.appendChild(document.createTextNode(token.text))
+          continue
+        }
+        const span = document.createElement('span')
+        span.className = token.classes
+        span.textContent = token.text
+        code.appendChild(span)
+      }
+    }
     pre.appendChild(code)
     el.appendChild(pre)
     if (this.lang !== undefined) {
