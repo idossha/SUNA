@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join, resolve } from 'node:path'
+import icon from '../../resources/icon.png?asset'
 import { ensureSunaConfig } from '@suna/agent'
 import { registerIpcHandlers } from './ipc'
 import { appMcpInvocation } from './services/agentLayer'
@@ -42,6 +43,8 @@ function createWindow(): void {
     backgroundColor: '#16161a',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     trafficLightPosition: { x: 16, y: 14 },
+    // macOS takes the window's icon from the bundle, never from here.
+    ...(process.platform === 'darwin' ? {} : { icon }),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -81,6 +84,13 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // A packaged macOS app gets its dock icon from the bundle's .icns. A dev
+  // run has no bundle, so without this the dock shows Electron's own icon.
+  // Skipped in hidden test mode, where the dock icon is hidden anyway.
+  if (process.platform === 'darwin' && !app.isPackaged && !hidden) {
+    app.dock?.setIcon(icon)
+  }
+
   registerIpcHandlers()
   createWindow()
 
