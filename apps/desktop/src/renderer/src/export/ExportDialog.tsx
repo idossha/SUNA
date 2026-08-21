@@ -10,6 +10,7 @@ import { useEditorSettings } from '../editor/settings'
 import { useResolved } from '../state/settings'
 import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
+import { splitDiagnosticSources } from './diagSources'
 import { ExportPreview } from './ExportPreview'
 import { RequirementsPanel } from './RequirementsPanel'
 import { stanceTag } from './requirements'
@@ -21,6 +22,9 @@ type ExportFormat = 'docx' | 'pdf' | 'html'
 type ExportTarget = 'manuscript' | 'supplement'
 
 const FORMAT_LABEL: Record<ExportFormat, string> = { docx: 'Word', pdf: 'PDF', html: 'Web page' }
+
+/** How many findings the list shows before it stops — the rest stay in review:check. */
+const DIAGNOSTIC_LIMIT = 30
 
 /** The supplement source file convention (main's export-content.ts SUPPLEMENT_FILE). */
 const SUPPLEMENT_FILE = 'supplementary.md'
@@ -248,6 +252,12 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const errorCount = useMemo(() => diagnostics?.filter((d) => d.severity === 'error').length ?? 0, [diagnostics])
   const warningCount = useMemo(
     () => diagnostics?.filter((d) => d.severity === 'warning').length ?? 0,
+    [diagnostics]
+  )
+  // Source URLs come off the individual findings and are listed once below
+  // the list — the same guideline page cited on every line is unreadable.
+  const shownDiagnostics = useMemo(
+    () => splitDiagnosticSources(diagnostics?.slice(0, DIAGNOSTIC_LIMIT) ?? []),
     [diagnostics]
   )
 
@@ -502,11 +512,29 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                     {warningCount > 0 && `${warningCount} warning${warningCount === 1 ? '' : 's'}`} — export anyway
                     if you choose; nothing here blocks it.
                   </p>
-                  {diagnostics.slice(0, 30).map((d, i) => (
-                    <div key={`${d.id}-${i}`} className="export-dialog__diag-row">
-                      <span className={`export-dialog__dot ${severityDot(d.severity)}`} />
-                      <span className="export-dialog__diag-msg">{d.message}</span>
+                  {shownDiagnostics.rows.map((row, i) => (
+                    <div key={`${row.diagnostic.id}-${i}`} className="export-dialog__diag-row">
+                      <span className={`export-dialog__dot ${severityDot(row.diagnostic.severity)}`} />
+                      <span className="export-dialog__diag-msg">{row.message}</span>
                     </div>
+                  ))}
+                </div>
+              )}
+              {!checking && shownDiagnostics.sources.length > 0 && (
+                <div className="export-dialog__diag-sources">
+                  <span className="export-dialog__diag-sources-label">
+                    {shownDiagnostics.sources.length === 1 ? 'Source' : 'Sources'}
+                  </span>
+                  {shownDiagnostics.sources.map((url) => (
+                    <a
+                      key={url}
+                      className="export-dialog__diag-source"
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {url}
+                    </a>
                   ))}
                 </div>
               )}
