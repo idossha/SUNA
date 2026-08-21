@@ -3,7 +3,7 @@ import { PublisherProfileSchema, type PublisherProfile } from './profile';
 
 const apj: PublisherProfile = {
   schemaVersion: 3,
-  id: 'apj-aas',
+  id: 'jneurosci',
   journalName: 'The Astrophysical Journal',
   publisher: 'AAS / IOP',
   lastVerified: '2026-08-13',
@@ -108,7 +108,7 @@ describe('PublisherProfileSchema v3 (author-guideline model)', () => {
   it('rejects the retired v1 page-geometry shape', () => {
     expect(
       PublisherProfileSchema.safeParse({
-        id: 'nature-astronomy',
+        id: 'nature',
         name: 'Nature Astronomy',
         page: { trimMm: { w: 210, h: 280 } },
       }).success,
@@ -190,8 +190,8 @@ describe('v3 provenance', () => {
 describe('v3 extends', () => {
   it('accepts a profile-id extends and keeps it on the parsed profile', () => {
     const doc = JSON.parse(JSON.stringify(apj));
-    doc.extends = 'apj-aas';
-    expect(PublisherProfileSchema.parse(doc).extends).toBe('apj-aas');
+    doc.extends = 'jneurosci';
+    expect(PublisherProfileSchema.parse(doc).extends).toBe('jneurosci');
   });
 
   it('rejects extends values that are not valid profile ids', () => {

@@ -44,7 +44,7 @@ record in `suna.json`. Resolve through it, never assume.
 |---|---|
 | `schemaVersion` | manifest schema version |
 | `name` | project name |
-| `activeProfileId` | active journal profile id, e.g. `"nature-astronomy"` |
+| `activeProfileId` | active journal profile id, e.g. `"nature"` |
 | `directories` | role -> dirname record for manuscript, figures, code, etc. |
 | `createdAt` | creation timestamp |
 | `settings` | optional; includes `ai: {mode, cliCommand}` |

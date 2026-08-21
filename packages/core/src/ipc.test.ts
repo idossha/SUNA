@@ -40,6 +40,8 @@ describe('CHANNELS', () => {
       'app:dev-info',
       'comments:read',
       'comments:write',
+      'compare:read',
+      'compare:sides',
       'dialog:pick-directory',
       'dialog:pick-file',
       'documents:list',
@@ -152,6 +154,7 @@ describe('CHANNELS', () => {
       'round:list',
       'round:new',
       'round:read',
+      'round:set-baseline',
       'round:write',
       'settings:get',
       'settings:set',
@@ -175,7 +178,7 @@ describe('CHANNELS', () => {
       manifest: {
         schemaVersion: 1,
         name: 'My Paper',
-        activeProfileId: 'nature-astronomy',
+        activeProfileId: 'nature',
         directories: DEFAULT_PROJECT_DIRS,
         createdAt: '2026-08-13T09:30:00Z',
       },
@@ -209,7 +212,7 @@ describe('CHANNELS', () => {
     const res: ResponseOf<'project:create'> = {
       schemaVersion: 1,
       name: 'My Paper',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       directories: DEFAULT_PROJECT_DIRS,
       createdAt: '2026-08-13T09:30:00Z',
     };
@@ -271,7 +274,7 @@ describe('CHANNELS', () => {
       manifest: {
         schemaVersion: 1,
         name: 'My Paper',
-        activeProfileId: 'nature-astronomy',
+        activeProfileId: 'nature',
         directories: DEFAULT_PROJECT_DIRS,
         createdAt: '2026-08-13T09:30:00Z',
         settings: { editor: { contentWidthCh: 90 } },
@@ -323,7 +326,7 @@ describe('CHANNELS', () => {
     const req: RequestOf<'project:scaffold'> = {
       dir: '/work/my-paper',
       name: 'My Paper',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       scaffold: 'starter',
       documentPath: null,
       settings: { editor: { contentWidthCh: 90 } },
@@ -336,7 +339,7 @@ describe('CHANNELS', () => {
       manifest: {
         schemaVersion: 1,
         name: 'My Paper',
-        activeProfileId: 'nature-astronomy',
+        activeProfileId: 'nature',
         directories: DEFAULT_PROJECT_DIRS,
         createdAt: '2026-08-15T10:00:00.000Z',
       },
@@ -810,7 +813,7 @@ describe('CHANNELS', () => {
   it('validates export:docx request/response shapes', () => {
     const req: RequestOf<'export:docx'> = {
       dir: '/work/my-paper',
-      profileId: 'nature-astronomy',
+      profileId: 'nature',
       outputName: 'my-paper',
       figurePngPaths: { 'fig-spectrum': '/work/my-paper/output/figures/fig-spectrum.png' },
       options: { doubleSpacing: true, lineNumbers: true, pageNumbers: true },
@@ -914,7 +917,7 @@ describe('CHANNELS', () => {
   it('defaults the export target to manuscript so a target-less request stays valid (additive)', () => {
     const legacy = {
       dir: '/work/my-paper',
-      profileId: 'nature-astronomy',
+      profileId: 'nature',
       outputName: 'my-paper',
       figurePngPaths: {},
       options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },

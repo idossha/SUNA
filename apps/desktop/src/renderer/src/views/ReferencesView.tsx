@@ -9,7 +9,7 @@ import {
   type Run
 } from '@suna/bib'
 import { REFERENCE_NOTES_DIR, ReferenceNotesFileSchema } from '@suna/core'
-import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId } from '@suna/formatter'
 import { orderedReferences } from '../manuscript/citations'
 import { openReadingNotesTab, openViewerInSide } from '../state/dock'
 import { useProjectStore } from '../state/project'
@@ -577,11 +577,7 @@ export function ReferencesView(): JSX.Element {
                   </button>
                 </div>
                 <div className="refs__styles">
-                  {/* hidden profiles stay selectable when they ARE the current choice */}
-                  {(PICKER_PROFILE_IDS.includes(previewProfileId)
-                    ? PICKER_PROFILE_IDS
-                    : [...PICKER_PROFILE_IDS, previewProfileId]
-                  ).map((id) => (
+                  {BUNDLED_PROFILE_IDS.map((id) => (
                     <button
                       key={id}
                       className="refs__style"

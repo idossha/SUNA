@@ -32,7 +32,7 @@ import {
   type ResponseOf,
   type UiLitProviderId
 } from '@suna/core'
-import { BUNDLED_PROFILE_IDS, PICKER_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from './aiChoice'
 import { GitHubAccount } from '../views/GitHubAccount'
 import { openFileTab, openTrashTab } from '../state/dock'
@@ -829,7 +829,7 @@ function PreviewProfileRow(): JSX.Element {
       label="Preview / render profile"
       hint="Which publisher profile the References view and the combined manuscript preview render as."
       autoLabel={`Auto (${activeLabel})`}
-      options={PICKER_PROFILE_IDS}
+      options={BUNDLED_PROFILE_IDS}
       labelFor={(id) => (isBundledProfile(id) ? profileLabel(id) : id)}
     />
   )

@@ -33,6 +33,7 @@ export function projectTreeLines(state: WizardState): string[] {
     lines.push('    letters/')
     lines.push('      cover.md')
     lines.push('      cover.json')
+    lines.push('      cover.private.json  (confidential, not committed)')
   }
 
   for (const dir of Object.values(DEFAULT_PROJECT_DIRS)) {

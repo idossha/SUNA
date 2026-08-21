@@ -271,6 +271,69 @@ export function openReviewImportTab(rootDir: string): void {
   })
 }
 
+/**
+ * Open (or focus) a version comparison (feature-plan-14 §4).
+ *
+ * One panel per pair of sides, so "Round 2 vs the working copy" and "v1.1 vs
+ * v2.1" are two tabs rather than one tab that keeps changing under you — the
+ * comparison you had open while writing a reply must still be there when you
+ * come back to it.
+ */
+export function openCompareTab(rootDir: string, base: string, head: string): void {
+  if (!dockApi) return
+  const id = `compare:${rootDir}:${base}:${head}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'compare',
+    title: 'Compare',
+    params: { rootDir, base, head }
+  })
+}
+
+/**
+ * The same comparison, in the group beside the one you are in — the split the
+ * response workspace opens so the reviewer's point, your reply and the change
+ * you made for them are all on screen at once.
+ */
+export function openCompareInSide(rootDir: string, base: string, head: string): void {
+  if (!dockApi) return
+  const api = dockApi
+  const id = `compare:${rootDir}:${base}:${head}`
+  const existing = api.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  const target = sideGroup()
+  if (target) {
+    api.addPanel({
+      id,
+      component: 'compare',
+      title: 'Compare',
+      params: { rootDir, base, head },
+      position: { referenceGroup: target }
+    })
+    return
+  }
+  const reference = api.activePanel ?? api.panels[0]
+  if (!reference) {
+    openCompareTab(rootDir, base, head)
+    return
+  }
+  api.addPanel({
+    id,
+    component: 'compare',
+    title: 'Compare',
+    params: { rootDir, base, head },
+    position: { referencePanel: reference.id, direction: 'right' }
+  })
+}
+
 /** Open (or focus) a round's response workspace. */
 export function openRoundTab(rootDir: string, roundId: string): void {
   if (!dockApi) return
@@ -319,6 +382,7 @@ export function closeProjectTabs(rootDir: string): void {
       component === 'letter' ||
       component === 'round' ||
       component === 'version' ||
+      component === 'compare' ||
       component === 'review-import' ||
       component === 'trash'
     ) {
@@ -450,6 +514,31 @@ export function activePanelPath(): string | null {
  */
 export function activePanelComponent(): string | null {
   return dockApi?.activePanel?.view.contentComponent ?? null
+}
+
+/**
+ * The round the user is working in: the frontmost round workspace, or — when
+ * the front panel is something else, which it is the moment they open the
+ * comparison beside it — the round one of the open workspaces is on.
+ *
+ * Read from the dock rather than from a store because the dock is the thing
+ * that knows what is actually open: a selection store outlives the tab that
+ * set it, and a command that acted on a closed round would be worse than one
+ * that is greyed out.
+ */
+export function activeRoundId(): string | null {
+  if (!dockApi) return null
+  const active = dockApi.activePanel
+  if (active?.view.contentComponent === 'round') {
+    const id = active.params?.['roundId']
+    if (typeof id === 'string') return id
+  }
+  for (const panel of dockApi.panels) {
+    if (panel.view.contentComponent !== 'round') continue
+    const id = panel.params?.['roundId']
+    if (typeof id === 'string') return id
+  }
+  return null
 }
 
 /** A panel in `group` already showing `path`, if there is one. */
@@ -586,6 +675,14 @@ export const dockDevSeam = {
    * view — same problem the import screen has.
    */
   openRoundTab,
+  /**
+   * feature-plan-14: the version comparison, full-window and beside the
+   * current group. Its UI routes are the round header's "Changes since
+   * v1.3" and a hover control in the sidebar's version list, neither of
+   * which is mounted in every view — the same reason the round tab is here.
+   */
+  openCompareTab,
+  openCompareInSide,
   /** feature-plan-7 §3: close every tab scoped to a project directory. */
   closeProjectTabs,
   sideGroupId,

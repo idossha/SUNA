@@ -242,7 +242,7 @@ A project block looks like this:
 {
   "schemaVersion": 1,
   "name": "Ram-pressure stripping in a z=1.7 cluster (demo)",
-  "activeProfileId": "nature-astronomy",
+  "activeProfileId": "nature",
   "directories": { "manuscript": "manuscript", "figures": "figures" },
   "createdAt": "2026-08-14T00:00:00.000Z",
   "settings": {

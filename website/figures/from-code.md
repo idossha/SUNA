@@ -27,9 +27,8 @@ Those ids are what make the canvas usable. Clicking on the plot resolves to the 
 
 | Profile | `single` | `onehalf` | `double` |
 | --- | --- | --- | --- |
-| `nature` | 88 mm | 136 mm | 180 mm |
+| `nature` | 89 mm | 136 mm | 183 mm |
 | `science` | 90 mm | 138 mm | 183 mm |
-| `mnras` | 80 mm | 120 mm | 168 mm |
 
 You can also pass a literal number of millimetres. Height defaults to `ratio=0.618` of the width, or pass `height_mm=`. An unknown preset or profile raises `ValueError` naming the valid options.
 
@@ -38,7 +37,7 @@ You can also pass a literal number of millimetres. Height defaults to `ratio=0.6
 Two further behaviours worth knowing: `save_svg` writes the `figure.svg.suna.json` manifest sidecar, and it auto-rasterizes any line or collection with more than 800 primitives, so a dense scatter exports as one embedded image while axes, ticks and text stay vector. Each behaviour has an off switch: `autogid=False`, `editable_text=False`, `deterministic=False`, `manifest=False`, `rasterize_threshold=None`.
 
 ::: info The style presets are narrower than the app's
-`journal_rc()` accepts one profile name only — `nature`. Any other name raises `ValueError`. `set_size()` knows three (`nature`, `science`, `mnras`). The app itself ships 13 profiles. If you write for a journal the Python side does not know, set the rcParams yourself and pass `set_size` a literal millimetre width; the [journal profile](/publishing/profiles) in SUNA still checks and exports at the right size.
+`journal_rc()` accepts one profile name only — `nature`. Any other name raises `ValueError`. `set_size()` knows two (`nature`, `science`). The app itself ships 10 profiles. If you write for a journal the Python side does not know, set the rcParams yourself and pass `set_size` a literal millimetre width; the [journal profile](/publishing/profiles) in SUNA still checks and exports at the right size.
 :::
 
 ## Installing and running it

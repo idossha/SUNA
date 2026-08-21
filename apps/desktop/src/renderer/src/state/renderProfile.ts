@@ -52,9 +52,6 @@ export function resolvePreviewProfileId(
  * maps went stale the moment feature-plan-6 §1 added eight journals).
  */
 const PROFILE_SHORT_LABELS: Partial<Record<BundledProfileId, string>> = {
-  'nature-astronomy': 'Nat. Astron.',
-  'apj-aas': 'ApJ (AAS)',
-  mnras: 'MNRAS',
   'brain-stimulation': 'Brain Stimul.',
   jne: 'J. Neural Eng.',
   jneurosci: 'J. Neurosci.',

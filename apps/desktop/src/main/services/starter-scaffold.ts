@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import {
   CoverLetterMetaSchema,
   DocumentEntrySchema,
+  LetterPrivateSchema,
   ManuscriptSchema,
   ReviewerReportSchema,
   RoundSchema,
@@ -12,6 +13,7 @@ import {
   unansweredMarker,
   type CoverLetterMeta,
   type DocumentEntry,
+  type LetterPrivate,
   type Manuscript,
   type Round
 } from '@suna/core'
@@ -76,12 +78,12 @@ const STARTER_METHODS = `# Methods
 
 Describe how the work was done. Headings become the outline in the left sidebar, and the export applies whichever profile the project is set to — SUNA style while you draft, a journal's rules once you know where this is going.
 
-Two things worth trying before you delete this file:
+Three things worth trying before you delete this file:
 
 1. Open \`figures/hello/figure.svg\` to edit the figure on the canvas.
 2. Open the Export tab to see the profile's requirements and export a PDF.
 3. Open the cover letter and the review round in the Writing panel — a paper is
-   more than its manuscript, and both are here already.
+   more than its manuscript, and both are here already, part-answered.
 `
 
 /** The whole starter manuscript in ONE file — sections are Markdown headings. */
@@ -308,6 +310,8 @@ This is the starter cover letter. A letter lives under \`manuscript/letters/\`, 
 
 Here is where you make the case for the paper: what the result is, why it is new, and why it belongs in this journal rather than a more specialist one. Two or three paragraphs in your own words. Notice that the abstract has not been pasted in for you; several venues explicitly ask that a letter not repeat it.
 
+Ours, for the sake of the demonstration, is this. We report that researcher happiness rises monotonically with time spent in SUNA, while the control condition — the author's previous text editor — drifts gently in the other direction (Fig. 1a). The effect survives our one serious limitation, which is that n = 1, the sample is the author, and the author was not blind to condition. We further show that four categories of chore collapse to something a person could finish on a Friday afternoon (Fig. 1b). We believe this is of interest to your general readership, by which we mean everyone who has ever renumbered a figure by hand.
+
 What a letter also has to do is make factual claims on your behalf, and those are tracked rather than trusted to prose. A claim is placed with a directive and answered in the sidecar beside this file:
 
 ::assert{competingInterests}
@@ -318,6 +322,8 @@ The next one has been left for you, which is why it shows a marker instead of a 
 ${unansweredMarker('dataLocation')} ::assert{dataLocation}
 
 Both appear in the Assertions panel beside this letter. Answering the second one — in the panel, in your own words — clears the marker. Once a venue's cover-letter requirements have been recorded in its profile, that panel also reports the claims the venue asks for and you have not made.
+
+One part of this letter is deliberately not in this file. The reviewers we would like, the ones we would rather not have, and the colleagues who have already read the draft are in \`${STARTER_LETTER_ID}.private.json\` beside it — other people's names and emails, and, on an exclusion, a reason that is nobody else's business. That file is added to \`.gitignore\` before it is written, so it cannot reach a repository the whole author list can read. Have a look at what the starter put in it; the entries are jokes, and the fields are not.
 
 Sincerely,
 
@@ -361,6 +367,56 @@ export function starterLetterMeta(projectName: string, targetProfileId: string):
   })
 }
 
+/**
+ * `manuscript/letters/<id>.private.json` — the confidential half of a letter.
+ *
+ * The creator has always written the `*.private.json` ignore line before the
+ * letter, for a file no scaffold ever produced. This produces it, so the
+ * ordering guards something real and an author meets the sidecar on day one
+ * rather than the first time they are asked for suggested reviewers by a
+ * submission system.
+ *
+ * The names are jokes and are obviously placeholders; the FIELDS are not.
+ * Every entry carries what a real one carries — an affiliation, an email
+ * where there would be one, and on the exclusion a reason, because a bare
+ * name is not a case an editor can act on.
+ */
+export function starterLetterPrivate(): LetterPrivate {
+  return LetterPrivateSchema.parse({
+    schemaVersion: 1,
+    suggestedReviewers: [
+      {
+        name: 'A. Colleague',
+        email: 'a.colleague@example.edu',
+        affiliation: 'A department that would recognise the problem',
+        reason: 'Knows the method, has no stake in the result, and answers email.'
+      },
+      {
+        name: 'B. Specialist',
+        email: null,
+        affiliation: 'The one other group doing this',
+        reason: 'Would catch it if we were wrong, which is the entire point.'
+      }
+    ],
+    excludedReviewers: [
+      {
+        name: 'The Corresponding Author',
+        email: null,
+        affiliation: 'This desk',
+        reason: 'Wrote the manuscript. We are told this is disqualifying.'
+      }
+    ],
+    colleaguesShown: [
+      {
+        name: 'A. Corridor Colleague',
+        email: null,
+        affiliation: 'Two doors down',
+        reason: 'Read the abstract and said it was fine. Has not read the abstract.'
+      }
+    ]
+  })
+}
+
 /* ------------------------------------------------------------------ */
 /* The starter review round (feature-plan-12 §3, §6)                   */
 /* ------------------------------------------------------------------ */
@@ -381,7 +437,7 @@ export const STARTER_REVIEW_TEXT = `Dear Author,
 
 This is a demonstration decision letter. It came with your starter project so that the peer-review panel has something in it, and it is about the starter manuscript, not about your work. Delete the rounds/ directory whenever you like.
 
-Two referees have seen the manuscript. Their reports follow.
+Three referees have seen the manuscript. Their reports follow. We would be prepared to consider a revised version, on the understanding that nothing here has actually been submitted anywhere.
 
 Sincerely,
 
@@ -389,23 +445,95 @@ The Editor
 
 Reviewer #1 (Comments for the Author):
 
+Major comments
+
 1. The manuscript is a tour of a text editor rather than a study, and I was unable to locate a hypothesis anywhere in it. The authors may wish to consider writing a paper instead.
 
 2. Equation (1) asserts that a manuscript is prose plus figures plus references. This omits the coffee term.
 
-3. Figure 1 appears to have been drawn by hand. I mean this as a compliment; the journal may not.
+3. In Figure 1a the sample size is one, the sample is the corresponding author, and the author was not blind to condition. I found this admitted in a parenthesis in the caption. It should be a sentence.
+
+Minor comments
+
+4. Figure 1 appears to have been drawn by hand. I mean this as a compliment; the journal may not.
+
+5. Table 1 lists BibTeX among the plain-text formats. BibTeX is many things. On reflection I will allow it.
 
 Reviewer #2 (Comments for the Author):
 
 1. Please state how many times the corresponding author rewrote the first sentence before giving up and shipping this one.
 
 2. Table 1 is accurate and I have nothing to add. I would like that noted in the record.
+
+3. The Methods section instructs the reader to open a tab. I have opened the tab. Nothing in my training prepared me for this, and yet here we are.
+
+Reviewer #3 (Comments for the Author):
+
+1. I read this manuscript twice: once as submitted, and once as I was imagining it while reading. The second was the better paper and I encourage the authors to write that one.
+
+2. The authors claim the reference list is derived from the keys they actually cite. I deleted a citation to test this. It worked, which I resent.
+
+3. There is no Introduction and no Discussion. In fairness, this makes the paper unusually easy to read.
 `
 
-/** The reply the starter has already written, so the reply pane is not empty. */
-const STARTER_FIRST_REPLY = `This is your reply to the referee, written beside their words rather than in a separate document. The reviewer's text above is read-only — nothing in SUNA offers an edit control for it, because editing a referee's words is misconduct.
+/**
+ * The replies the starter arrives with, keyed by point id.
+ *
+ * Four points are answered and the rest are not, which is what a round in
+ * progress actually looks like — and between them they use all four statuses,
+ * so the tab opens showing the whole vocabulary rather than a single Done.
+ * 'rebutted' is in here on purpose: a starter that only ever demonstrated
+ * conceding would quietly teach that disagreeing is not an option.
+ *
+ * Keyed by id rather than by position so that editing STARTER_REVIEW_TEXT
+ * cannot silently re-attach a reply to a different referee's point;
+ * `starterRound` throws if a key here names a point that no longer exists.
+ */
+const STARTER_REPLIES: Record<string, { status: 'drafted' | 'done' | 'rebutted'; reply: string }> = {
+  'r1.1': {
+    status: 'done',
+    reply: `RE: The referee is right that there was no hypothesis, and we have put one where a reader would look for it:
 
-Mark a point Done when you have handled it, or Rebutted when you disagree. Rebutted is a real outcome, not a failure: the counter at the top of this tab treats it as answered, because arguing back is part of the job.`
+::quote
+Prose is Markdown with a few additions for scientific writing. +++We hypothesise that this is enough.+++
+::
+
+That is what a reply looks like here. You write it beside the referee's words rather than in a separate document, and their text above is read-only — nothing in SUNA offers a control that would edit it, because editing a referee's words is misconduct.
+
+A response letter has three voices and this one uses all of them: ours, the manuscript quoted back unchanged, and the part of the quotation that is new. They are marks in the text — \`::quote … ::\` around the excerpt, \`+++ … +++\` around the change — not formatting you apply, so the reply stays a plain string you could email. The response document is derived from these replies at export, which means what you write here IS the letter.`
+  },
+  'r1.2': {
+    status: 'rebutted',
+    reply: `RE: We have considered the coffee term and respectfully decline to add it. @eq:hello is an identity over the things a manuscript is made of; coffee is a thing the author is made of.
+
+This point is marked Rebutted, which is a real outcome rather than a failure. The counter at the top of this tab treats a rebuttal as answered, because arguing back in writing is answering — a tool that scored only compliance would quietly press you into conceding points you should defend.`
+  },
+  'r1.3': {
+    status: 'drafted',
+    reply: `RE: Agreed. The caption will state the sample size and the absence of blinding in its own sentence rather than in a parenthesis, and
+
+<!-- Drafted: a reply that exists but is not finished. Nothing advances the status for you — you set it when you mean it, and until then this point still counts as outstanding at the top of the tab. -->`
+  },
+  'r2.2': {
+    status: 'done',
+    reply: `RE: So noted. We thank the referee for the only unambiguous endorsement in this round.`
+  }
+}
+
+/**
+ * Where a reply points in the manuscript. The quote is matched against the
+ * document's CURRENT text at format time, the same discipline comments.json
+ * uses, so the page and line reference in an exported response is derived
+ * rather than typed — and cannot go stale the way a hand-written one does.
+ */
+const STARTER_LINKS: Record<string, { documentId: string; quote: string }[]> = {
+  'r1.1': [
+    {
+      documentId: 'manuscript',
+      quote: 'Prose is Markdown with a few additions for scientific writing'
+    }
+  ]
+}
 
 export interface StarterRound {
   round: Round
@@ -452,6 +580,13 @@ export function starterRound(createdAt: string): StarterRound {
   })
 
   const allPoints = reports.flatMap((r) => r.points)
+  // A reply keyed to a point that no longer exists is silent data loss — the
+  // demonstration would simply lose a reply and nobody would see it go. Same
+  // reasoning as the faithfulness check above: fail at the seam.
+  const ids = new Set(allPoints.map((p) => p.id))
+  for (const id of [...Object.keys(STARTER_REPLIES), ...Object.keys(STARTER_LINKS)]) {
+    if (!ids.has(id)) throw new Error(`starter round: reply written for missing point ${id}`)
+  }
   const round = RoundSchema.parse({
     schemaVersion: 1,
     id: STARTER_ROUND_ID,
@@ -462,18 +597,22 @@ export function starterRound(createdAt: string): StarterRound {
     createdAt,
     freeze: null,
     recipients: [],
-    // One point answered and the rest not, so the tab opens on a real
-    // "1 of N addressed" and the completeness check has something to say.
-    pointStates: allPoints.map((p, i) => ({
-      pointId: p.id,
-      status: i === 0 ? 'done' : 'unaddressed',
-      assignee: null,
-      reply: i === 0 ? STARTER_FIRST_REPLY : '',
-      links: []
-    })),
+    // Some points answered and most not, so the tab opens on a real
+    // "3 of N addressed" and the completeness check has something to say.
+    pointStates: allPoints.map((p) => {
+      const written = STARTER_REPLIES[p.id]
+      return {
+        pointId: p.id,
+        status: written?.status ?? 'unaddressed',
+        assignee: null,
+        reply: written?.reply ?? '',
+        links: STARTER_LINKS[p.id] ?? []
+      }
+    }),
     decision: 'major-revision',
     decidedAt: createdAt,
-    responseDocumentId: null
+    responseDocumentId: null,
+    baselineVersionId: null
   })
 
   return { round, reports, preamble: analysis.preamble }
@@ -495,6 +634,12 @@ export async function writeStarterLetter(
   await writeFile(
     join(dir, `${STARTER_LETTER_ID}.json`),
     JSON.stringify(starterLetterMeta(projectName, targetProfileId), null, 2) + '\n'
+  )
+  // The confidential half. Safe to write here because every creator puts the
+  // `*.private.json` ignore line in .gitignore BEFORE calling this.
+  await writeFile(
+    join(dir, `${STARTER_LETTER_ID}.private.json`),
+    JSON.stringify(starterLetterPrivate(), null, 2) + '\n'
   )
 }
 

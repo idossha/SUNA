@@ -21,7 +21,7 @@ const legacyManifest = (): SunaProjectManifest =>
   SunaProjectManifestSchema.parse({
     schemaVersion: 1,
     name: 'Demo',
-    activeProfileId: 'nature-astronomy',
+    activeProfileId: 'nature',
     directories: {
       manuscript: 'manuscript',
       figures: 'figures',

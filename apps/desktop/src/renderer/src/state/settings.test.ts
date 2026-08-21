@@ -20,7 +20,7 @@ Object.defineProperty(globalThis, 'window', {
 const manifest = {
   schemaVersion: 1,
   name: 'my-paper',
-  activeProfileId: 'nature-astronomy',
+  activeProfileId: 'nature',
   directories: {
     manuscript: 'manuscript',
     figures: 'figures',

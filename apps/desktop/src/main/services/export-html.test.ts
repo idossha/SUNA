@@ -48,7 +48,7 @@ async function appendProse(markdown: string): Promise<void> {
 describe('buildManuscriptHtml', () => {
   it('renders a self-contained HTML document with the title, authors, and abstract', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html.startsWith('<!doctype html>')).toBe(true)
@@ -62,7 +62,7 @@ describe('buildManuscriptHtml', () => {
 
   it('renders numeric-superscript citations and an appearance-ordered reference list', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).toContain('<sup>')
@@ -75,9 +75,9 @@ describe('buildManuscriptHtml', () => {
     expect(refsHtml).toContain('cited but not found')
   })
 
-  it('renders author-year citations for apj-aas without superscripts', async () => {
+  it('renders author-year citations for jneurosci without superscripts', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'apj-aas', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'jneurosci', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).toContain('Smith 2020')
@@ -85,7 +85,7 @@ describe('buildManuscriptHtml', () => {
 
   it('embeds the figure as a data: URI with its numbered caption', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'brain-stimulation', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).toContain('data:image/png;base64,')
@@ -95,10 +95,10 @@ describe('buildManuscriptHtml', () => {
 
   it('resolves the @fig:/@tbl: cross-references to the same labels', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'brain-stimulation', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
     // "(@fig:fig-a, @tbl:tbl-a)" in the fixture's Results section resolves to
-    // the profile's labels — "Fig." is nature-astronomy's stated delta.
+    // the profile's labels — "Fig." is brain-stimulation's stated delta.
     expect(html).toMatch(/\(Fig\. 1, Table 1\)/)
   })
 
@@ -116,7 +116,7 @@ describe('buildManuscriptHtml', () => {
     await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
     await appendProse('![Registration QC](../figures/x.png)')
 
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).toContain(`<img class="md-image" src="data:image/png;base64,${ONE_PIXEL_PNG.toString('base64')}"`)
@@ -128,7 +128,7 @@ describe('buildManuscriptHtml', () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
     await appendProse('![escaped](../../outside.png)')
 
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).toMatch(/<p data-pos="\d+-\d+">escaped<\/p>/)
@@ -139,7 +139,7 @@ describe('buildManuscriptHtml', () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
     await appendProse('![remote](https://example.org/x.png)')
 
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).not.toContain('example.org')
@@ -148,7 +148,7 @@ describe('buildManuscriptHtml', () => {
 
   it('caps every image inside the printable box and centres it', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     // The SUNA page for every profile: US Letter with 0.5 in margins,
@@ -164,7 +164,7 @@ describe('buildManuscriptHtml', () => {
     await writeFile(join(dir, 'figures', 'x.png'), ONE_PIXEL_PNG)
     await appendProse('![QC](../figures/x.png){width=40%}')
 
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
     expect(html).toContain('style="max-width:min(40%,100%)"')
@@ -174,13 +174,13 @@ describe('buildManuscriptHtml', () => {
 
   it('keeps managed-figure geometry after moving it off a definite width', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const html = await buildManuscriptHtml(content, OPTIONS)
 
-    // nature-astronomy's 'single' preset is 88 mm; a definite width would be
-    // squashed by the new max-height, so it is a max-width now.
-    expect(html).toContain('style="max-width:min(88mm,100%);height:auto;display:block;margin:0 auto;"')
-    expect(html).not.toContain('width:88mm;max-width:100%')
+    // nature's 'single' preset is 89 mm; a definite width would be squashed
+    // by the new max-height, so it is a max-width now.
+    expect(html).toContain('style="max-width:min(89mm,100%);height:auto;display:block;margin:0 auto;"')
+    expect(html).not.toContain('width:89mm;max-width:100%')
   })
 
   it('shrink-wraps and centres tables, and lets GFM alignment beat the house convention', async () => {
@@ -190,7 +190,7 @@ describe('buildManuscriptHtml', () => {
       OPTIONS
     )
     const journal = await buildManuscriptHtml(
-      await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths }),
+      await buildExportContent({ dir, profileId: 'nature', figurePngPaths }),
       OPTIONS
     )
 
@@ -213,7 +213,7 @@ describe('buildManuscriptHtml', () => {
 
   it('applies the double-spacing and line-number CSS hooks when requested', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const doubled = await buildManuscriptHtml(content, { doubleSpacing: true, lineNumbers: true })
     expect(doubled).toContain('class="ms-body ms-double ms-line-numbers" id="ms-body"')
     const plain = await buildManuscriptHtml(content, { doubleSpacing: false, lineNumbers: false })

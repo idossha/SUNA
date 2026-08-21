@@ -2,7 +2,7 @@
  * Profile-driven export is the point of the feature (feature-plan-6 §3): the
  * SAME project must come out differently under a numeric-citation profile and
  * an author-year one. export-docx.test.ts covers the fixture's structure and
- * apj-aas's alphabetical reference list; this file covers the CONTRAST, on the
+ * jneurosci's alphabetical reference list; this file covers the CONTRAST, on the
  * shipped examples/demo-paper, end to end through `exportDocx` — and asserts
  * the HTML the PDF path prints, which is everything about export:pdf that is
  * reachable without an Electron runtime (printToPDF itself needs one).

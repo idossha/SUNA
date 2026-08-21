@@ -471,6 +471,73 @@ export function insertQuoteBlock(source: string, start: number, end: number): Re
   };
 }
 
+/** A stretch of an excerpt that is NEW, in the excerpt's own coordinates. */
+export interface QuoteChangeRange {
+  from: number;
+  to: number;
+}
+
+/**
+ * Build a quote block out of manuscript text and the parts of it that are new
+ * (feature-plan-14 §e).
+ *
+ * This is the bridge from a comparison to a reply: the comparison already
+ * knows, word by word, which of the current manuscript's characters were not
+ * in the version the reviewer read, and those are exactly the characters a
+ * response letter sets in red. Passing them through as ranges rather than as
+ * pre-marked text keeps ONE place that knows the syntax.
+ *
+ * Ranges are clamped, sorted and merged, so a caller may hand over overlapping
+ * or out-of-order hunks without producing `+++` nested inside `+++`.
+ */
+export function buildQuoteBlock(
+  excerpt: string,
+  changes: readonly QuoteChangeRange[] = [],
+): string {
+  const body = excerpt.replace(/\s+$/, '');
+  const merged: QuoteChangeRange[] = [];
+  for (const raw of [...changes].sort((a, b) => a.from - b.from)) {
+    const from = Math.max(0, Math.min(raw.from, body.length));
+    const to = Math.max(from, Math.min(raw.to, body.length));
+    if (to === from) continue;
+    const last = merged[merged.length - 1];
+    if (last !== undefined && from <= last.to) last.to = Math.max(last.to, to);
+    else merged.push({ from, to });
+  }
+
+  let marked = '';
+  let cursor = 0;
+  for (const range of merged) {
+    // A change that is only whitespace would put a red gap in the letter and
+    // read as a typo. Skip it; the words around it carry the change.
+    const inner = body.slice(range.from, range.to);
+    if (inner.trim() === '') continue;
+    const lead = /^\s*/.exec(inner)![0];
+    const tail = /\s*$/.exec(inner.slice(lead.length))![0];
+    const core = inner.slice(lead.length, inner.length - tail.length);
+    marked += body.slice(cursor, range.from) + lead + CHANGE_MARK + core + CHANGE_MARK + tail;
+    cursor = range.to;
+  }
+  marked += body.slice(cursor);
+  return `${QUOTE_OPEN}\n${marked}\n${QUOTE_CLOSE}\n`;
+}
+
+/**
+ * Drop a prepared block into a reply at `at`, with the blank lines the
+ * surrounding prose does not already provide. The caret lands after the
+ * block, because what you type next is your comment on what you just quoted.
+ */
+export function insertBlock(source: string, at: number, block: string): ReplyEdit {
+  const cut = Math.max(0, Math.min(at, source.length));
+  const before = source.slice(0, cut).replace(/[ \t]+$/, '');
+  const after = source.slice(cut);
+  const lead = before === '' || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
+  const tail = after === '' || after.startsWith('\n') ? '' : '\n';
+  const text = `${before}${lead}${block}${tail}${after}`;
+  const caret = before.length + lead.length + block.length;
+  return { text, selectionStart: caret, selectionEnd: caret };
+}
+
 /**
  * Mark the selection as new manuscript text. With no selection, drop an empty
  * pair and put the caret between the marks.

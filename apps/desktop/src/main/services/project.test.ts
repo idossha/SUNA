@@ -8,6 +8,7 @@ import {
   CoverLetterMetaSchema,
   DEFAULT_PROJECT_DIRS,
   LETTER_PRIVATE_GITIGNORE_LINE,
+  LetterPrivateSchema,
   ManuscriptSchema,
   ReviewerReportSchema,
   RoundSchema,
@@ -32,7 +33,7 @@ let manifestFile = ''
 const baseManifest = {
   schemaVersion: 1,
   name: 'my-paper',
-  activeProfileId: 'nature-astronomy',
+  activeProfileId: 'nature',
   directories: DEFAULT_PROJECT_DIRS,
   createdAt: '2026-08-13T09:30:00.000Z'
 }
@@ -196,7 +197,7 @@ describe('scaffoldProject', () => {
       scaffoldProject({
         dir: target,
         name: 'x',
-        activeProfileId: 'nature-astronomy',
+        activeProfileId: 'nature',
         scaffold: 'blank',
         settings: {}
       })
@@ -247,7 +248,7 @@ describe('scaffoldProject', () => {
     const result = await scaffoldProject({
       dir: target,
       name: 'Starter Paper',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       scaffold: 'starter',
       settings: {}
     })
@@ -301,7 +302,7 @@ describe('scaffoldProject', () => {
     const result = await scaffoldProject({
       dir: target,
       name: 'Configured Paper',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       scaffold: 'blank',
       settings: { editor: { contentWidthCh: 90, fontSizePx: 18 } }
     })
@@ -367,11 +368,24 @@ describe('the starter scaffold ships a letter and a review round', () => {
     expect(unansweredIn(prose)).toEqual(['dataLocation'])
   })
 
-  it('ignores the confidential letter sidecar before any letter is written', async () => {
+  it('ships a confidential sidecar, and ignores it before writing it', async () => {
     await makeStarter()
     expect(await readFile(join(target, '.gitignore'), 'utf8')).toContain(
       LETTER_PRIVATE_GITIGNORE_LINE
     )
+    const dirName = join(target, DEFAULT_PROJECT_DIRS.manuscript, 'letters')
+    const priv = LetterPrivateSchema.parse(
+      JSON.parse(await readFile(join(dirName, 'cover.private.json'), 'utf8'))
+    )
+    expect(priv.suggestedReviewers.length).toBeGreaterThan(0)
+    // A bare name is not a case an editor can act on, so the demonstration
+    // exclusion carries the reason a real one has to carry.
+    expect(priv.excludedReviewers.length).toBeGreaterThan(0)
+    for (const r of priv.excludedReviewers) expect(r.reason).not.toBeNull()
+    // The names are jokes; what matters is that the file the letter points at
+    // is really there, and that the letter says where it is.
+    const prose = await readFile(join(dirName, 'cover.md'), 'utf8')
+    expect(prose).toContain('cover.private.json')
   })
 
   it('writes a round whose reviewer points are faithful slices of the source', async () => {
@@ -384,7 +398,7 @@ describe('the starter scaffold ships a letter and a review round', () => {
       JSON.parse(await readFile(join(roundsDir, 'round-1', 'round.json'), 'utf8'))
     )
     const names = (await readdir(join(roundsDir, 'round-1', 'reviewers'))).sort()
-    expect(names).toEqual(['1.json', '2.json'])
+    expect(names).toEqual(['1.json', '2.json', '3.json'])
 
     const pointIds: string[] = []
     for (const name of names) {
@@ -398,12 +412,33 @@ describe('the starter scaffold ships a letter and a review round', () => {
       }
     }
 
-    // Every point has state, and exactly one arrives answered so the tab
+    // Every point has state, and the round arrives part-answered so the tab
     // opens on a real counter rather than an empty one.
     expect(round.pointStates.map((s) => s.pointId).sort()).toEqual([...pointIds].sort())
-    const done = round.pointStates.filter((s) => s.status === 'done')
-    expect(done).toHaveLength(1)
-    expect(done[0]?.reply.length).toBeGreaterThan(0)
+    const written = round.pointStates.filter((s) => s.status !== 'unaddressed')
+    expect(written.length).toBeGreaterThan(1)
+    for (const s of written) expect(s.reply.length).toBeGreaterThan(0)
+    // All four statuses are demonstrated — a starter that only ever showed
+    // Done would quietly teach that conceding is the only move.
+    expect(new Set(round.pointStates.map((s) => s.status))).toEqual(
+      new Set(['unaddressed', 'drafted', 'done', 'rebutted'])
+    )
+    // Some point still needs answering, so the completeness check has
+    // something to report the first time the response is exported.
+    expect(round.pointStates.some((s) => s.status === 'unaddressed')).toBe(true)
+
+    // A reply that links into the manuscript links to text that is really
+    // there — the export resolves the quote against the live document.
+    const prose = await readFile(
+      join(target, DEFAULT_PROJECT_DIRS.manuscript, 'manuscript.md'),
+      'utf8'
+    )
+    for (const state of round.pointStates) {
+      for (const link of state.links) {
+        expect(link.documentId).toBe('manuscript')
+        expect(prose).toContain(link.quote)
+      }
+    }
   })
 
   it('gives no other scaffold a registry, a letter or a round', async () => {

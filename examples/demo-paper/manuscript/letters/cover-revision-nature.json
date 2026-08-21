@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "cover-letter",
   "letterKind": "revision",
-  "targetProfileId": "nature-astronomy",
+  "targetProfileId": "nature",
   "salutation": "Dear Editor,",
   "identityId": null,
   "signerIds": [],
@@ -25,7 +25,7 @@
     {
       "id": "dualPublication",
       "placement": "directive",
-      "text": "The revised manuscript remains under consideration at Nature Astronomy alone.",
+      "text": "The revised manuscript remains under consideration at Nature alone.",
       "reason": null
     },
     {
@@ -45,5 +45,5 @@
   ],
   "abbreviatedSummary": null,
   "priorSubmissions": [],
-  "reviewRoundId": "r2-nature-astronomy"
+  "reviewRoundId": "r2-nature"
 }

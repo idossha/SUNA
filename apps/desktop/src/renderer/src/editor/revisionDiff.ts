@@ -1,6 +1,6 @@
 import { StateEffect, StateField, type Extension, type Range } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
-import { wordDiff, type DiffOp } from '@suna/core'
+import { hunksFromOps, wordDiff, type DiffOp } from '@suna/core'
 
 /**
  * Word-level AI-change decorations (feature-plan-11 §11f) — removals in red,
@@ -65,47 +65,22 @@ export interface DiffHunk {
 /**
  * Fold the op list into reviewable hunks: a removal and the addition that
  * replaces it are ONE change to accept or reject, not two.
+ *
+ * The fold itself lives in `@suna/core` (`hunksFromOps`), shared with the
+ * version comparison view — one algorithm, one set of tests. What is added
+ * here is the live-document shape this editor works in: the removed text
+ * itself, sliced out of the baseline for the red widget to render.
  */
 export function hunksFor(base: string, doc: string): DiffHunk[] {
   if (base === doc) return []
   const ops: DiffOp[] = wordDiff(base, doc)
-  const hunks: DiffHunk[] = []
-  let i = 0
-  while (i < ops.length) {
-    const op = ops[i]
-    if (op === undefined || op.kind === 'equal') {
-      i += 1
-      continue
-    }
-    let from = -1
-    let to = -1
-    let baseFrom = -1
-    let baseTo = -1
-    let removed = ''
-    while (i < ops.length) {
-      const run = ops[i]
-      if (run === undefined || run.kind === 'equal') break
-      if (run.kind === 'delete') {
-        if (baseFrom < 0) baseFrom = run.aFrom
-        baseTo = run.aTo
-        removed += base.slice(run.aFrom, run.aTo)
-        if (from < 0) {
-          from = run.bAt
-          to = run.bAt
-        }
-      } else {
-        if (baseFrom < 0) {
-          baseFrom = run.aAt
-          baseTo = run.aAt
-        }
-        if (from < 0) from = run.bFrom
-        to = run.bTo
-      }
-      i += 1
-    }
-    hunks.push({ from, to, removed, baseFrom, baseTo })
-  }
-  return hunks
+  return hunksFromOps(ops).map((h) => ({
+    from: h.headFrom,
+    to: h.headTo,
+    removed: base.slice(h.baseFrom, h.baseTo),
+    baseFrom: h.baseFrom,
+    baseTo: h.baseTo
+  }))
 }
 
 function decorationsFor(base: string | null, doc: string): DecorationSet {

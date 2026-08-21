@@ -16,7 +16,7 @@ Each profile also records its publisher and the date its guidelines were last ve
 
 ## The profiles you can pick
 
-Ten entries appear in the pickers, in this order. SUNA style comes first; the other nine are journals.
+Ten entries ship, in this order. SUNA style comes first; the other nine are journals. Every one of them appears in every picker — there is no hidden set.
 
 | Journal profile | In-text citations | Article types it declares | Guidelines verified |
 | --- | --- | --- | --- |
@@ -33,17 +33,13 @@ Ten entries appear in the pickers, in this order. SUNA style comes first; the ot
 
 The Export page's **Journal profile** dropdown shows the full journal name as written above. Settings and the References view shorten the long ones — `Brain Stimul.`, `J. Neural Eng.`, `J. Neurosci.`, `SLEEP Adv.` — because those controls are narrower.
 
-::: info Three more are bundled but hidden
-Nature Astronomy, The Astrophysical Journal and Monthly Notices of the Royal Astronomical Society ship with the app and load fine, but are currently kept out of every picker. Two things can still put you on one: a project whose saved journal is one of them (the picker then appends that entry so your own choice keeps showing), and the command palette's **Switch 'Rendered As' Profile**, which cycles all thirteen bundled ids and reports the raw id, for example `Rendered as: nature-astronomy`.
-:::
-
 ## SUNA style, for a project with no journal yet
 
 `SUNA style` is the house style and the only bundled entry not derived from a journal's guidelines. Onboarding falls back to it when you decline to pick a target journal, and it is the fallback whenever a render profile cannot be resolved.
 
 It states no word limits, no abstract limit and no required sections, so it flags almost nothing — which is what you want while the paper is still being written. Its own notes put it plainly: switch to a journal profile before submission to get that journal's rules.
 
-It is also the typographic base underneath every other profile: US Letter, 12.7 mm (0.5 in) margins, Times New Roman, 11 pt body at 1.15 line spacing, 14 pt title, 13/11 pt headings, 10 pt captions and references with a 12.7 mm hanging indent, and a page break after the front matter. A journal profile contributes only the small deltas its guidelines state. In practice only four bundled profiles state any at all: SLEEP (figures labelled "Figure", captions collected in a list after the text, tables at the end, references starting a new page) and Nature Astronomy, MNRAS and Brain Stimulation (each only "Fig." as the figure label). Every other journal inherits the SUNA layout whole.
+It is also the typographic base underneath every other profile: US Letter, 12.7 mm (0.5 in) margins, Times New Roman, 11 pt body at 1.15 line spacing, 14 pt title, 13/11 pt headings, 10 pt captions and references with a 12.7 mm hanging indent, and a page break after the front matter. A journal profile contributes only the small deltas its guidelines state. In practice only two bundled profiles state any at all: SLEEP (figures labelled "Figure", captions collected in a list after the text, tables at the end, references starting a new page) and Brain Stimulation (only "Fig." as the figure label). Every other journal inherits the SUNA layout whole.
 
 ## What a profile controls
 
@@ -116,7 +112,7 @@ PNAS and JNeurosci were also assembled from search excerpts rather than a direct
 ## Not built yet
 
 ::: warning You cannot add your own profile
-Nothing today reads a profile JSON you write yourself — not from your project folder, not from a settings directory. The thirteen bundled profiles are the whole set. If your target journal is not among them, work in SUNA style and check that journal's guidelines by hand.
+Nothing today reads a profile JSON you write yourself — not from your project folder, not from a settings directory. The ten bundled profiles are the whole set. If your target journal is not among them, work in SUNA style and check that journal's guidelines by hand.
 :::
 
 ::: warning Manuscript compliance lives only on the Export page

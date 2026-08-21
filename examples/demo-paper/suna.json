@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "Ram-pressure stripping in a z=1.7 cluster (demo)",
-  "activeProfileId": "nature-astronomy",
+  "activeProfileId": "nature",
   "directories": {
     "manuscript": "manuscript",
     "figures": "figures",
@@ -33,29 +33,29 @@
       "archived": false
     },
     {
-      "id": "cover-nature-astronomy",
+      "id": "cover-nature",
       "kind": "cover-letter",
-      "file": "letters/cover-nature-astronomy.md",
-      "meta": "letters/cover-nature-astronomy.json",
-      "title": "Cover letter — Nature Astronomy",
+      "file": "letters/cover-nature.md",
+      "meta": "letters/cover-nature.json",
+      "title": "Cover letter — Nature",
       "profile": {
         "registry": "journal",
-        "id": "nature-astronomy"
+        "id": "nature"
       },
       "roundId": null,
       "archived": false
     },
     {
-      "id": "cover-revision-nature-astronomy",
+      "id": "cover-revision-nature",
       "kind": "cover-letter",
-      "file": "letters/cover-revision-nature-astronomy.md",
-      "meta": "letters/cover-revision-nature-astronomy.json",
-      "title": "Revision letter — Nature Astronomy",
+      "file": "letters/cover-revision-nature.md",
+      "meta": "letters/cover-revision-nature.json",
+      "title": "Revision letter — Nature",
       "profile": {
         "registry": "journal",
-        "id": "nature-astronomy"
+        "id": "nature"
       },
-      "roundId": "r2-nature-astronomy",
+      "roundId": "r2-nature",
       "archived": false
     },
     {
@@ -66,9 +66,9 @@
       "title": "Response to referees — Round 1",
       "profile": {
         "registry": "journal",
-        "id": "nature-astronomy"
+        "id": "nature"
       },
-      "roundId": "r2-nature-astronomy",
+      "roundId": "r2-nature",
       "archived": false
     }
   ],

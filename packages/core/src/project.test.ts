@@ -16,7 +16,7 @@ import {
 const manifest = {
   schemaVersion: 1,
   name: 'my-paper',
-  activeProfileId: 'nature-astronomy',
+  activeProfileId: 'nature',
   directories: DEFAULT_PROJECT_DIRS,
   createdAt: '2026-08-13T09:30:00Z',
 } satisfies SunaProjectManifest;

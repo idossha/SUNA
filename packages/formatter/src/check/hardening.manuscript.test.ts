@@ -1,9 +1,9 @@
 /**
  * Adversarial hardening tests for the manuscript checker: markdown-syntax
- * word-counting attacks, the RNAAS "including references" scope against the
- * real bundled apj-aas profile, and the scope-exclusion fix exercised against
- * the real nature-astronomy profile ("... excluding abstract, Methods,
- * references and figure captions").
+ * word-counting attacks, the PNAS "includes ... references" scope against the
+ * real bundled pnas profile, and the scope-exclusion fix exercised against
+ * the real brain-stimulation profile ("body text only — excludes abstract,
+ * references and title page").
  */
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -64,111 +64,99 @@ describe('hardening — word counting is not fooled by markdown syntax', () => {
   });
 
   it('markdown-heavy section text feeds the total honestly', () => {
-    const profile = realProfile('apj-aas');
-    // RNAAS hard limit 1500 incl. references+captions. Countable tokens in
-    // the markdown preamble: Results, We, find, $\chi^2, 1.2$, [@smith2020].
-    // = 6 (the '#' and '=' tokens are pure punctuation), so 883 filler words
-    // make 889; with abstract 100 + captions 10 and zero references the note
-    // stays under the limit.
+    const profile = realProfile('pnas');
+    // Research Report: 4000 words, scope includes references. Countable
+    // tokens in the markdown preamble: Results, We, find, $\chi^2, 1.2$,
+    // [@smith2020] = 6 (the '#' and '=' tokens are pure punctuation), so 883
+    // filler words make 889; with abstract 100 and zero references the report
+    // stays well under the limit.
     const markdown = `# Results\n\nWe find $\\chi^2 = 1.2$ [@smith2020].\n\n${words(883)}`;
     expect(countWords(markdown)).toBe(889);
     const input = makeInput({
       sectionTexts: { 'manuscript.md': markdown },
       referenceCount: 0,
     });
-    expect(byId(checkManuscript(input, profile, 'rnaas'), 'ms.word-limit')).toEqual([]);
+    expect(byId(checkManuscript(input, profile, 'research-report'), 'ms.word-limit')).toEqual([]);
   });
 });
 
-describe('hardening — RNAAS scope pulls references into the total (real apj-aas.json)', () => {
-  const profile = realProfile('apj-aas');
+describe('hardening — an inclusive scope pulls references into the total (real pnas.json)', () => {
+  const profile = realProfile('pnas');
 
   it('the bundled profile states the inclusive scope verbatim', () => {
-    const rnaas = profile.manuscript.articleTypes.find((t) => t.id === 'rnaas');
-    expect(rnaas?.wordLimit?.scope).toBe('total, including references and captions');
-    expect(rnaas?.wordLimit?.hard).toBe(true);
+    const report = profile.manuscript.articleTypes.find((t) => t.id === 'research-report');
+    expect(report?.wordLimit?.scope).toContain('references');
+    expect(report?.wordLimit?.max).toBe(4000);
+    // A page budget, not a hard cap — over it warns rather than errors.
+    expect(report?.wordLimit?.hard).toBe(false);
   });
 
-  it('40 references push a 1010-word note over 1500; zero references stay under', () => {
-    // 1010 counted + 40 * 15 = 1610 > 1500.
-    const over = byId(checkManuscript(makeInput(), profile, 'rnaas'), 'ms.word-limit');
+  it('40 references push a 3450-word report over 4000; zero references stay under', () => {
+    // abstract 100 + 3450 counted + 40 * 15 = 4150 > 4000.
+    const input = makeInput({ sectionTexts: { 'manuscript.md': words(3450) } });
+    const over = byId(checkManuscript(input, profile, 'research-report'), 'ms.word-limit');
     expect(over).toHaveLength(1);
-    expect(over[0]?.severity).toBe('error');
-    expect(over[0]?.message).toContain(`~${1010 + 40 * WORDS_PER_REFERENCE_ESTIMATE}`);
+    expect(over[0]?.severity).toBe('warning');
+    expect(over[0]?.message).toContain(`~${100 + 3450 + 40 * WORDS_PER_REFERENCE_ESTIMATE}`);
     expect(over[0]?.message).toContain('estimated');
 
     const under = byId(
-      checkManuscript(makeInput({ referenceCount: 0 }), profile, 'rnaas'),
+      checkManuscript(
+        makeInput({ sectionTexts: { 'manuscript.md': words(3450) }, referenceCount: 0 }),
+        profile,
+        'research-report',
+      ),
       'ms.word-limit',
     );
     expect(under).toEqual([]);
   });
 });
 
-describe('hardening — scope exclusions (real nature-astronomy.json)', () => {
-  const profile = realProfile('nature-astronomy');
+describe('hardening — scope exclusions (real brain-stimulation.json)', () => {
+  const profile = realProfile('brain-stimulation');
 
   it('does not count the abstract when the scope excludes it', () => {
-    // Article: 3000-word limit, scope "... excluding abstract, Methods,
-    // references and figure captions". 2950 section words + 200-word
-    // abstract must NOT warn (3150 would, if the abstract were counted).
+    // Original research: 4000-word limit, scope "body text only — excludes
+    // abstract, references and title page". 3950 section words + a 200-word
+    // abstract must NOT warn (4150 would, if the abstract were counted).
     const input = makeInput({
-      sectionTexts: { 'manuscript.md': words(2950) },
+      sectionTexts: { 'manuscript.md': words(3950) },
       referenceCount: 0,
     });
     input.manuscript.abstract.content = words(200);
-    expect(byId(checkManuscript(input, profile, 'article'), 'ms.word-limit')).toEqual([]);
+    expect(byId(checkManuscript(input, profile, 'original-research'), 'ms.word-limit')).toEqual([]);
   });
 
   it('still warns when the in-scope text alone exceeds the limit', () => {
     const input = makeInput({
-      sectionTexts: { 'manuscript.md': words(3050) },
+      sectionTexts: { 'manuscript.md': words(4050) },
       referenceCount: 0,
     });
     input.manuscript.abstract.content = words(200);
-    const wl = byId(checkManuscript(input, profile, 'article'), 'ms.word-limit');
+    const wl = byId(checkManuscript(input, profile, 'original-research'), 'ms.word-limit');
     expect(wl).toHaveLength(1);
     expect(wl[0]?.severity).toBe('warning'); // soft limit
-    expect(wl[0]?.message).toContain('3050');
+    expect(wl[0]?.message).toContain('4050');
   });
 
-  it('"excluding ... references and figure captions" adds neither references nor captions', () => {
-    // 2990 section words; 40 references (600 estimated words) and 10 caption
-    // words would overflow if wrongly included.
+  it('"excludes ... references" adds no reference words', () => {
+    // 3990 section words; 40 references (600 estimated words) would overflow
+    // if wrongly included.
     const input = makeInput({
-      sectionTexts: { 'manuscript.md': words(2990) },
+      sectionTexts: { 'manuscript.md': words(3990) },
       referenceCount: 40,
     });
     input.manuscript.abstract.content = words(200);
-    expect(byId(checkManuscript(input, profile, 'article'), 'ms.word-limit')).toEqual([]);
-  });
-
-  it('stageSeverity (real profile): Article word limit warns at initial submission, errors once accepted', () => {
-    // "Your initial submission does not need to be specially formatted"
-    // (initial-formatting page) — encoded as stageSeverity
-    // {initial-submission: warning, accepted: error}.
-    const input = makeInput({
-      sectionTexts: { 'manuscript.md': words(3050) },
-      referenceCount: 0,
-    });
-    input.manuscript.abstract.content = words(200);
-
-    const initial = byId(checkManuscript(input, profile, 'article'), 'ms.word-limit');
-    expect(initial).toHaveLength(1);
-    expect(initial[0]?.severity).toBe('warning');
-
-    const accepted = byId(checkManuscript(input, profile, 'article', 'accepted'), 'ms.word-limit');
-    expect(accepted).toHaveLength(1);
-    expect(accepted[0]?.severity).toBe('error'); // upgraded past the soft limit's intrinsic warning
+    expect(byId(checkManuscript(input, profile, 'original-research'), 'ms.word-limit')).toEqual([]);
   });
 
   it('a "not including references" scope does not add reference words', () => {
-    const p = realProfile('apj-aas');
-    const rnaas = p.manuscript.articleTypes.find((t) => t.id === 'rnaas');
-    if (rnaas === undefined || rnaas.wordLimit === null) throw new Error('profile changed');
-    rnaas.wordLimit = { max: 1015, scope: 'total, not including references', hard: true };
-    // 1010 counted words (abstract 100 + sections 900 + captions 0: scope
+    const p = realProfile('pnas');
+    const report = p.manuscript.articleTypes.find((t) => t.id === 'research-report');
+    if (report === undefined || report.wordLimit === null) throw new Error('profile changed');
+    report.wordLimit = { max: 1015, scope: 'total, not including references', hard: true };
+    // 1000 counted words (abstract 100 + sections 900 + captions 0: scope
     // does not mention captions) <= 1015 only if references stay out.
-    expect(byId(checkManuscript(makeInput(), p, 'rnaas'), 'ms.word-limit')).toEqual([]);
+    expect(byId(checkManuscript(makeInput(), p, 'research-report'), 'ms.word-limit')).toEqual([]);
   });
 });

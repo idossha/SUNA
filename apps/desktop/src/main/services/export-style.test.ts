@@ -74,8 +74,8 @@ describe('resolveDocumentStyle', () => {
     expect(resolved.lineSpacing).toBe(SUNA_DEFAULT_STYLE.lineSpacing)
   })
 
-  it('nature-astronomy shifts only the figure label', () => {
-    const resolved = resolveDocumentStyle(profileFor('nature-astronomy'))
+  it('brain-stimulation shifts only the figure label', () => {
+    const resolved = resolveDocumentStyle(profileFor('brain-stimulation'))
     expect(resolved.figureLabel).toBe('Fig.')
     expect({ ...resolved, figureLabel: 'Figure' }).toEqual(SUNA_DEFAULT_STYLE)
   })

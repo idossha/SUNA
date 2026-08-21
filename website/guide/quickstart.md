@@ -15,7 +15,7 @@ Launch SUNA. The **Welcome** tab opens by default, with five buttons and — onc
 
 **Open example** never edits the demo shipped inside the app. It copies `examples/demo-paper/` to `~/Library/Application Support/@suna/desktop/example-project`, runs `git init` on the copy with an initial commit, and reuses that copy every time afterwards. Delete the directory to start fresh.
 
-The project you now have open is a short astronomy paper on ram-pressure stripping, set to the **Nature Astronomy** profile. It is a plain folder: `suna.json`, `manuscript/`, `figures/`, `code/`, `data/`, `analysis/`, `results/`, `output/` — all text, all under git.
+The project you now have open is a short astronomy paper on ram-pressure stripping, set to the **Nature** profile. It is a plain folder: `suna.json`, `manuscript/`, `figures/`, `code/`, `data/`, `analysis/`, `results/`, `output/` — all text, all under git.
 
 ## 2. Read the manuscript
 
@@ -61,7 +61,7 @@ Go back to the Manuscript tab, put the cursor at the end of a sentence, and pres
 
 A small palette opens at the cursor with a **Search references…** field listing every entry in `manuscript/references.bib`. Type a few letters of an author or title, then press <kbd>⏎</kbd>. SUNA inserts `[@key]` at the cursor.
 
-Switch to Reading mode and the same key renders in the active profile's style — a superscript number under Nature Astronomy, author–year under another. The style is never written into the prose, so changing journals changes every citation at once. See [References](/writing/references).
+Switch to Reading mode and the same key renders in the active profile's style — a superscript number under Nature, author–year under another. The style is never written into the prose, so changing journals changes every citation at once. See [References](/writing/references).
 
 ## 6. Leave a comment
 

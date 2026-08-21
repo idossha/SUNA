@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { PEER_REVIEW_FILE } from '@suna/core'
 import type { PointStatus, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
-import { isAddressed, pointStateFor, roundProgress, unaddressedPoints } from '@suna/core'
+import {
+  baselineVersionFor,
+  compareRefId,
+  isAddressed,
+  pointStateFor,
+  roundProgress,
+  stageLabel,
+  unaddressedPoints,
+  versionsNewestFirst,
+  type LoggedVersion
+} from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
-import { openReviewImportTab } from '../state/dock'
+import { openCompareInSide, openReviewImportTab } from '../state/dock'
 import { refreshDocuments } from '../state/documents'
+import { roundChangedOnDisk } from '../state/roundSync'
 import {
   markRoundPoint,
   matchesPointFilter,
@@ -13,6 +24,7 @@ import {
   type RoundMode,
   type RoundPane
 } from '../state/roundFocus'
+import { useRoundTick } from '../state/roundSync'
 import { useResolved } from '../state/settings'
 import { useUiStore } from '../state/ui'
 import { notifyExported } from '../export/exportToast'
@@ -135,9 +147,12 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
     }
   }, [rootDir, roundId])
 
+  // Re-read when something outside this tab wrote to the round — a quote
+  // inserted from the comparison view is the case that exists today.
+  const tick = useRoundTick(roundId)
   useEffect(() => {
     void load()
-  }, [load])
+  }, [load, tick])
 
   // context/PEER-REVIEW.md — this group's standing instructions for answering
   // referees. Read once per tab and passed into every prompt verbatim; a
@@ -312,6 +327,7 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
               <span aria-hidden="true">⧉</span> Compare
             </button>
           </div>
+          <RoundCompareButton rootDir={rootDir} round={round} />
           {progress !== null && (
             <div className="round__progress">
               <strong>
@@ -633,6 +649,128 @@ function RoundPaneView({
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * "Changes since v1.3" — the comparison this round is written against
+ * (feature-plan-14 §3).
+ *
+ * A round's whole job is to answer reviewers who read ONE particular text, so
+ * the workspace names that text and opens the comparison against it beside
+ * itself. Split rather than a new full tab because the three things you need
+ * while answering a point — the point, your reply, and what you changed for
+ * it — have to be on screen together; the tab is still one ⌘-click away if
+ * the diff needs the whole window.
+ *
+ * The caret sets which version the reviewers read. It is inferred from the
+ * dates until somebody says otherwise (`baselineVersionFor`), and the menu is
+ * where they say otherwise — the inference is a good guess, not a fact, and a
+ * round whose baseline is wrong quotes the wrong "before" into every reply.
+ */
+function RoundCompareButton({ rootDir, round }: { rootDir: string; round: Round }): JSX.Element {
+  const [versions, setVersions] = useState<LoggedVersion[]>([])
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const caretRef = useRef<HTMLButtonElement>(null)
+
+  const load = useCallback(async (): Promise<void> => {
+    try {
+      const { versions: list } = await window.suna.invoke('version:list', { dir: rootDir })
+      setVersions(list)
+    } catch {
+      setVersions([])
+    }
+  }, [rootDir])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const baseline = baselineVersionFor(round, versions)
+  const inferred = round.baselineVersionId === null && baseline !== null
+
+  const setBaseline = async (versionId: string | null): Promise<void> => {
+    setSaving(true)
+    try {
+      await window.suna.invoke('round:set-baseline', { dir: rootDir, roundId: round.id, versionId })
+      roundChangedOnDisk(round.id)
+    } catch (err) {
+      useUiStore
+        .getState()
+        .setStatusNote(
+          `Could not record the version — ${err instanceof Error ? err.message : String(err)}`
+        )
+    } finally {
+      setSaving(false)
+      setMenuOpen(false)
+    }
+  }
+
+  const open = (): void => {
+    if (baseline === null) {
+      setMenuOpen(true)
+      return
+    }
+    openCompareInSide(rootDir, compareRefId({ kind: 'round', roundId: round.id }), 'working')
+  }
+
+  return (
+    <span className="round__cmp-wrap">
+      <button
+        className="round__cmp"
+        onClick={open}
+        disabled={rootDir === ''}
+        title={
+          baseline === null
+            ? 'No version is recorded for this round — choose which one the reviewers read'
+            : `Show what changed since ${baseline.id}, beside this round`
+        }
+      >
+        <span aria-hidden="true">⇄</span>{' '}
+        {baseline === null ? 'Set the version they read…' : `Changes since ${baseline.id}`}
+      </button>
+      <button
+        ref={caretRef}
+        className="round__cmp-caret"
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-expanded={menuOpen}
+        aria-label="Which version the reviewers read"
+        title={
+          baseline === null
+            ? 'Which version did these reviewers read?'
+            : inferred
+              ? `Inferred from the dates: ${baseline.id}. Click to set it explicitly.`
+              : `Recorded: ${baseline.id}`
+        }
+        disabled={saving}
+      >
+        ▾
+      </button>
+      {menuOpen && caretRef.current !== null && (
+        <NewDocumentMenu
+          anchorEl={caretRef.current}
+          onClose={() => setMenuOpen(false)}
+          items={[
+            ...versionsNewestFirst(versions).map((v) => ({
+              label: `${v.id} — ${stageLabel(v.stage)}${baseline?.id === v.id ? ' ✓' : ''}`,
+              onSelect: () => void setBaseline(v.id)
+            })),
+            ...(round.baselineVersionId === null
+              ? []
+              : [{ label: 'Clear — infer from the dates', onSelect: () => void setBaseline(null) }]),
+            ...(versions.length === 0
+              ? [
+                  {
+                    label: 'No versions logged yet — log one from the manuscript',
+                    onSelect: () => setMenuOpen(false)
+                  }
+                ]
+              : [])
+          ]}
+        />
+      )}
+    </span>
   )
 }
 

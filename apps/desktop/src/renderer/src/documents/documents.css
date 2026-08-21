@@ -3079,3 +3079,76 @@ button:disabled {
   opacity: 0.4;
   cursor: default;
 }
+
+/* Versions list: the row opens the version, the ⇄ compares it. Two targets
+   rather than one row that guesses which of the two you meant. */
+.docs__vrow {
+  display: flex;
+  align-items: center;
+}
+
+.docs__vrow .docs__row {
+  flex: 1;
+  min-width: 0;
+}
+
+.docs__vcmp {
+  opacity: 0;
+  background: none;
+  border: 0;
+  color: var(--s-ink-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+.docs__vrow:hover .docs__vcmp,
+.docs__vcmp:focus-visible {
+  opacity: 1;
+}
+
+.docs__vcmp:hover {
+  color: var(--s-ink);
+}
+
+/* The round header's comparison control: one button that opens the diff, one
+   caret that says which version it is against. */
+.round__cmp-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.round__cmp {
+  background: none;
+  border: 1px solid var(--s-border);
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  color: var(--s-ink-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.round__cmp-caret {
+  background: none;
+  border: 1px solid var(--s-border);
+  border-radius: 0 6px 6px 0;
+  color: var(--s-ink-muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 4px 6px;
+}
+
+.round__cmp:hover:not(:disabled),
+.round__cmp-caret:hover:not(:disabled) {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+.round__cmp:disabled,
+.round__cmp-caret:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

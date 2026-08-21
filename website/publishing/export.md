@@ -33,7 +33,7 @@ There is no LaTeX export. SUNA has no `.tex` output path, and **Tectonic is not 
 
 **Format** — the three above.
 
-**Journal profile** — defaults to the project's active profile and lists the ten profiles the pickers offer, by full journal name. If your project already points at a profile that is hidden from the pickers, the dropdown appends it so your own choice keeps showing. See [journal profiles](/publishing/profiles).
+**Journal profile** — defaults to the project's active profile and lists all ten bundled profiles, by full journal name. See [journal profiles](/publishing/profiles).
 
 **Article type** — appears only when the selected profile declares article types. It defaults to `None — generic journal overview`, and resets to None whenever you switch journals, because article-type ids are journal-specific. Note what this control does *not* do: choosing None does not skip the compliance check. The checker falls back to the profile's first declared article type — usually its primary research-article type. None only changes which type the requirements panel spotlights.
 
@@ -61,7 +61,7 @@ That is separate from the canvas's own export, which writes a single figure as S
 
 SUNA's house style is the always-on typographic base for every profile: US Letter (215.9 × 279.4 mm), 12.7 mm margins, Times New Roman, 11 pt body at 1.15 line spacing, 14 pt title, 13/11 pt headings, 10 pt captions and references with a 12.7 mm hanging indent, and a page break after the front matter.
 
-A journal profile contributes only the small deltas it states — the figure label (`Figure` vs `Fig.`), whether figures sit inline or collect into a captions list, whether tables sit inline or at the end, whether references start a new page. In the shipped set only SLEEP, Nature Astronomy, MNRAS and Brain Stimulation carry any delta at all; every other journal inherits the house style whole.
+A journal profile contributes only the small deltas it states — the figure label (`Figure` vs `Fig.`), whether figures sit inline or collect into a captions list, whether tables sit inline or at the end, whether references start a new page. In the shipped set only SLEEP and Brain Stimulation carry any delta at all; every other journal inherits the house style whole.
 
 Word back matter is emitted in a fixed order: Acknowledgments, Funding, Competing Interests, Data and Code Availability, Author Contributions, References.
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import type { LetterKind } from '@suna/core'
-import { PICKER_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, getBundledProfile } from '@suna/formatter'
 import { useProjectStore } from '../state/project'
 import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { openDocumentTab } from '../state/dock'
@@ -78,14 +78,6 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
   }, [])
 
   const profile = useMemo(() => getBundledProfile(profileId), [profileId])
-
-  // A hidden profile a project already points at stays selectable — the
-  // picker offers the visible set plus, when needed, the current selection.
-  const pickerIds: readonly string[] = (PICKER_PROFILE_IDS as readonly string[]).includes(
-    profileId
-  )
-    ? PICKER_PROFILE_IDS
-    : [...PICKER_PROFILE_IDS, profileId]
   const letters = profile?.letters
   const documents = useDocumentsStore((s) => s.documents)
 
@@ -199,7 +191,7 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
             value={profileId}
             onChange={(e) => setProfileId(e.target.value)}
           >
-            {pickerIds.map((pid) => {
+            {BUNDLED_PROFILE_IDS.map((pid) => {
               const p = getBundledProfile(pid)
               return (
                 <option key={pid} value={pid}>

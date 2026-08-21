@@ -14,7 +14,7 @@ The manifest at the project root. Its presence is what makes a folder a SUNA pro
 {
   "schemaVersion": 1,
   "name": "Ram-pressure stripping in a z=1.7 cluster (demo)",
-  "activeProfileId": "nature-astronomy",
+  "activeProfileId": "nature",
   "directories": {
     "manuscript": "manuscript",
     "figures": "figures",

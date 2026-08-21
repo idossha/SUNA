@@ -7,7 +7,7 @@
  * asked for "the app's commands" as one list, and this keeps that list
  * honest and greppable in one file.
  */
-import type { FsNode } from '@suna/core'
+import { latestVersion, type FsNode } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { createNewFigure } from '../canvas/new-figure'
 import { activeCanvasPaletteContext } from '../canvas/palette-actions'
@@ -16,9 +16,12 @@ import { startRepairPick } from '../shell/repair/RepairPicker'
 import { scanFigures } from '../views/figures-scan'
 import {
   activePanelComponent,
+  activeRoundId,
   activePanelPath,
   openExportTab,
   openInSplit,
+  openCompareInSide,
+  openCompareTab,
   openManuscriptTab,
   openSettingsTab,
   openTrashTab
@@ -156,6 +159,40 @@ registerCommand({
 // editor/keymap.ts binds it to bold at Prec.high and the global dispatcher
 // bails on defaultPrevented (palette/CommandPalette.tsx), so ⌘B here would
 // work everywhere except inside the app's primary surface.
+// Two ways in, because "what changed since they read it" is asked from two
+// places: from a round (which knows its own baseline) and from the manuscript
+// (where the answer is "since the last version I logged"). Both open the same
+// panel; the difference is only which pair of sides it starts on.
+registerCommand({
+  id: 'review.diff.round',
+  title: 'Compare With What the Reviewers Read',
+  category: 'Peer review',
+  enabled: () => currentRootDir() !== null && activeRoundId() !== null,
+  run: () => {
+    const rootDir = currentRootDir()
+    const roundId = activeRoundId()
+    if (rootDir === null || roundId === null) return
+    openCompareInSide(rootDir, `round:${roundId}`, 'working')
+  }
+})
+
+registerCommand({
+  id: 'review.diff.versions',
+  title: 'Compare Versions',
+  category: 'Peer review',
+  enabled: () => currentRootDir() !== null,
+  run: async () => {
+    const rootDir = currentRootDir()
+    if (rootDir === null) return
+    // The newest logged version against the working copy: the comparison an
+    // author asking this question from the manuscript almost always wants,
+    // and every other pair is one picker away inside the panel.
+    const { versions } = await window.suna.invoke('version:list', { dir: rootDir })
+    const newest = latestVersion(versions)
+    openCompareTab(rootDir, newest === null ? 'working' : `version:${newest.id}`, 'working')
+  }
+})
+
 registerCommand({
   id: 'view.sidebar.toggle',
   title: 'Toggle Sidebar',

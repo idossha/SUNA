@@ -8,23 +8,23 @@ describe('buildPaletteRamps', () => {
   })
 
   it('leads with a Journal ramp when the profile suggests one (Wong order)', () => {
-    const ramps = buildPaletteRamps(getBundledProfile('nature-astronomy'))
+    const ramps = buildPaletteRamps(getBundledProfile('suna'))
     expect(ramps[0]?.name).toBe('Journal')
     expect(ramps[0]?.colors).toEqual([
       '#000000',
-      '#e69f00',
-      '#56b4e9',
-      '#009e73',
-      '#f0e442',
-      '#0072b2',
-      '#d55e00',
-      '#cc79a7'
+      '#E69F00',
+      '#56B4E9',
+      '#009E73',
+      '#F0E442',
+      '#0072B2',
+      '#D55E00',
+      '#CC79A7'
     ])
     expect(ramps.slice(1)).toEqual(NEUTRAL_RAMPS)
   })
 
   it('omits the Journal ramp when the profile states no suggested palette', () => {
-    const ramps = buildPaletteRamps(getBundledProfile('apj-aas'))
+    const ramps = buildPaletteRamps(getBundledProfile('science'))
     expect(ramps.map((r) => r.name)).not.toContain('Journal')
     expect(ramps).toEqual(NEUTRAL_RAMPS)
   })
