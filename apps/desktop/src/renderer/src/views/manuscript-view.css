@@ -74,3 +74,51 @@
 .ms__row--total .ms__count {
   color: var(--s-ink);
 }
+
+/* ---- the shared outline block (views/OutlineList) -------------------------
+   The header is a disclosure: it keeps the section label it always had and
+   adds one gesture — fold the whole outline away — so a panel that stacks a
+   document list, an outline and the version list can give any of them the
+   room. Row twisties (above) fold a single branch; this folds the list. */
+.ms__outline-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ms__outline-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 2px 2px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ms__outline-head:hover {
+  color: var(--s-ink);
+}
+
+.ms__outline-head-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the header twisty points right when folded, down when open — the same
+   rotation the sidebar's other disclosures use (documents.css .docs__twisty) */
+.ms__outline-head .ms__twisty {
+  transition: transform 120ms ease;
+}
+
+.ms__outline-head .ms__twisty.is-open {
+  transform: rotate(90deg);
+}
+
+.ms__outline-empty {
+  margin: 2px 0 0;
+  padding: 0 6px;
+}

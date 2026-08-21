@@ -52,6 +52,7 @@ export function DocumentsView(): JSX.Element {
   const supplement = secondary.find((d) => d.kind === 'supplement') ?? null
   const others = secondary.filter((d) => d.kind !== 'cover-letter' && d.kind !== 'supplement')
   const isManuscript = activeDocumentId === null || activeDocumentId === 'manuscript'
+  const activeDoc = documents.find((d) => d.id === activeDocumentId) ?? null
   const activeIsLetter = letters.some((d) => d.id === activeDocumentId)
 
   // Letters are reachable from the panel even before one is open: clicking the
@@ -216,12 +217,7 @@ export function DocumentsView(): JSX.Element {
         ) : isManuscript ? (
           <ManuscriptView />
         ) : (
-          <DocumentOutline
-            documentId={activeDocumentId}
-            title={
-              documents.find((d) => d.id === activeDocumentId)?.title ?? activeDocumentId
-            }
-          />
+          activeDoc !== null && <DocumentOutline doc={activeDoc} />
         )}
       </div>
 
