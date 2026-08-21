@@ -51,7 +51,7 @@ describe('stepGate — step 1 (Where & what)', () => {
 })
 
 describe('stepGate — step 2 (What to scaffold)', () => {
-  it('advances for blank and starter with no importDir needed', () => {
+  it('advances for blank and starter with nothing else to choose', () => {
     expect(stepGate(2, createInitialWizardState('create', { scaffold: 'blank' })).canAdvance).toBe(
       true
     )
@@ -60,16 +60,15 @@ describe('stepGate — step 2 (What to scaffold)', () => {
     ).toBe(true)
   })
 
-  it('blocks import until a source folder is chosen', () => {
-    const state = createInitialWizardState('create', { scaffold: 'import', importDir: null })
+  it('blocks the document scaffold until a source manuscript is chosen', () => {
+    const state = createInitialWizardState('create', { scaffold: 'document', documentPath: null })
     expect(stepGate(2, state).canAdvance).toBe(false)
   })
 
-  it('advances import once a source folder is chosen, even with zero files found', () => {
+  it('advances the document scaffold once a source manuscript is chosen', () => {
     const state = createInitialWizardState('create', {
-      scaffold: 'import',
-      importDir: '/old-paper',
-      importFiles: []
+      scaffold: 'document',
+      documentPath: '/old-paper/paper.docx'
     })
     expect(stepGate(2, state).canAdvance).toBe(true)
   })

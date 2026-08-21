@@ -19,7 +19,7 @@ describe('projectTreeLines', () => {
   })
 
   it('never lists a sections/ directory or a section file, whatever the scaffold', () => {
-    for (const scaffold of ['starter', 'blank', 'import'] as const) {
+    for (const scaffold of ['starter', 'blank', 'document'] as const) {
       const lines = projectTreeLines(createInitialWizardState('create', { scaffold }))
       expect(lines.some((l) => l.includes('sections/'))).toBe(false)
       expect(lines.some((l) => /\d\d-[a-z]+\.md/.test(l))).toBe(false)
@@ -30,31 +30,6 @@ describe('projectTreeLines', () => {
     const lines = projectTreeLines(createInitialWizardState('create', { scaffold: 'blank' }))
     expect(lines).toContain('    manuscript.md')
     expect(lines).toContain('    authors.json')
-  })
-
-  it('lists imported files under manuscript/imported/ and skips references.bib when a .bib was imported', () => {
-    const state = createInitialWizardState('create', {
-      scaffold: 'import',
-      importDir: '/old-paper',
-      importFiles: [
-        { path: '/old-paper/draft.md', name: 'draft.md', ext: 'md' },
-        { path: '/old-paper/refs.bib', name: 'refs.bib', ext: 'bib' }
-      ]
-    })
-    const lines = projectTreeLines(state)
-    expect(lines).toContain('    imported/')
-    expect(lines).toContain('      draft.md')
-    expect(lines).toContain('      refs.bib')
-    expect(lines.some((l) => l.trim() === 'references.bib')).toBe(false)
-  })
-
-  it('adds references.bib for an import with no .bib file among the imports', () => {
-    const state = createInitialWizardState('create', {
-      scaffold: 'import',
-      importDir: '/old-paper',
-      importFiles: [{ path: '/old-paper/draft.md', name: 'draft.md', ext: 'md' }]
-    })
-    expect(projectTreeLines(state)).toContain('    references.bib')
   })
 
   it('always lists the agent layer: stubs, context/ files, and machine-local .mcp.json', () => {

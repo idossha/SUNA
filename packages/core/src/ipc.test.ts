@@ -131,7 +131,6 @@ describe('CHANNELS', () => {
       'project:check-target',
       'project:create',
       'project:forget-recent',
-      'project:list-importable',
       'project:migrate',
       'project:open',
       'project:open-example',
@@ -320,25 +319,12 @@ describe('CHANNELS', () => {
     expect(CHANNELS['project:check-target'].response.parse(res)).toEqual(res);
   });
 
-  it('validates project:list-importable response and rejects an unknown extension', () => {
-    const res: ResponseOf<'project:list-importable'> = {
-      files: [{ path: '/work/paper/intro.md', name: 'intro.md', ext: 'md' }],
-    };
-    expect(CHANNELS['project:list-importable'].response.parse(res)).toEqual(res);
-    expect(
-      CHANNELS['project:list-importable'].response.safeParse({
-        files: [{ path: '/x/a.docx', name: 'a.docx', ext: 'docx' }],
-      }).success,
-    ).toBe(false);
-  });
-
   it('validates project:scaffold request/response and rejects an unknown scaffold kind', () => {
     const req: RequestOf<'project:scaffold'> = {
       dir: '/work/my-paper',
       name: 'My Paper',
       activeProfileId: 'nature-astronomy',
       scaffold: 'starter',
-      importDir: null,
       documentPath: null,
       settings: { editor: { contentWidthCh: 90 } },
     };

@@ -21,7 +21,6 @@ import {
 import { outlineFromMarkdown } from '@suna/markdown'
 import {
   checkScaffoldTarget,
-  listImportableFiles,
   scaffoldProject,
   updateProjectSettings
 } from './project'
@@ -177,38 +176,6 @@ describe('checkScaffoldTarget', () => {
   })
 })
 
-describe('listImportableFiles', () => {
-  it('finds .md/.tex/.bib files (including nested), skipping .git and everything else', async () => {
-    const src = await mkdtemp(join(tmpdir(), 'suna-import-src-'))
-    await writeFile(join(src, 'intro.md'), '# intro')
-    await writeFile(join(src, 'paper.tex'), '\\documentclass{article}')
-    await writeFile(join(src, 'refs.bib'), '@article{a,}')
-    await writeFile(join(src, 'notes.txt'), 'not imported')
-    await mkdir(join(src, '.git'))
-    await writeFile(join(src, '.git', 'HEAD'), 'ref: refs/heads/main')
-    await mkdir(join(src, 'sub'))
-    await writeFile(join(src, 'sub', 'appendix.md'), '# appendix')
-
-    const files = await listImportableFiles(src)
-    expect(files.map((f) => f.name).sort()).toEqual([
-      'appendix.md',
-      'intro.md',
-      'paper.tex',
-      'refs.bib'
-    ])
-    expect(files.every((f) => f.path.startsWith(src))).toBe(true)
-    expect(files.find((f) => f.name === 'refs.bib')?.ext).toBe('bib')
-    await rm(src, { recursive: true, force: true })
-  })
-
-  it('returns an empty list for a directory with nothing importable', async () => {
-    const src = await mkdtemp(join(tmpdir(), 'suna-import-empty-'))
-    await writeFile(join(src, 'data.csv'), 'a,b\n1,2')
-    expect(await listImportableFiles(src)).toEqual([])
-    await rm(src, { recursive: true, force: true })
-  })
-})
-
 describe('scaffoldProject', () => {
   let parent = ''
   let target = ''
@@ -231,7 +198,6 @@ describe('scaffoldProject', () => {
         name: 'x',
         activeProfileId: 'nature-astronomy',
         scaffold: 'blank',
-        importDir: null,
         settings: {}
       })
     ).rejects.toThrow(/already a SUNA project/)
@@ -243,7 +209,6 @@ describe('scaffoldProject', () => {
       name: 'My New Paper',
       activeProfileId: 'science',
       scaffold: 'blank',
-      importDir: null,
       settings: {}
     })
     expect(result.manifest.activeProfileId).toBe('science')
@@ -284,7 +249,6 @@ describe('scaffoldProject', () => {
       name: 'Starter Paper',
       activeProfileId: 'nature-astronomy',
       scaffold: 'starter',
-      importDir: null,
       settings: {}
     })
     expect(result.warnings).toEqual([])
@@ -308,7 +272,6 @@ describe('scaffoldProject', () => {
       name: 'Starter Paper',
       activeProfileId: 'suna',
       scaffold: 'starter',
-      importDir: null,
       settings: {}
     })
     const read = (...parts: string[]): Promise<string> => readFile(join(target, ...parts), 'utf8')
@@ -340,52 +303,9 @@ describe('scaffoldProject', () => {
       name: 'Configured Paper',
       activeProfileId: 'nature-astronomy',
       scaffold: 'blank',
-      importDir: null,
       settings: { editor: { contentWidthCh: 90, fontSizePx: 18 } }
     })
     expect(result.manifest.settings).toEqual({ editor: { contentWidthCh: 90, fontSizePx: 18 } })
-  })
-
-  it('copies imported files into manuscript/imported and points bibliography at the imported .bib', async () => {
-    const importSrc = await mkdtemp(join(tmpdir(), 'suna-import-src-'))
-    await writeFile(join(importSrc, 'draft.md'), '# Draft')
-    await writeFile(join(importSrc, 'refs.bib'), '@article{a,}')
-
-    const result = await scaffoldProject({
-      dir: target,
-      name: 'Imported Paper',
-      activeProfileId: 'nature-astronomy',
-      scaffold: 'import',
-      importDir: importSrc,
-      settings: {}
-    })
-    expect(result.warnings).toEqual([])
-    const imported = await readdir(join(target, 'manuscript', 'imported'))
-    expect(imported.sort()).toEqual(['draft.md', 'refs.bib'])
-    const manuscript = ManuscriptSchema.parse(
-      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
-    )
-    expect(manuscript.bibliography).toBe('imported/refs.bib')
-
-    await rm(importSrc, { recursive: true, force: true })
-  })
-
-  it('warns instead of failing when the import folder has nothing importable', async () => {
-    const importSrc = await mkdtemp(join(tmpdir(), 'suna-import-empty-'))
-    const result = await scaffoldProject({
-      dir: target,
-      name: 'Empty Import',
-      activeProfileId: 'nature-astronomy',
-      scaffold: 'import',
-      importDir: importSrc,
-      settings: {}
-    })
-    expect(result.warnings).toEqual([`No .md/.tex/.bib files found in ${importSrc}`])
-    const manuscript = ManuscriptSchema.parse(
-      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
-    )
-    expect(manuscript.bibliography).toBe('references.bib')
-    await rm(importSrc, { recursive: true, force: true })
   })
 })
 
@@ -408,7 +328,6 @@ describe('the starter scaffold ships a letter and a review round', () => {
       name: 'My Starter Paper',
       activeProfileId: 'science',
       scaffold: 'starter',
-      importDir: null,
       settings: {}
     })
   }
@@ -488,14 +407,13 @@ describe('the starter scaffold ships a letter and a review round', () => {
   })
 
   it('gives no other scaffold a registry, a letter or a round', async () => {
-    for (const scaffold of ['blank', 'import'] as const) {
+    for (const scaffold of ['blank', 'document'] as const) {
       const dirName = join(parent, `plain-${scaffold}`)
       await scaffoldProject({
         dir: dirName,
         name: 'Plain',
         activeProfileId: 'science',
         scaffold,
-        importDir: null,
         settings: {}
       })
       const raw = await readFile(join(dirName, 'suna.json'), 'utf8')
