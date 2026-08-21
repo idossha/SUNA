@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
+  CommentsFileSchema,
   CoverLetterMetaSchema,
   DocumentEntrySchema,
   LetterPrivateSchema,
@@ -8,9 +9,11 @@ import {
   ReviewerReportSchema,
   RoundSchema,
   RoundsIndexSchema,
+  makeAnchor,
   reportIsFaithful,
   segmentReviewerReport,
   unansweredMarker,
+  type CommentsFile,
   type CoverLetterMeta,
   type DocumentEntry,
   type LetterPrivate,
@@ -642,6 +645,88 @@ export function starterRound(createdAt: string): StarterRound {
 }
 
 /* ------------------------------------------------------------------ */
+/* Comments                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Two threads in the margin, so the comment rail teaches itself the way the
+ * cover letter and the review round do.
+ *
+ * The guided tour stops on this rail and says that a coauthor's threads and
+ * an agent's share it, that each keeps its history, and that only the author
+ * ever resolves one (tour/steps.ts, `comments-rail`) — claims an empty rail
+ * asks the reader to take on faith. So one thread is a question the agent has
+ * ANSWERED but not closed, and the other is a question the agent RAISED:
+ * between them every rule the rail runs on is visible without reading a word
+ * of documentation.
+ *
+ * Anchors are derived from STARTER_MANUSCRIPT_MD by the same `makeAnchor` the
+ * editor uses, so they resolve against the prose on open instead of arriving
+ * detached. Both quotes are also present verbatim in examples/hello-suna,
+ * which keeps its own comments.json in step with these.
+ */
+const STARTER_COMMENT_QUOTES = {
+  citation: 'A citation is its BibTeX key in square brackets [@knuth1984]',
+  methods: 'Describe how the work was done.'
+} as const
+
+/** Anchored to `quote`'s FIRST occurrence in the starter prose. */
+function starterAnchor(quote: string): { quote: string; prefix: string; suffix: string } {
+  const from = STARTER_MANUSCRIPT_MD.indexOf(quote)
+  if (from === -1) throw new Error(`starter comment quote is not in the prose: ${quote}`)
+  return makeAnchor(STARTER_MANUSCRIPT_MD, from, from + quote.length)
+}
+
+/**
+ * `manuscript/comments.json` for the starter. `createdAt` is the manifest's,
+ * so a scaffolded project carries one timestamp rather than several a few
+ * milliseconds apart, and the ids it produces are reproducible.
+ */
+export function starterComments(createdAt: string): CommentsFile {
+  const day = createdAt.slice(0, 10)
+  return CommentsFileSchema.parse({
+    schemaVersion: 1,
+    comments: [
+      {
+        id: `c-${day}-starter01`,
+        target: {
+          kind: 'section',
+          path: 'manuscript.md',
+          anchor: starterAnchor(STARTER_COMMENT_QUOTES.citation)
+        },
+        body: 'Is knuth1984 a real entry, or a placeholder we still owe a citation for?\n\nThis is a comment. It is anchored to the sentence rather than typed into it — the prose above is untouched, and the thread lives beside it in `manuscript/comments.json`. Select any text and press ⌘⇧M to leave one of your own.',
+        author: { kind: 'human', name: 'A coauthor' },
+        createdAt,
+        resolved: false,
+        detached: false,
+        replies: [
+          {
+            id: `r-${day}-starter01a`,
+            body: 'Real: `references.bib` carries the entry and its DOI resolves.\n\nI have replied and left the thread open, which is the only thing an agent can do — there is no verb that resolves a comment, so the judgement of whether an answer settles the matter stays yours. An open thread is a decision still owed.',
+            author: { kind: 'agent', name: 'Agent' },
+            createdAt
+          }
+        ]
+      },
+      {
+        id: `c-${day}-starter02`,
+        target: {
+          kind: 'section',
+          path: 'manuscript.md',
+          anchor: starterAnchor(STARTER_COMMENT_QUOTES.methods)
+        },
+        body: 'This section is still the sentence the scaffold wrote. I can draft it from whatever ends up in `analysis/` and `code/`, but what belongs in Methods is your call, so the question waits in your margin instead of interrupting you.\n\nAn agent raises a comment the same way you do, into the same file. Reply to this one and it becomes a conversation; delete it and nothing else in the project notices.',
+        author: { kind: 'agent', name: 'Agent' },
+        createdAt,
+        resolved: false,
+        detached: false,
+        replies: []
+      }
+    ]
+  })
+}
+
+/* ------------------------------------------------------------------ */
 /* Writers                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -663,6 +748,17 @@ export async function writeStarterLetter(
   await writeFile(
     join(dir, `${STARTER_LETTER_ID}.private.json`),
     JSON.stringify(starterLetterPrivate(), null, 2) + '\n'
+  )
+}
+
+/** `manuscript/comments.json` — the starter's two margin threads. */
+export async function writeStarterComments(
+  manuscriptDir: string,
+  createdAt: string
+): Promise<void> {
+  await writeFile(
+    join(manuscriptDir, 'comments.json'),
+    JSON.stringify(starterComments(createdAt), null, 2) + '\n'
   )
 }
 

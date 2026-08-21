@@ -23,6 +23,7 @@ import {
   STARTER_MANUSCRIPT_MD,
   starterDocuments,
   starterManuscript,
+  writeStarterComments,
   writeStarterFigure,
   writeStarterLetter,
   writeStarterRound
@@ -152,6 +153,7 @@ export async function createProject(
   await writeFile(join(dir, '.gitignore'), PROJECT_GITIGNORE)
   await writeStarterLetter(manuscriptDir, name, manifest.activeProfileId)
   await writeStarterRound(dir, manifest.createdAt)
+  await writeStarterComments(manuscriptDir, manifest.createdAt)
 
   // Agent layer before git init so the stubs + context/ land in the initial
   // commit (.mcp.json stays out — it is in PROJECT_GITIGNORE). Best-effort:
@@ -337,6 +339,7 @@ export async function scaffoldProject(
     await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
     await writeStarterLetter(manuscriptDir, name, activeProfileId)
     await writeStarterRound(dir, manifest.createdAt)
+    await writeStarterComments(manuscriptDir, manifest.createdAt)
   } else if (scaffold === 'document') {
     // A blank manuscript first, so the project is valid even when the
     // document turns out to be unreadable — the import writes over it.
