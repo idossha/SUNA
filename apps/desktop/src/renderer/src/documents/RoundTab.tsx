@@ -5,11 +5,22 @@ import { isAddressed, pointStateFor, roundProgress, unaddressedPoints } from '@s
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openReviewImportTab } from '../state/dock'
 import { refreshDocuments } from '../state/documents'
-import { markRoundPoint, useRoundFocusStore } from '../state/roundFocus'
+import {
+  markRoundPoint,
+  matchesPointFilter,
+  useRoundFocusStore,
+  type PointFilter,
+  type RoundMode,
+  type RoundPane
+} from '../state/roundFocus'
+import { useResolved } from '../state/settings'
 import { useUiStore } from '../state/ui'
 import { notifyExported } from '../export/exportToast'
 import { NewDocumentMenu } from './NewDocumentMenu'
 import { ReplyAssistant } from './ReplyAssistant'
+import { ReplyEditor, ReplyQuickBar, type ReplyEditorHandle } from './ReplyEditor'
+import { ResponseSettingsPopover } from './ResponseSettingsPopover'
+import { GearIcon } from '../editor/GearIcon'
 import { pointReplyContext, type ReplyContextSource } from './replyContext'
 import './documents.css'
 
@@ -30,17 +41,69 @@ import './documents.css'
  * manuscript, which is the only way to read what you have written as the
  * document a reviewer will read it as.
  *
+ * **Compare** puts a second pane on the same round beside the first. Two
+ * reviewers routinely raise the same objection in different words, and the
+ * reply has to answer both without contradicting itself — which you cannot
+ * check by scrolling back and forth, because the point you are answering
+ * leaves the screen. Exactly two panes: the cap is in `RoundPane` rather
+ * than a length check, and a third column of reply cards does not fit a
+ * laptop anyway. Both panes are the same round, share the header's mode and
+ * filter, and hold their own selection; whichever you last touched is the
+ * one the sidebar outline drives.
+ *
+ * The status filter in the header narrows both this pane and the sidebar
+ * outline, because they are one list read twice; a pane that showed only the
+ * unaddressed points beside an outline that still listed all 84 of them would
+ * be two answers to the same question.
+ *
  * `rebutted` sits beside `done` as a first-class outcome. Every real response
  * letter disagrees with something, and a tool that models only compliance
  * quietly pressures authors into conceding points they should defend.
+ *
+ * The gear in the header holds the two things about a response that are house
+ * style rather than structure: whether the three voices are coloured, and
+ * whether the reply box types the conventions for you. Both are resolved
+ * settings, so a project can fix them for every co-author, and both reach the
+ * export — the workspace is a preview of the file, not a different picture of
+ * it (ResponseSettingsPopover, reply-markup.ts).
  */
 
 const STATUSES: { id: PointStatus; label: string; hint: string }[] = [
   { id: 'unaddressed', label: 'Unaddressed', hint: 'Not yet answered' },
   { id: 'drafted', label: 'Drafted', hint: 'A reply exists but is not finished' },
-  { id: 'done', label: 'Done', hint: 'Answered, and the manuscript changed if it needed to' },
-  { id: 'rebutted', label: 'Rebutted', hint: 'We disagree, and the reply says why' }
+  { id: 'done', label: 'Done', hint: 'Answered, and the manuscript changed if it needed to' }
 ]
+
+/**
+ * The header's status filter. `All` first, because it is the state the
+ * workspace opens in and the one you return to.
+ */
+const FILTERS: { id: PointFilter; label: string; hint: string }[] = [
+  { id: 'all', label: 'All', hint: 'Every point in the round' },
+  { id: 'unaddressed', label: 'Unaddressed', hint: 'Points with no reply yet' },
+  { id: 'drafted', label: 'Drafted', hint: 'Replies written but not finished' },
+  { id: 'done', label: 'Done', hint: 'Answered — done or rebutted' }
+]
+
+/**
+ * `rebutted` is not offered, by request — but it is not gone.
+ *
+ * It remains a value of `PointStatusSchema`, it still counts as addressed,
+ * and a point that already carries it still shows its pill so the state is
+ * visible and can be changed. Hiding a status the DATA can hold would leave a
+ * point the author could neither see the truth about nor move off, which is
+ * worse than the extra button.
+ */
+const REBUTTED: { id: PointStatus; label: string; hint: string } = {
+  id: 'rebutted',
+  label: 'Rebutted',
+  hint: 'We disagree, and the reply says why'
+}
+
+/** The pills this card shows: the three, plus `rebutted` where it is set. */
+function statusesFor(current: PointStatus): { id: PointStatus; label: string; hint: string }[] {
+  return current === 'rebutted' ? [...STATUSES, REBUTTED] : STATUSES
+}
 
 export function RoundTab({ params }: DockPanelProps): JSX.Element {
   const rootDir = String(params?.['rootDir'] ?? '')
@@ -48,81 +111,18 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
 
   const [round, setRound] = useState<Round | null>(null)
   const [reports, setReports] = useState<ReviewerReport[]>([])
-  const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const mode = useRoundFocusStore((st) => st.mode)
   const setMode = useRoundFocusStore((st) => st.setMode)
-  const focusedRound = useRoundFocusStore((st) => st.roundId)
-  const focusedPoint = useRoundFocusStore((st) => st.pointId)
-  const focusNonce = useRoundFocusStore((st) => st.nonce)
-  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const filter = useRoundFocusStore((st) => st.filter)
+  const setFilter = useRoundFocusStore((st) => st.setFilter)
+  const split = useRoundFocusStore((st) => st.split)
+  const setSplit = useRoundFocusStore((st) => st.setSplit)
 
-  // The sidebar outline and this tab share one selection. In continuous mode
-  // "selecting" a point means scrolling to it, which is what the outline does
-  // on the manuscript too.
-  //
-  // Only an EXPLICIT pick scrolls, and the nonce is how we tell one apart from
-  // scroll-spy writing the same field. Reacting to `focusedPoint` instead made
-  // the pane jitter: the spy marked a point, the effect scrolled to it, the
-  // scroll re-marked, and the wheel fought a smooth-scroll animation the whole
-  // way down.
-  const lastNonce = useRef(0)
-  useEffect(() => {
-    if (focusNonce === lastNonce.current) return
-    lastNonce.current = focusNonce
-    if (focusedRound !== roundId || focusedPoint === null) return
-    setSelected(focusedPoint)
-    scrollRef.current
-      ?.querySelector(`[data-point="${focusedPoint}"]`)
-      ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-  }, [focusNonce, focusedRound, focusedPoint, roundId])
-
-  // Selection without scrolling — the spy's writes still move the highlight.
-  useEffect(() => {
-    if (focusedRound === roundId && focusedPoint !== null) setSelected(focusedPoint)
-  }, [focusedRound, focusedPoint, roundId])
-
-  // Scroll-spy for continuous mode: the highest card that is FULLY on screen.
-  // "Fully" is what makes it stable — a card entering by one pixel at the
-  // bottom, or leaving by one at the top, no longer takes the indicator.
-  useEffect(() => {
-    const root = scrollRef.current
-    if (root === null || mode !== 'scroll') return
-
-    let frame = 0
-    const measure = (): void => {
-      frame = 0
-      const box = root.getBoundingClientRect()
-      let best: string | null = null
-      let bestTop = Infinity
-      // Fallback for a card taller than the pane, which is never fully
-      // visible: the one covering the top edge is what you are reading.
-      let covering: string | null = null
-      for (const el of root.querySelectorAll<HTMLElement>('[data-point]')) {
-        const id = el.dataset['point']
-        if (id === undefined) continue
-        const r = el.getBoundingClientRect()
-        if (r.top <= box.top + 1 && r.bottom > box.top + 1) covering = id
-        if (r.top >= box.top - 1 && r.bottom <= box.bottom + 1 && r.top < bestTop) {
-          best = id
-          bestTop = r.top
-        }
-      }
-      const winner = best ?? covering
-      if (winner !== null) markRoundPoint(roundId, winner)
-    }
-
-    const onScroll = (): void => {
-      if (frame === 0) frame = requestAnimationFrame(measure)
-    }
-    root.addEventListener('scroll', onScroll, { passive: true })
-    measure()
-    return () => {
-      root.removeEventListener('scroll', onScroll)
-      if (frame !== 0) cancelAnimationFrame(frame)
-    }
-  }, [mode, roundId, reports])
+  const { value: colorRoles } = useResolved('response.colorRoles')
+  const { value: quickInsert } = useResolved('response.quickInsert')
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -228,11 +228,27 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
     )
   }
 
-  const activePoint =
-    selected === null
-      ? null
-      : (reports.flatMap((r) => r.points).find((p) => p.id === selected) ?? null)
-  const activeState = activePoint === null ? null : pointStateFor(round, activePoint.id)
+  // How many points each filter would leave — on the buttons, so choosing one
+  // is never a guess about whether anything is behind it.
+  const counts = { all: 0, unaddressed: 0, drafted: 0, done: 0 }
+  for (const report of reports) {
+    for (const p of report.points) {
+      const { status } = pointStateFor(round, p.id)
+      counts.all += 1
+      for (const f of ['unaddressed', 'drafted', 'done'] as const) {
+        if (matchesPointFilter(status, f)) counts[f] += 1
+      }
+    }
+  }
+
+  // Reviewers with nothing left after the filter drop out with their heading:
+  // an empty "Reviewer 2" section reads as a reviewer who wrote nothing.
+  const shown = reports
+    .map((r) => ({
+      report: r,
+      points: r.points.filter((p) => matchesPointFilter(pointStateFor(round, p.id).status, filter))
+    }))
+    .filter((r) => r.points.length > 0)
 
   return (
     <div className="round">
@@ -245,6 +261,20 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
           </span>
         </div>
         <div className="round__tools">
+          <div className="round__filter" role="group" aria-label="Filter by status">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                className={`round__fbtn${filter === f.id ? ' is-on' : ''}`}
+                onClick={() => setFilter(f.id)}
+                aria-pressed={filter === f.id}
+                title={f.hint}
+              >
+                {f.label}
+                <span className="round__fcount">{counts[f.id]}</span>
+              </button>
+            ))}
+          </div>
           <div className="round__modes" role="group" aria-label="View">
             <button
               className={`round__mode${mode === 'focus' ? ' is-on' : ''}`}
@@ -261,6 +291,27 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
               Continuous
             </button>
           </div>
+          {/*
+            One button, both directions — the same control turns the second
+            pane on and off, and it sits with the mode switch because "how
+            many panes" and "how much of the round is in one" are the same
+            question about how you are reading. Pane B's own × closes it too,
+            so the way out is wherever you happen to be looking.
+          */}
+          <div className="round__modes" role="group" aria-label="Compare">
+            <button
+              className={`round__mode${split ? ' is-on' : ''}`}
+              onClick={() => setSplit(!split)}
+              aria-pressed={split}
+              title={
+                split
+                  ? 'Back to one pane'
+                  : 'Open a second pane on this round — read two points side by side'
+              }
+            >
+              <span aria-hidden="true">⧉</span> Compare
+            </button>
+          </div>
           {progress !== null && (
             <div className="round__progress">
               <strong>
@@ -273,60 +324,315 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
             rootDir={rootDir}
             roundId={roundId}
             outputName={`response-${roundId}`}
+            colorRoles={colorRoles}
             unaddressed={unaddressedPoints(round, reports).map(
               (p) => `Reviewer ${p.reviewerIndex}, point ${p.pointIndex}`
             )}
           />
+          <span className="round__settings-wrap">
+            <button
+              className={`round__gear${settingsOpen ? ' is-on' : ''}`}
+              onClick={() => setSettingsOpen((v) => !v)}
+              aria-label="Response settings"
+              aria-expanded={settingsOpen}
+              title="How this response is written and coloured"
+            >
+              <GearIcon />
+            </button>
+            {settingsOpen && <ResponseSettingsPopover onClose={() => setSettingsOpen(false)} />}
+          </span>
         </div>
       </header>
 
-      <div className="round__cols">
-        {/* ---- the point, and what you do about it ------------------------ */}
-        <section className="round__detail" ref={scrollRef}>
-          {mode === 'scroll' ? (
-            reports.map((report) => (
+      {/* ---- the point, and what you do about it -------------------------- */}
+      <div className={`round__cols${split ? ' is-split' : ''}`}>
+        <RoundPaneView
+          pane="a"
+          split={split}
+          rootDir={rootDir}
+          roundId={roundId}
+          round={round}
+          reports={reports}
+          shown={shown}
+          mode={mode}
+          filter={filter}
+          allCount={counts.all}
+          colorRoles={colorRoles}
+          quickInsert={quickInsert}
+          guidelines={guidelines}
+          onGuidelinesApproved={setGuidelines}
+          onStatus={(id, st) => void setStatus(id, st)}
+          onReply={(id, t) => void setReply(id, t)}
+          onFilter={setFilter}
+          onClose={() => setSplit(false)}
+        />
+        {split && (
+          <RoundPaneView
+            pane="b"
+            split
+            rootDir={rootDir}
+            roundId={roundId}
+            round={round}
+            reports={reports}
+            shown={shown}
+            mode={mode}
+            filter={filter}
+            allCount={counts.all}
+            colorRoles={colorRoles}
+            quickInsert={quickInsert}
+            guidelines={guidelines}
+            onGuidelinesApproved={setGuidelines}
+            onStatus={(id, st) => void setStatus(id, st)}
+            onReply={(id, t) => void setReply(id, t)}
+            onFilter={setFilter}
+            onClose={() => setSplit(false)}
+          />
+        )}
+      </div>
+
+      {/* Below both panes, not inside one: a write that failed failed for the
+          round, and printing it twice would read as two failures. */}
+      {error !== null && <p className="sheet__error round__error">{error}</p>}
+    </div>
+  )
+}
+
+/** One reviewer's points and the replies to them — the round tab renders one or two. */
+type ShownReports = { report: ReviewerReport; points: ReviewPointRecord[] }[]
+
+/**
+ * One pane of the round workspace.
+ *
+ * Everything per-pane lives here — the selection, the scroller, the
+ * scroll-spy — because those are exactly the things the two panes must not
+ * share. What they DO share (which round, which mode, which filter, the
+ * reply text itself) stays in the tab above, so a reply typed in one pane is
+ * the same reply the other pane is showing.
+ */
+function RoundPaneView({
+  pane,
+  split,
+  rootDir,
+  roundId,
+  round,
+  reports,
+  shown,
+  mode,
+  filter,
+  allCount,
+  colorRoles,
+  quickInsert,
+  guidelines,
+  onGuidelinesApproved,
+  onStatus,
+  onReply,
+  onFilter,
+  onClose
+}: {
+  pane: RoundPane
+  /** Is the second pane open? Drives the pane header, which is noise on its own. */
+  split: boolean
+  rootDir: string
+  roundId: string
+  round: Round
+  reports: readonly ReviewerReport[]
+  /** The filtered points, grouped by reviewer — computed once for both panes. */
+  shown: ShownReports
+  mode: RoundMode
+  filter: PointFilter
+  allCount: number
+  colorRoles: boolean
+  quickInsert: boolean
+  guidelines: string | null
+  onGuidelinesApproved: (text: string) => void
+  onStatus: (pointId: string, status: PointStatus) => void
+  onReply: (pointId: string, reply: string) => void
+  onFilter: (filter: PointFilter) => void
+  onClose: () => void
+}): JSX.Element {
+  const focusedRound = useRoundFocusStore((st) => st.roundId)
+  const panePoint = useRoundFocusStore((st) => st.points[pane])
+  const focusNonce = useRoundFocusStore((st) => st.nonces[pane])
+  const activePane = useRoundFocusStore((st) => st.activePane)
+  const setActivePane = useRoundFocusStore((st) => st.setActivePane)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  // A selection from a different round is not a selection here.
+  const selected = focusedRound === roundId ? panePoint : null
+
+  // The sidebar outline and this pane share one selection. In continuous mode
+  // "selecting" a point means scrolling to it, which is what the outline does
+  // on the manuscript too.
+  //
+  // Only an EXPLICIT pick scrolls, and the nonce is how we tell one apart from
+  // scroll-spy writing the same field. Reacting to the point id instead made
+  // the pane jitter: the spy marked a point, the effect scrolled to it, the
+  // scroll re-marked, and the wheel fought a smooth-scroll animation the whole
+  // way down. The nonce is per pane, so a pick aimed at one pane leaves the
+  // other exactly where it was — which is the entire reason to have two.
+  const lastNonce = useRef(0)
+  useEffect(() => {
+    if (focusNonce === lastNonce.current) return
+    lastNonce.current = focusNonce
+    if (selected === null) return
+    // Synchronously, in this effect, and NOT deferred to a frame: the
+    // scroll-spy below takes its first measurement during its own setup, and
+    // a scroll left waiting on rAF loses its target to that measurement
+    // before it ever runs.
+    scrollRef.current
+      ?.querySelector(`[data-point="${selected}"]`)
+      ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [focusNonce, selected])
+
+  // Scroll-spy for continuous mode: the highest card that is FULLY on screen.
+  // "Fully" is what makes it stable — a card entering by one pixel at the
+  // bottom, or leaving by one at the top, no longer takes the indicator.
+  useEffect(() => {
+    const root = scrollRef.current
+    if (root === null || mode !== 'scroll') return
+
+    let frame = 0
+    const measure = (): void => {
+      frame = 0
+      // An unsized pane — the dock has not laid the panel out yet — measures
+      // every card as a zero-height box at the origin, and every one of them
+      // then counts as "fully visible", so the spy would report point 1 and
+      // overwrite the point this pane is being restored to.
+      if (root.clientHeight === 0) return
+      const box = root.getBoundingClientRect()
+      let best: string | null = null
+      let bestTop = Infinity
+      // Fallback for a card taller than the pane, which is never fully
+      // visible: the one covering the top edge is what you are reading.
+      let covering: string | null = null
+      for (const el of root.querySelectorAll<HTMLElement>('[data-point]')) {
+        const id = el.dataset['point']
+        if (id === undefined) continue
+        const r = el.getBoundingClientRect()
+        if (r.top <= box.top + 1 && r.bottom > box.top + 1) covering = id
+        if (r.top >= box.top - 1 && r.bottom <= box.bottom + 1 && r.top < bestTop) {
+          best = id
+          bestTop = r.top
+        }
+      }
+      const winner = best ?? covering
+      if (winner !== null) markRoundPoint(roundId, winner, pane)
+    }
+
+    const onScroll = (): void => {
+      if (frame === 0) frame = requestAnimationFrame(measure)
+    }
+    root.addEventListener('scroll', onScroll, { passive: true })
+    measure()
+    return () => {
+      root.removeEventListener('scroll', onScroll)
+      if (frame !== 0) cancelAnimationFrame(frame)
+    }
+  }, [mode, roundId, pane, reports])
+
+  const activePoint =
+    selected === null
+      ? null
+      : (reports.flatMap((r) => r.points).find((p) => p.id === selected) ?? null)
+  const activeState = activePoint === null ? null : pointStateFor(round, activePoint.id)
+  const isActive = !split || activePane === pane
+
+  const sourceFor = (report: ReviewerReport | undefined): ReplyContextSource => ({
+    rootDir,
+    round,
+    reports,
+    report: report ?? reports[0],
+    guidelines,
+    onGuidelinesApproved
+  })
+
+  return (
+    <section
+      className={`round__pane${isActive ? ' is-active' : ''}`}
+      // Touching a pane makes it the one the outline drives. Capture, because
+      // the click that matters is usually on a button or inside the reply
+      // editor, and those stop it before it reaches here.
+      onPointerDownCapture={() => setActivePane(pane)}
+      onFocusCapture={() => setActivePane(pane)}
+      aria-label={split ? `Pane ${pane.toUpperCase()}` : undefined}
+    >
+      {/*
+        The pane header exists only in split view: with one pane there is
+        nothing to tell apart, and a strip saying "A" above the only column
+        on screen is a label for a choice nobody made.
+      */}
+      {split && (
+        <header className="round__pane-head">
+          <span className="round__pane-tag">{pane.toUpperCase()}</span>
+          <span className="round__pane-where">
+            {activePoint === null
+              ? 'No point chosen'
+              : `Reviewer ${activePoint.reviewerIndex}, point ${activePoint.pointIndex}`}
+          </span>
+          {pane === 'b' && (
+            <button
+              className="round__pane-close"
+              onClick={onClose}
+              title="Close this pane"
+              aria-label="Close the second pane"
+            >
+              ×
+            </button>
+          )}
+        </header>
+      )}
+
+      <div className="round__detail" ref={scrollRef}>
+        {mode === 'scroll' ? (
+          shown.length === 0 ? (
+            <p className="round__hint">
+              No {FILTERS.find((f) => f.id === filter)?.label.toLowerCase()} points.{' '}
+              <button className="round__link" onClick={() => onFilter('all')}>
+                Show all {allCount}
+              </button>
+            </p>
+          ) : (
+            shown.map(({ report, points }) => (
               <div key={report.index} className="round__scroll-rev">
                 <h3 className="round__scroll-head">{report.label}</h3>
-                {report.points.map((p) => (
+                {points.map((p) => (
                   <PointCard
                     key={p.id}
                     point={p}
                     state={pointStateFor(round, p.id)}
                     selected={selected === p.id}
-                    onSelect={() => setSelected(p.id)}
-                    onStatus={(st) => void setStatus(p.id, st)}
-                    onReply={(t) => void setReply(p.id, t)}
-                    source={{ rootDir, round, reports, report, guidelines, onGuidelinesApproved: setGuidelines }}
+                    onSelect={() => markRoundPoint(roundId, p.id, pane)}
+                    onStatus={(st) => onStatus(p.id, st)}
+                    onReply={(t) => onReply(p.id, t)}
+                    colorRoles={colorRoles}
+                    quickInsert={quickInsert}
+                    reports={reports}
+                    source={sourceFor(report)}
                   />
                 ))}
               </div>
             ))
-          ) : activePoint === null || activeState === null ? (
-            <p className="round__hint">Choose a point in the outline, or switch to Continuous.</p>
-          ) : (
-            <PointCard
-              point={activePoint}
-              state={activeState}
-              selected
-              onSelect={() => undefined}
-              onStatus={(st) => void setStatus(activePoint.id, st)}
-              onReply={(t) => void setReply(activePoint.id, t)}
-              source={{
-                rootDir,
-                round,
-                reports,
-                report:
-                  reports.find((r) => r.points.some((p) => p.id === activePoint.id)) ?? reports[0],
-                guidelines,
-                onGuidelinesApproved: setGuidelines
-              }}
-            />
-          )}
-          {error !== null && <p className="sheet__error">{error}</p>}
-        </section>
+          )
+        ) : activePoint === null || activeState === null ? (
+          <p className="round__hint">
+            Choose a point in the outline{split ? ' for this pane' : ''}, or switch to Continuous.
+          </p>
+        ) : (
+          <PointCard
+            point={activePoint}
+            state={activeState}
+            selected
+            onSelect={() => undefined}
+            onStatus={(st) => onStatus(activePoint.id, st)}
+            onReply={(t) => onReply(activePoint.id, t)}
+            colorRoles={colorRoles}
+            quickInsert={quickInsert}
+            reports={reports}
+            source={sourceFor(reports.find((r) => r.points.some((p) => p.id === activePoint.id)))}
+          />
+        )}
       </div>
-
-    </div>
+    </section>
   )
 }
 
@@ -348,11 +654,19 @@ function ResponseExportButton({
   rootDir,
   roundId,
   outputName,
+  colorRoles,
   unaddressed
 }: {
   rootDir: string
   roundId: string
   outputName: string
+  /**
+   * Paint the three voices in the exported file. Resolved here rather than in
+   * main because the renderer is the side that holds the two-level settings
+   * hierarchy — and because it is what makes the export match the workspace
+   * the author was just looking at.
+   */
+  colorRoles: boolean
   /** Points still neither done nor rebutted, labelled by reviewer and number. */
   unaddressed: readonly string[]
 }): JSX.Element {
@@ -372,7 +686,8 @@ function ResponseExportButton({
         roundId,
         format,
         outputName,
-        acknowledgeUnaddressed: acknowledge
+        acknowledgeUnaddressed: acknowledge,
+        colorRoles
       })
       notifyExported(
         path,
@@ -496,6 +811,9 @@ function PointCard({
   onSelect,
   onStatus,
   onReply,
+  colorRoles,
+  quickInsert,
+  reports,
   source
 }: {
   point: ReviewPointRecord
@@ -504,6 +822,10 @@ function PointCard({
   onSelect: () => void
   onStatus: (status: PointStatus) => void
   onReply: (reply: string) => void
+  colorRoles: boolean
+  quickInsert: boolean
+  /** Every report in the round — the cross-reference picker's source. */
+  reports: readonly ReviewerReport[]
   /** Everything the AI assistant needs to build this point's prompt. */
   source: ReplyContextSource
 }): JSX.Element {
@@ -515,9 +837,13 @@ function PointCard({
     setDraft(state.reply)
   }, [point.id, state.reply])
 
+  // State rather than a ref: the quick-insert bar renders beside the statuses
+  // and needs a re-render once the editor exists to enable its buttons.
+  const [editor, setEditor] = useState<ReplyEditorHandle | null>(null)
+
   return (
     <article
-      className={`round__card${selected ? ' is-selected' : ''}`}
+      className={`round__card${selected ? ' is-selected' : ''}${colorRoles ? ' is-painted' : ''}`}
       data-point={point.id}
       onFocus={onSelect}
       onClick={onSelect}
@@ -541,32 +867,27 @@ function PointCard({
 
       <div className="round__reply">
         <label htmlFor={`reply-${point.id}`}>Our reply</label>
-        <textarea
+        <ReplyEditor
+          ref={setEditor}
           id={`reply-${point.id}`}
-          className="round__reply-box"
           value={draft}
-          placeholder="Answer this point. Markdown; @fig:, @tab: and citation keys resolve at export."
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => onReply(draft)}
-          onKeyDown={(e) => {
-            // ⌘/Ctrl+Enter commits without leaving the box — the shortcut
-            // people already have in every reply field they use.
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault()
-              onReply(draft)
-            }
-            if (e.key === 'Escape') {
-              setDraft(state.reply)
-              e.currentTarget.blur()
-            }
+          onChange={setDraft}
+          onCommit={onReply}
+          onRevert={() => {
+            setDraft(state.reply)
+            return state.reply
           }}
-          rows={draft.split('\n').length + 4}
+          placeholder="Answer this point. Type :: to quote the manuscript."
+          colorRoles={colorRoles}
+          quickInsert={quickInsert}
+          reports={reports}
+          point={point}
         />
       </div>
 
       {/*
-        One footer row under the box: what you decided on the left, what the
-        AI can do about it on the right. They are the two things you do to a
+        One footer row under the box: what you can insert, what you decided,
+        and what the AI can do about it. They are the three things you do to a
         reply and they belong on the same line — a full-width AI strip above
         the statuses read as part of the reply itself.
 
@@ -576,8 +897,9 @@ function PointCard({
         assistant's own root (documents.css).
       */}
       <div className="round__foot">
+        {quickInsert && <ReplyQuickBar editor={editor} reports={reports} point={point} />}
         <div className="round__status">
-          {STATUSES.map((s) => (
+          {statusesFor(state.status).map((s) => (
             <button
               key={s.id}
               className={`round__st is-${s.id}${state.status === s.id ? ' is-on' : ''}`}

@@ -852,19 +852,158 @@ button:disabled {
   min-height: 0;
 }
 
+/* Comparing: two equal panes on the same round, and never a third — the
+   markup cannot produce one (RoundPane is 'a' | 'b'), so this stays a
+   two-column rule rather than an auto-fit that would silently accept more. */
+.round__cols.is-split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.round__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.round__cols.is-split .round__pane + .round__pane {
+  border-left: 1px solid var(--s-border);
+}
+
 .round__detail {
   overflow-y: auto;
   min-height: 0;
+  flex: 1;
   padding: 14px 16px;
 }
 
-.round__filter {
+/* The pane's own strip: which half this is and what it is parked on. Quiet
+   by default and lit only on the active pane, because its one job is
+   answering "where does the next outline click go?". */
+.round__pane-head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  flex: none;
+  /* Fixed, not content-driven: only pane B carries a × and only pane A does
+     not, so a header sized by its contents would put the two panes' first
+     cards on different lines — in the one view whose whole job is lining two
+     points up beside each other. */
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--s-border);
+  background: var(--s-bg-editor);
   font-size: 11.5px;
+  color: var(--s-ink-faint);
+}
+
+.round__pane.is-active .round__pane-head {
+  background: var(--s-bg-panel);
   color: var(--s-ink-muted);
-  margin-bottom: 12px;
+  box-shadow: inset 2px 0 0 var(--s-accent);
+}
+
+.round__pane-tag {
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--s-bg-hover);
+  color: var(--s-ink-muted);
+}
+
+.round__pane.is-active .round__pane-tag {
+  background: var(--s-accent);
+  color: var(--s-bg-panel);
+}
+
+.round__pane-where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.round__pane-close {
+  flex: none;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--s-ink-faint);
+  font: inherit;
+  font-size: 15px;
+  line-height: 18px;
+  height: 20px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+.round__pane-close:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+}
+
+.round__error {
+  flex: none;
+  margin: 0;
+  padding: 8px 16px;
+  border-top: 1px solid var(--s-border);
+}
+
+/* The header's status filter — the mode switch's shape, one row over, so the
+   two header controls read as controls rather than as two inventions. */
+.round__filter {
+  display: flex;
+  gap: 2px;
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.round__fbtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.round__fbtn:hover {
+  color: var(--s-ink);
+}
+
+.round__fbtn.is-on {
+  background: var(--s-bg-panel);
+  color: var(--s-ink);
+}
+
+.round__fcount {
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.round__fbtn.is-on .round__fcount {
+  color: var(--s-ink-muted);
+}
+
+/* The way back when a filter has emptied the pane. */
+.round__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--s-accent);
+  text-decoration: underline;
   cursor: pointer;
 }
 
@@ -1014,31 +1153,27 @@ button:disabled {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 /*
-  The card's footer: the four status pills at the left, the AI controls at the
-  right, on one line. Two columns rather than a flex row with a spacer,
-  because ReplyAssistant contributes THREE things to this footer — its button
-  bar, which belongs on this line, and its busy strip and proposal, which must
-  span the full width beneath both groups. The assistant's root is
-  `display: contents` so those three become direct grid children here.
+  The card's footer, all on ONE line: what you can insert, what you decided,
+  and what the AI can do about it. Three columns rather than a flex row with a
+  spacer, because ReplyAssistant contributes THREE things to this footer — its
+  button bar, which belongs on this line, and its busy strip and proposal,
+  which must span the full width beneath every group. The assistant's root is
+  `display: contents` so those three become direct grid children here, which
+  is also why the busy strip and proposal name their own column span below.
 
-  Narrow panes wrap the two groups onto separate lines rather than crushing
-  the pills; the AI bar stays right-aligned either way.
+  Narrow panes wrap the groups onto separate lines rather than crushing the
+  pills; the AI bar stays right-aligned either way.
 */
 .round__foot {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px 10px;
   margin-bottom: 14px;
-}
-
-@media (max-width: 620px) {
-  .round__foot {
-    grid-template-columns: 1fr;
-  }
 }
 
 .round__st {
@@ -1176,6 +1311,288 @@ button:disabled {
 
 .round__reply-box::placeholder {
   color: var(--s-ink-faint);
+}
+
+/* ---------------------------------------------------------------------------
+   The reply box (ReplyEditor.tsx).
+
+   A CodeMirror surface dressed to look like the textarea it replaced. It has
+   to be CodeMirror rather than a textarea because it CONCEALS syntax and
+   INDENTS quoted lines, and a textarea can do neither — it fixes the advance
+   width of every character it holds, so anything painted behind one can
+   recolour the source but never hide or move a glyph of it.
+
+   Everything here is scoped under .round__reply so the app's own editor
+   themes, which style .cm-* globally, cannot reach in — and so this cannot
+   reach out.
+   --------------------------------------------------------------------------- */
+
+.round__reply-wrap .cm-editor {
+  background: var(--s-bg-editor);
+  border: 1px solid var(--s-border);
+  border-radius: 7px;
+  font-family: var(--s-font-serif);
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--s-ink);
+  min-height: 108px;
+}
+
+.round__reply-wrap .cm-editor.cm-focused {
+  outline: none;
+  border-color: var(--s-accent);
+}
+
+.round__reply-wrap .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+  overflow-x: hidden;
+}
+
+.round__reply-wrap .cm-content {
+  padding: 11px 13px;
+  caret-color: var(--s-ink);
+}
+
+.round__reply-wrap .cm-line {
+  padding: 0;
+}
+
+.round__reply-wrap .cm-gutters {
+  display: none;
+}
+
+/* CodeMirror draws its own cursor and selection; both default to a black on
+   black that vanishes on this surface. */
+.round__reply-wrap .cm-cursor {
+  border-left-color: var(--s-ink);
+}
+
+.round__reply-wrap .cm-selectionBackground,
+.round__reply-wrap .cm-focused .cm-selectionBackground,
+.round__reply-wrap .cm-content ::selection {
+  background: var(--s-bg-selected);
+}
+
+.round__reply-wrap .cm-placeholder {
+  color: var(--s-ink-faint);
+}
+
+/* The three voices. Painted only when `response.colorRoles` is on — with it
+   off no decoration field is installed at all, and the box is plain text. */
+.cm-reply-v-reply {
+  color: var(--s-role-reply);
+}
+
+.cm-reply-v-quote {
+  color: var(--s-role-comment);
+  font-style: italic;
+}
+
+.cm-reply-v-change {
+  color: var(--s-role-change);
+  font-style: italic;
+}
+
+/* Syntax that is currently revealed, because the caret is in its construct.
+   Dimmed rather than coloured: it is scaffolding, and it must never compete
+   with the prose it holds. */
+.cm-reply-marker {
+  color: var(--s-ink-faint);
+  opacity: 0.7;
+}
+
+/* A quoted excerpt is set in from the reply around it — the half of "who is
+   speaking" that survives a greyscale print, and the same relationship the
+   exported document draws with an indent and a rule. */
+.round__reply-wrap .cm-reply-quote-line {
+  padding-left: 20px;
+  /* --s-border is the hairline between panels and disappears against the
+     editor surface; the rule has to be the one step stronger to read as a
+     deliberate mark rather than a rendering artifact. */
+  border-left: 2px solid var(--s-border-strong);
+}
+
+/* Quick insertions. `onMouseDown` is prevented on each button so clicking one
+   does not blur the editor first — a blur commits the reply and throws away
+   the selection the button is about to act on. */
+.round__quick {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.round__quick-btn {
+  background: transparent;
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  color: var(--s-ink-muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 13px;
+  cursor: pointer;
+}
+
+.round__quick-btn:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+.round__quick-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+
+/* ---------------------------------------------------------------------------
+   The response settings popover (ResponseSettingsPopover.tsx)
+   --------------------------------------------------------------------------- */
+
+.round__settings-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.round__gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--s-ink-muted);
+  cursor: pointer;
+}
+
+.round__gear:hover,
+.round__gear.is-on {
+  background: var(--s-bg-hover);
+  border-color: var(--s-border);
+  color: var(--s-ink);
+}
+
+.round__settings {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 320px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  padding: 12px 13px;
+  font-family: var(--s-font-ui);
+  font-size: 12px;
+  color: var(--s-ink);
+  text-align: left;
+}
+
+.round__settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.round__settings-row + .round__settings-note {
+  margin-top: 0;
+}
+
+.round__settings-row label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.round__settings-row input:disabled + * {
+  opacity: 0.6;
+}
+
+.round__settings-src {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--s-ink-faint);
+  white-space: nowrap;
+}
+
+.round__settings-note {
+  margin: 0 0 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--s-ink-muted);
+}
+
+.round__settings-note code,
+.round__settings dd code {
+  font-family: var(--s-font-mono);
+  font-size: 10.5px;
+}
+
+/* The legend. Without it the colour convention is something a user has to
+   reverse-engineer from their own document. */
+.round__legend {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 9px 10px;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  background: var(--s-bg-editor);
+}
+
+.round__legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--s-ink-muted);
+}
+
+.round__swatch {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid var(--s-border-strong);
+  background: currentColor;
+}
+
+.round__keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 9px;
+  margin: 8px 0 0;
+  align-items: baseline;
+}
+
+.round__keys dt {
+  margin: 0;
+}
+
+.round__keys dd {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--s-ink-muted);
+}
+
+.round__keys kbd {
+  display: inline-block;
+  font-family: var(--s-font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--s-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--s-bg-shell);
+  color: var(--s-ink);
+  white-space: nowrap;
 }
 
 .round__assign {
@@ -2036,9 +2453,34 @@ button:disabled {
   color: var(--s-ink);
 }
 
+/* The point the OTHER pane is on, while comparing: marked, but not as the
+   thing an outline click would move — that is `is-active`, and two rows
+   claiming the accent would make the outline lie about where a click lands. */
+.rvout__pt.is-paired {
+  border-left-color: var(--s-border-strong);
+  color: var(--s-ink);
+}
+
 .rvout__pt.is-done,
 .rvout__pt.is-rebutted {
   color: var(--s-ink-faint);
+}
+
+.rvout__pt-pane {
+  flex: none;
+  order: 1;
+  font-family: var(--s-font-mono);
+  font-size: 9.5px;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--s-bg-hover);
+  color: var(--s-ink-muted);
+}
+
+.rvout__pt.is-active .rvout__pt-pane {
+  background: var(--s-accent);
+  color: var(--s-bg-panel);
 }
 
 .rvout__pt-id {
@@ -2081,14 +2523,44 @@ button:disabled {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  /* Pushed to the right of whatever precedes it on the line. It MAY shrink —
+     its explanatory note ellipsizes below — because the alternative is the
+     bar wrapping to a line of its own, and the point of this footer is that
+     everything you do to a reply sits on one level. What it must never do is
+     squeeze its button's label into three lines, which is what a fixed-column
+     grid did to it here. */
+  margin-left: auto;
+  /* A zero flex-basis, not `auto`. `flex-wrap` decides to wrap by comparing
+     an item's BASE size against the space left, so an `auto`-based bar wraps
+     to a line of its own rather than shrinking — and the point of this
+     footer is that everything you do to a reply sits on one level. Based at
+     zero it always fits, grows into whatever the pills leave, and gives up
+     its explanatory note to an ellipsis (which carries a title anyway)
+     before anything wraps. The min-width is what still lets the whole bar
+     wrap on a genuinely narrow pane instead of crushing its button. */
+  flex: 1 1 0;
+  min-width: 120px;
+}
+
+.reply-ai__ctx {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-width: 0;
 }
 
-/* The strip and the proposal answer the whole card, not just the right half. */
+.reply-ai__go,
+.reply-ai__more,
+.reply-ai__menu-wrap {
+  flex: none;
+}
+
+/* The strip and the proposal answer the whole card, not just the right half:
+   a full-basis flex item takes a line of its own under whatever wrapped. */
 .reply-ai__busy,
 .reply-ai__proposal,
 .reply-ai__error {
-  grid-column: 1 / -1;
+  flex: 1 0 100%;
 }
 
 .reply-ai__go,

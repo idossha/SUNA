@@ -58,6 +58,13 @@ export interface ResolvedSettings {
   'ai.mode': AiMode;
   /** Show the AI's unreviewed changes inline, red/green at word resolution. */
   'review.aiDiffs': ReviewAiDiffs;
+  /**
+   * Paint the three voices of a response letter — the reviewer's comment, our
+   * reply, and quoted manuscript text that is new. Workspace and export both.
+   */
+  'response.colorRoles': boolean;
+  /** Offer the reply box's quick insertions (quote block, change mark, RE:). */
+  'response.quickInsert': boolean;
   /** null = auto-detect the installed CLI. */
   'ai.cliCommand': string | null;
   /** Model tier every AI call runs at — a tier, not a dated model id. */
@@ -93,6 +100,12 @@ export const SETTINGS_DEFAULTS: ResolvedSettings = {
   // cheap. Reaching for Opus, or for more thinking, is a deliberate choice.
   'ai.model': 'sonnet',
   'ai.effort': 'low',
+  // Both on. The colour convention is what every response letter in this
+  // user's corpus already does, and the insertions are the shortcuts for
+  // typing it — a default that produced an uncoloured response would make the
+  // feature something you have to find before it helps you.
+  'response.colorRoles': true,
+  'response.quickInsert': true,
 };
 
 interface SettingKeyMeta<T> {
@@ -198,6 +211,16 @@ export const SETTING_KEYS: {
     projectPath: ['review', 'aiDiffs'],
     globalKeys: ['review.aiDiffs'],
     schema: ReviewAiDiffsSchema,
+  },
+  'response.colorRoles': {
+    projectPath: ['response', 'colorRoles'],
+    globalKeys: ['response.colorRoles'],
+    schema: z.boolean(),
+  },
+  'response.quickInsert': {
+    projectPath: ['response', 'quickInsert'],
+    globalKeys: ['response.quickInsert'],
+    schema: z.boolean(),
   },
 };
 

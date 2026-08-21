@@ -3,7 +3,7 @@ import type { ReviewerReport, Round } from '@suna/core'
 import { isAddressed, pointStateFor, roundProgress } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { openRoundTab } from '../state/dock'
-import { focusRoundPoint, useRoundFocusStore } from '../state/roundFocus'
+import { focusRoundPoint, matchesPointFilter, useRoundFocusStore } from '../state/roundFocus'
 import './documents.css'
 
 /**
@@ -17,8 +17,20 @@ import './documents.css'
 export function RoundOutline({ roundId }: { roundId: string }): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
   const saveBump = useProjectStore((s) => s.saveBump)
-  const selected = useRoundFocusStore((s) => s.pointId)
+  // Both panes' selections, so a split workspace can be read off the outline:
+  // one point is where you are typing, the other is what you are answering
+  // against, and an outline that marked only one of them would send you
+  // hunting for the second in the pane.
+  const points = useRoundFocusStore((s) => s.points)
+  const activePane = useRoundFocusStore((s) => s.activePane)
+  const split = useRoundFocusStore((s) => s.split)
   const activeRound = useRoundFocusStore((s) => s.roundId)
+  const selected = points[activePane]
+  const paired = split ? points[activePane === 'a' ? 'b' : 'a'] : null
+  // The tab's header filter narrows this list too — it is the same list of
+  // points, and an outline that ignored it would offer points the pane
+  // refuses to show.
+  const filter = useRoundFocusStore((s) => s.filter)
 
   const [round, setRound] = useState<Round | null>(null)
   const [reports, setReports] = useState<ReviewerReport[]>([])
@@ -80,6 +92,10 @@ export function RoundOutline({ roundId }: { roundId: string }): JSX.Element {
       {open &&
         reports.map((report) => {
           const rp = progress.byReviewer.find((b) => b.index === report.index)
+          const points = report.points.filter((p) =>
+            matchesPointFilter(pointStateFor(round, p.id).status, filter)
+          )
+          if (points.length === 0) return null
           return (
             <section key={report.index} className="rvout__rev">
             <h4>
@@ -89,7 +105,7 @@ export function RoundOutline({ roundId }: { roundId: string }): JSX.Element {
               </span>
             </h4>
             <ul className="docout__list">
-              {report.points.map((p) => {
+              {points.map((p) => {
                 const st = pointStateFor(round, p.id)
                 return (
                   <li key={p.id}>
@@ -97,9 +113,13 @@ export function RoundOutline({ roundId }: { roundId: string }): JSX.Element {
                       data-outline-point={p.id}
                       className={`rvout__pt is-${st.status}${
                         selected === p.id && activeRound === roundId ? ' is-active' : ''
-                      }`}
+                      }${paired === p.id && activeRound === roundId ? ' is-paired' : ''}`}
                       onClick={() => {
                         if (rootDir !== null) openRoundTab(rootDir, roundId)
+                        // No pane argument: a click lands in whichever pane
+                        // was last touched, which is the pane the user is
+                        // looking at. Naming one here would make the outline
+                        // overrule that.
                         focusRoundPoint(roundId, p.id)
                       }}
                       title={p.verbatim}
@@ -107,6 +127,13 @@ export function RoundOutline({ roundId }: { roundId: string }): JSX.Element {
                       <span className="rvout__pt-id">
                         {report.index}.{p.pointIndex}
                       </span>
+                      {/* Which pane holds this point — only worth saying when
+                          there are two of them to tell apart. */}
+                      {split && activeRound === roundId && (selected === p.id || paired === p.id) && (
+                        <span className="rvout__pt-pane">
+                          {selected === p.id ? activePane.toUpperCase() : activePane === 'a' ? 'B' : 'A'}
+                        </span>
+                      )}
                       <span className="rvout__pt-text">
                         {p.verbatim.replace(/\s+/g, ' ').trim()}
                       </span>

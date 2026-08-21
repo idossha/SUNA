@@ -379,6 +379,49 @@ pane, and an internal report that can be filtered to one co-author — so
 someone has to maintain by hand. The colour coding is a workaround for missing
 structure; the structure makes it unnecessary.
 
+### C.5 Comparing two points side by side
+
+Reviewers do not coordinate. The same objection arrives twice in different
+words — R1's "no error budget" and R2's "the abstract claims quenching without
+an uncertainty" are one problem — and the two replies have to agree with each
+other. Scrolling between them does not work, because the point being answered
+leaves the screen exactly when it is needed.
+
+**Compare** is a toggle in the round header, next to Focus/Continuous. It puts
+a second pane on the same round beside the first.
+
+```
+[All 14│Unaddr 1│Drafted 2│Done 11]  [Focus│Continuous]  [⧉ Compare]
+┌─ A · Reviewer 1, point 1 ────────┬─ B · Reviewer 1, point 6 ───────┬─┐
+│  ┌────────────────────────────┐  │  ┌───────────────────────────┐  │×│
+│  │ …no error budget…  verbatim│  │  │ …colour scale…   verbatim │  │ │
+│  └────────────────────────────┘  │  └───────────────────────────┘  │ │
+│  our reply  [ editable ]         │  our reply  [ editable ]        │ │
+└──────────────────────────────────┴─────────────────────────────────┴─┘
+outline:  1.1 …ram-pressure…  ✓ [A]     1.6 …colour scale…  ✓ [B]
+```
+
+The rules that make it one feature rather than two workspaces:
+
+- **Exactly two, always.** The cap is the type `RoundPane = 'a' | 'b'`, not a
+  length check — there is no code path that produces a third. A third column
+  of reply cards does not fit a laptop, and the task is pairwise anyway.
+- **Same round, two selections.** Both panes read the same reports and the
+  same header — mode, status filter, progress, export are the round's, not a
+  pane's. What is per-pane is the selection, the scroll position and the
+  scroll-spy. A reply typed in one pane is the same reply the other shows.
+- **One pane is active**, marked in its header strip, and it is where the
+  sidebar outline's next click lands. Touching a pane makes it active, so the
+  interaction is "click the pane, then click the point". The outline marks
+  both panes' points and tags them `A` / `B`, so the split can be read off
+  the sidebar without hunting in the panes.
+- **Off is as easy as on**: the same header toggle, pane B's own `×`, or
+  `⌘⌥\` (`review.compare.toggle` in the palette). Closing keeps pane B's
+  point, so reopening returns to the pair you were reading.
+- **Not the dock's split.** `⌘\` opens a second dock group for a second
+  *file*; a round is one file, and two dock tabs of it would be two copies of
+  one header, one export button and one progress count.
+
 ---
 
 ## §D — Rounds, freezing and sharing (ask 2)

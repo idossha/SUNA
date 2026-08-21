@@ -126,6 +126,20 @@ export const ProjectSettingsSchema = z.object({
   python: z.object({ envPath: z.string().min(1).nullish() }).nullish(),
   literature: z.object({ provider: UiLitProviderIdSchema.nullish() }).nullish(),
   review: z.object({ aiDiffs: ReviewAiDiffsSchema.nullish() }).nullish(),
+  /**
+   * How a response to reviewers is rendered — in the round workspace and in
+   * every exported response document. Both keys are house style rather than
+   * anything the schema depends on, which is why they are settings and not
+   * fields on the round.
+   */
+  response: z
+    .object({
+      /** Paint the three voices (comment / reply / manuscript change). */
+      colorRoles: z.boolean().nullish(),
+      /** Offer the reply box's quick insertions and their shortcuts. */
+      quickInsert: z.boolean().nullish(),
+    })
+    .nullish(),
   ai: z
     .object({
       mode: AiModeSchema.nullish(),

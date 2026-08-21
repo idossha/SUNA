@@ -4,6 +4,7 @@ export * from './letter-seed';
 export * from './peer-review-guide';
 export * from './review-import';
 export * from './rounds';
+export * from './reply-markup';
 export * from './versions';
 export * from './project';
 export * from './settings-resolve';

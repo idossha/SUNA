@@ -436,8 +436,16 @@ describe('pointReplyPrompt', () => {
     expect(prompt).toContain('…')
     expect(prompt).not.toContain('z'.repeat(500))
   })
-})
 
+  it('teaches the two response marks, so a drafted reply arrives in the house format', () => {
+    const out = pointReplyPrompt(base)
+    expect(out).toContain('::quote')
+    expect(out).toContain('+++')
+    // The marks are a claim about the manuscript, so the prompt has to say
+    // what marking something red asserts.
+    expect(out).toContain('Marking unchanged prose as new is a false claim')
+  })
+})
 
 describe('peerReviewLearnPrompt', () => {
   const base: PeerReviewLearnPromptInput = {

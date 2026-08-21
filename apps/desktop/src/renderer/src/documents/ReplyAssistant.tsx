@@ -144,9 +144,6 @@ export function ReplyAssistant({
   return (
     <div className="reply-ai">
       <div className="reply-ai__bar">
-        <span className="reply-ai__ctx" title="What the agent is given: the reviewer’s words in context, every reply already written in this round, the manuscript itself, and context/PEER-REVIEW.md">
-          reads the paper first
-        </span>
         <button
           className="reply-ai__go"
           disabled={busy}

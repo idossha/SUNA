@@ -2111,6 +2111,13 @@ export const CHANNELS = {
       outputName: z.string().min(1),
       /** The author has seen the unaddressed list and wants the file anyway. */
       acknowledgeUnaddressed: z.boolean().default(false),
+      /**
+       * Paint the three voices (`response.colorRoles`). Resolved in the
+       * renderer, which is the only side that holds the two-level settings
+       * hierarchy, and sent with the request the way `acknowledgeUnaddressed`
+       * already is.
+       */
+      colorRoles: z.boolean().default(true),
     }),
     response: z.object({ path: z.string().min(1) }),
   },
