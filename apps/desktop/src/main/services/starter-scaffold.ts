@@ -78,6 +78,26 @@ const STARTER_METHODS = `# Methods
 
 Describe how the work was done. Headings become the outline in the left sidebar, and the export applies whichever profile the project is set to — SUNA style while you draft, a journal's rules once you know where this is going.
 
+Code goes in a fence tagged with its language, and is highlighted the same way in the editor and in Reading mode:
+
+\`\`\`python
+import matplotlib.pyplot as plt
+import suna_mpl
+
+# A figure normally comes from code kept beside it, in
+# figures/<id>/source/. Figure 1 does not: it was drawn by hand, and the
+# referees noticed.
+with plt.rc_context(suna_mpl.journal_rc()):
+    fig, ax = plt.subplots()
+    suna_mpl.set_size(fig, "double", height_mm=58.0)
+    ax.plot(time_on_project, happiness, label="SUNA")
+    ax.set_xlabel("Time on project")
+    ax.set_ylabel("Researcher happiness")
+    suna_mpl.save_svg(fig, "figures/hello/figure.svg")
+\`\`\`
+
+\`suna_mpl.save_svg\` writes text as real \`<text>\` elements rather than outlines, which is what keeps a figure's labels editable on the canvas after it has been exported.
+
 Three things worth trying before you delete this file:
 
 1. Open \`figures/hello/figure.svg\` to edit the figure on the canvas.
