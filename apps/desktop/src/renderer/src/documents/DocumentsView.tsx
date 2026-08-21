@@ -46,7 +46,11 @@ export function DocumentsView(): JSX.Element {
 
   const secondary = secondaryDocuments(documents)
   const letters = secondary.filter((d) => d.kind === 'cover-letter')
-  const others = secondary.filter((d) => d.kind !== 'cover-letter')
+  // The supplement is listed like the manuscript — one titled row, no kind
+  // badge and no filename — because it is the manuscript's peer: written in
+  // the same editor, read the same way, and carrying its own outline below.
+  const supplement = secondary.find((d) => d.kind === 'supplement') ?? null
+  const others = secondary.filter((d) => d.kind !== 'cover-letter' && d.kind !== 'supplement')
   const isManuscript = activeDocumentId === null || activeDocumentId === 'manuscript'
   const activeIsLetter = letters.some((d) => d.id === activeDocumentId)
 
@@ -97,6 +101,38 @@ export function DocumentsView(): JSX.Element {
             <span className="docs__row-title">Manuscript</span>
           </button>
         </li>
+        {supplement !== null && (
+          <li>
+            <button
+              className={`docs__row${
+                activeDocumentId === supplement.id && !showLetters && !showReview
+                  ? ' docs__row--current'
+                  : ''
+              }${missing.includes(supplement.id) ? ' docs__row--missing' : ''}`}
+              onClick={() => {
+                setLettersPicked(false)
+                setReviewRoundId(false)
+                if (rootDir !== null) {
+                  openDocumentTab(
+                    rootDir,
+                    supplement.id,
+                    supplement.kind,
+                    supplement.file,
+                    supplement.title
+                  )
+                }
+              }}
+              disabled={rootDir === null || missing.includes(supplement.id)}
+              title={
+                missing.includes(supplement.id)
+                  ? `file is gone — manuscript/${supplement.file}`
+                  : supplement.title
+              }
+            >
+              <span className="docs__row-title">{supplement.title}</span>
+            </button>
+          </li>
+        )}
       </ul>
 
       {letters.length > 0 && (

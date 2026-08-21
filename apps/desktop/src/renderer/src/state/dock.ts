@@ -203,16 +203,31 @@ export function openDocumentTab(
   rootDir: string,
   documentId: string,
   kind?: string,
-  file?: string | null
+  file?: string | null,
+  /** The registry title, for kinds whose tab is named after the document. */
+  title?: string
 ): void {
   if (!dockApi) return
   if (documentId === 'manuscript' || kind === 'manuscript') {
     openManuscriptTab(rootDir)
     return
   }
-  // Only a cover letter has a purpose-built tab so far. Every other kind
-  // opens its prose in the ordinary editor rather than in a view that does
-  // not understand it — an honest fallback beats a tab that renders wrong.
+  // The supplement is a document in its own right (it is written, read and
+  // exported like the manuscript), so it gets the manuscript's instrument
+  // rather than a raw editor tab.
+  if (kind === 'supplement') {
+    openSupplementTab(
+      rootDir,
+      documentId,
+      file ?? 'supplementary.md',
+      title ?? 'Supplementary Information'
+    )
+    return
+  }
+  // A cover letter is the only other kind with a purpose-built tab so far.
+  // Every other kind opens its prose in the ordinary editor rather than in a
+  // view that does not understand it — an honest fallback beats a tab that
+  // renders wrong.
   if (kind !== undefined && kind !== 'cover-letter') {
     if (file != null) openFileTab(`${rootDir}/manuscript/${file}`)
     return
@@ -228,6 +243,28 @@ export function openDocumentTab(
     component: 'letter',
     title: documentId,
     params: { rootDir, documentId }
+  })
+}
+
+/** Open (or focus) the Supplementary Information tab. */
+export function openSupplementTab(
+  rootDir: string,
+  documentId = 'supplement',
+  file = 'supplementary.md',
+  title = 'Supplementary Information'
+): void {
+  if (!dockApi) return
+  const id = `document:${rootDir}:${documentId}`
+  const existing = dockApi.getPanel(id)
+  if (existing) {
+    existing.api.setActive()
+    return
+  }
+  dockApi.addPanel({
+    id,
+    component: 'supplement',
+    title,
+    params: { rootDir, documentId, file, title }
   })
 }
 
@@ -662,6 +699,8 @@ export const dockDevSeam = {
    * to be focused instead.
    */
   openDocumentTab,
+  /** The supplement tab. Reached in the UI only from the Writing sidebar. */
+  openSupplementTab,
   openReadingNotesTab,
   /**
    * feature-plan-12 §6: open the reviewer-import screen. Its UI route is a

@@ -52,6 +52,12 @@ interface ReferencesBlockProps {
   tables: Manuscript['tables']
   /** Bibliography file name from manuscript.json (e.g. "references.bib"). */
   bibliography: string
+  /**
+   * Heading over the list. The supplement numbers its citations independently
+   * of the main text (export-content.ts), so its list is "Supplementary
+   * References" and calling it "References" there would read as the paper's.
+   */
+  label?: string
 }
 
 /**
@@ -73,7 +79,8 @@ export function ReferencesBlock({
   manuscriptFile,
   figures,
   tables,
-  bibliography
+  bibliography,
+  label = 'References'
 }: ReferencesBlockProps): JSX.Element {
   const saveBump = useProjectStore((s) => s.saveBump)
   const previewProfileId = usePreviewProfileId()
@@ -157,7 +164,7 @@ export function ReferencesBlock({
   if (profile === null) {
     return (
       <section className="msdoc__references msdoc__block">
-        <div className="msdoc__label">References</div>
+        <div className="msdoc__label">{label}</div>
         <p className="msdoc__hint">No publisher profile available.</p>
       </section>
     )
@@ -167,7 +174,7 @@ export function ReferencesBlock({
 
   return (
     <section className="msdoc__references msdoc__block">
-      <div className="msdoc__label">References</div>
+      <div className="msdoc__label">{label}</div>
       <p className="msdoc__rendered-as">Rendered as: {profile.journalName}</p>
       {bibError !== null && <p className="msdoc__hint">{bibError}</p>}
       {rows !== null && rows.length === 0 && (

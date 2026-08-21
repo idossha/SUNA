@@ -23,6 +23,16 @@ interface TitlePageProps {
   /** Required (and used) only when `editable` — the project root `dir` for
    *  `manuscript:update` / the authors.json commit path. */
   rootDir?: string
+  /**
+   * Which document's front page this is. 'supplement' renders the
+   * Supplementary Information COVER, which is the manuscript's title page cut
+   * down to exactly what the supplement exporter writes (export-docx.ts's
+   * buildSupplementDocx, from the published ground truth): the title prefixed
+   * `Supplementary Information:` and then the SAME byline block. A supplement
+   * carries no abstract, keywords, significance or highlights — showing them
+   * here would promise a cover page the export does not produce.
+   */
+  variant?: 'manuscript' | 'supplement'
 }
 
 /**
@@ -46,8 +56,14 @@ export function TitlePage({
   authors,
   affiliations,
   editable = false,
-  rootDir = ''
+  rootDir = '',
+  variant = 'manuscript'
 }: TitlePageProps): JSX.Element {
+  // The cover is never edited in place: its title is not a field (it is the
+  // manuscript's title with a prefix), and the byline it shows belongs to the
+  // manuscript, which is where it is edited.
+  const supplement = variant === 'supplement'
+  const editing = editable && !supplement
   const numbering = useMemo(
     () => numberAffiliations(authors, affiliations),
     [authors, affiliations]
@@ -103,17 +119,18 @@ export function TitlePage({
 
   return (
     <div className="msdoc__titlepage msdoc__block">
-      {editable ? (
+      {editing ? (
         <EditableBlock className="msdoc__title tp__title" field={titleField} ariaLabel="title">
           <TexText text={manuscript.title} />
         </EditableBlock>
       ) : (
         <h1 className="msdoc__title">
+          {supplement && 'Supplementary Information: '}
           <TexText text={manuscript.title} />
         </h1>
       )}
 
-      {editable ? (
+      {editing ? (
         <EditableGroup className="msdoc__authors" ariaLabel="authors" display={authorLine}>
           <AuthorsEditor
             rootDir={rootDir}
@@ -125,7 +142,7 @@ export function TitlePage({
         <div className="msdoc__authors">{authorLine}</div>
       )}
 
-      {editable ? (
+      {editing ? (
         <EditableGroup
           className="msdoc__affiliations"
           ariaLabel="affiliations"
@@ -151,9 +168,10 @@ export function TitlePage({
         <div className="msdoc__correspondence">*e-mail: {correspondenceEmails.join(', ')}</div>
       )}
 
+      {!supplement && (
       <section>
         <div className="msdoc__label">Abstract</div>
-        {editable ? (
+        {editing ? (
           <EditableBlock className="msdoc__front-text tp__abstract" field={abstractField} ariaLabel="abstract">
             <TexText text={manuscript.abstract.content} />
           </EditableBlock>
@@ -163,21 +181,22 @@ export function TitlePage({
           </p>
         )}
       </section>
+      )}
 
       {/* Keywords sit where the exporters put them — straight after the
           abstract — and are read-only here: they come from manuscript.json,
           which the Manuscript view's own JSON editing covers. */}
-      {keywords.length > 0 && (
+      {!supplement && keywords.length > 0 && (
         <section>
           <div className="msdoc__label">Keywords</div>
           <p className="msdoc__front-text tp__keywords">{keywords.join('; ')}</p>
         </section>
       )}
 
-      {(editable || manuscript.significance != null) && (
+      {!supplement && (editing || manuscript.significance != null) && (
         <section>
           <div className="msdoc__label">Significance</div>
-          {editable ? (
+          {editing ? (
             <EditableBlock
               className="msdoc__front-text tp__significance"
               field={significanceField}
@@ -194,10 +213,10 @@ export function TitlePage({
         </section>
       )}
 
-      {(editable || (highlights !== null && highlights.length > 0)) && (
+      {!supplement && (editing || (highlights !== null && highlights.length > 0)) && (
         <section>
           <div className="msdoc__label">Highlights</div>
-          {editable ? (
+          {editing ? (
             <HighlightsEditor rootDir={rootDir} highlights={manuscript.highlights ?? []} />
           ) : (
             <ul className="msdoc__highlights">

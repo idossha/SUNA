@@ -160,6 +160,7 @@ describe('CHANNELS', () => {
       'settings:set',
       'shell:open-path',
       'shell:reveal',
+      'supplement:new',
       'term:create',
       'term:kill',
       'term:resize',

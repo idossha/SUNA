@@ -5,6 +5,7 @@ import {
   removeDocument,
   writeLetterMeta
 } from './services/letter-new'
+import { createSupplement } from './services/supplement-new'
 import { checkLetterDocument } from './services/letter-check'
 import {
   analyseReviewerReport,
@@ -402,6 +403,7 @@ export function registerIpcHandlers(): void {
   handle('documents:remove', async ({ dir, documentId }) => ({
     documents: await removeDocument(dir, documentId)
   }))
+  handle('supplement:new', async ({ dir }) => createSupplement(dir))
   handle('letter:new', async (input) => {
     const res = await createLetter({
       rootDir: input.dir,
