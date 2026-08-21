@@ -55,6 +55,7 @@ import {
   setLitKey
 } from './services/agent-keys'
 import { captureRect, devInfo, repairBundle } from './services/capture'
+import { screenAskBundle } from './services/screen-ask'
 import { readCommentsFile, writeCommentsFile } from './services/comments'
 import { readRevisionsFile, writeRevisionsFile } from './services/revisions'
 import {
@@ -782,6 +783,7 @@ export function registerIpcHandlers(): void {
   handle('ai:repair-bundle', (req, event) => repairBundle(event, req))
 
   handle('app:capture-rect', (req, event) => captureRect(event, req))
+  handle('ai:screen-ask-bundle', (req) => screenAskBundle(req))
   handle('app:dev-info', async () => devInfo())
 
   handle('figure:export', ({ dir, figureId, format, widthMm, dpi, transparent }) =>

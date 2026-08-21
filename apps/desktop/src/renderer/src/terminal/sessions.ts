@@ -16,10 +16,25 @@ import '@xterm/xterm/css/xterm.css'
  */
 export type TermStatus = 'starting' | 'running' | 'exited' | 'failed'
 
+/**
+ * Which chrome hosts a session. 'panel' tabs are the bottom strip's; 'float'
+ * ones belong to a floating window that owns exactly one session (the
+ * screen-ask terminal) and must not appear in — or steal focus from — the
+ * strip's tab row. Both kinds are real ptys in the same map, so every
+ * attach/fit/close path below is shared.
+ */
+export type TermSurface = 'panel' | 'float'
+
 export interface TermTab {
   id: string
   title: string
   status: TermStatus
+  surface: TermSurface
+}
+
+/** The strip's own tabs. `activeId` only ever names one of these. */
+export function panelTabs(tabs: readonly TermTab[]): TermTab[] {
+  return tabs.filter((tab) => tab.surface === 'panel')
 }
 
 interface TerminalTabsState {
@@ -135,7 +150,7 @@ async function startPty(session: Session): Promise<void> {
 
 /** Create a terminal tab (and make it active). The pty starts on first attach. */
 export function createTerminalTab(
-  options: { command?: string; title?: string } = {}
+  options: { command?: string; title?: string; surface?: TermSurface } = {}
 ): string {
   const id = `term${++seq}`
   const host = document.createElement('div')
@@ -173,9 +188,16 @@ export function createTerminalTab(
     disposers: []
   }
   sessions.set(id, session)
+  const surface = options.surface ?? 'panel'
   useTerminalTabsStore.setState((s) => ({
-    tabs: [...s.tabs, { id, title: options.title ?? options.command ?? defaultTitle(), status: 'starting' }],
-    activeId: id
+    tabs: [
+      ...s.tabs,
+      { id, title: options.title ?? options.command ?? defaultTitle(), status: 'starting', surface }
+    ],
+    // A float session has its own window and never becomes the strip's front
+    // tab — making it active would leave the strip trying to mount a host
+    // that is already parented to the floating window.
+    activeId: surface === 'panel' ? id : s.activeId
   }))
   return id
 }
@@ -247,12 +269,16 @@ export function closeTerminalTab(id: string): void {
   }
   useTerminalTabsStore.setState((s) => {
     const tabs = s.tabs.filter((tab) => tab.id !== id)
+    // Successor is the strip's last tab, never a float one — `activeId` is
+    // the strip's cursor and nothing else reads it.
+    const remaining = panelTabs(tabs)
     const activeId =
-      s.activeId === id ? (tabs[tabs.length - 1]?.id ?? null) : s.activeId
+      s.activeId === id ? (remaining[remaining.length - 1]?.id ?? null) : s.activeId
     return { tabs, activeId }
   })
-  // closing the last tab closes the strip (reopening spawns a fresh shell)
-  if (useTerminalTabsStore.getState().tabs.length === 0) {
+  // closing the last STRIP tab closes the strip (reopening spawns a fresh
+  // shell); a floating terminal closing leaves it exactly as it was.
+  if (panelTabs(useTerminalTabsStore.getState().tabs).length === 0) {
     useTerminalPanelStore.getState().setOpen(false)
   }
 }

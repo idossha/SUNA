@@ -36,6 +36,7 @@ describe('CHANNELS', () => {
       'ai:ask',
       'ai:cancel',
       'ai:repair-bundle',
+      'ai:screen-ask-bundle',
       'app:capture-rect',
       'app:dev-info',
       'comments:read',

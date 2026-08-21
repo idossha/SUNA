@@ -556,3 +556,97 @@ export function peerReviewLearnPrompt(input: PeerReviewLearnPromptInput): string
     ...rules
   ].join('\n')
 }
+
+/* --------------------------------------------------------- screen ask ----- */
+
+export interface ScreenAskPromptInput {
+  /** Which repo the agent is cd'd into, which decides what it may touch. */
+  target: 'project' | 'repo'
+  /** Absolute .suna/screen-asks/<stamp>/ directory holding the bundle. */
+  bundleDir: string
+  /** Absolute shot.png path, or null when no screenshot was captured. */
+  shotPath: string | null
+  /** The rendered context block (shell/screenask/context.ts), quoted verbatim. */
+  contextMd: string
+  /** What the user typed in the composer, verbatim. */
+  question: string
+}
+
+/**
+ * "Ask the agent about this screen" — the first turn of an INTERACTIVE
+ * session in the floating terminal, which is what makes this prompt unlike
+ * the directed actions above.
+ *
+ * Those run headless and get one shot, so they spend their words fencing the
+ * agent in. This one opens a conversation the user is sitting in front of,
+ * and the failure it has to prevent is different: an agent that reads the
+ * screenshot and immediately rewrites six files before the user has said
+ * whether it even understood the question. So the closing rule is "make the
+ * smallest change, then stop and show me" rather than a tool allowlist —
+ * there is no allowlist to give an interactive CLI anyway, and the user can
+ * simply say no at the next turn.
+ *
+ * The two targets differ in what the agent is allowed to be looking at. A
+ * 'repo' ask is a developer pointing at the app's own UI, so the rules name
+ * the checkout's verification commands — including the hidden-window rule
+ * from CLAUDE.md, because an agent that pops a visible Electron window in the
+ * middle of the user's screen-ask has broken the thing being asked about. A
+ * 'project' ask is an author pointing at their own manuscript or figure, so
+ * the rules name the MCP verbs and the plain-text-source discipline.
+ */
+export function screenAskPrompt(input: ScreenAskPromptInput): string {
+  const seeing =
+    input.shotPath !== null
+      ? `- Screenshot of what the user is looking at RIGHT NOW (absolute): ${input.shotPath}`
+      : '- Screenshot: the capture failed, so work from the facts below and ask if you need more.'
+
+  const context = [
+    seeing,
+    `- Bundle directory (the screenshot and this prompt live here): ${input.bundleDir}`,
+    '',
+    input.contextMd
+  ]
+
+  const shared = [
+    input.shotPath !== null
+      ? '- FIRST, before anything else, read the screenshot. It is the question; the text below is only its caption.'
+      : '- Work from the facts above; say plainly that you could not see the screen.',
+    '- Make the SMALLEST change that answers the question, then stop and tell the user what you did. They are sitting in front of this terminal and will tell you what to do next — do not run ahead and restructure things they did not ask about.',
+    '- If the screenshot does not show you enough to be sure, say so and ask, rather than guessing.',
+    `- ${GIT_RULE}`
+  ]
+
+  const repoRules = [
+    ...shared,
+    '- The UI in that screenshot is rendered by this checkout, under apps/desktop/src/renderer/src. The "Looking at" line above names the dock component; its React component is under that tree.',
+    '- Verify with `pnpm typecheck` and the nearest unit tests before you claim a fix works.',
+    '- To SEE a change, never launch a visible window: `node scripts/e2e/drive.mjs --boot --example` boots the app hidden, then `--shot out.png` and `--eval "expr"` iterate in seconds, and `--stop` when done. `pnpm dev` opens a real window and is for the human only.',
+    '- Follow the ground rules in CLAUDE.md — they govern this repo and they are not negotiable.'
+  ]
+
+  const projectRules = [
+    ...shared,
+    '- This is a SUNA project. The plain-text sources — Markdown, JSON, BibTeX, SVG, LaTeX — are the only mutable truth; never write a binary or proprietary document format, and never hand-edit anything under output/.',
+    '- Prefer the mcp__suna__* verbs for manuscript, figure, reference and comment work; they keep the project consistent in ways a raw file write does not.',
+    '- Figure numbering, table numbering and reference numbering are DERIVED at format time. Never hard-code a number into the prose or a caption.',
+    '- Resolving a review comment is the author\'s call, never yours: you may reply to a thread, but you may not close one.'
+  ]
+
+  const role =
+    input.target === 'repo'
+      ? 'You are helping a developer working on SUNA itself — the Electron academic-writing app whose window is in the screenshot below. You are cd’d into the SUNA source checkout.'
+      : 'You are helping an author working in SUNA, an academic-writing app for scientific manuscripts and figures. The screenshot below is their window. You are cd’d into their project.'
+
+  return [
+    role,
+    '',
+    'TASK',
+    input.question,
+    '',
+    'CONTEXT',
+    ...context,
+    '',
+    'RULES',
+    ...(input.target === 'repo' ? repoRules : projectRules)
+  ].join('\n')
+}

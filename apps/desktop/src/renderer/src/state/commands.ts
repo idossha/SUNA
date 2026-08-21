@@ -13,6 +13,7 @@ import { createNewFigure } from '../canvas/new-figure'
 import { activeCanvasPaletteContext } from '../canvas/palette-actions'
 import { exportActiveFigurePdf, exportActiveFigurePng } from '../canvas/palette-export'
 import { startRepairPick } from '../shell/repair/RepairPicker'
+import { startScreenAsk } from '../shell/screenask/screenask'
 import { scanFigures } from '../views/figures-scan'
 import {
   activePanelComponent,
@@ -346,6 +347,17 @@ registerCommand({
   title: 'Keyboard Shortcuts…',
   category: 'View',
   run: () => useUiStore.getState().setHelpOpen(true)
+})
+
+// Screenshot the window, take a question, hand both to an interactive agent
+// in the floating terminal. Not gated on a project: in a dev run it targets
+// the SUNA checkout, which is exactly the case where no project is open.
+registerCommand({
+  id: 'ai.screenAsk',
+  title: 'AI: Ask about this screen…',
+  category: 'App',
+  shortcut: 'Mod-Shift-KeyA',
+  run: () => startScreenAsk()
 })
 
 // Dev-only (feature-plan-8 §5): 'ai:repair-bundle' rejects when packaged,
