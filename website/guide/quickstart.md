@@ -13,7 +13,7 @@ Launch SUNA. The **Welcome** tab opens by default, with five buttons and — onc
   <figcaption>The Welcome tab. Open example is the fastest way in — it needs no folder, no journal choice, and no AI provider. Once you have opened projects, they are listed under the buttons.</figcaption>
 </figure>
 
-**Open example** never edits the demo shipped inside the app. It copies `examples/demo-paper/` to `~/Library/Application Support/@suna/desktop/example-project`, runs `git init` on the copy with an initial commit, and reuses that copy every time afterwards. Delete the directory to start fresh.
+**Open example** never edits the demo shipped inside the app. It copies `examples/hello-suna/` to `~/Library/Application Support/@suna/desktop/example-project`, runs `git init` on the copy with an initial commit, and reuses that copy every time afterwards. If a later SUNA ships a different example, your copy is moved aside rather than overwritten. Delete the directory to start fresh.
 
 The project you now have open is a short astronomy paper on ram-pressure stripping, set to the **Nature** profile. It is a plain folder: `suna.json`, `manuscript/`, `figures/`, `code/`, `data/`, `analysis/`, `results/`, `output/` — all text, all under git.
 

@@ -27,9 +27,9 @@ import {
  * syntax it is demonstrating, so the file reads as documentation you can
  * type over.
  *
- * It is domain-neutral on purpose. The bundled example project
- * (examples/demo-paper) is the astrophysics one; a brand-new project has no
- * business pretending to be about ram-pressure stripping.
+ * It is domain-neutral on purpose, and it is the same project the bundled
+ * example (examples/hello-suna) grew out of — that one is this one a few days
+ * in, with a generated second figure, a supplement and an answered round.
  *
  * Everything here is REAL: the two references exist and their DOIs resolve,
  * the figure is a genuine SVG on disk registered in manuscript.json (so the
@@ -245,8 +245,11 @@ function starterFigureDoc(): unknown {
     namespace: 'main',
     widthPreset: 'double',
     caption: STARTER_FIGURE_CAPTION,
-    panels: STARTER_FIGURE_PANELS,
-    provenance: { generator: null, overlay: [] }
+    // Null, not `{ generator: null }`: ProvenanceSchema requires a generator
+    // and the whole block is what is nullable — "no provenance" is how a
+    // figure drawn from scratch says it came from no code. The starter figure
+    // was drawn by hand, so it has none.
+    provenance: null
   }
 }
 

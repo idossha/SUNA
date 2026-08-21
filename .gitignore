@@ -37,18 +37,18 @@ scripts/e2e/.userdata-*/
 packages/agent/dist-mcp/
 .playwright-mcp/
 
-# examples/ is IGNORED BY DEFAULT, and demo-paper is the one exception.
+# examples/ is IGNORED BY DEFAULT, and hello-suna is the one exception.
 #
 # Real manuscripts, cover letters, referee reports and colleagues' proposals
 # get dropped in here as ground truth for export and importer work. They are
 # personal documents — several of them other people's — and none of them may
-# reach the repo. Ignoring the directory and opting demo-paper back in means a
+# reach the repo. Ignoring the directory and opting hello-suna back in means a
 # new folder of them is safe the moment it lands, rather than safe only if
 # somebody remembers to add a line here.
 #
 # Shipping another example project? Add its own `!examples/<name>/` below.
 examples/*
-!examples/demo-paper/
+!examples/hello-suna/
 
 # docs site build artifacts (website/.vitepress/dist is covered by dist/)
 website/.vitepress/cache/

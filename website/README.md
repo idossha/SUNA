@@ -27,7 +27,7 @@ link-checker. Run it before pushing.
 
 Every image under `public/shots/` is a real capture of the running application,
 produced by `scripts/e2e/probes/docs-shots.mjs` driving a hidden SUNA against a
-fresh copy of `examples/demo-paper`. To regenerate the whole set after a UI
+fresh copy of `examples/hello-suna`. To regenerate the whole set after a UI
 change:
 
 ```bash

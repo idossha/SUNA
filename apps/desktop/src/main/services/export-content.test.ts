@@ -339,36 +339,38 @@ describe('backMatterSections', () => {
   })
 })
 
-describe('buildExportContent — examples/demo-paper round trip', () => {
-  it('builds real content from the shipped demo project without throwing', async () => {
-    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
-    allowRoot(demoDir)
-    // The demo's own figure.svg files are not rasterized here (that step lives in the
+describe('buildExportContent — examples/hello-suna round trip', () => {
+  it('builds real content from the shipped example project without throwing', async () => {
+    const exampleDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'hello-suna')
+    allowRoot(exampleDir)
+    // The example's own figure.svg files are not rasterized here (that step lives in the
     // renderer); stand in with the same 1x1 PNG fixture uses — buildExportContent only
     // needs a PNG to exist and be readable, not to depict the real figure content.
-    const scratch = await mkdtemp(join(tmpdir(), 'suna-demo-figs-'))
+    const scratch = await mkdtemp(join(tmpdir(), 'suna-example-figs-'))
     allowRoot(scratch)
     const { writeFile } = await import('node:fs/promises')
     const png = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       'base64'
     )
-    const specFig = join(scratch, 'fig-spectrum.png')
-    const velFig = join(scratch, 'fig-velocity-map.png')
-    await writeFile(specFig, png)
-    await writeFile(velFig, png)
+    const figurePngPaths: Record<string, string> = {}
+    for (const id of ['hello', 'timesheet']) {
+      const p = join(scratch, `${id}.png`)
+      await writeFile(p, png)
+      figurePngPaths[id] = p
+    }
 
     const content = await buildExportContent({
-      dir: demoDir,
+      dir: exampleDir,
       profileId: 'nature',
-      figurePngPaths: { 'fig-spectrum': specFig, 'fig-velocity-map': velFig }
+      figurePngPaths
     })
 
-    expect(content.manuscript.title).toContain('ram-pressure stripping')
+    expect(content.manuscript.title).toContain('Hello SUNA')
     expect(content.authors.authors).toHaveLength(2)
-    expect(content.sections.length).toBeGreaterThanOrEqual(4)
+    expect(content.sections.length).toBeGreaterThanOrEqual(2)
     expect(content.figures).toHaveLength(2)
-    // references.bib has 10 entries; the demo's sections cite a subset of them.
+    // The example cites a subset of references.bib; every cited key resolves.
     expect(content.referenceRows.length).toBeGreaterThan(0)
     expect(content.referenceRows.every((r) => r.entry !== undefined)).toBe(true)
 

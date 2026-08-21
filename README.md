@@ -55,7 +55,7 @@ pnpm docs:shots     # regenerate every screenshot from the running app
 ```
 
 Every screenshot on the site is captured from a hidden SUNA driving
-`examples/demo-paper`, so the docs can be re-rendered whenever the UI moves.
+`examples/hello-suna`, so the docs can be re-rendered whenever the UI moves.
 
 Design decisions live in `docs/design/architecture.md`; the formatter and
 canvas requirements are derived from published Nature-family papers in

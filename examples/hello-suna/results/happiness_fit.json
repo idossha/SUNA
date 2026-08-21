@@ -1,0 +1,17 @@
+{
+  "source": "data/happiness.csv",
+  "model": "code/happiness_model.py",
+  "fit": {
+    "old-editor": {
+      "slope_per_week": -0.1248,
+      "intercept": 6.253,
+      "n_weeks": 12
+    },
+    "suna": {
+      "slope_per_week": 0.3133,
+      "intercept": 5.897,
+      "n_weeks": 12
+    }
+  },
+  "note": "n = 1 participant, unblinded, who also wrote the software."
+}

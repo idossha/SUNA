@@ -1,0 +1,9 @@
+Dear Author,
+
+This is a demonstration decision letter. It came with your starter project so that the peer-review panel has something in it, and it is about the starter manuscript, not about your work. Delete the rounds/ directory whenever you like.
+
+Three referees have seen the manuscript. Their reports follow. We would be prepared to consider a revised version, on the understanding that nothing here has actually been submitted anywhere.
+
+Sincerely,
+
+The Editor

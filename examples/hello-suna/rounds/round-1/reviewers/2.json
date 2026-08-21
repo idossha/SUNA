@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "index": 2,
+  "label": "Reviewer #2 (Comments for the Author):",
+  "sourceText": "Dear Author,\n\nThis is a demonstration decision letter. It came with your starter project so that the peer-review panel has something in it, and it is about the starter manuscript, not about your work. Delete the rounds/ directory whenever you like.\n\nThree referees have seen the manuscript. Their reports follow. We would be prepared to consider a revised version, on the understanding that nothing here has actually been submitted anywhere.\n\nSincerely,\n\nThe Editor\n\nReviewer #1 (Comments for the Author):\n\nMajor comments\n\n1. The manuscript is a tour of a text editor rather than a study, and I was unable to locate a hypothesis anywhere in it. The authors may wish to consider writing a paper instead.\n\n2. Equation (1) asserts that a manuscript is prose plus figures plus references. This omits the coffee term.\n\n3. In Figure 1a the sample size is one, the sample is the corresponding author, and the author was not blind to condition. I found this admitted in a parenthesis in the caption. It should be a sentence.\n\nMinor comments\n\n4. Figure 1 appears to have been drawn by hand. I mean this as a compliment; the journal may not.\n\n5. Table 1 lists BibTeX among the plain-text formats. BibTeX is many things. On reflection I will allow it.\n\nReviewer #2 (Comments for the Author):\n\n1. Please state how many times the corresponding author rewrote the first sentence before giving up and shipping this one.\n\n2. Table 1 is accurate and I have nothing to add. I would like that noted in the record.\n\n3. The Methods section instructs the reader to open a tab. I have opened the tab. Nothing in my training prepared me for this, and yet here we are.\n\nReviewer #3 (Comments for the Author):\n\n1. I read this manuscript twice: once as submitted, and once as I was imagining it while reading. The second was the better paper and I encourage the authors to write that one.\n\n2. The authors claim the reference list is derived from the keys they actually cite. I deleted a citation to test this. It worked, which I resent.\n\n3. There is no Introduction and no Discussion. In fairness, this makes the paper unusually easy to read.\n",
+  "points": [
+    {
+      "id": "r2.1",
+      "reviewerIndex": 2,
+      "pointIndex": 1,
+      "section": null,
+      "verbatim": "1. Please state how many times the corresponding author rewrote the first sentence before giving up and shipping this one.",
+      "from": 1282,
+      "to": 1404,
+      "reason": "numbered point"
+    },
+    {
+      "id": "r2.2",
+      "reviewerIndex": 2,
+      "pointIndex": 2,
+      "section": null,
+      "verbatim": "2. Table 1 is accurate and I have nothing to add. I would like that noted in the record.",
+      "from": 1406,
+      "to": 1494,
+      "reason": "numbered point"
+    },
+    {
+      "id": "r2.3",
+      "reviewerIndex": 2,
+      "pointIndex": 3,
+      "section": null,
+      "verbatim": "3. The Methods section instructs the reader to open a tab. I have opened the tab. Nothing in my training prepared me for this, and yet here we are.",
+      "from": 1496,
+      "to": 1643,
+      "reason": "numbered point"
+    }
+  ],
+  "unassigned": []
+}

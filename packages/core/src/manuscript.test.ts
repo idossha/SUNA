@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import demoManuscript from '../../../examples/demo-paper/manuscript/manuscript.json';
+import demoManuscript from '../../../examples/hello-suna/manuscript/manuscript.json';
 import { ManuscriptSchema, type Manuscript } from './manuscript';
 
 const fixture = {
@@ -168,7 +168,7 @@ describe('ManuscriptSchema', () => {
     expect(ManuscriptSchema.safeParse({ ...fixture, keywords: [42] }).success).toBe(false);
   });
 
-  it('keeps the shipped demo-paper example schema-valid', () => {
+  it('keeps the shipped hello-suna example schema-valid', () => {
     const parsed = ManuscriptSchema.parse(demoManuscript);
     expect(parsed.significance).toBeTypeOf('string');
     expect(parsed.manuscriptFile).toBe('manuscript.md');

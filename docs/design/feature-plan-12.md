@@ -319,7 +319,7 @@ It also gains `roundsDir(dir)` and `roundDir(dir, roundId)`, which return
 `SunaProjectManifestSchema.directories` is
 `z.record(ProjectDirKeySchema, z.string().min(1))` (`project.ts:144`), an
 exhaustive record whose seven keys every shipped `suna.json` lists
-(`examples/demo-paper/suna.json`), so widening `PROJECT_DIR_KEYS` would
+(`examples/hello-suna/suna.json`), so widening `PROJECT_DIR_KEYS` would
 invalidate every manifest on disk. The helpers exist anyway so that
 `paths.ts:5-8`'s invariant — *every service that touches a source of truth
 resolves its path through here* — stays literally true, even for the one
@@ -346,7 +346,7 @@ export interface DiagnosticTarget {
   errors, one per table, and no runtime fallback.
 - `documentForPath(m, 'letters/x.md')` resolves; `documentForPath(m, 'nope.md')`
   returns null rather than throwing.
-- Every `documents[]` entry in `examples/demo-paper` and `examples/demo-grant`
+- Every `documents[]` entry in `examples/hello-suna` and `examples/demo-grant`
   matches `DOCUMENT_KIND_FILES` for its kind — the assertion that stops the
   table, ADR-009's model table and the demo fixtures drifting apart.
 - `profile: { registry: 'sponsor', … }` on a `cover-letter` entry, and
@@ -1828,7 +1828,7 @@ exists. `project:open` keeps `manuscriptPresent` (`ipc.ts:244`) and gains
 `review:import|read|write`, `report:build`, `package:read|write`,
 `export:package`, `git:tag|tags|show-file`, `identities:read|write`.
 
-**`examples/demo-paper`** — also the e2e fixture, copied by
+**`examples/hello-suna`** — also the e2e fixture, copied by
 `ensureExampleProjectCopy` (`apps/desktop/src/main/ipc.ts:193`) — gains:
 
 - an explicit `documents[]` **describing what is already there**:
@@ -1920,7 +1920,7 @@ feature-plan-7 used, and the one that actually applies here, because
 item 0: it still clicks the removed `.ms__open` button and still reads and
 writes `manuscript/sections/*.md`, so it would fail if run):
 
-1. **Registry equivalence** — export `examples/demo-paper` before and after
+1. **Registry equivalence** — export `examples/hello-suna` before and after
    12a; the DOCX, HTML and PDF must be byte-identical.
 2. **Letter round-trip** — scaffold a letter into a copy of the demo, run the
    checker against six shipped profiles, assert the diagnostic sets, export and

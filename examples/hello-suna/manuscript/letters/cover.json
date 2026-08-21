@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "cover-letter",
+  "letterKind": "submission",
+  "targetProfileId": "suna",
+  "salutation": "Dear Editor,",
+  "identityId": null,
+  "signerIds": [],
+  "covers": [
+    {
+      "documentId": "manuscript",
+      "siblingProjectPath": null,
+      "title": "Hello SUNA",
+      "articleType": "article",
+      "authorsLine": null
+    }
+  ],
+  "assertions": [
+    {
+      "id": "competingInterests",
+      "placement": "directive",
+      "text": "The authors declare no competing interests.",
+      "reason": null
+    },
+    {
+      "id": "dataLocation",
+      "placement": "directive",
+      "text": null,
+      "reason": null
+    }
+  ],
+  "dataLocations": [],
+  "abbreviatedSummary": null,
+  "priorSubmissions": [],
+  "reviewRoundId": null
+}

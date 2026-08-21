@@ -481,25 +481,27 @@ describe('exportDocx', () => {
   })
 })
 
-describe('examples/demo-paper round trip', () => {
-  it('builds a real .docx from the shipped demo project', async () => {
-    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
+describe('examples/hello-suna round trip', () => {
+  it('builds a real .docx from the shipped example project', async () => {
+    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'hello-suna')
     allowRoot(demoDir)
-    const scratch = await mkdtemp(join(tmpdir(), 'suna-demo-docx-'))
+    const scratch = await mkdtemp(join(tmpdir(), 'suna-example-docx-'))
     allowRoot(scratch)
     const png = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       'base64'
     )
-    const specFig = join(scratch, 'fig-spectrum.png')
-    const velFig = join(scratch, 'fig-velocity-map.png')
-    await writeFile(specFig, png)
-    await writeFile(velFig, png)
+    const figurePngPaths: Record<string, string> = {}
+    for (const id of ['hello', 'timesheet']) {
+      const p = join(scratch, `${id}.png`)
+      await writeFile(p, png)
+      figurePngPaths[id] = p
+    }
 
     const content = await buildExportContent({
       dir: demoDir,
       profileId: 'nature',
-      figurePngPaths: { 'fig-spectrum': specFig, 'fig-velocity-map': velFig }
+      figurePngPaths
     })
     const doc = await buildDocxDocument(content, OPTIONS)
     const { Packer } = await import('docx')
@@ -509,7 +511,7 @@ describe('examples/demo-paper round trip', () => {
 
     expect(documentXml).toContain('Ada')
     expect(documentXml).toContain('Results')
-    expect(documentXml).toContain('Gunn')
+    expect(documentXml).toContain('Knuth')
 
     await rm(scratch, { recursive: true, force: true })
   })
@@ -909,24 +911,26 @@ describe('OMML math', () => {
     expect(visibleText(xml)).toContain('\\weird{x}')
   })
 
-  it('converts the demo paper stripping equation from the real project', async () => {
-    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
+  it('converts the example manuscript display equation from the real project', async () => {
+    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'hello-suna')
     allowRoot(demoDir)
-    const scratch = await mkdtemp(join(tmpdir(), 'suna-demo-math-'))
+    const scratch = await mkdtemp(join(tmpdir(), 'suna-example-math-'))
     allowRoot(scratch)
-    const specFig = join(scratch, 'fig-spectrum.png')
-    const velFig = join(scratch, 'fig-velocity-map.png')
-    await writeFile(specFig, ONE_PIXEL_PNG)
-    await writeFile(velFig, ONE_PIXEL_PNG)
+    const figurePngPaths: Record<string, string> = {}
+    for (const id of ['hello', 'timesheet']) {
+      const p = join(scratch, `${id}.png`)
+      await writeFile(p, ONE_PIXEL_PNG)
+      figurePngPaths[id] = p
+    }
     const content = await buildExportContent({
       dir: demoDir,
       profileId: 'suna',
-      figurePngPaths: { 'fig-spectrum': specFig, 'fig-velocity-map': velFig }
+      figurePngPaths
     })
     const { Packer } = await import('docx')
     const zip = await JSZip.loadAsync(await Packer.toBuffer(await buildDocxDocument(content, OPTIONS)))
     const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
-    // The display equation ($$ P_\mathrm{ram} = … $$) is real OMML now.
+    // The display equation ($$ \mathrm{manuscript} = … $$) is real OMML now.
     expect(xml).toContain('<m:oMath>')
     expect(xml).toContain('<m:nor/>')
     expect(visibleText(xml)).not.toContain('$$')

@@ -304,7 +304,7 @@ the invariant that a renamed `manuscript/` or `figures/` keeps working, and
 `z.record(ProjectDirKeySchema, z.string().min(1))`
 (`packages/core/src/project.ts:144`) — an **exhaustive** record over
 `PROJECT_DIR_KEYS`, and every shipped manifest lists all seven keys
-(`examples/demo-paper/suna.json`). Adding a `rounds` key would invalidate every
+(`examples/hello-suna/suna.json`). Adding a `rounds` key would invalidate every
 `suna.json` on disk. The codebase reaches for `z.partialRecord` when it wants a
 partial record (`profile.ts:66`), so making `directories` partial is possible
 but is a manifest-schema change this ADR refuses to pay for a directory nobody

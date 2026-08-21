@@ -238,15 +238,15 @@ describe('useProjectStore.openExampleProject', () => {
     const dock = fakeDock([])
     setDockApi(dock.api)
     mockChannels({
-      'project:open-example': { dir: '/work/demo-paper', manifest, migration: CLEAN_MIGRATION }
+      'project:open-example': { dir: '/work/hello-suna', manifest, migration: CLEAN_MIGRATION }
     })
 
     await useProjectStore.getState().openExampleProject()
 
-    expect(useProjectStore.getState().rootDir).toBe('/work/demo-paper')
+    expect(useProjectStore.getState().rootDir).toBe('/work/hello-suna')
     expect(useUiStore.getState().statusNote).toMatch(/\(example\)$/)
     expect(dock.addPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'manuscript:/work/demo-paper', component: 'manuscript' })
+      expect.objectContaining({ id: 'manuscript:/work/hello-suna', component: 'manuscript' })
     )
   })
 })

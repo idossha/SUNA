@@ -47,13 +47,13 @@ The app opens on the Welcome tab, which offers **Create project**, **Open projec
   <figcaption>The Welcome tab on launch, as it looks on a first run — the recents list under the buttons is still empty. Start with Open example.</figcaption>
 </figure>
 
-**Open example** is the fastest way to see a real project. It never edits the shipped demo: it copies `examples/demo-paper/` into your Electron user-data folder — on macOS `~/Library/Application Support/@suna/desktop/example-project` — skipping `output/`, `.git`, and `.DS_Store`, then git-inits the copy with an initial commit. Later opens reuse that copy. Delete the directory to start from a clean example.
+**Open example** is the fastest way to see a real project. It never edits the shipped demo: it copies `examples/hello-suna/` into your Electron user-data folder — on macOS `~/Library/Application Support/@suna/desktop/example-project` — skipping `output/`, `.git`, and `.DS_Store`, then git-inits the copy with an initial commit. Later opens reuse that copy. If a SUNA update ships a different example, the copy you have is moved aside (`example-project-<old-name>`, never deleted) and a fresh one is taken. Delete the directory to start from a clean example.
 
 **Create project** and **Set up project…** both run the seven-step onboarding wizard: Where & what, Target journal, What to scaffold, Python environment, AI, Defaults, Review. `Set up project…` skips step 1 and seeds a folder you already have. A new project starts in the bundled SUNA house style, not a journal profile — see [profiles](/publishing/profiles). The [quickstart](/guide/quickstart) walks the whole path.
 
 ## What the optional pieces add
 
-**Python and uv.** Wizard step 4 "Python environment" offers Skip, an existing detected environment, or "Create with uv". Detection looks for a project-local `.venv`, `venv`, or `env` (it needs a `pyvenv.cfg`), one nested level down, plus conda environments via `conda env list --json`; uv is probed with `uv --version`. Without uv, the "Create with uv" option is disabled and says so. The `suna-mpl` companion needs Python >= 3.10 and `matplotlib >= 3.8`. The example's figures are regenerated from `examples/demo-paper/` with commands of the form:
+**Python and uv.** Wizard step 4 "Python environment" offers Skip, an existing detected environment, or "Create with uv". Detection looks for a project-local `.venv`, `venv`, or `env` (it needs a `pyvenv.cfg`), one nested level down, plus conda environments via `conda env list --json`; uv is probed with `uv --version`. Without uv, the "Create with uv" option is disabled and says so. The `suna-mpl` companion needs Python >= 3.10 and `matplotlib >= 3.8`. The example's figures are regenerated from `examples/hello-suna/` with commands of the form:
 
 ```bash
 uv run --project ../../python/suna_mpl python figures/fig-spectrum/source/plot.py

@@ -518,7 +518,7 @@ describe('intrinsicSizeFromViewBox', () => {
     expect(intrinsicSizeFromViewBox('0,  0 , 940 ,500')).toEqual({ width: 940, height: 500 })
   })
 
-  // matplotlib writes pt-derived fractions — examples/demo-paper's figures are
+  // matplotlib writes pt-derived fractions — examples/hello-suna's figures are
   // exactly these two strings, so a whole-number-only parser would drop them.
   it('keeps fractional extents from matplotlib output', () => {
     expect(intrinsicSizeFromViewBox('0 0 510.23622 164.409449')).toEqual({

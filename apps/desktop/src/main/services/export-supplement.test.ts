@@ -282,32 +282,32 @@ describe('buildSupplementHtml (the PDF page)', () => {
   })
 })
 
-describe('examples/demo-paper supplement round trip', () => {
-  it('builds a real supplement .docx from the shipped demo project', async () => {
-    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
-    allowRoot(demoDir)
-    const scratch = await mkdtemp(join(tmpdir(), 'suna-demo-supp-'))
+describe('examples/hello-suna supplement round trip', () => {
+  it('builds a real supplement .docx from the shipped example project', async () => {
+    const exampleDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'hello-suna')
+    allowRoot(exampleDir)
+    const scratch = await mkdtemp(join(tmpdir(), 'suna-example-supp-'))
     allowRoot(scratch)
     const png = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       'base64'
     )
-    const velFig = join(scratch, 'fig-velocity-map.png')
-    await writeFile(velFig, png)
+    const timesheetFig = join(scratch, 'timesheet.png')
+    await writeFile(timesheetFig, png)
 
     const content = await buildSupplementContent({
-      dir: demoDir,
+      dir: exampleDir,
       profileId: 'suna',
-      figurePngPaths: { 'fig-velocity-map': velFig }
+      figurePngPaths: { timesheet: timesheetFig }
     })
-    // Only the embedded figure is required/S-labelled; the spectrum figure is not.
+    // Only the embedded figure is required/S-labelled; the hand-drawn Figure 1 is not.
     expect(content.figures.map((f) => f.label)).toEqual(['Figure S1'])
     const doc = await buildSupplementDocx(content, OPTIONS)
     const { Packer } = await import('docx')
     const zip = await JSZip.loadAsync(await Packer.toBuffer(doc))
     const xml = (await zip.file('word/document.xml')?.async('string')) ?? ''
     const text = visibleText(xml)
-    expect(text).toContain('Supplementary Information: Rapid quenching')
+    expect(text).toContain('Supplementary Information: Hello SUNA')
     expect(text).toContain('Supplementary Methods')
     expect(text).toContain('Table S1.')
     expect(text).toContain('Figure S1')

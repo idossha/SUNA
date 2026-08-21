@@ -7,7 +7,7 @@ recorded manual check.
 **Exception — feature-plan-6 (journal profiles, DOCX import, DOCX/PDF
 export).** `pnpm smoke` was explicitly excluded from that milestone by the
 user, so those three rows are verified by unit suites plus **Node-driven
-fixture round-trips** (a real 55 MB manuscript for import; `examples/demo-paper`
+fixture round-trips** (a real 55 MB manuscript for import; `examples/hello-suna`
 exported under two contrasting profiles) rather than by CDP. One gap is
 honest and known: the exported **`.pdf` has never been produced under
 automation**, because `printToPDF` needs a running Electron process that the

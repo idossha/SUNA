@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "name": "Hello SUNA",
+  "activeProfileId": "suna",
+  "directories": {
+    "manuscript": "manuscript",
+    "figures": "figures",
+    "code": "code",
+    "data": "data",
+    "analysis": "analysis",
+    "results": "results",
+    "output": "output"
+  },
+  "createdAt": "2026-08-21T06:00:13.128Z",
+  "documents": [
+    {
+      "id": "manuscript",
+      "kind": "manuscript",
+      "file": null,
+      "meta": "manuscript.json",
+      "title": "Manuscript",
+      "profile": null,
+      "roundId": null,
+      "archived": false
+    },
+    {
+      "id": "supplement",
+      "kind": "supplement",
+      "file": "supplementary.md",
+      "meta": null,
+      "title": "Supplementary Information",
+      "profile": null,
+      "roundId": null,
+      "archived": false
+    },
+    {
+      "id": "cover",
+      "kind": "cover-letter",
+      "file": "letters/cover.md",
+      "meta": "letters/cover.json",
+      "title": "Cover letter",
+      "profile": null,
+      "roundId": null,
+      "archived": false
+    }
+  ]
+}
