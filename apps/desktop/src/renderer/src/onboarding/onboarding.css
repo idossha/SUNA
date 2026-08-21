@@ -312,6 +312,22 @@
 
 /* ---- review step ----------------------------------------------------------- */
 
+/* The summary and the version-control panel share a row; the panel keeps its
+   own width and the summary takes what is left. Narrow windows stack them. */
+.onboard__review-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+  align-items: start;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .onboard__review-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .onboard__review-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -474,7 +490,6 @@
   gap: 10px;
   max-width: 560px;
   padding: 14px 16px;
-  margin-bottom: 20px;
   background: var(--s-bg-panel);
   border: 1px solid var(--s-border);
   border-radius: var(--s-radius);
