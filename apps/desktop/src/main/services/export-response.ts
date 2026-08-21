@@ -3,7 +3,8 @@ import { Document, HeadingLevel, Packer, Paragraph, TextRun, convertMillimetersT
 import type { ReplyBlock, ReplyRun, RequestOf, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
 import { RESPONSE_ROLE_COLORS, pointStateFor, replyBlocks, unaddressedPoints } from '@suna/core'
 import { writeFileAtomic } from './atomic'
-import { escapeHtml, printHtmlToPdf } from './export-notes'
+import { escapeHtml } from './export-notes'
+import { htmlDocument, printHtmlToPdf } from './print-html'
 import { projectSubdir } from './paths'
 import { readReviewerReports, readRound } from './round-new'
 import { assertInsideAllowedRoot } from './roots'
@@ -119,11 +120,6 @@ export function buildResponseHtml(
   colorRoles = true
 ): string {
   const out: string[] = []
-  out.push('<!doctype html>')
-  out.push('<html lang="en"><head><meta charset="utf-8">')
-  out.push(`<title>${escapeHtml(title)}</title>`)
-  out.push(`<style>${responseCss(colorRoles)}</style>`)
-  out.push('</head><body>')
   out.push('<div class="rx-page">')
   out.push(`<h1 class="rx-title">${escapeHtml(title)}</h1>`)
   if (subtitle.trim() !== '') out.push(`<p class="rx-sub">${escapeHtml(subtitle)}</p>`)
@@ -155,8 +151,7 @@ export function buildResponseHtml(
     }
   }
   out.push('</div>')
-  out.push('</body></html>')
-  return out.join('\n')
+  return htmlDocument({ title, css: responseCss(colorRoles), body: out.join('\n') })
 }
 
 /**

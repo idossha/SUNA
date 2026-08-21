@@ -10,7 +10,6 @@ import {
   analyzeDocx,
   buildManuscriptMarkdown,
   commitDocxAnalysis,
-  countOmmlEquations,
   deriveCorrespondence,
   extensionForContentType,
   isCorrespondenceEntry,
@@ -290,19 +289,6 @@ describe('buildManuscriptMarkdown', () => {
 
   it('returns an empty string for no sections', () => {
     expect(buildManuscriptMarkdown([], [])).toBe('')
-  })
-})
-
-describe('countOmmlEquations', () => {
-  it('counts <m:oMath> elements in raw document.xml text', () => {
-    const xml =
-      '<w:document><w:body><w:p><m:oMath><m:r>x</m:r></m:oMath></w:p>' +
-      '<w:p><m:oMathPara><m:oMath><m:r>y</m:r></m:oMath></m:oMathPara></w:p></w:body></w:document>'
-    expect(countOmmlEquations(xml)).toBe(2)
-  })
-
-  it('is zero for a document with no equations', () => {
-    expect(countOmmlEquations('<w:document><w:body><w:p><w:r><w:t>plain</w:t></w:r></w:p></w:body></w:document>')).toBe(0)
   })
 })
 
