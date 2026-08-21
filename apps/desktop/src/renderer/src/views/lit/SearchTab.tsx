@@ -16,9 +16,12 @@ import { useUiStore } from '../../state/ui'
 import { acquireNote } from '../refs'
 import { useReferencePdfs } from '../../state/referencePdfs'
 import { hintFor, suggestionFor } from './provider-hint'
+import { isSeedWork, type SeedWork } from './similar'
 import { ResultCard } from './ResultCard'
 
-/** A "Find similar" request from the Library tab: search by DOI first, title second. */
+/** A "Find similar" request from the Library tab. The search runs itself on
+ *  arrival — see the seed effect below — and the DOI is carried only so the
+ *  seed paper can be recognised in its own results and dropped. */
 export interface FindSimilarSeed {
   nonce: number
   doi: string | null
@@ -85,6 +88,9 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
   const [addingId, setAddingId] = useState<string | null>(null)
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [findingId, setFindingId] = useState<string | null>(null)
+  // The paper a "Find similar" started from, filtered out of its own results
+  // until the next hand-typed search.
+  const [seedWork, setSeedWork] = useState<SeedWork | null>(null)
 
   // references.bib as text, only so `findExistingKey` can tell whether a hit
   // is already in the file (and under which key). Re-read on saveBump, which
@@ -220,6 +226,13 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
     }
   }
 
+  /** A search the user typed: it is their query now, not a "Find similar",
+   *  so nothing is filtered out of the results any more. */
+  function runTypedSearch(): void {
+    setSeedWork(null)
+    void runSearch(provider, query)
+  }
+
   async function runSearch(p: UiLitProviderId, q: string): Promise<void> {
     if (q.trim() === '') return
     if (p === 'ai-cli') {
@@ -250,37 +263,16 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
     })
   }
 
-  // "Find similar" from the Library tab: DOI lookup first, title search as fallback.
-  // ai-cli has no DOI lookup path (it only ever runs a fresh web search), so
-  // the seed goes straight to the title search for that provider.
+  // "Find similar" from the Library row menu: fill the box AND run the search,
+  // so the tab arrives with answers rather than with a query waiting to be
+  // submitted. It is a title search on every provider — a DOI lookup would
+  // return the one paper the user right-clicked, which is the opposite of
+  // what they asked for (see lit/similar.ts).
   useEffect(() => {
     if (seed === null) return
-    let cancelled = false
-    void (async () => {
-      setLoading(true)
-      setError(null)
-      setResults([])
-      setQuery(seed.title)
-      if (seed.doi !== null && provider !== 'ai-cli') {
-        try {
-          const res = await window.suna.invoke('lit:by-doi', { provider, doi: seed.doi })
-          if (cancelled) return
-          const parsed = res.result === null ? null : LitResultSchema.safeParse(res.result)
-          if (parsed !== null && parsed.success) {
-            setResults([parsed.data])
-            setLoading(false)
-            return
-          }
-          if (res.error !== null) setError(res.error)
-        } catch (err) {
-          if (!cancelled) setError(err instanceof Error ? err.message : String(err))
-        }
-      }
-      if (!cancelled) await runSearch(provider, seed.title)
-    })()
-    return () => {
-      cancelled = true
-    }
+    setQuery(seed.title)
+    setSeedWork({ doi: seed.doi, title: seed.title })
+    void runSearch(provider, seed.title)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed])
 
@@ -365,6 +357,9 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
     setStatusNote(`Copied DOI ${doi}`)
   }
 
+  // The seed paper never counts as one of its own similar papers.
+  const shown = results.filter((r) => !isSeedWork(r, seedWork))
+
   const currentStatus = provider === 'ai-cli' ? undefined : providerStatus.find((p) => p.id === provider)
   const cliInstallHint =
     availableClis.length === 0
@@ -405,10 +400,10 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') void runSearch(provider, query)
+            if (e.key === 'Enter') runTypedSearch()
           }}
         />
-        <button className="lit-search__go" onClick={() => void runSearch(provider, query)} disabled={loading}>
+        <button className="lit-search__go" onClick={runTypedSearch} disabled={loading}>
           Search
         </button>
         {loading && provider === 'ai-cli' && (
@@ -433,13 +428,17 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
         </div>
       )}
 
-      {!loading && error === null && results.length === 0 && query.trim() !== '' && (
-        <p className="view__hint">No results.</p>
+      {!loading && error === null && shown.length === 0 && query.trim() !== '' && (
+        <p className="view__hint">
+          {results.length > 0
+            ? 'Only the paper you started from came back — nothing similar found.'
+            : 'No results.'}
+        </p>
       )}
 
-      {results.length > 0 && (
+      {shown.length > 0 && (
         <ul className="lit-search__results">
-          {results.map((result) => {
+          {shown.map((result) => {
             const id = cardId(result)
             const existingKey = findExistingKey(bibText, result)
             const filed =
