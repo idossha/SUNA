@@ -165,3 +165,98 @@ export async function createEnvWithUv(
     }
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Automatic provisioning                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A project that ships a `requirements.txt` can have its own `.venv` made for
+ * it the first time it is opened, so the notebook kernel, the run button and
+ * new terminals all work without a setup step. This is what makes the shipped
+ * example self-sufficient: its requirements name `ipykernel`, and a kernel
+ * without `ipykernel` is the one failure a reader cannot be expected to fix.
+ *
+ * Best-effort throughout: no python, no network, no `uv` — the project still
+ * opens, only without an env, exactly as before.
+ */
+export const REQUIREMENTS_FILE = 'requirements.txt'
+
+/** One provision per env path per app run, and the promise is shared. */
+const provisioning = new Map<string, Promise<CreateEnvResult>>()
+
+/** Injectable so provisioning is testable without spawning python or uv. */
+export interface ProvisionRunners {
+  createVenv: (dir: string, envPath: string) => Promise<void>
+  install: (envPath: string, python: string, requirements: string) => Promise<void>
+}
+
+const defaultProvisionRunners: ProvisionRunners = {
+  createVenv: async (dir, envPath) => {
+    try {
+      await run('uv', ['venv'], { cwd: dir, timeout: 120_000 })
+    } catch {
+      // uv is the fast path, not a requirement: stdlib venv is everywhere.
+      await run('python3', ['-m', 'venv', envPath], { cwd: dir, timeout: 300_000 })
+    }
+  },
+  install: async (envPath, python, requirements) => {
+    try {
+      await run('uv', ['pip', 'install', '--python', python, '-r', requirements], {
+        cwd: envPath,
+        timeout: 900_000
+      })
+    } catch {
+      await run(python, ['-m', 'pip', 'install', '-q', '-r', requirements], { timeout: 900_000 })
+    }
+  }
+}
+
+/**
+ * Create and populate `dir/.venv` from `dir/requirements.txt`, unless the env
+ * is already there (a populated env is never touched — it may be the user's).
+ * Returns the env path so the caller can select it.
+ */
+export async function provisionProjectEnv(
+  dir: string,
+  runners: ProvisionRunners = defaultProvisionRunners
+): Promise<CreateEnvResult> {
+  const envPath = join(dir, '.venv')
+  const pending = provisioning.get(envPath)
+  if (pending) return pending
+
+  const task = (async (): Promise<CreateEnvResult> => {
+    const requirements = join(dir, REQUIREMENTS_FILE)
+    if (!(await exists(requirements))) {
+      return { ok: false, envPath: null, error: `no ${REQUIREMENTS_FILE}` }
+    }
+    try {
+      if (!(await exists(join(envPath, 'pyvenv.cfg')))) {
+        await runners.createVenv(dir, envPath)
+      }
+      const python = await resolvePython(envPath)
+      if (python === null) return { ok: false, envPath: null, error: 'env has no interpreter' }
+      await runners.install(envPath, python, requirements)
+      return { ok: true, envPath, error: null }
+    } catch (error) {
+      return {
+        ok: false,
+        envPath: null,
+        error: error instanceof Error ? error.message : String(error)
+      }
+    }
+  })()
+
+  provisioning.set(envPath, task)
+  return task
+}
+
+/**
+ * Settle if `envPath` is being provisioned right now. Anything that STARTS an
+ * interpreter awaits this, so a kernel launched while the install is still
+ * running waits for it instead of reporting a missing `jupyter_client`.
+ */
+export async function awaitProvision(envPath: string | null): Promise<void> {
+  if (envPath === null) return
+  await provisioning.get(envPath)?.catch(() => undefined)
+}

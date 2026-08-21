@@ -57,6 +57,8 @@ interface Session {
   startRequested: boolean
   /** Typed into the pty (with a newline) right after the shell starts. */
   pendingCommand: string | null
+  /** Called once the pty id exists — the moment a caller can remember it. */
+  onPty: ((ptyId: string) => void) | null
   disposers: Array<() => void>
 }
 
@@ -104,6 +106,34 @@ async function resolveEnvPath(rootDir: string | null): Promise<string | null> {
   }
 }
 
+/**
+ * Wire a session to a live pty id: output in, keystrokes out, exit notice.
+ * Shared by a freshly created pty and by one ADOPTED after a renderer
+ * reload, so both kinds of session behave identically from here on.
+ */
+function bindPty(session: Session, ptyId: string): void {
+  session.ptyId = ptyId
+  patchTab(session.id, { status: 'running' })
+
+  session.disposers.push(
+    window.suna.onTermData(ptyId, (data) => session.term.write(data)),
+    window.suna.onTermExit(ptyId, (exit) => {
+      session.ptyId = null
+      patchTab(session.id, { status: 'exited' })
+      session.term.write(
+        `\r\n\u001b[90m[process exited · code ${exit.exitCode ?? 0}] — close the tab or open a new one\u001b[0m\r\n`
+      )
+    })
+  )
+  const input = session.term.onData((data) => {
+    if (session.ptyId !== null) {
+      void window.suna.invoke('term:write', { id: session.ptyId, data }).catch(() => {})
+    }
+  })
+  session.disposers.push(() => input.dispose())
+  session.onPty?.(ptyId)
+}
+
 async function startPty(session: Session): Promise<void> {
   const rootDir = useProjectStore.getState().rootDir
   // '~' is the no-project sentinel; the main process expands it to the home dir.
@@ -116,25 +146,7 @@ async function startPty(session: Session): Promise<void> {
       rows: session.term.rows,
       envPath
     })
-    session.ptyId = ptyId
-    patchTab(session.id, { status: 'running' })
-
-    session.disposers.push(
-      window.suna.onTermData(ptyId, (data) => session.term.write(data)),
-      window.suna.onTermExit(ptyId, (exit) => {
-        session.ptyId = null
-        patchTab(session.id, { status: 'exited' })
-        session.term.write(
-          `\r\n\u001b[90m[process exited · code ${exit.exitCode ?? 0}] — close the tab or open a new one\u001b[0m\r\n`
-        )
-      })
-    )
-    const input = session.term.onData((data) => {
-      if (session.ptyId !== null) {
-        void window.suna.invoke('term:write', { id: session.ptyId, data }).catch(() => {})
-      }
-    })
-    session.disposers.push(() => input.dispose())
+    bindPty(session, ptyId)
 
     if (session.pendingCommand !== null) {
       const command = session.pendingCommand
@@ -150,7 +162,12 @@ async function startPty(session: Session): Promise<void> {
 
 /** Create a terminal tab (and make it active). The pty starts on first attach. */
 export function createTerminalTab(
-  options: { command?: string; title?: string; surface?: TermSurface } = {}
+  options: {
+    command?: string
+    title?: string
+    surface?: TermSurface
+    onPty?: (ptyId: string) => void
+  } = {}
 ): string {
   const id = `term${++seq}`
   const host = document.createElement('div')
@@ -185,6 +202,7 @@ export function createTerminalTab(
     opened: false,
     startRequested: false,
     pendingCommand: options.command ?? null,
+    onPty: options.onPty ?? null,
     disposers: []
   }
   sessions.set(id, session)
@@ -200,6 +218,49 @@ export function createTerminalTab(
     activeId: surface === 'panel' ? id : s.activeId
   }))
   return id
+}
+
+/**
+ * Re-adopt a pty that outlived the renderer, as a tab of its own.
+ *
+ * Ptys live in the main process and are killed only when the app quits, so a
+ * reload (⌘R, a dev hot reload) leaves them running with nothing on screen
+ * attached — which is exactly how the floating agent terminal used to
+ * "disappear". `startRequested` is set before anything can attach, so the
+ * usual create-a-pty-on-first-attach path never fires for this session.
+ *
+ * Answers null when main no longer knows the id; the caller forgets it.
+ */
+export async function adoptTerminalTab(options: {
+  ptyId: string
+  title?: string
+  surface?: TermSurface
+}): Promise<string | null> {
+  let result: { adopted: boolean; replay: string }
+  try {
+    result = await window.suna.invoke('term:adopt', { id: options.ptyId })
+  } catch {
+    return null
+  }
+  if (!result.adopted) return null
+
+  const id = createTerminalTab({ title: options.title ?? 'shell', surface: options.surface })
+  const session = sessions.get(id)
+  if (!session) return null
+  session.startRequested = true
+  bindPty(session, options.ptyId)
+  // Recent output first, then a rule saying why the history above it stops:
+  // a session that silently begins mid-conversation reads as a bug.
+  if (result.replay !== '') session.term.write(result.replay)
+  session.term.write(
+    `\r\n\u001b[90m[reattached after a reload — earlier output above may be truncated]\u001b[0m\r\n`
+  )
+  return id
+}
+
+/** The live pty behind a tab, for callers that must remember it across a reload. */
+export function sessionPtyId(id: string): string | null {
+  return sessions.get(id)?.ptyId ?? null
 }
 
 /** Open the panel and start a terminal that immediately runs `command`. */

@@ -62,6 +62,7 @@ export type FileIconKind =
   | 'pdf'
   | 'table'
   | 'code'
+  | 'notebook'
   | 'tex'
   | 'file'
 
@@ -86,6 +87,7 @@ const FILE_ICON_KINDS: Record<string, FileIconKind> = {
   '.pdf': 'pdf',
   '.csv': 'table',
   '.tsv': 'table',
+  '.ipynb': 'notebook',
   '.py': 'code',
   '.js': 'code',
   '.mjs': 'code',

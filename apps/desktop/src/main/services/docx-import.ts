@@ -316,6 +316,7 @@ export async function analyzeHtmlDocument(input: {
 const PROJECT_GITIGNORE = `output/
 .DS_Store
 __pycache__/
+.ipynb_checkpoints/
 .venv/
 `
 

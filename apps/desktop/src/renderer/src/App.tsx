@@ -10,6 +10,7 @@ import { WelcomeTab } from './shell/WelcomeTab'
 import { EditorTab } from './editor/EditorTab'
 import { CanvasTab } from './canvas/CanvasTab'
 import { DataGridTab } from './dataview/DataGridTab'
+import { NotebookTab } from './notebook/NotebookTab'
 import { DocxImportTab } from './import/DocxImportTab'
 import { ExportDialog } from './export/ExportDialog'
 import { ManuscriptTab } from './manuscript/ManuscriptTab'
@@ -48,6 +49,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   editor: EditorTab,
   canvas: CanvasTab,
   dataview: DataGridTab,
+  notebook: NotebookTab,
   manuscript: ManuscriptTab,
   letter: LetterTab,
   supplement: SupplementTab,

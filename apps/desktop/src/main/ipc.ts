@@ -163,7 +163,15 @@ import { watchProjectManifest } from './services/projectWatch'
 import { watchProjectTree } from './services/projectTreeWatch'
 import { watchGitDir } from './services/gitWatch'
 import { allowRoot } from './services/roots'
-import { createEnvWithUv, detectEnvs, selectEnv, selectedEnv, uvAvailable } from './services/envs'
+import {
+  awaitProvision,
+  createEnvWithUv,
+  detectEnvs,
+  provisionProjectEnv,
+  selectEnv,
+  selectedEnv,
+  uvAvailable
+} from './services/envs'
 import {
   forgetRecentProject,
   listRecentProjects,
@@ -174,11 +182,20 @@ import {
 } from './services/settings'
 import { openPathWithOs, revealPath } from './services/shell-open'
 import {
+  adoptTerminal,
   createTerminal,
   killTerminal,
+  listTerminals,
   resizeTerminal,
   writeTerminal
 } from './services/terminal'
+import {
+  executeInKernel,
+  interruptKernel,
+  restartKernel,
+  shutdownKernel,
+  startKernel
+} from './services/kernel'
 
 const AGENT_PROVIDER_IDS = ['anthropic', 'openai', 'ollama'] as const
 
@@ -307,6 +324,45 @@ async function ensureExampleProjectCopy(): Promise<string> {
 }
 
 /**
+ * Give a project a python environment when it opens without one selected, so
+ * terminals, the run button and notebook kernels work with no setup step.
+ *
+ * Two ways, in order: an env that is already there (a `.venv` a colleague or
+ * a previous run created — selecting it is free and instant), then, for a
+ * project that ships a `requirements.txt`, provisioning one from it. The
+ * example project is the case this exists for: its requirements name
+ * `ipykernel`, and a kernel without `ipykernel` is the one failure a reader
+ * cannot be expected to fix. It applies to EVERY project open, not just the
+ * bundled example — the same folder opened from recents or from disk must
+ * behave identically.
+ *
+ * Deliberately not awaited by the open: an install takes tens of seconds on a
+ * cold cache and the project must appear at once. Anything that starts an
+ * interpreter waits on `awaitProvision()` instead, and the chosen env is
+ * pushed to the renderer so the env chip stops saying "no env". Best-effort
+ * throughout: without python or a network the project opens exactly as before.
+ */
+async function ensureProjectEnv(dir: string): Promise<void> {
+  if ((await selectedEnv(dir)) !== null) return
+
+  const existing = (await detectEnvs(dir).catch(() => [])).find((env) => env.python !== null)
+  if (existing) {
+    await selectEnv(dir, existing.path)
+    broadcast(EVENT_CHANNELS.envChanged, { dir, envPath: existing.path })
+    return
+  }
+
+  const result = await provisionProjectEnv(dir)
+  if (!result.ok || result.envPath === null) {
+    console.warn('project env not provisioned (continuing without one):', result.error)
+    return
+  }
+  if ((await selectedEnv(dir)) !== null) return
+  await selectEnv(dir, result.envPath)
+  broadcast(EVENT_CHANNELS.envChanged, { dir, envPath: result.envPath })
+}
+
+/**
  * Record a project open in the recents list. Best-effort by design: a settings
  * write that fails must never stop a project from opening — it is logged, and
  * the welcome screen simply misses one row.
@@ -387,6 +443,7 @@ export function registerIpcHandlers(): void {
   })
   handle('project:open', async ({ dir }) => {
     const opened = await openProject(dir)
+    void ensureProjectEnv(dir)
     const migration = await migrateOnOpen(dir)
     // Fire-and-forget: the heal never throws, and a wedged ~/SunaConfig or
     // slow home volume must not block a project from opening.
@@ -544,6 +601,7 @@ export function registerIpcHandlers(): void {
   })
   handle('project:open-example', async () => {
     const dir = await ensureExampleProjectCopy()
+    void ensureProjectEnv(dir)
     const { manifest } = await openProject(dir)
     const migration = await migrateOnOpen(dir)
     void healProjectAgentLayer(dir)
@@ -913,6 +971,34 @@ export function registerIpcHandlers(): void {
   })
   handle('term:kill', async ({ id }) => {
     killTerminal(id)
+    return {}
+  })
+  handle('term:list', async () => ({ ids: listTerminals() }))
+  handle('term:adopt', async ({ id }, event) => {
+    const adopted = adoptTerminal(id, event.sender)
+    return adopted === null ? { adopted: false, replay: '' } : { adopted: true, replay: adopted.replay }
+  })
+
+  handle('kernel:start', async ({ cwd, envPath, kernelName }, event) => {
+    // A kernel asked for while its env is still installing waits for the
+    // install rather than reporting a missing jupyter_client.
+    await awaitProvision(envPath)
+    return { id: startKernel({ cwd, envPath, kernelName, webContents: event.sender }) }
+  })
+  handle('kernel:execute', async ({ id, reqId, code }) => {
+    executeInKernel(id, reqId, code)
+    return {}
+  })
+  handle('kernel:interrupt', async ({ id }) => {
+    interruptKernel(id)
+    return {}
+  })
+  handle('kernel:restart', async ({ id }) => {
+    restartKernel(id)
+    return {}
+  })
+  handle('kernel:shutdown', async ({ id }) => {
+    shutdownKernel(id)
     return {}
   })
 

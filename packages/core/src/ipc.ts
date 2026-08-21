@@ -1445,6 +1445,61 @@ export const CHANNELS = {
     request: z.object({ id: z.string().min(1) }),
     response: z.object({}),
   },
+  /**
+   * Which ptys are still alive in main. Ptys outlive the renderer that made
+   * them (they are only killed on quit), so after a reload the renderer asks
+   * this before deciding whether a remembered session can be re-adopted.
+   */
+  'term:list': {
+    request: z.object({}),
+    response: z.object({ ids: z.array(z.string().min(1)) }),
+  },
+  /**
+   * Take over a surviving pty: routes its output to THIS renderer and
+   * answers with the recent scrollback to repaint. `adopted: false` means
+   * the id is gone and the caller should forget it.
+   */
+  'term:adopt': {
+    request: z.object({ id: z.string().min(1) }),
+    response: z.object({ adopted: z.boolean(), replay: z.string() }),
+  },
+  /**
+   * Notebook kernels. `kernel:start` launches the python/suna_kernel bridge
+   * under `envPath`'s interpreter and answers with an id; every kernel event
+   * afterwards arrives on EVENT_CHANNELS.kernelEvent(id) rather than as a
+   * reply, because execution is a STREAM — outputs land while the cell runs,
+   * not when it finishes.
+   */
+  'kernel:start': {
+    request: z.object({
+      cwd: z.string().min(1),
+      envPath: z.string().min(1).nullable(),
+      /** Jupyter kernelspec name; 'python3' unless a notebook asks for another. */
+      kernelName: z.string().min(1),
+    }),
+    response: z.object({ id: z.string().min(1) }),
+  },
+  'kernel:execute': {
+    request: z.object({
+      id: z.string().min(1),
+      /** Renderer-chosen id; every event for this run carries it back. */
+      reqId: z.string().min(1),
+      code: z.string(),
+    }),
+    response: z.object({}),
+  },
+  'kernel:interrupt': {
+    request: z.object({ id: z.string().min(1) }),
+    response: z.object({}),
+  },
+  'kernel:restart': {
+    request: z.object({ id: z.string().min(1) }),
+    response: z.object({}),
+  },
+  'kernel:shutdown': {
+    request: z.object({ id: z.string().min(1) }),
+    response: z.object({}),
+  },
   'env:detect': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({
@@ -2220,6 +2275,12 @@ export const CHANNELS = {
  */
 export const EVENT_CHANNELS = {
   termData: (id: string) => `term:data:${id}`,
+  /**
+   * Every event from one notebook kernel: ready / status / input / output /
+   * clear / reply / fatal / exit. Shapes are the bridge's, forwarded
+   * untouched — see python/suna_kernel/bridge.py.
+   */
+  kernelEvent: (id: string) => `kernel:event:${id}`,
   termExit: (id: string) => `term:exit:${id}`,
   /** Status-line pushes for one 'lit:ai-search' run (e.g. "Searching the web…"). */
   litProgress: (searchId: string) => `lit:progress:${searchId}`,
@@ -2238,6 +2299,15 @@ export const EVENT_CHANNELS = {
    * for a project the renderer already closed can be ignored.
    */
   projectManifestChanged: 'project:manifest-changed',
+  /**
+   * The python environment selected for a project changed in the MAIN process
+   * rather than through the picker — today that means auto-provisioning found
+   * or built the project's `.venv` after the window had already loaded (and
+   * shown "no env"). Payload: `{ dir: string, envPath: string | null }`, the
+   * project root and its new selection, so a stale push for a project the
+   * renderer already closed can be ignored.
+   */
+  envChanged: 'env:changed',
   /**
    * Something inside the open project's directory was created, deleted,
    * renamed, or moved — by an export, an agent, the terminal, or another app.

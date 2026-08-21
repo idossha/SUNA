@@ -32,7 +32,7 @@ import { useProjectStore } from '../../state/project'
 import { resolvePreviewProfileId, useRenderProfileStore } from '../../state/renderProfile'
 import { useEditorSettings } from '../../editor/settings'
 import { useUiStore } from '../../state/ui'
-import { closeTerminalTab, createTerminalTab } from '../../terminal/sessions'
+import { adoptTerminalTab, closeTerminalTab, createTerminalTab } from '../../terminal/sessions'
 import { contextMarkdown, type ScreenContextInput } from './context'
 
 export type ShotKind = 'window' | 'region' | 'none'
@@ -66,13 +66,125 @@ interface FloatTerminalState {
   /** Absolute bundle dir behind the open session — shown in its title bar. */
   bundleDir: string | null
   minimized: boolean
+  /**
+   * Set when the window went away without the user closing it — the session
+   * died, or main forgot the pty we tried to re-adopt. Carries the bundle
+   * dir, because that is the part worth keeping: the shot, the context and
+   * the prompt are on disk whether or not any CLI ever ran.
+   */
+  lostBundleDir: string | null
 }
 
 export const useFloatTerminalStore = create<FloatTerminalState>(() => ({
   termId: null,
   bundleDir: null,
-  minimized: false
+  minimized: false,
+  lostBundleDir: null
 }))
+
+/* --------------------------------------------------- surviving a reload -- */
+
+/**
+ * What the floating window needs in order to come back.
+ *
+ * The pty lives in the MAIN process and is killed only when the app quits;
+ * everything the UI knew about it lived in the store above, which a renderer
+ * reload wipes. That mismatch is what made a running agent vanish with no
+ * way to reach it, so the pty id goes somewhere a reload cannot touch.
+ */
+const SESSION_KEY = 'suna.floatTerminal.session'
+
+interface PersistedSession {
+  ptyId: string
+  bundleDir: string | null
+}
+
+function rememberSession(session: PersistedSession | null): void {
+  try {
+    if (session === null) window.localStorage.removeItem(SESSION_KEY)
+    else window.localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  } catch {
+    // best-effort: the window still works for the life of this renderer
+  }
+}
+
+function recallSession(): PersistedSession | null {
+  try {
+    const raw = window.localStorage.getItem(SESSION_KEY)
+    if (raw === null) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const record = parsed as Record<string, unknown>
+    if (typeof record['ptyId'] !== 'string' || record['ptyId'] === '') return null
+    const bundleDir = record['bundleDir']
+    return { ptyId: record['ptyId'], bundleDir: typeof bundleDir === 'string' ? bundleDir : null }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Called once at startup. Re-adopts the agent session if its pty is still
+ * alive; otherwise forgets it — and, when we had one to lose, leaves a note
+ * pointing at the bundle so the ask is never simply gone.
+ */
+export async function restoreFloatTerminal(): Promise<void> {
+  const remembered = recallSession()
+  if (remembered === null) return
+  const termId = await adoptTerminalTab({
+    ptyId: remembered.ptyId,
+    title: 'Ask about this screen',
+    surface: 'float'
+  })
+  if (termId === null) {
+    rememberSession(null)
+    useFloatTerminalStore.setState({ lostBundleDir: remembered.bundleDir })
+    return
+  }
+  useFloatTerminalStore.setState({
+    termId,
+    bundleDir: remembered.bundleDir,
+    minimized: false,
+    lostBundleDir: null
+  })
+}
+
+/** Forget the running session (the caller has already ended or lost it). */
+export function forgetFloatTerminal(lostBundleDir: string | null = null): void {
+  rememberSession(null)
+  useFloatTerminalStore.setState({
+    termId: null,
+    bundleDir: null,
+    minimized: false,
+    lostBundleDir
+  })
+}
+
+/**
+ * `AI: Show the agent terminal` — un-collapse and re-reveal the window.
+ * The command exists because "I can't find it" needs an answer that is not
+ * "start another ask": a second ask replaces the first, ending a
+ * conversation the user only wanted to look at again.
+ */
+export function showFloatTerminal(): void {
+  if (useFloatTerminalStore.getState().termId === null) return
+  useFloatTerminalStore.setState({ minimized: false })
+  resetFloatTerminalGeometry()
+}
+
+/**
+ * Set by FloatingTerminal so the command above can put a window that drifted
+ * somewhere unhelpful back in its default corner.
+ */
+let resetGeometry: (() => void) | null = null
+
+export function setFloatGeometryReset(reset: (() => void) | null): void {
+  resetGeometry = reset
+}
+
+export function resetFloatTerminalGeometry(): void {
+  resetGeometry?.()
+}
 
 /* ------------------------------------------------------------- pure bits -- */
 
@@ -313,9 +425,17 @@ export async function sendScreenAsk(question: string): Promise<void> {
     const termId = createTerminalTab({
       command: screenAskCommand(resolved.cwd, promptPath, 'claude'),
       title: 'Ask about this screen',
-      surface: 'float'
+      surface: 'float',
+      // Remembered as soon as the pty exists, so a reload one second later
+      // can still find it.
+      onPty: (ptyId) => rememberSession({ ptyId, bundleDir: bundle.bundleDir })
     })
-    useFloatTerminalStore.setState({ termId, bundleDir: bundle.bundleDir, minimized: false })
+    useFloatTerminalStore.setState({
+      termId,
+      bundleDir: bundle.bundleDir,
+      minimized: false,
+      lostBundleDir: null
+    })
     useScreenAskStore.getState().set({ kind: 'idle' })
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error))

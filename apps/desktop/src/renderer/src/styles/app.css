@@ -1746,3 +1746,15 @@ button {
 .statusbar__note {
   color: var(--s-ink-muted);
 }
+
+/* Title-bar right column: the env picker, and room for whatever else earns
+   a place beside it later. `no-drag` on the column keeps its controls
+   clickable inside the draggable title bar. */
+.titlebar__right {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}

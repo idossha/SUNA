@@ -211,13 +211,21 @@ describe('buildManuscriptHtml', () => {
     }
   })
 
+  it('opens the body on page 2 so the first page holds only the title page', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const content = await buildExportContent({ dir, profileId: 'suna', figurePngPaths })
+    const html = await buildManuscriptHtml(content, { doubleSpacing: false, lineNumbers: false })
+    expect(html).toContain('ms-body--page2')
+    expect(html).toContain('.ms-body--page2 { page-break-before: always; break-before: page; }')
+  })
+
   it('applies the double-spacing and line-number CSS hooks when requested', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
     const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const doubled = await buildManuscriptHtml(content, { doubleSpacing: true, lineNumbers: true })
-    expect(doubled).toContain('class="ms-body ms-double ms-line-numbers" id="ms-body"')
+    expect(doubled).toContain('class="ms-body ms-double ms-line-numbers ms-body--page2" id="ms-body"')
     const plain = await buildManuscriptHtml(content, { doubleSpacing: false, lineNumbers: false })
-    expect(plain).toContain('class="ms-body" id="ms-body"')
+    expect(plain).toContain('class="ms-body ms-body--page2" id="ms-body"')
   })
 
   it('writes the docx-tools corresponding-author line and the keywords line after the abstract', async () => {

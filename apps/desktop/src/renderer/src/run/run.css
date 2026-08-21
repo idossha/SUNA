@@ -1,0 +1,23 @@
+/* ---- run button (run/RunButton) -----------------------------------------
+   Sits in the editor toolbar beside the gear; same 24px pill so the row
+   reads as one control cluster, tinted green because it is the one control
+   there that starts something rather than changing an appearance. */
+.run-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  padding-left: 1px; /* optical centring: the triangle's mass sits left */
+  color: var(--s-ok, #3f9d63);
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.run-button:hover {
+  border-color: var(--s-border-strong);
+  background: var(--s-bg-hover, var(--s-bg-raised));
+}

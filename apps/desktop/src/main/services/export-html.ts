@@ -508,6 +508,11 @@ function pageCss(style: ResolvedDocumentStyle, palette?: ExportPalette): string 
   img.md-image, .ms-body img, figure.figure img { display: block; margin: 0 auto; width: auto; height: auto; max-width: 100%; max-height: ${textHeightMm}mm; }
   .ms-ref { font-size: ${s.reference}pt; margin: 0 0 4pt 0; padding-left: ${style.referenceHangingMm}mm; text-indent: -${style.referenceHangingMm}mm; }
   ${style.referencesStartNewPage ? '.ms-references { page-break-before: always; }' : ''}
+  /* The first page is the title page and nothing else: title, byline,
+     abstract, and whichever of keywords/significance/highlights exist. The
+     body opens on page 2 — same rule the docx export applies as
+     pageBreakBefore on its first section (export-docx.ts). */
+  .ms-body--page2 { page-break-before: always; break-before: page; }
   .ms-ref-num { font-weight: 600; }
   .ms-ref-flag { color: ${err}; }
   .ms-figure-caption { font-size: ${s.caption}pt; }
@@ -587,7 +592,7 @@ export async function buildManuscriptHtml(
     })
     .join('\n')
 
-  const bodyClass = `ms-body${options.doubleSpacing ? ' ms-double' : ''}${options.lineNumbers ? ' ms-line-numbers' : ''}`
+  const bodyClass = `ms-body${options.doubleSpacing ? ' ms-double' : ''}${options.lineNumbers ? ' ms-line-numbers' : ''}${style.pageBreakAfterFrontMatter ? ' ms-body--page2' : ''}`
 
   return `<!doctype html>
 <html><head><meta charset="utf-8">

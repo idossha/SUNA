@@ -11,9 +11,9 @@ export function WelcomeTab(): JSX.Element {
     <div className="welcome">
       <div className="welcome__page">
         <div className="welcome__eyebrow">SUNA</div>
-        <h1 className="welcome__title">A workspace for the whole paper</h1>
+        <h1 className="welcome__title">Human-AI driven science</h1>
         <p className="welcome__byline">
-          manuscript · figures · references · data · versions
+          write · design · share · reproduce · collaborate
         </p>
         <div className="welcome__rule" />
         <div className="welcome__actions">
@@ -35,10 +35,10 @@ export function WelcomeTab(): JSX.Element {
         </div>
         <RecentProjects />
         <p className="welcome__hint">
-          A project keeps sections in Markdown, references in BibTeX, figures as
-          SVG with their generating code, and everything under git — publisher
-          formatting is applied only on export. Have a manuscript already? New
-          project can start from a .docx, .pdf or .html file.
+          SUNA is a workspace for the whole paper — writing, figures,
+          references and data in one place, with an AI collaborator that works
+          alongside you rather than behind you. Everything stays yours: open,
+          readable files you can version, share and reproduce.
         </p>
       </div>
     </div>

@@ -31,6 +31,7 @@ import { editorSurfaceStyle, useEditorSettings } from './settings'
 import { EDITOR_THEME_CLASS } from './themes'
 import { SettingsPopover } from './SettingsPopover'
 import { CONTENT_KIND_CLASS, contentKindFor } from './contentKind'
+import { RunButton } from '../run/RunButton'
 import './editor.css'
 
 const NO_COMMENTS: Comment[] = []
@@ -373,6 +374,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
           </button>
         )}
         {sectionPath !== null && <RailToggleButton docPath={sectionPath} />}
+        <RunButton path={path} />
         <button
           className="editor-tab__gear"
           onClick={() => setSettingsOpen((open) => !open)}

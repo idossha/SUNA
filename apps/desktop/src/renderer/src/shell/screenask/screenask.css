@@ -257,3 +257,39 @@
     transparent 80%
   );
 }
+
+/* The note left behind when a session ends on its own. Bottom-right, where
+   the window itself sits, so the eye looks for the replacement where the
+   thing it replaced used to be. */
+.floatterm__lost {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--s-ink);
+  background: var(--s-bg-chrome);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.floatterm__lost button {
+  flex: none;
+  padding: 2px 8px;
+  color: var(--s-ink-dim);
+  background: transparent;
+  border: 1px solid var(--s-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.floatterm__lost button:hover {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}

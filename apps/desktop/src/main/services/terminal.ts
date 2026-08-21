@@ -12,7 +12,18 @@ import { assertInsideAllowedRoot } from './roots'
 interface Session {
   pty: IPty
   webContents: WebContents
+  /**
+   * Recent output, so a renderer that reloaded can be handed back a terminal
+   * that still reads like the one it lost. The pty is the only place this
+   * text ever existed — xterm's scrollback dies with the renderer — so
+   * without it, re-adopting a live session would show a blank window with a
+   * running agent in it, which looks broken even though it is not.
+   */
+  replay: string
 }
+
+/** ~200 KB of tail: several screens of a `claude` session, bounded. */
+const REPLAY_LIMIT = 200_000
 
 const sessions = new Map<string, Session>()
 let seq = 0
@@ -78,21 +89,47 @@ export function createTerminal(options: {
   seq += 1
   const id = `term-${seq}`
   const { webContents } = options
-  sessions.set(id, { pty, webContents })
+  const session: Session = { pty, webContents, replay: '' }
+  sessions.set(id, session)
 
+  // Both handlers read session.webContents rather than closing over the
+  // original: an adopted session is bound to a NEW renderer, and output has
+  // to follow it there.
   pty.onData((data) => {
-    if (!webContents.isDestroyed()) {
-      webContents.send(EVENT_CHANNELS.termData(id), data)
+    session.replay = (session.replay + data).slice(-REPLAY_LIMIT)
+    if (!session.webContents.isDestroyed()) {
+      session.webContents.send(EVENT_CHANNELS.termData(id), data)
     }
   })
   pty.onExit(({ exitCode }) => {
     sessions.delete(id)
-    if (!webContents.isDestroyed()) {
-      webContents.send(EVENT_CHANNELS.termExit(id), { exitCode })
+    if (!session.webContents.isDestroyed()) {
+      session.webContents.send(EVENT_CHANNELS.termExit(id), { exitCode })
     }
   })
 
   return id
+}
+
+/** Live pty ids, for a renderer asking which of its sessions survived it. */
+export function listTerminals(): string[] {
+  return [...sessions.keys()]
+}
+
+/**
+ * Re-point a live pty at a new renderer and hand back its recent output.
+ *
+ * A renderer reload (⌘R, or a dev hot reload) destroys every store the UI
+ * kept but not the ptys, which live here — so without this the floating
+ * agent terminal became an invisible process nobody could reach. Returns
+ * null when the id names nothing: the caller then knows to forget it rather
+ * than wait for a window that will never appear.
+ */
+export function adoptTerminal(id: string, webContents: WebContents): { replay: string } | null {
+  const session = sessions.get(id)
+  if (!session) return null
+  session.webContents = webContents
+  return { replay: session.replay }
 }
 
 export function writeTerminal(id: string, data: string): void {

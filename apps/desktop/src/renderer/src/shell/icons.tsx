@@ -252,6 +252,18 @@ export function CodeFileIcon(): JSX.Element {
   )
 }
 
+/** A notebook: a page of stacked cells, one of them with a run marker. */
+export function NotebookFileIcon(): JSX.Element {
+  return (
+    <Icon>
+      {PAGE}
+      {PAGE_FOLD}
+      <path d="M9.4 12.6h5.2M9.4 15.1h5.2M9.4 17.6h3" />
+      <path d="M7.6 12.6v5" />
+    </Icon>
+  )
+}
+
 export function TexFileIcon(): JSX.Element {
   return (
     <Icon>
@@ -336,6 +348,7 @@ export const FILE_ICONS: Record<FileIconKind, () => JSX.Element> = {
   pdf: PdfFileIcon,
   table: TableFileIcon,
   code: CodeFileIcon,
+  notebook: NotebookFileIcon,
   tex: TexFileIcon,
   file: FileIcon
 }

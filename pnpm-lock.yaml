@@ -83,6 +83,9 @@ importers:
       '@suna/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
+      '@suna/notebook':
+        specifier: workspace:*
+        version: link:../../packages/notebook
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
@@ -271,6 +274,8 @@ importers:
       '@types/unist':
         specifier: ^3.0.3
         version: 3.0.3
+
+  packages/notebook: {}
 
   packages/provenance: {}
 
