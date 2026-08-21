@@ -1,0 +1,20 @@
+<!--
+  SUNA's application icon at 16 and 32 pixels.
+
+  The master art does not survive there. Its thinnest limb is 36/1024 of the
+  canvas, which is half a pixel at 16px: it greys out and the ring looks
+  broken. So the small sizes get their own drawing of the same idea — one
+  even ring, flat colour, weights chosen to land near whole pixels:
+
+      stroke 64/1024  → 1px at 16, 2px at 32
+      dot    r 60     → ~1px at 16, ~2px at 32
+
+  Same canvas and inset as icon.svg so the two agree on how big the mark sits
+  inside the rounded square. Flat fills, not gradients: a gradient across
+  four pixels is noise.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="SUNA">
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="#16161c"/>
+  <circle cx="512" cy="512" r="240" fill="none" stroke="#eab55f" stroke-width="64"/>
+  <circle cx="512" cy="512" r="60" fill="#eab55f"/>
+</svg>
