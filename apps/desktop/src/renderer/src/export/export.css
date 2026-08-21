@@ -94,16 +94,6 @@
   min-height: 0;
 }
 
-.export-preview__note {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 8px 12px;
-  font-size: var(--s-text-sm);
-  line-height: 1.5;
-  color: var(--s-ink-muted);
-  border-bottom: 1px solid var(--s-border);
-}
-
 /* A block that could not fit the page (feature-plan-13 §A4). Warning-toned,
    not error-toned: the export succeeded and the file is usable — this is
    something only the author can act on, so it must be visible without

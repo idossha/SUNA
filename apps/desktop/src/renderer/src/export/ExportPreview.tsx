@@ -12,9 +12,8 @@ import { rasterizeManuscriptFigures } from './rasterizeFigures'
  * 'export:preview' channel, which runs the SAME builders 'export:pdf' and
  * 'export:html' run and hands the bytes back instead of writing them — so
  * this panel cannot show a layout the export would not produce. A Word
- * export previews as its own page geometry rendered to PDF (both writers
- * share export-style.ts); the caption says so, because Word breaks lines
- * itself and a page count near a boundary can move by one.
+ * export previews as its own page geometry rendered to PDF — both writers
+ * share export-style.ts.
  *
  * The pages themselves are drawn by PagedDocument, which the editors' Pages
  * mode mounts too — one page renderer in the app, so a preview and a page
@@ -59,7 +58,6 @@ export function ExportPreview({
 }): JSX.Element {
   const [pdfData, setPdfData] = useState<string | null>(null)
   const [html, setHtml] = useState<string | null>(null)
-  const [approximate, setApproximate] = useState(false)
   const [oversized, setOversized] = useState<readonly OversizedBlock[]>([])
   const [ms, setMs] = useState<number | null>(null)
   const [rendering, setRendering] = useState(false)
@@ -83,7 +81,6 @@ export function ExportPreview({
         options: { doubleSpacing, lineNumbers, pageNumbers, theme },
         target
       })
-      setApproximate(res.approximate)
       setOversized(res.oversized)
       setMs(res.ms)
       if (res.kind === 'html') {
@@ -108,24 +105,14 @@ export function ExportPreview({
     return () => clearTimeout(timer)
   }, [run])
 
-  const banner = (
-    <>
-      {oversized.length > 0 && (
-        <ul className="export-preview__oversized">
-          {oversized.map((block, i) => (
-            <li key={`${block.label}-${i}`}>{oversizedMessage(block)}</li>
-          ))}
-        </ul>
-      )}
-      {approximate && (
-        <p className="export-preview__note">
-          Word cannot be rendered directly. This is the same page geometry and typography the .docx
-          carries — page size, margins, point sizes, spacing — printed as pages. Word breaks lines
-          itself, so a page count near a boundary can differ by one.
-        </p>
-      )}
-    </>
-  )
+  const banner =
+    oversized.length > 0 ? (
+      <ul className="export-preview__oversized">
+        {oversized.map((block, i) => (
+          <li key={`${block.label}-${i}`}>{oversizedMessage(block)}</li>
+        ))}
+      </ul>
+    ) : null
 
   const status = (
     <>
