@@ -30,6 +30,16 @@
   --s-warn: #d9915b;
   --s-err: #d97b6c;
 
+  /* The three voices of a response letter (reply-markup.ts). The exported
+     document uses the observed hex — black comment, #0432FF reply, #EE0000
+     change — but #000000 on a #1e1e26 panel is unreadable, so the dark themes
+     carry the same three ROLES at a legible lightness. The light themes below
+     resolve to exactly the exported values, which is what makes the workspace
+     a preview of the file rather than a different picture of it. */
+  --s-role-comment: var(--s-ink);
+  --s-role-reply: #7fa6ff;
+  --s-role-change: #ff8577;
+
   /* An inserted-word wash has to survive being laid UNDER prose on a dark
      surface: --s-ok is a desaturated teal that, tinted down, sank into the
      editor background and read as a smudge rather than a mark. The diff
@@ -106,6 +116,12 @@ body[data-suna-theme='suna-light'] {
   --s-diff-ins: var(--s-ok);
   --s-warn: #a05c22;
   --s-err: #b0503f;
+
+  /* The exported response's own hex: on paper-coloured surfaces the workspace
+     shows exactly what the .docx will contain. */
+  --s-role-comment: var(--s-ink);
+  --s-role-reply: #0432ff;
+  --s-role-change: #ee0000;
 
   --s-border: #d8cfbf;
   --s-border-strong: #c2b8a5;
@@ -245,6 +261,12 @@ body[data-suna-theme='mono-blue-light'] {
   --s-diff-ins: var(--s-ok);
   --s-warn: #8a5a1f;
   --s-err: #a8463a;
+
+  /* The exported response's own hex: on paper-coloured surfaces the workspace
+     shows exactly what the .docx will contain. */
+  --s-role-comment: var(--s-ink);
+  --s-role-reply: #0432ff;
+  --s-role-change: #ee0000;
 
   --s-border: #dcdce1;
   --s-border-strong: #c9c9d0;

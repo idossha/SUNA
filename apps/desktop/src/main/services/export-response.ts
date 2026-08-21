@@ -1,9 +1,8 @@
 import { join } from 'node:path'
 import { Document, HeadingLevel, Packer, Paragraph, TextRun, convertMillimetersToTwip } from 'docx'
-import type { RequestOf, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
-import { pointStateFor, unaddressedPoints } from '@suna/core'
+import type { ReplyBlock, ReplyRun, RequestOf, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
+import { RESPONSE_ROLE_COLORS, pointStateFor, replyBlocks, unaddressedPoints } from '@suna/core'
 import { writeFileAtomic } from './atomic'
-import { letterBlocks } from './export-letter'
 import { escapeHtml, printHtmlToPdf } from './export-notes'
 import { projectSubdir } from './paths'
 import { readReviewerReports, readRound } from './round-new'
@@ -30,6 +29,14 @@ import { assertInsideAllowedRoot } from './roots'
  * Statuses (`drafted`, `rebutted`, …) are deliberately absent from the
  * output. They are the author's own bookkeeping; an editor reading the
  * response has no business seeing which points the authors called rebuttals.
+ *
+ * **Colour** (`response.colorRoles`, feature-plan-12 §6c). With it on, the
+ * three voices are painted in the values both real documents in
+ * `examples/peer-review/` use — black comment, `#0432FF` reply, `#EE0000`
+ * quoted manuscript text that is new — because the one thing a reader of a
+ * response must never have to guess is who wrote which sentence. With it off
+ * the document keeps the neutral typographic treatment it always had, which
+ * is what a journal asking for a plain letter wants.
  */
 
 export type ExportResponseRequest = RequestOf<'export:response'>
@@ -49,8 +56,8 @@ export interface ResponseSection {
     heading: string
     /** The reviewer's own words, untouched. */
     verbatim: string
-    /** The author's reply, split into prose blocks. Empty when unwritten. */
-    reply: ReturnType<typeof letterBlocks>
+    /** The author's reply, in role-tagged blocks. Empty when unwritten. */
+    reply: ReplyBlock[]
   }[]
 }
 
@@ -69,9 +76,10 @@ export function responseSections(
     points: report.points.map((point) => ({
       heading: pointHeading(point),
       verbatim: point.verbatim,
-      // The reply is Markdown prose, and a response uses exactly as much of
-      // Markdown as a letter does — headings and blank-line paragraphs.
-      reply: letterBlocks(pointStateFor(round, point.id).reply)
+      // The reply is Markdown prose plus the two response marks — a quoted
+      // manuscript excerpt and the part of it that is new (reply-markup.ts).
+      // A reply written before those existed parses as plain paragraphs.
+      reply: replyBlocks(pointStateFor(round, point.id).reply)
     }))
   }))
 }
@@ -90,16 +98,31 @@ export function unaddressedLabels(
   )
 }
 
+/**
+ * One block's runs as HTML. Each run carries its voice as a class rather than
+ * an inline style, so turning colour off is one stylesheet away and a reader
+ * who copies a passage into their own document gets text, not markup.
+ */
+function replyRunsHtml(runs: readonly ReplyRun[]): string {
+  return runs
+    .map(
+      (run) =>
+        `<span class="rx-v-${run.role}">${escapeHtml(run.text).replace(/\n/g, '<br>')}</span>`
+    )
+    .join('')
+}
+
 export function buildResponseHtml(
   title: string,
   subtitle: string,
-  sections: readonly ResponseSection[]
+  sections: readonly ResponseSection[],
+  colorRoles = true
 ): string {
   const out: string[] = []
   out.push('<!doctype html>')
   out.push('<html lang="en"><head><meta charset="utf-8">')
   out.push(`<title>${escapeHtml(title)}</title>`)
-  out.push(`<style>${RESPONSE_CSS}</style>`)
+  out.push(`<style>${responseCss(colorRoles)}</style>`)
   out.push('</head><body>')
   out.push('<div class="rx-page">')
   out.push(`<h1 class="rx-title">${escapeHtml(title)}</h1>`)
@@ -118,9 +141,14 @@ export function buildResponseHtml(
       for (const block of point.reply) {
         if (block.kind === 'heading') {
           const level = Math.min(block.level + 3, 6)
-          out.push(`<h${level}>${escapeHtml(block.text)}</h${level}>`)
+          out.push(`<h${level}>${replyRunsHtml(block.runs)}</h${level}>`)
+        } else if (block.kind === 'quote') {
+          // A manuscript excerpt inside our reply. It stays INSIDE .rx-reply:
+          // quoting the paper is something we are doing, and pulling it out
+          // would put it back in the reviewer's column.
+          out.push(`<blockquote class="rx-quote">${replyRunsHtml(block.runs)}</blockquote>`)
         } else {
-          out.push(`<p class="rx-body">${escapeHtml(block.text).replace(/\n/g, '<br>')}</p>`)
+          out.push(`<p class="rx-body">${replyRunsHtml(block.runs)}</p>`)
         }
       }
       out.push('</div>')
@@ -135,16 +163,48 @@ export function buildResponseHtml(
  * Reviewer text is set apart typographically, because the one thing a reader
  * of a response must never have to guess is who wrote which sentence.
  *
- * Two things carry that: the reviewer's words are quoted and italic, and ours
- * are marked with a `↳` in the left margin. The marker is drawn by CSS rather
- * than written into the text, so an editor who copies a reply out of the page
- * gets the reply and not a piece of our furniture.
+ * Three things carry that. The reviewer's words are quoted; ours are marked
+ * with a `↳` in the left margin; and, with `response.colorRoles` on, each
+ * voice is painted in the values both real response documents use. The `↳`
+ * and the rule stay either way, because a response printed in greyscale — or
+ * read by somebody who cannot distinguish the two hues — must still be
+ * legible as two voices.
+ *
+ * The marker is drawn by CSS rather than written into the text, so an editor
+ * who copies a reply out of the page gets the reply and not a piece of our
+ * furniture.
  *
  * The page is a page, not a wall of text against the window frame: on screen
  * it sits in a padded, measure-limited column. Print resets both, because
  * printToPDF already sets the paper margins and doubling them would leave the
  * text stranded in the middle of the sheet.
  */
+function responseCss(colorRoles: boolean): string {
+  return `${RESPONSE_CSS}${colorRoles ? ROLE_CSS : PLAIN_ROLE_CSS}`
+}
+
+/**
+ * The observed palette, plus one rule that is NOT about colour: a quoted
+ * manuscript excerpt is italic in both documents, and stays italic whether or
+ * not colour is on.
+ *
+ * `print-color-adjust` because the whole point is a coloured PDF, and Chrome
+ * drops background and text colour from a print by default.
+ */
+const ROLE_CSS = `
+  .rx-verbatim { color: ${RESPONSE_ROLE_COLORS.comment}; font-style: normal; }
+  .rx-v-reply { color: ${RESPONSE_ROLE_COLORS.reply}; }
+  .rx-v-quote { color: ${RESPONSE_ROLE_COLORS.quote}; }
+  .rx-v-change { color: ${RESPONSE_ROLE_COLORS.change}; }
+  .rx-quote, .rx-v-quote, .rx-v-change { font-style: italic; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+`
+
+/** Colour off: the neutral treatment this document always had. */
+const PLAIN_ROLE_CSS = `
+  .rx-quote, .rx-v-quote, .rx-v-change { font-style: italic; }
+`
+
 const RESPONSE_CSS = `
   :root { color-scheme: light; }
   body {
@@ -182,6 +242,12 @@ const RESPONSE_CSS = `
     line-height: 1.15;
     color: #6b727b;
   }
+  .rx-quote {
+    margin: 0 0 12px;
+    padding: 0 0 0 12px;
+    border-left: 1px solid #d7dade;
+    break-inside: avoid;
+  }
   h4, h5, h6 { margin: 14px 0 6px; break-after: avoid; }
   .rx-body { margin: 0 0 12px; }
 `
@@ -193,10 +259,31 @@ const HEADING_LEVELS = [
   HeadingLevel.HEADING_6
 ] as const
 
+/**
+ * One block's runs as Word runs.
+ *
+ * Real `w:color` on real runs, not a style — that is what both example
+ * documents contain (reply-a: 847 runs at `#EE0000`, zero `w:ins`), and it is
+ * what survives a co-author opening the file, editing a sentence, and sending
+ * it back.
+ */
+function replyRunsDocx(runs: readonly ReplyRun[], colorRoles: boolean): TextRun[] {
+  return runs.map((run) => {
+    const italics = run.role !== 'reply'
+    // Word has no <br> inside a run; a paragraph is a paragraph. Line breaks
+    // inside one block become spaces, the same thing the letter export does.
+    const text = run.text.replace(/\n/g, ' ')
+    return colorRoles
+      ? new TextRun({ text, italics, color: RESPONSE_ROLE_COLORS[run.role].slice(1) })
+      : new TextRun({ text, italics })
+  })
+}
+
 function buildResponseDocx(
   title: string,
   subtitle: string,
-  sections: readonly ResponseSection[]
+  sections: readonly ResponseSection[],
+  colorRoles: boolean
 ): Document {
   const children: Paragraph[] = [new Paragraph({ text: title, heading: HeadingLevel.TITLE })]
   if (subtitle.trim() !== '') {
@@ -223,15 +310,24 @@ function buildResponseDocx(
           children: [new TextRun({ text: point.heading })]
         })
       )
-      // The reviewer's words, indented and italic — Word's own quotation
-      // shape, and the only visual difference between their voice and ours.
+      // The reviewer's words, indented — Word's own quotation shape. With
+      // colour on they are upright black, which is what both real documents
+      // do; with it off they keep the grey italic that used to be the only
+      // thing separating their voice from ours.
       for (const line of point.verbatim.split(/\n{2,}/)) {
         if (line.trim() === '') continue
         children.push(
           new Paragraph({
             indent: { left: convertMillimetersToTwip(8) },
             spacing: { after: 120 },
-            children: [new TextRun({ text: line.replace(/\n/g, ' '), italics: true, color: '3D434B' })]
+            children: [
+              colorRoles
+                ? new TextRun({
+                    text: line.replace(/\n/g, ' '),
+                    color: RESPONSE_ROLE_COLORS.comment.slice(1)
+                  })
+                : new TextRun({ text: line.replace(/\n/g, ' '), italics: true, color: '3D434B' })
+            ]
           })
         )
       }
@@ -241,15 +337,21 @@ function buildResponseDocx(
             new Paragraph({
               heading: HEADING_LEVELS[Math.min(block.level, HEADING_LEVELS.length) - 1],
               spacing: { before: 200, after: 60 },
-              children: [new TextRun({ text: block.text })]
+              children: replyRunsDocx(block.runs, colorRoles)
             })
           )
           continue
         }
         children.push(
           new Paragraph({
+            // A quoted manuscript excerpt is indented like the reviewer's
+            // words are, one step further in: it is the paper speaking inside
+            // our reply, and a reader scanning the left edge should see that.
+            ...(block.kind === 'quote'
+              ? { indent: { left: convertMillimetersToTwip(8) } }
+              : {}),
             spacing: { after: 160 },
-            children: [new TextRun({ text: block.text.replace(/\n/g, ' ') })]
+            children: replyRunsDocx(block.runs, colorRoles)
           })
         )
       }
@@ -318,14 +420,14 @@ export async function exportResponse(req: ExportResponseRequest): Promise<Export
   const target = join(outputDir, `${req.outputName}.${req.format}`)
 
   if (req.format === 'html') {
-    await writeFileAtomic(target, buildResponseHtml(title, subtitle, sections))
+    await writeFileAtomic(target, buildResponseHtml(title, subtitle, sections, req.colorRoles))
   } else if (req.format === 'docx') {
     await writeFileAtomic(
       target,
-      await Packer.toBuffer(buildResponseDocx(title, subtitle, sections))
+      await Packer.toBuffer(buildResponseDocx(title, subtitle, sections, req.colorRoles))
     )
   } else {
-    await printHtmlToPdf(buildResponseHtml(title, subtitle, sections), target)
+    await printHtmlToPdf(buildResponseHtml(title, subtitle, sections, req.colorRoles), target)
   }
 
   return { path: target }

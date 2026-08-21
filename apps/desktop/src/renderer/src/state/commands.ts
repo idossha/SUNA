@@ -15,6 +15,7 @@ import { exportActiveFigurePdf, exportActiveFigurePng } from '../canvas/palette-
 import { startRepairPick } from '../shell/repair/RepairPicker'
 import { scanFigures } from '../views/figures-scan'
 import {
+  activePanelComponent,
   activePanelPath,
   openExportTab,
   openInSplit,
@@ -22,6 +23,7 @@ import {
   openSettingsTab,
   openTrashTab
 } from './dock'
+import { toggleRoundSplit } from './roundFocus'
 import { useProjectStore } from './project'
 import { resolvePreviewProfileId, useRenderProfileStore } from './renderProfile'
 import { useTerminalPanelStore } from './terminal'
@@ -134,6 +136,20 @@ registerCommand({
     const path = activePanelPath()
     if (path !== null) openInSplit(path, 'below')
   }
+})
+
+// The round workspace's own split, which is NOT split.right: that opens a
+// second dock group for a second FILE, and there is only one round file. This
+// puts a second pane on the round already in front of you, so two of its
+// points can be read at once. Enabled only on a round tab — elsewhere the
+// keystroke would toggle a pane nobody can see.
+registerCommand({
+  id: 'review.compare.toggle',
+  title: 'Compare Two Reviewer Points',
+  category: 'Peer review',
+  shortcut: 'Mod-Alt-Backslash',
+  enabled: () => activePanelComponent() === 'round',
+  run: () => toggleRoundSplit()
 })
 
 // Deliberately not Mod-KeyB, the shortcut a VS Code user reaches for first:
