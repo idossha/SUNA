@@ -44,6 +44,12 @@ function measure(el: Element): Rect {
 /** Off-screen parking spot for the beak on a step that points at nothing. */
 const HIDDEN = -9999
 
+/** Which way the pointer aims, given the side the card ended up on. */
+const POINT_AT = { bottom: 'up', top: 'down', right: 'left', left: 'right' } as const
+
+/** The glyph for each aim — a real arrowhead, not a rotated one. */
+const POINT_GLYPH = { up: '\u2191', down: '\u2193', left: '\u2190', right: '\u2192' } as const
+
 export function TourOverlay(): JSX.Element | null {
   const active = useTourStore((s) => s.active)
   const index = useTourStore((s) => s.index)
@@ -52,6 +58,8 @@ export function TourOverlay(): JSX.Element | null {
   const cardRef = useRef<HTMLDivElement | null>(null)
   const beakRef = useRef<HTMLDivElement | null>(null)
   const spotRef = useRef<HTMLDivElement | null>(null)
+  const pointerRef = useRef<HTMLDivElement | null>(null)
+  const glyphRef = useRef<HTMLSpanElement | null>(null)
   /**
    * When the current step was entered. The target is kept in view for a
    * short window after that rather than scrolled once: a panel that mounts,
@@ -143,6 +151,28 @@ export function TourOverlay(): JSX.Element | null {
         card.dataset['side'] = placed.side
         beak.style.opacity = '1'
         beak.style.transform = `translate(${placed.beak.x}px, ${placed.beak.y}px) rotate(45deg)`
+        // The pointer hops in the gap between card and target, aimed at the
+        // target: the card says what to click, this shows where.
+        const pointer = pointerRef.current
+        if (pointer !== null) {
+          const dir = POINT_AT[placed.side]
+          const px =
+            placed.side === 'right'
+              ? (ring.x + ring.width + placed.card.x) / 2
+              : placed.side === 'left'
+                ? (ring.x + placed.card.x + size.width) / 2
+                : placed.beak.x
+          const py =
+            placed.side === 'bottom'
+              ? (ring.y + ring.height + placed.card.y) / 2
+              : placed.side === 'top'
+                ? (ring.y + placed.card.y + size.height) / 2
+                : placed.beak.y
+          pointer.dataset['dir'] = dir
+          if (glyphRef.current !== null) glyphRef.current.textContent = POINT_GLYPH[dir]
+          pointer.style.opacity = '1'
+          pointer.style.transform = `translate(${px}px, ${py}px) translate(-50%, -50%)`
+        }
       } else {
         // No anchor — either the step points at nothing on purpose, or the
         // surface it wanted is not on screen. Same answer either way: say the
@@ -157,6 +187,7 @@ export function TourOverlay(): JSX.Element | null {
         spot.style.transform = `translate(${viewport.width / 2}px, ${viewport.height / 2}px)`
         beak.style.opacity = '0'
         beak.style.transform = `translate(${HIDDEN}px, ${HIDDEN}px)`
+        if (pointerRef.current !== null) pointerRef.current.style.opacity = '0'
         const centre = centreCard(size, viewport)
         card.style.transform = `translate(${centre.x}px, ${centre.y}px)`
         card.dataset['side'] = 'none'
@@ -181,6 +212,11 @@ export function TourOverlay(): JSX.Element | null {
     <div className="tour-layer" aria-live="polite">
       <div ref={spotRef} className="tour-spot" />
       <div ref={beakRef} className="tour-beak" />
+      {showCue && (
+        <div ref={pointerRef} className="tour-pointer" aria-hidden="true" style={{ opacity: 0 }}>
+          <span ref={glyphRef} className="tour-pointer__glyph" />
+        </div>
+      )}
       <div
         ref={cardRef}
         className="tour-card"
@@ -208,12 +244,7 @@ export function TourOverlay(): JSX.Element | null {
         <h2 className="tour-card__title">{step.title}</h2>
         <p className="tour-card__body">{step.body}</p>
         {showCue && step.cue !== undefined && (
-          <p className="tour-card__cue">
-            <span className="tour-card__cue-arrow" aria-hidden="true">
-              →
-            </span>
-            {step.cue.hint}
-          </p>
+          <p className="tour-card__cue">{step.cue.hint}</p>
         )}
         <div className="tour-card__progress" aria-hidden="true">
           <div
