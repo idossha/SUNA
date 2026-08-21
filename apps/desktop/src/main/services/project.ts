@@ -46,6 +46,7 @@ async function exists(path: string): Promise<boolean> {
 const PROJECT_GITIGNORE = `output/
 .DS_Store
 __pycache__/
+.ipynb_checkpoints/
 .venv/
 .mcp.json
 .suna/

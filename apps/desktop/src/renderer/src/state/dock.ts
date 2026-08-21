@@ -101,6 +101,9 @@ export function componentForFile(path: string): string {
   if (lower.endsWith('.svg')) return 'canvas'
   if (lower.endsWith('.csv') || lower.endsWith('.tsv')) return 'dataview'
   if (lower.endsWith('.pdf')) return 'pdf'
+  // A notebook is cells, outputs and a kernel; its JSON is an implementation
+  // detail nobody edits by hand.
+  if (lower.endsWith('.ipynb')) return 'notebook'
   // Exports are meant to be LOOKED at: an .html or .docx in output/ opens as
   // the page/document it is, not as its markup or as a zip the editor cannot
   // read. Both viewers offer the source (HTML) or the real app (Word).
@@ -445,6 +448,7 @@ export function openRoundTab(rootDir: string, roundId: string): void {
  */
 const PROJECT_SCOPED_PATH_COMPONENTS = new Set([
   'editor',
+  'notebook',
   'canvas',
   'dataview',
   'pdf',

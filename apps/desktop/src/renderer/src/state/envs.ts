@@ -82,3 +82,17 @@ export function envLabelFor(path: string | null, envs: PythonEnv[]): string {
   const segments = path.split('/').filter((s) => s !== '')
   return segments[segments.length - 1] ?? path
 }
+
+/**
+ * The main process can pick an env after the window has loaded: a project
+ * that opened with none selected gets one auto-provisioned or auto-detected.
+ * Without this the chip would keep saying "no env" until the next open.
+ */
+if (typeof window !== 'undefined' && typeof window.suna?.onEnvChanged === 'function') {
+  window.suna.onEnvChanged(({ dir, envPath }) => {
+    const state = useEnvsStore.getState()
+    if (state.dir !== null && state.dir !== dir) return
+    useEnvsStore.setState({ dir, selectedPath: envPath, error: null })
+    void state.detect(dir)
+  })
+}

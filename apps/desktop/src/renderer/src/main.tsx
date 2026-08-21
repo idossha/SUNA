@@ -9,6 +9,7 @@ import { manuscriptDevSeam } from './manuscript/devSeam'
 import { onboardingSeam } from './onboarding/devSeam'
 import { settingsDevSeam } from './settings/devSeam'
 import { screenAskDevSeam } from './shell/screenask/devSeam'
+import { restoreFloatTerminal } from './shell/screenask/screenask'
 import { terminalDevSeam } from './terminal/devSeam'
 import { commandsDevSeam } from './state/commands'
 import { dockDevSeam, openFileTab } from './state/dock'
@@ -141,3 +142,7 @@ createRoot(rootElement).render(
     <App />
   </StrictMode>
 )
+
+// A reload does not stop the agent the user was talking to — main still owns
+// its pty. Reattach before they have to wonder where the window went.
+void restoreFloatTerminal()

@@ -10,8 +10,11 @@
  *
  * The pty itself is an ordinary session in terminal/sessions.ts, tagged
  * `surface: 'float'` so the strip does not list it. Geometry is persisted so
- * the window comes back where it was left; the SESSION is not, because a
- * conversation about last week's screen is not worth restoring.
+ * the window comes back where it was left, and so is the pty id: ptys
+ * outlive the renderer, so a reload used to leave a live agent running with
+ * no window attached to it (see restoreFloatTerminal in screenask.ts). A
+ * session that ends for any other reason leaves a note pointing at its
+ * bundle rather than disappearing without a word.
  */
 import { useEffect, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react'
 import {
@@ -21,7 +24,11 @@ import {
   fitSession,
   useTerminalTabsStore
 } from '../../terminal/sessions'
-import { useFloatTerminalStore } from './screenask'
+import {
+  forgetFloatTerminal,
+  setFloatGeometryReset,
+  useFloatTerminalStore
+} from './screenask'
 import './screenask.css'
 
 interface Geometry {
@@ -93,15 +100,29 @@ export function FloatingTerminal(): JSX.Element | null {
   const termId = useFloatTerminalStore((s) => s.termId)
   const bundleDir = useFloatTerminalStore((s) => s.bundleDir)
   const minimized = useFloatTerminalStore((s) => s.minimized)
+  const lostBundleDir = useFloatTerminalStore((s) => s.lostBundleDir)
   const tab = useTerminalTabsStore((s) => s.tabs.find((entry) => entry.id === termId) ?? null)
   const [geometry, setGeometry] = useState<Geometry>(loadGeometry)
   const mountRef = useRef<HTMLDivElement | null>(null)
 
   // A session the user closed from the strip's side of the world (or one that
-  // never made it into the store) leaves a window with nothing in it.
+  // never made it into the store) leaves a window with nothing in it. It
+  // vanishing silently is what made this feature feel haunted, so the bundle
+  // dir survives as a note the user can act on.
   useEffect(() => {
-    if (termId !== null && tab === null) useFloatTerminalStore.setState({ termId: null, bundleDir: null })
-  }, [termId, tab])
+    if (termId !== null && tab === null) forgetFloatTerminal(bundleDir)
+  }, [termId, tab, bundleDir])
+
+  // Let `AI: Show the agent terminal` drag a window back from wherever a
+  // stale saved geometry put it.
+  useEffect(() => {
+    setFloatGeometryReset(() => {
+      const fresh = defaultGeometry()
+      saveGeometry(fresh)
+      setGeometry(fresh)
+    })
+    return () => setFloatGeometryReset(null)
+  }, [])
 
   useEffect(() => {
     const onResize = (): void => {
@@ -126,7 +147,26 @@ export function FloatingTerminal(): JSX.Element | null {
     }
   }, [termId, minimized])
 
-  if (termId === null || tab === null) return null
+  if (termId === null || tab === null) {
+    return lostBundleDir === null ? null : (
+      <div className="floatterm__lost" role="status">
+        <span>The agent terminal closed. Its screenshot and prompt are saved.</span>
+        <button
+          onClick={() => {
+            void window.suna.invoke('shell:reveal', { path: lostBundleDir }).catch(() => {})
+          }}
+        >
+          Show bundle
+        </button>
+        <button
+          aria-label="Dismiss"
+          onClick={() => useFloatTerminalStore.setState({ lostBundleDir: null })}
+        >
+          ×
+        </button>
+      </div>
+    )
+  }
 
   /** One pointer-drag helper for both the title bar and the resize grip. */
   const startGesture = (
@@ -159,7 +199,8 @@ export function FloatingTerminal(): JSX.Element | null {
 
   const close = (): void => {
     closeTerminalTab(termId)
-    useFloatTerminalStore.setState({ termId: null, bundleDir: null, minimized: false })
+    // An explicit close leaves no note: the user knows where it went.
+    forgetFloatTerminal(null)
   }
 
   const status =

@@ -8,6 +8,7 @@ import { cancelAllAiAsks } from './services/ai-ask'
 import { disposePreviewWindow } from './services/export-preview'
 import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
+import { shutdownAllKernels } from './services/kernel'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
@@ -109,12 +110,14 @@ app.whenReady().then(() => {
 app.on('will-quit', () => {
   disposePreviewWindow()
   killAllTerminals()
+  shutdownAllKernels()
   cancelAllAiCliSearches()
   cancelAllAiAsks()
 })
 
 app.on('window-all-closed', () => {
   killAllTerminals()
+  shutdownAllKernels()
   cancelAllAiCliSearches()
   cancelAllAiAsks()
   if (process.platform !== 'darwin') app.quit()

@@ -1,0 +1,6 @@
+# The example project's dedicated environment (.venv), provisioned on first
+# open. Everything the shipped notebook, analysis script and figure source
+# import, so "Run" and the notebook kernel work without a setup step.
+ipykernel
+numpy
+matplotlib

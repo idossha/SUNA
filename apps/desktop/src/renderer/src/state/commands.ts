@@ -13,7 +13,11 @@ import { createNewFigure } from '../canvas/new-figure'
 import { activeCanvasPaletteContext } from '../canvas/palette-actions'
 import { exportActiveFigurePdf, exportActiveFigurePng } from '../canvas/palette-export'
 import { startRepairPick } from '../shell/repair/RepairPicker'
-import { startScreenAsk } from '../shell/screenask/screenask'
+import {
+  showFloatTerminal,
+  startScreenAsk,
+  useFloatTerminalStore
+} from '../shell/screenask/screenask'
 import { scanFigures } from '../views/figures-scan'
 import {
   activePanelComponent,
@@ -32,6 +36,8 @@ import { useProjectStore } from './project'
 import { resolvePreviewProfileId, useRenderProfileStore } from './renderProfile'
 import { useTerminalPanelStore } from './terminal'
 import { startAppTour } from './tour'
+import { runFile } from '../run/runFile'
+import { runnerFor } from '../run/runners'
 import { useUiStore } from './ui'
 import { notifyExported } from '../export/exportToast'
 
@@ -244,6 +250,24 @@ registerCommand({
   run: () => useTerminalPanelStore.getState().setOpen(true)
 })
 
+// Ctrl-Enter, the notebook/REPL convention, and free of the ⌘-prefixed
+// space the editor's own keymap owns. Enabled only when the FRONT panel is a
+// file something knows how to run, so the palette never offers a dead entry.
+registerCommand({
+  id: 'run.file',
+  title: 'Run File',
+  category: 'Run',
+  shortcut: 'Ctrl-Enter',
+  enabled: () => {
+    const path = activePanelPath()
+    return path !== null && runnerFor(path) !== null
+  },
+  run: () => {
+    const path = activePanelPath()
+    if (path !== null) void runFile(path)
+  }
+})
+
 registerCommand({
   id: 'settings.open',
   title: 'Open Settings',
@@ -358,6 +382,20 @@ registerCommand({
   category: 'App',
   shortcut: 'Mod-Shift-KeyA',
   run: () => startScreenAsk()
+})
+
+// The way back to a floating terminal the user lost track of — collapsed,
+// or dragged somewhere a saved geometry no longer suits. Deliberately NOT
+// folded into the ask above: a second ask replaces the running session, so
+// "where did my agent go?" needs an answer that does not end the
+// conversation it is asking about.
+registerCommand({
+  id: 'ai.showAgentTerminal',
+  title: 'AI: Show the agent terminal',
+  category: 'App',
+  shortcut: 'Mod-Shift-KeyT',
+  enabled: () => useFloatTerminalStore.getState().termId !== null,
+  run: () => showFloatTerminal()
 })
 
 // Dev-only (feature-plan-8 §5): 'ai:repair-bundle' rejects when packaged,

@@ -32,6 +32,21 @@ const api = {
   },
 
   /**
+   * Subscribe to every event from one notebook kernel
+   * (EVENT_CHANNELS.kernelEvent). Payloads are the bridge's own JSON,
+   * forwarded untouched; the renderer narrows them. Returns an unsubscribe
+   * function.
+   */
+  onKernelEvent: (id: string, listener: (event: unknown) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.kernelEvent(id)
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => listener(payload)
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
    * Subscribe to the pty exit event for one terminal id
    * (EVENT_CHANNELS.termExit). Returns an unsubscribe function.
    */
@@ -90,6 +105,28 @@ const api = {
           ? (payload as { dir: unknown }).dir
           : null
       if (typeof dir === 'string') listener({ dir })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
+   * Subscribe to "the python environment selected for a project changed in
+   * the main process" (EVENT_CHANNELS.envChanged) — auto-provisioning found
+   * or built the project's env after the window had already read "no env".
+   * Returns an unsubscribe function.
+   */
+  onEnvChanged: (
+    listener: (payload: { dir: string; envPath: string | null }) => void
+  ): (() => void) => {
+    const channel = EVENT_CHANNELS.envChanged
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      if (typeof payload !== 'object' || payload === null) return
+      const { dir, envPath } = payload as { dir?: unknown; envPath?: unknown }
+      if (typeof dir !== 'string') return
+      listener({ dir, envPath: typeof envPath === 'string' ? envPath : null })
     }
     ipcRenderer.on(channel, handler)
     return () => {

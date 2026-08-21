@@ -4,6 +4,7 @@ import { useProjectStore } from '../state/project'
 import { useUiStore } from '../state/ui'
 import { ProjectMenu } from './ProjectMenu'
 import { ChevronDownIcon, PanelLeftIcon } from './icons'
+import { EnvPicker } from './EnvPicker'
 
 const NAV_TOGGLE_TITLE = `Toggle left nav bar (${formatShortcut('Mod-Alt-KeyB')})`
 
@@ -16,6 +17,7 @@ const NAV_TOGGLE_TITLE = `Toggle left nav bar (${formatShortcut('Mod-Alt-KeyB')}
  */
 export function TitleBar(): JSX.Element {
   const manifest = useProjectStore((s) => s.manifest)
+  const rootDir = useProjectStore((s) => s.rootDir)
   const railVisible = useUiStore((s) => s.railVisible)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -49,6 +51,9 @@ export function TitleBar(): JSX.Element {
           <ChevronDownIcon />
         </button>
       </div>
+      {/* Right column: the interpreter every terminal, run and kernel starts
+          under. Top-right because it is a per-project MODE, not a status. */}
+      <div className="titlebar__right">{rootDir !== null && <EnvPicker rootDir={rootDir} />}</div>
       {menuOpen && buttonRef.current && (
         <ProjectMenu anchorEl={buttonRef.current} onClose={() => setMenuOpen(false)} />
       )}

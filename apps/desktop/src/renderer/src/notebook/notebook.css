@@ -1,0 +1,310 @@
+/* ---- notebook tab (notebook/NotebookTab) ---------------------------------
+   Cells stacked in one scroller, each with a narrow gutter carrying its run
+   button and execution count. The surface tokens (--ed-*) come from
+   .editor-tab, so a notebook matches whatever editor theme is active. */
+
+.nb {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.nb__cells {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 0 40vh; /* trailing space: the last cell can scroll to the top */
+}
+
+/* ---- toolbar ------------------------------------------------------------- */
+
+.nb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  background: var(--s-bg-chrome);
+  border-bottom: 1px solid var(--s-border);
+}
+
+.nb-toolbar__spacer {
+  flex: 1;
+}
+
+.nb-toolbar__button {
+  padding: 3px 9px;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-raised);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-muted);
+  cursor: pointer;
+}
+
+.nb-toolbar__button:hover:not(:disabled) {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+.nb-toolbar__button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.nb-toolbar__button--run {
+  color: var(--s-ok, #3f9d63);
+}
+
+.nb-toolbar__kernel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.nb-toolbar__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--s-ink-faint);
+}
+
+.nb-toolbar__kernel--idle .nb-toolbar__dot {
+  background: var(--s-ok, #3f9d63);
+}
+
+.nb-toolbar__kernel--busy .nb-toolbar__dot {
+  background: var(--s-accent);
+}
+
+.nb-toolbar__kernel--dead .nb-toolbar__dot {
+  background: var(--s-danger, #c0554d);
+}
+
+/* starting: the one state worth animating, because it is the one the author
+   is waiting on */
+.nb-toolbar__kernel--starting .nb-toolbar__dot {
+  background: var(--s-accent);
+  animation: nb-pulse 1s ease-in-out infinite;
+}
+
+@keyframes nb-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ---- kernel fault banner ------------------------------------------------- */
+
+.nb-fault {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: var(--s-bg-raised);
+  border-bottom: 1px solid var(--s-border-strong);
+  font-size: var(--s-text-sm);
+}
+
+.nb-fault__title {
+  color: var(--s-danger, #c0554d);
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nb-fault__message {
+  color: var(--s-ink);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+}
+
+.nb-fault__hint {
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+}
+
+/* ---- cells --------------------------------------------------------------- */
+
+.nb-cell {
+  display: flex;
+  gap: 6px;
+  padding: 3px 10px 3px 0;
+  border-left: 2px solid transparent;
+}
+
+.nb-cell--selected {
+  border-left-color: var(--s-accent);
+  background: var(--s-bg-hover);
+}
+
+.nb-cell__gutter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  width: 52px;
+  padding-top: 4px;
+}
+
+.nb-cell__run {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  padding-left: 1px;
+  color: var(--s-ink-faint);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.nb-cell:hover .nb-cell__run,
+.nb-cell__run:hover {
+  color: var(--s-ok, #3f9d63);
+  background: var(--s-bg-raised);
+}
+
+.nb-cell__count {
+  font-family: var(--s-font-mono);
+  font-size: 10px;
+  color: var(--s-ink-faint);
+}
+
+.nb-cell__count--running {
+  color: var(--s-accent);
+}
+
+.nb-cell__body {
+  flex: 1;
+  min-width: 0; /* long output lines scroll rather than stretching the tab */
+}
+
+.nb-cell__editor {
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  background: var(--ed-bg, var(--s-bg-raised));
+  overflow: hidden;
+}
+
+.nb-cell--markdown .nb-cell__prose {
+  padding: 2px 8px;
+  color: var(--s-ink);
+  line-height: 1.6;
+}
+
+.nb-cell--markdown .nb-cell__prose > :first-child {
+  margin-top: 0;
+}
+
+.nb-cell__empty {
+  padding: 2px 8px;
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-sm);
+  font-style: italic;
+}
+
+/* ---- outputs ------------------------------------------------------------- */
+
+.nb-output {
+  padding: 4px 8px 8px;
+}
+
+.nb-output__text {
+  margin: 0;
+  font-family: var(--s-font-mono);
+  font-size: var(--ed-font-size, 12px);
+  line-height: 1.45;
+  color: var(--s-ink-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nb-output__text--stderr {
+  color: var(--s-warn, #b8873c);
+}
+
+.nb-output__error {
+  padding: 6px 8px;
+  border-left: 2px solid var(--s-danger, #c0554d);
+  background: color-mix(in srgb, var(--s-danger, #c0554d) 7%, transparent);
+  overflow-x: auto;
+}
+
+.nb-output__image,
+.nb-output__svg svg {
+  max-width: 100%;
+  height: auto;
+  /* Figures are authored on white; a dark editor theme must not invert them
+     into something the paper will never look like. */
+  background: #fff;
+  border-radius: 2px;
+}
+
+.nb-output__html {
+  overflow-x: auto;
+  color: var(--s-ink);
+  font-size: var(--s-text-sm);
+}
+
+.nb-output__html table {
+  border-collapse: collapse;
+}
+
+.nb-output__html th,
+.nb-output__html td {
+  padding: 2px 8px;
+  border: 1px solid var(--s-border);
+  text-align: right;
+}
+
+.nb-output__unsupported {
+  color: var(--s-ink-faint);
+  font-size: var(--s-text-xs);
+  font-style: italic;
+}
+
+/* ---- ANSI palette (notebook/ansi.ts) ------------------------------------- */
+
+.ansi-bold {
+  font-weight: 600;
+}
+.ansi-black,
+.ansi-bright-black {
+  color: var(--s-ink-faint);
+}
+.ansi-red,
+.ansi-bright-red {
+  color: var(--s-danger, #c0554d);
+}
+.ansi-green,
+.ansi-bright-green {
+  color: var(--s-ok, #3f9d63);
+}
+.ansi-yellow,
+.ansi-bright-yellow {
+  color: var(--s-warn, #b8873c);
+}
+.ansi-blue,
+.ansi-bright-blue {
+  color: #5b8dd6;
+}
+.ansi-magenta,
+.ansi-bright-magenta {
+  color: #a97bd6;
+}
+.ansi-cyan,
+.ansi-bright-cyan {
+  color: #4fa5a8;
+}
+.ansi-white,
+.ansi-bright-white {
+  color: var(--s-ink);
+}
