@@ -248,7 +248,11 @@ export function CompareTab({ params }: DockPanelProps): JSX.Element {
       <header className="cmp__head">
         <div className="cmp__sides">
           <SidePicker
-            label="Reviewers read"
+            /* The left side is whatever you point it at — a logged version,
+               the working copy, or "what the reviewers of this round read".
+               Naming it after only the last of those mislabels the other
+               two, so the label follows the ref. */
+            label={baseId.startsWith('round:') ? 'Reviewers read' : 'Before'}
             value={baseId}
             sides={sides}
             onChange={setBaseId}
@@ -258,7 +262,7 @@ export function CompareTab({ params }: DockPanelProps): JSX.Element {
             ⇄
           </button>
           <SidePicker
-            label="Compared with"
+            label={baseId.startsWith('round:') ? 'Compared with' : 'After'}
             value={headId}
             sides={sides}
             onChange={setHeadId}

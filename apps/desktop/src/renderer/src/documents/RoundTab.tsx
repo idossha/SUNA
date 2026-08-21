@@ -2,12 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'rea
 import { PEER_REVIEW_FILE } from '@suna/core'
 import type { PointStatus, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
 import {
-  baselineVersionFor,
   compareRefId,
   isAddressed,
   pointStateFor,
   roundProgress,
-  stageLabel,
   unaddressedPoints,
   versionsNewestFirst,
   type LoggedVersion
@@ -15,7 +13,6 @@ import {
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { openCompareInSide, openReviewImportTab } from '../state/dock'
 import { refreshDocuments } from '../state/documents'
-import { roundChangedOnDisk } from '../state/roundSync'
 import {
   markRoundPoint,
   matchesPointFilter,
@@ -53,15 +50,17 @@ import './documents.css'
  * manuscript, which is the only way to read what you have written as the
  * document a reviewer will read it as.
  *
- * **Compare** puts a second pane on the same round beside the first. Two
- * reviewers routinely raise the same objection in different words, and the
- * reply has to answer both without contradicting itself — which you cannot
- * check by scrolling back and forth, because the point you are answering
- * leaves the screen. Exactly two panes: the cap is in `RoundPane` rather
- * than a length check, and a third column of reply cards does not fit a
- * laptop anyway. Both panes are the same round, share the header's mode and
- * filter, and hold their own selection; whichever you last touched is the
- * one the sidebar outline drives.
+ * **Compare** is one menu over both "against what?"s (RoundCompareButton):
+ * another point in this round, or what changed in the manuscript. The first
+ * puts a second pane on the same round beside the
+ * first, because two reviewers routinely raise the same objection in
+ * different words and the reply has to answer both without contradicting
+ * itself — which you cannot check by scrolling back and forth, because the
+ * point you are answering leaves the screen. Exactly two panes: the cap is
+ * in `RoundPane` rather than a length check, and a third column of reply
+ * cards does not fit a laptop anyway. Both panes are the same round, share
+ * the header's mode and filter, and hold their own selection; whichever you
+ * last touched is the one the sidebar outline drives.
  *
  * The status filter in the header narrows both this pane and the sidebar
  * outline, because they are one list read twice; a pane that showed only the
@@ -306,28 +305,12 @@ export function RoundTab({ params }: DockPanelProps): JSX.Element {
               Continuous
             </button>
           </div>
-          {/*
-            One button, both directions — the same control turns the second
-            pane on and off, and it sits with the mode switch because "how
-            many panes" and "how much of the round is in one" are the same
-            question about how you are reading. Pane B's own × closes it too,
-            so the way out is wherever you happen to be looking.
-          */}
-          <div className="round__modes" role="group" aria-label="Compare">
-            <button
-              className={`round__mode${split ? ' is-on' : ''}`}
-              onClick={() => setSplit(!split)}
-              aria-pressed={split}
-              title={
-                split
-                  ? 'Back to one pane'
-                  : 'Open a second pane on this round — read two points side by side'
-              }
-            >
-              <span aria-hidden="true">⧉</span> Compare
-            </button>
-          </div>
-          <RoundCompareButton rootDir={rootDir} round={round} />
+          <RoundCompareButton
+            rootDir={rootDir}
+            round={round}
+            split={split}
+            onSplit={setSplit}
+          />
           {progress !== null && (
             <div className="round__progress">
               <strong>
@@ -653,26 +636,48 @@ function RoundPaneView({
 }
 
 /**
- * "Changes since v1.3" — the comparison this round is written against
- * (feature-plan-14 §3).
+ * **Compare** — one button, two comparisons (feature-plan-14 §3).
  *
- * A round's whole job is to answer reviewers who read ONE particular text, so
- * the workspace names that text and opens the comparison against it beside
- * itself. Split rather than a new full tab because the three things you need
- * while answering a point — the point, your reply, and what you changed for
- * it — have to be on screen together; the tab is still one ⌘-click away if
- * the diff needs the whole window.
+ * Answering a point needs two different "against what?"s, and they were two
+ * buttons in the header until the header ran out of room. They are one
+ * question — *what do I want beside this reply?* — so they are one menu, and
+ * the menu is two lines long:
  *
- * The caret sets which version the reviewers read. It is inferred from the
- * dates until somebody says otherwise (`baselineVersionFor`), and the menu is
- * where they say otherwise — the inference is a good guess, not a fact, and a
- * round whose baseline is wrong quotes the wrong "before" into every reply.
+ * - **another point in this round**, because two reviewers routinely raise
+ *   the same objection in different words and the reply has to answer both
+ *   without contradicting itself, which you cannot check by scrolling;
+ * - **changes in the manuscript**, because a reply claims you changed
+ *   something and the diff is the evidence.
+ *
+ * Both open beside the round rather than over it: the three things you need
+ * while writing — the point, your reply, and what you changed for it — have
+ * to be on screen together. The diff tab is still one ⌘-click away when it
+ * needs the whole window.
+ *
+ * The menu picks no versions. It opens the comparison every author wants
+ * first — the working copy against the newest logged version — and the
+ * Compare panel's own two pickers are where you change either side, to
+ * "what the reviewers of this round read" included. Choosing versions is the
+ * comparison's job; a menu that asked first made you answer a question
+ * before you could see the thing you were answering it about.
+ *
+ * The second pane's item toggles, so the same menu is the way back out (pane
+ * B's own × closes it too).
  */
-function RoundCompareButton({ rootDir, round }: { rootDir: string; round: Round }): JSX.Element {
+function RoundCompareButton({
+  rootDir,
+  round,
+  split,
+  onSplit
+}: {
+  rootDir: string
+  round: Round
+  split: boolean
+  onSplit: (v: boolean) => void
+}): JSX.Element {
   const [versions, setVersions] = useState<LoggedVersion[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const caretRef = useRef<HTMLButtonElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -687,86 +692,45 @@ function RoundCompareButton({ rootDir, round }: { rootDir: string; round: Round 
     void load()
   }, [load])
 
-  const baseline = baselineVersionFor(round, versions)
-  const inferred = round.baselineVersionId === null && baseline !== null
-
-  const setBaseline = async (versionId: string | null): Promise<void> => {
-    setSaving(true)
-    try {
-      await window.suna.invoke('round:set-baseline', { dir: rootDir, roundId: round.id, versionId })
-      roundChangedOnDisk(round.id)
-    } catch (err) {
-      useUiStore
-        .getState()
-        .setStatusNote(
-          `Could not record the version — ${err instanceof Error ? err.message : String(err)}`
-        )
-    } finally {
-      setSaving(false)
-      setMenuOpen(false)
-    }
-  }
-
-  const open = (): void => {
-    if (baseline === null) {
-      setMenuOpen(true)
-      return
-    }
-    openCompareInSide(rootDir, compareRefId({ kind: 'round', roundId: round.id }), 'working')
+  /* Newest logged version on the left, the working copy on the right — "what
+     have I changed since I last logged?". With nothing logged there is no
+     such version, so the round's own side takes the left instead and the
+     panel says what is missing; hiding the item would turn "log a version"
+     into a missing feature. */
+  const openDiff = (): void => {
+    const newest = versionsNewestFirst(versions)[0]
+    const base =
+      newest === undefined
+        ? compareRefId({ kind: 'round', roundId: round.id })
+        : compareRefId({ kind: 'version', versionId: newest.id })
+    openCompareInSide(rootDir, base, 'working')
   }
 
   return (
     <span className="round__cmp-wrap">
       <button
-        className="round__cmp"
-        onClick={open}
-        disabled={rootDir === ''}
-        title={
-          baseline === null
-            ? 'No version is recorded for this round — choose which one the reviewers read'
-            : `Show what changed since ${baseline.id}, beside this round`
-        }
-      >
-        <span aria-hidden="true">⇄</span>{' '}
-        {baseline === null ? 'Set the version they read…' : `Changes since ${baseline.id}`}
-      </button>
-      <button
-        ref={caretRef}
-        className="round__cmp-caret"
+        ref={btnRef}
+        className={`round__cmp${split ? ' is-on' : ''}`}
         onClick={() => setMenuOpen((v) => !v)}
         aria-expanded={menuOpen}
-        aria-label="Which version the reviewers read"
-        title={
-          baseline === null
-            ? 'Which version did these reviewers read?'
-            : inferred
-              ? `Inferred from the dates: ${baseline.id}. Click to set it explicitly.`
-              : `Recorded: ${baseline.id}`
-        }
-        disabled={saving}
+        aria-haspopup="menu"
+        disabled={rootDir === ''}
+        title="Put something beside this reply — another point, or what changed in the manuscript"
       >
-        ▾
+        <span aria-hidden="true">⧉</span> Compare <span className="round__cmp-caret">▾</span>
       </button>
-      {menuOpen && caretRef.current !== null && (
+      {menuOpen && btnRef.current !== null && (
         <NewDocumentMenu
-          anchorEl={caretRef.current}
+          anchorEl={btnRef.current}
           onClose={() => setMenuOpen(false)}
           items={[
-            ...versionsNewestFirst(versions).map((v) => ({
-              label: `${v.id} — ${stageLabel(v.stage)}${baseline?.id === v.id ? ' ✓' : ''}`,
-              onSelect: () => void setBaseline(v.id)
-            })),
-            ...(round.baselineVersionId === null
-              ? []
-              : [{ label: 'Clear — infer from the dates', onSelect: () => void setBaseline(null) }]),
-            ...(versions.length === 0
-              ? [
-                  {
-                    label: 'No versions logged yet — log one from the manuscript',
-                    onSelect: () => setMenuOpen(false)
-                  }
-                ]
-              : [])
+            {
+              label: split
+                ? '⧉  Another point — close the second pane'
+                : '⧉  Another point in this round…',
+              onSelect: () => onSplit(!split)
+            },
+            { label: '⇄  Changes in the manuscript…', onSelect: openDiff }
           ]}
         />
       )}
