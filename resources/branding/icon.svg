@@ -1,0 +1,46 @@
+<!--
+  SUNA's application icon — the master art, for 64px and up.
+
+  The mark is the lit limb of a sun: an annulus whose weight is modulated by
+  offsetting the inner circle up and to the left, so the ring reads as a body
+  catching light rather than as a drawn circle. Nothing here is stroked; the
+  ring is one even-odd path (outer circle, then inner circle as a hole),
+  because a stroke cannot vary its width along its length.
+
+  Geometry is Apple's icon grid: a 1024 canvas with the art confined to an
+  824 rounded square (corner radius 185.4) inset 100 on every side. Drawing
+  edge to edge instead would make SUNA's icon bigger than every neighbour in
+  the dock. No drop shadow is baked in — it survives 16px badly and the two
+  sizes that would carry it well are not worth a second master.
+
+  Regenerate the rasters with `node scripts/branding/make-icons.mjs`.
+  16 and 32 come from icon-small.svg, not from this file.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="SUNA">
+  <defs>
+    <!-- night sky, lit very slightly from above -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23232d"/>
+      <stop offset="1" stop-color="#0e0e13"/>
+    </linearGradient>
+    <!--
+      Dark-adapted gold, running top-left to bottom-right. userSpaceOnUse is
+      not a style choice: an objectBoundingBox gradient is degenerate on any
+      zero-height shape, and such a shape simply does not paint.
+    -->
+    <linearGradient id="gold" gradientUnits="userSpaceOnUse" x1="300" y1="250" x2="720" y2="790">
+      <stop offset="0" stop-color="#f7d693"/>
+      <stop offset="1" stop-color="#d4953b"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#bg)"/>
+
+  <!-- outer circle r250 at (512,512); inner circle r188 at (498,490):
+       62 units of base weight, ±26 from the offset, so the limb runs from
+       36 units at the top left to 88 at the bottom right -->
+  <path fill-rule="evenodd" fill="url(#gold)"
+        d="M262,512 a250,250 0 1,0 500,0 a250,250 0 1,0 -500,0 Z
+           M310,490 a188,188 0 1,0 376,0 a188,188 0 1,0 -376,0 Z"/>
+  <circle cx="512" cy="512" r="38" fill="url(#gold)"/>
+</svg>
