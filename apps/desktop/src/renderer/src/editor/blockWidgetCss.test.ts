@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 const CSS = readFileSync(fileURLToPath(new URL('./editor.css', import.meta.url)), 'utf8')
 
 /** Block widget roots — every `Decoration.replace({ block: true })` in livePreview.ts. */
-const BLOCK_WIDGET_ROOTS = ['cm-lp-figure', 'cm-lp-table', 'cm-lp-math-block']
+const BLOCK_WIDGET_ROOTS = ['cm-lp-figure', 'cm-lp-table', 'cm-lp-math-block', 'cm-lp-code-block']
 
 interface CssRule {
   selector: string

@@ -84,6 +84,13 @@ export type LiveSpan =
   | { kind: 'table'; from: number; to: number; md: string; tableId?: string; number?: number }
   /** A `![[tbl:id]]` embed with no table under it — renders its caption block alone. */
   | { kind: 'tableEmbed'; from: number; to: number; tableId: string; number: number }
+  /**
+   * A fenced or indented code block. [from,to) covers the fences too, so the
+   * widget replaces the whole construct; `value` is the code the parser has
+   * already stripped of them, and `lang` the info string's first word (absent
+   * for a bare fence or an indented block).
+   */
+  | { kind: 'code'; from: number; to: number; value: string; lang: string | undefined }
   | { kind: 'cite'; from: number; to: number; keys: string[] }
   | {
       kind: 'xref'
@@ -144,6 +151,7 @@ interface MdNode {
   children?: MdNode[]
   value?: string
   meta?: string | null
+  lang?: string | null
   depth?: number
   figureId?: string
   tableId?: string
@@ -375,7 +383,23 @@ export function extractSpans(source: string): SpanIndex {
         }
         return
       }
-      case 'code':
+      case 'code': {
+        // Rendered as a block, like the reading view and the HTML/PDF
+        // export already do — left as raw source it is the one construct the
+        // body serif actively mangles rather than merely leaving plain.
+        if (range) {
+          const lang = node.lang?.trim().split(/\s+/)[0]
+          blocks.push({
+            kind: 'code',
+            from: range.from,
+            to: range.to,
+            value: (node.value ?? '').replace(/\n$/, ''),
+            lang: lang !== undefined && lang !== '' ? lang : undefined
+          })
+          exclude.push(range)
+        }
+        return
+      }
       case 'rawLatex': {
         if (range) exclude.push(range)
         return
@@ -1324,6 +1348,42 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/**
+ * A fenced code block: monospace, boxed, with the info string shown as a tag.
+ * `textContent` (never innerHTML) is what keeps the code literal — a fence
+ * holding markup must render as characters, not as DOM.
+ */
+class CodeBlockWidget extends WidgetType {
+  constructor(
+    readonly value: string,
+    readonly lang: string | undefined
+  ) {
+    super()
+  }
+  override eq(other: CodeBlockWidget): boolean {
+    return other.value === this.value && other.lang === this.lang
+  }
+  override toDOM(): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'cm-lp-code-block'
+    const pre = document.createElement('pre')
+    const code = document.createElement('code')
+    code.textContent = this.value
+    pre.appendChild(code)
+    el.appendChild(pre)
+    if (this.lang !== undefined) {
+      const tag = document.createElement('span')
+      tag.className = 'cm-lp-code-block__lang'
+      tag.textContent = this.lang
+      el.appendChild(tag)
+    }
+    return el
+  }
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
 /** Fixed-width glyph standing in for a hidden '-'/'*'/'+' + following space.
  *  Stateless (no eq() fields to compare beyond the class default identity
  *  match), so a single shared instance covers every bullet in the doc. */
@@ -1371,6 +1431,8 @@ function decorationFor(span: LiveSpan, config: LivePreviewConfig): Decoration {
         widget: new TableEmbedWidget(span.tableId, span.number, config.rootDir),
         block: true
       })
+    case 'code':
+      return Decoration.replace({ widget: new CodeBlockWidget(span.value, span.lang), block: true })
     case 'inlineMath':
       return Decoration.replace({ widget: new InlineMathWidget(span.tex) })
     case 'cite':

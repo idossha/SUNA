@@ -606,6 +606,50 @@
   height: auto;
 }
 
+/* ---- rendered code blocks ------------------------------------------------
+   A fenced block is prose the body serif must not touch: it renders boxed and
+   monospace, matching `pageCss` in
+   apps/desktop/src/main/services/export-html.ts and `.scimark pre code` in
+   styles/app.css so reading, pages and export agree. Vertical space is
+   PADDING on the widget root, never margin — see the block-widget height note
+   above .cm-lp-figure. */
+.editor-tab .cm-lp-code-block {
+  position: relative;
+  padding: 6px var(--ed-line-pad);
+}
+
+.editor-tab .cm-lp-code-block pre {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--ed-border);
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.08);
+  overflow-x: auto;
+}
+
+.editor-tab .cm-lp-code-block code {
+  font-family: var(--s-font-mono);
+  font-size: 0.85em;
+  line-height: 1.55;
+  color: var(--ed-ink);
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* The info string, parked in the box's top-right corner: it names the
+   language without taking a line of its own away from the code. */
+.editor-tab .cm-lp-code-block__lang {
+  position: absolute;
+  top: 10px;
+  right: calc(var(--ed-line-pad) + 12px);
+  font-family: var(--s-font-ui);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--ed-ink-faint);
+  pointer-events: none;
+}
+
 /* ---- figure embeds and markdown images ---------------------------------- */
 
 /* The figure itself, once loaded, is the content — so the frame is quiet:

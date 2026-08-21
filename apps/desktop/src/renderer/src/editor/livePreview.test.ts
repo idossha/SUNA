@@ -449,9 +449,36 @@ describe('extractSpans', () => {
     expect(inline).toHaveLength(0)
   })
 
+  it('renders a fenced code block as one block span, fences included', () => {
+    const source = 'Before.\n\n```bash\nimport numpy as np\n```\n\nAfter.\n'
+    const { blocks } = extractSpans(source)
+    const code = blocks.find((span) => span.kind === 'code')
+    if (code?.kind !== 'code') throw new Error('expected code span')
+    expect(source.slice(code.from, code.to)).toBe('```bash\nimport numpy as np\n```')
+    expect(code.value).toBe('import numpy as np')
+    expect(code.lang).toBe('bash')
+  })
+
+  it('leaves lang undefined for a bare fence and for an indented block', () => {
+    const bare = extractSpans('```\nplain\n```\n').blocks.find((span) => span.kind === 'code')
+    if (bare?.kind !== 'code') throw new Error('expected code span')
+    expect(bare.lang).toBeUndefined()
+    const indented = extractSpans('para\n\n    indented\n').blocks.find((s) => s.kind === 'code')
+    if (indented?.kind !== 'code') throw new Error('expected code span')
+    expect(indented.lang).toBeUndefined()
+    expect(indented.value).toBe('indented')
+  })
+
+  it('keeps a ```{=latex} block as raw source, not a code widget', () => {
+    // rawLatex is passed through to the formatter verbatim; rendering it as a
+    // code box would claim it is code the reader should see as code.
+    const { blocks } = extractSpans('```{=latex}\n\\clearpage\n```\n')
+    expect(blocks).toHaveLength(0)
+  })
+
   it('does not treat a pipe table inside a code fence as a table', () => {
     const { blocks } = extractSpans('```\n| a | b |\n| --- | --- |\n| 1 | 2 |\n```\n')
-    expect(blocks).toHaveLength(0)
+    expect(blocks.map((span) => span.kind)).toEqual(['code'])
   })
 
   it('returns sorted, non-overlapping replace spans for mixed content', () => {
