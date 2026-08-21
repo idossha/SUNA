@@ -29,12 +29,12 @@ Ten entries appear in the pickers, in this order. SUNA style comes first; the ot
 | SLEEP | Bracketed numbers [1] | Original Articles; Review Articles; Perspectives; Research Letters; Editorials | 2026-08-15 |
 | SLEEP Advances | Bracketed numbers [1] | Original Articles; Brief Research Report; Perspective; Editorial; Letter to the Editor | 2026-08-15 |
 | Journal of Neural Engineering | Bracketed numbers [1] | Paper; Note; Comment/Reply | 2026-08-15 |
-| Journal of Neuroscience (JNeurosci) | (Author, Year) | Research Article; Review | 2026-08-15 |
+| Journal of Neuroscience | (Author, Year) | Research Article; Review | 2026-08-15 |
 
 The Export page's **Journal profile** dropdown shows the full journal name as written above. Settings and the References view shorten the long ones — `Brain Stimul.`, `J. Neural Eng.`, `J. Neurosci.`, `SLEEP Adv.` — because those controls are narrower.
 
 ::: info Three more are bundled but hidden
-Nature Astronomy, The Astrophysical Journal (AAS Journals) and Monthly Notices of the Royal Astronomical Society ship with the app and load fine, but are currently kept out of every picker. Two things can still put you on one: a project whose saved journal is one of them (the picker then appends that entry so your own choice keeps showing), and the command palette's **Switch 'Rendered As' Profile**, which cycles all thirteen bundled ids and reports the raw id, for example `Rendered as: nature-astronomy`.
+Nature Astronomy, The Astrophysical Journal and Monthly Notices of the Royal Astronomical Society ship with the app and load fine, but are currently kept out of every picker. Two things can still put you on one: a project whose saved journal is one of them (the picker then appends that entry so your own choice keeps showing), and the command palette's **Switch 'Rendered As' Profile**, which cycles all thirteen bundled ids and reports the raw id, for example `Rendered as: nature-astronomy`.
 :::
 
 ## SUNA style, for a project with no journal yet
