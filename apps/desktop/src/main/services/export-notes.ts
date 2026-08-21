@@ -1,5 +1,3 @@
-import { BrowserWindow, app } from 'electron'
-import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   AlignmentType,
@@ -12,6 +10,7 @@ import {
 } from 'docx'
 import type { RequestOf } from '@suna/core'
 import { writeFileAtomic } from './atomic'
+import { htmlDocument, printHtmlToPdf } from './print-html'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -79,11 +78,6 @@ function bodyParagraphsOf(body: string): string[] {
  */
 export function buildNotesHtml(req: ExportNotesRequest): string {
   const out: string[] = []
-  out.push('<!doctype html>')
-  out.push('<html lang="en"><head><meta charset="utf-8">')
-  out.push(`<title>${escapeHtml(req.title)}</title>`)
-  out.push(`<style>${NOTES_CSS}</style>`)
-  out.push('</head><body>')
   out.push(`<h1 class="nx-title">${escapeHtml(req.title)}</h1>`)
   if (req.subtitle.trim() !== '') {
     out.push(`<p class="nx-sub">${escapeHtml(req.subtitle)}</p>`)
@@ -122,8 +116,7 @@ export function buildNotesHtml(req: ExportNotesRequest): string {
   if (req.papers.length === 0) {
     out.push('<p class="nx-empty">No reading notes.</p>')
   }
-  out.push('</body></html>')
-  return out.join('\n')
+  return htmlDocument({ title: req.title, css: NOTES_CSS, body: out.join('\n') })
 }
 
 /** Print-first typography: a serif reading face, generous quote indent, and
@@ -271,47 +264,6 @@ function buildNotesDocx(req: ExportNotesRequest): Document {
       }
     ]
   })
-}
-
-/**
- * Print built HTML through a hidden window, the same way export-pdf.ts prints
- * a manuscript — no LaTeX, no external binary. Shared with the letter export
- * (export-letter.ts), which prints the same way.
- *
- * The simple pipeline's HTML -> PDF pass, with no opinion about where the
- * bytes go (feature-plan-13 §B5, mirroring what commit 15b6231 did for the
- * manuscript exporter).
- *
- * Splitting this out of printHtmlToPdf is what lets a letter be PREVIEWED:
- * a page view needs the bytes, and a function that only ever wrote them to a
- * path had nothing to offer it. `win` lets a caller print in a long-lived
- * hidden window instead of paying to create and destroy one — the preview
- * passes the shared window here for exactly the reason export-pdf.ts does.
- */
-export async function renderHtmlToPdf(html: string, win?: BrowserWindow): Promise<Buffer> {
-  const hostPath = join(app.getPath('temp'), `suna-notes-${process.pid}-${Date.now()}.html`)
-  await writeFileAtomic(hostPath, html)
-  const own = win === undefined
-  const target = win ?? new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } })
-  try {
-    await target.loadFile(hostPath)
-    return await target.webContents.printToPDF({
-      pageSize: { width: 8.5, height: 11 },
-      margins: { top: 0.75, bottom: 0.75, left: 0.75, right: 0.75 },
-      printBackground: true,
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate:
-        '<div style="font-size:9px;width:100%;text-align:center;color:#666;"><span class="pageNumber"></span></div>'
-    })
-  } finally {
-    if (own) target.destroy()
-    await unlink(hostPath).catch(() => undefined)
-  }
-}
-
-export async function printHtmlToPdf(html: string, target: string): Promise<void> {
-  await writeFileAtomic(target, await renderHtmlToPdf(html))
 }
 
 /** Notes land in their OWN folder under output/. A literature note is not a

@@ -9,7 +9,8 @@ import { getBundledProfile } from '@suna/formatter'
 import { writeFileAtomic } from './atomic'
 import { readLetterMeta } from './letter-new'
 import { documentFile, projectDocument, projectSubdir } from './paths'
-import { escapeHtml, printHtmlToPdf, renderHtmlToPdf } from './export-notes'
+import { escapeHtml } from './export-notes'
+import { htmlDocument, printHtmlToPdf, renderHtmlToPdf } from './print-html'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
@@ -124,11 +125,6 @@ const HEADING_LEVELS = [
 
 export function buildLetterHtml(title: string, subtitle: string, blocks: readonly LetterBlock[]): string {
   const out: string[] = []
-  out.push('<!doctype html>')
-  out.push('<html lang="en"><head><meta charset="utf-8">')
-  out.push(`<title>${escapeHtml(title)}</title>`)
-  out.push(`<style>${LETTER_CSS}</style>`)
-  out.push('</head><body>')
   out.push(`<h1 class="lx-title">${escapeHtml(title)}</h1>`)
   if (subtitle.trim() !== '') out.push(`<p class="lx-sub">${escapeHtml(subtitle)}</p>`)
   for (const block of blocks) {
@@ -139,8 +135,7 @@ export function buildLetterHtml(title: string, subtitle: string, blocks: readonl
       out.push(`<p class="lx-body">${escapeHtml(block.text).replace(/\n/g, '<br>')}</p>`)
     }
   }
-  out.push('</body></html>')
-  return out.join('\n')
+  return htmlDocument({ title, css: LETTER_CSS, body: out.join('\n') })
 }
 
 /** A letter is read on one page: serif, single column, no ornament. */
@@ -274,7 +269,7 @@ export async function renderLetterPdf(
   win?: BrowserWindow
 ): Promise<Buffer> {
   const letter = await buildLetterDocument(dir, documentId)
-  return renderHtmlToPdf(buildLetterHtml(letter.title, letter.subtitle, letter.blocks), win)
+  return renderHtmlToPdf(buildLetterHtml(letter.title, letter.subtitle, letter.blocks), { win })
 }
 
 export async function exportLetter(req: ExportLetterRequest): Promise<ExportLetterResult> {

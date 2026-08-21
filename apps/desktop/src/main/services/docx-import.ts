@@ -8,12 +8,11 @@
 
 import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { access, copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, copyFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
 import mammoth from 'mammoth'
-import JSZip from 'jszip'
 import type { Author as BibAuthor, BibEntry } from '@suna/bib'
 import { serializeBibtex } from '@suna/bib'
 import {
@@ -33,6 +32,7 @@ import {
   type Manuscript,
   type SunaProjectManifest
 } from '@suna/core'
+import { DOCX_STYLE_MAP, countOmmlEquations, readDocxParts } from './docx-parts'
 import { parseHtmlBlocks } from './docx-html'
 import {
   blocksToMarkdown,
@@ -54,19 +54,6 @@ const run = promisify(execFile)
 /* ------------------------------------------------------------------ */
 /* Pure helpers (exported for unit tests)                               */
 /* ------------------------------------------------------------------ */
-
-/**
- * Word equations are OOXML `<m:oMath>` elements mammoth does not convert
- * (spec §2.3: "attempt only if you can do it reliably; otherwise keep the
- * text and add a warning — a broken \( \) is worse than a flagged
- * paragraph"). Rather than guess which output paragraph lost math, this
- * counts them straight from the raw part XML and surfaces one honest,
- * document-level warning.
- */
-export function countOmmlEquations(documentXml: string): number {
-  const matches = documentXml.match(/<m:oMath[ >]/g)
-  return matches === null ? 0 : matches.length
-}
 
 const CONTENT_TYPE_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -143,22 +130,6 @@ async function dirIsEmpty(dir: string): Promise<boolean> {
 /* analyze()                                                            */
 /* ------------------------------------------------------------------ */
 
-/** mammoth's default style map already sends "Heading 1..6" to h1..h6 and
- *  direct bold/italic/superscript/subscript formatting to strong/em/sup/sub —
- *  this makes the paragraph-style mapping explicit anyway (spec §2.1), and
- *  covers a couple of common non-default styles mammoth leaves untouched. */
-const STYLE_MAP = [
-  "p[style-name='Heading 1'] => h1:fresh",
-  "p[style-name='Heading 2'] => h2:fresh",
-  "p[style-name='Heading 3'] => h3:fresh",
-  "p[style-name='Heading 4'] => h4:fresh",
-  "p[style-name='Title'] => p:fresh",
-  "p[style-name='Quote'] => blockquote:fresh",
-  "p[style-name='Intense Quote'] => blockquote:fresh",
-  'b => strong',
-  'i => em'
-]
-
 async function extractDocument(
   docxPath: string,
   tempDir: string
@@ -181,7 +152,7 @@ async function extractDocument(
     return { src: `docx-image:${id}` }
   })
 
-  const result = await mammoth.convertToHtml({ path: docxPath }, { styleMap: STYLE_MAP, convertImage })
+  const result = await mammoth.convertToHtml({ path: docxPath }, { styleMap: DOCX_STYLE_MAP, convertImage })
   for (const message of result.messages) {
     if (message.type === 'error') {
       warnings.push({ code: 'mammoth-error', message: message.message, context: null })
@@ -189,10 +160,7 @@ async function extractDocument(
   }
 
   try {
-    const buffer = await readFile(docxPath)
-    const zip = await JSZip.loadAsync(buffer)
-    const documentXmlFile = zip.file('word/document.xml')
-    const documentXml = documentXmlFile !== null ? await documentXmlFile.async('text') : ''
+    const { documentXml } = await readDocxParts(docxPath)
     const equationCount = countOmmlEquations(documentXml)
     if (equationCount > 0) {
       warnings.push({
