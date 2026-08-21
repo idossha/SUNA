@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type JSX } from 'react'
 import type { Manuscript, OversizedBlock, PublisherProfile } from '@suna/core'
+import { HtmlPageFrame } from '../viewer/HtmlPageFrame'
 import { oversizedMessage } from './oversized'
 import { PagedDocument } from './PagedDocument'
 import { rasterizeManuscriptFigures } from './rasterizeFigures'
@@ -131,7 +132,7 @@ export function ExportPreview({
         </div>
         {banner}
         <div className="paged-doc__scroll">
-          <iframe className="export-preview__frame" title="Web page preview" srcDoc={html} sandbox="" />
+          <HtmlPageFrame html={html} title="Web page preview" />
         </div>
       </div>
     )
