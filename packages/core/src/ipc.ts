@@ -1856,6 +1856,41 @@ export const CHANNELS = {
   },
 
   /**
+   * Open one "ask the agent about this screen" bundle at
+   * `<root>/.suna/screen-asks/<stamp>/`, write context.md into it (composed
+   * by the renderer, quoted verbatim) and move the screenshot in as shot.png.
+   * The renderer then writes prompt.md beside them through 'fs:write-text' —
+   * it quotes the paths this call returns, so it cannot exist any earlier —
+   * and starts an interactive agent CLI whose first turn is that file.
+   *
+   * `target` picks the root, and the build picks `target`: 'project' writes
+   * beside the open project (`dir`, root-confined like every other
+   * renderer-directed write), 'repo' writes into the SUNA source checkout so
+   * a dev can have the agent fix the UI it is looking at — and takes no path
+   * from the renderer at all, main resolves and allow-lists the checkout
+   * itself. 'repo' throws when packaged.
+   *
+   * `shotFrom` is a capture 'app:capture-rect' already wrote to the temp
+   * capture dir — taken before the composer opened, so the composer is not in
+   * its own screenshot — and is MOVED in as shot.png. Main refuses any
+   * `shotFrom` outside that directory. `shotPath` is null when none was sent
+   * or the move failed; the markdown is on disk either way, so the bundle stays a complete, readable
+   * record when no CLI is installed. The bundle IS the fallback.
+   */
+  'ai:screen-ask-bundle': {
+    request: z.object({
+      target: z.enum(['project', 'repo']),
+      dir: z.string().min(1).optional(),
+      contextMd: z.string().min(1),
+      shotFrom: z.string().min(1).optional(),
+    }),
+    response: z.object({
+      bundleDir: z.string().min(1),
+      shotPath: z.string().min(1).nullable(),
+    }),
+  },
+
+  /**
    * Export the current figure into the project's output/figures/ dir.
    * Main handles 'svg' (byte copy) and 'pdf' (hidden window → printToPDF).
    * 'png'/'tiff' are rasterized in the renderer and written with

@@ -605,6 +605,38 @@ export function activePanelPath(): string | null {
   return typeof value === 'string' ? value : null
 }
 
+/** One open dock tab, flattened for anything that needs to describe the workspace. */
+export interface PanelSummary {
+  id: string
+  /** Dock component kind: 'editor', 'canvas', 'manuscript', 'pdf', … */
+  component: string
+  title: string
+  /** The file a path-keyed panel shows; null for the rootDir-keyed kinds. */
+  path: string | null
+  active: boolean
+}
+
+/**
+ * Every open tab, front tab flagged. Read from the dock for the same reason
+ * activeRoundId is: the dock is the thing that knows what is actually open,
+ * where a store only knows what was last selected. Used to tell an agent
+ * what the user is looking at (shell/screenask/context.ts).
+ */
+export function openPanelSummaries(): PanelSummary[] {
+  if (!dockApi) return []
+  const activeId = dockApi.activePanel?.id ?? null
+  return dockApi.panels.map((panel) => {
+    const path = panel.params?.['path']
+    return {
+      id: panel.id,
+      component: panel.view.contentComponent,
+      title: panel.title ?? panel.id,
+      path: typeof path === 'string' ? path : null,
+      active: panel.id === activeId
+    }
+  })
+}
+
 /**
  * The active panel's dock component kind ('editor', 'canvas', 'manuscript',
  * 'pdf', …), or null when nothing is active. The help overlay feeds this to

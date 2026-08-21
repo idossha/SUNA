@@ -25,6 +25,8 @@ import { DocxTab } from './viewer/DocxTab'
 import { CommandPalette } from './palette/CommandPalette'
 import { HelpOverlay } from './shell/help/HelpOverlay'
 import { RepairPicker } from './shell/repair/RepairPicker'
+import { FloatingTerminal } from './shell/screenask/FloatingTerminal'
+import { ScreenAskComposer } from './shell/screenask/ScreenAskComposer'
 import { TourOverlay } from './tour/TourOverlay'
 import { LetterTab } from './documents/LetterTab'
 import { SupplementTab } from './documents/SupplementTab'
@@ -128,6 +130,11 @@ export function App(): JSX.Element {
           may be about those overlays themselves. */}
       <HelpOverlay />
       <RepairPicker />
+      {/* Screen-ask sits at z-215, between the repair picker and the tour: an
+          ask may be ABOUT the palette or the help dialog. Its floating
+          terminal is lower (z-150) — a working window, not a modal. */}
+      <ScreenAskComposer />
+      <FloatingTerminal />
       {/* Above both (z-220): a tour step may point AT the palette or the help
           dialog, and its card has to stay readable over them. */}
       <TourOverlay />

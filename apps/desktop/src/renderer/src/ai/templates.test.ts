@@ -5,6 +5,7 @@ import {
   figureEditPrompt,
   shortTitle,
   uiRepairPrompt,
+  screenAskPrompt,
   pointReplyPrompt,
   peerReviewLearnPrompt,
   type CommentFixPromptInput,
@@ -491,5 +492,64 @@ describe('peerReviewLearnPrompt', () => {
 
   it('asks for imperative bullets, not a report about the authors', () => {
     expect(peerReviewLearnPrompt(base)).toContain('"Open each reply with RE:", not')
+  })
+})
+
+describe('screenAskPrompt', () => {
+  const base = {
+    bundleDir: '/w/paper/.suna/screen-asks/20260821-090405',
+    shotPath: '/w/paper/.suna/screen-asks/20260821-090405/shot.png',
+    contextMd: '# What the user is looking at\n\n- Looking at: the figure canvas — figures/fig2.svg',
+    question: 'the y axis labels are clipped'
+  } as const
+
+  it('puts the user question in TASK verbatim and the shot in CONTEXT', () => {
+    const prompt = screenAskPrompt({ ...base, target: 'project' })
+    expect(prompt).toContain('\nTASK\nthe y axis labels are clipped\n')
+    expect(prompt).toContain(base.shotPath)
+    expect(prompt).toContain('- Looking at: the figure canvas — figures/fig2.svg')
+  })
+
+  it('tells the agent to look at the picture before anything else', () => {
+    expect(screenAskPrompt({ ...base, target: 'project' })).toContain(
+      'FIRST, before anything else, read the screenshot'
+    )
+  })
+
+  it('asks for the smallest change and a stop, because the user is sitting there', () => {
+    const prompt = screenAskPrompt({ ...base, target: 'repo' })
+    expect(prompt).toContain('SMALLEST change')
+    expect(prompt).toContain('stop and tell the user')
+  })
+
+  it('names the checkout, its verification commands and the hidden-window rule for a repo ask', () => {
+    const prompt = screenAskPrompt({ ...base, target: 'repo' })
+    expect(prompt).toContain('SUNA source checkout')
+    expect(prompt).toContain('apps/desktop/src/renderer/src')
+    expect(prompt).toContain('pnpm typecheck')
+    expect(prompt).toContain('scripts/e2e/drive.mjs')
+    expect(prompt).toContain('never launch a visible window')
+  })
+
+  it('names the plain-text discipline and the MCP verbs for a project ask, and nothing about the checkout', () => {
+    const prompt = screenAskPrompt({ ...base, target: 'project' })
+    expect(prompt).toContain('mcp__suna__*')
+    expect(prompt).toContain('DERIVED at format time')
+    expect(prompt).toContain("author's call")
+    expect(prompt).not.toContain('pnpm typecheck')
+    expect(prompt).not.toContain('apps/desktop')
+  })
+
+  it('forbids destructive git either way', () => {
+    for (const target of ['project', 'repo'] as const) {
+      expect(screenAskPrompt({ ...base, target })).toContain('Never run destructive git commands')
+    }
+  })
+
+  it('says plainly that it could not see, rather than pretending, when the capture failed', () => {
+    const prompt = screenAskPrompt({ ...base, target: 'project', shotPath: null })
+    expect(prompt).toContain('the capture failed')
+    expect(prompt).toContain('could not see the screen')
+    expect(prompt).not.toContain('shot.png')
   })
 })

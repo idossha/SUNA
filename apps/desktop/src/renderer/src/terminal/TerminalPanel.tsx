@@ -6,6 +6,7 @@ import {
   createTerminalTab,
   detachSession,
   fitSession,
+  panelTabs,
   setActiveTerminalTab,
   useTerminalTabsStore
 } from './sessions'
@@ -21,7 +22,9 @@ export function TerminalPanel(): JSX.Element | null {
   const heightPx = useTerminalPanelStore((s) => s.heightPx)
   const toggle = useTerminalPanelStore((s) => s.toggle)
   const setHeight = useTerminalPanelStore((s) => s.setHeight)
-  const tabs = useTerminalTabsStore((s) => s.tabs)
+  // Float sessions (the screen-ask terminal) live in the same session map but
+  // belong to their own window; the strip lists only its own.
+  const tabs = panelTabs(useTerminalTabsStore((s) => s.tabs))
   const activeId = useTerminalTabsStore((s) => s.activeId)
   const mountRef = useRef<HTMLDivElement | null>(null)
 

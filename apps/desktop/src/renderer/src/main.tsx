@@ -8,6 +8,7 @@ import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
 import { onboardingSeam } from './onboarding/devSeam'
 import { settingsDevSeam } from './settings/devSeam'
+import { screenAskDevSeam } from './shell/screenask/devSeam'
 import { terminalDevSeam } from './terminal/devSeam'
 import { commandsDevSeam } from './state/commands'
 import { dockDevSeam, openFileTab } from './state/dock'
@@ -122,7 +123,12 @@ if (import.meta.env.DEV) {
       // Onboarding wizard (§5): read/patch the visible wizard's state so a
       // driver can walk all seven steps past step 1's NATIVE folder picker,
       // which CDP cannot drive (onboarding/devSeam.ts).
-      onboarding: onboardingSeam
+      onboarding: onboardingSeam,
+      // Screen-ask (⌘⇧A): the composer/region phases, the floating terminal's
+      // own store, and openFloatWith — which builds the same float session the
+      // ask would, around a command of the driver's choosing, so the window's
+      // chrome can be exercised without spawning a real agent.
+      screenAsk: screenAskDevSeam
     }
   })
 }

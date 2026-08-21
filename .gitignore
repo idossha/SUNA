@@ -53,3 +53,4 @@ examples/*
 # docs site build artifacts (website/.vitepress/dist is covered by dist/)
 website/.vitepress/cache/
 website/public/shots/*.png
+.suna/

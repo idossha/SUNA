@@ -60,6 +60,16 @@ export function bundleDirName(slug: string, when: Date): string {
 }
 
 /**
+ * Where a capture goes when the caller names no target: outside any project,
+ * and the ONLY directory 'ai:screen-ask-bundle' will adopt a shot from. A
+ * screen-ask captures before its composer is on screen and moves the file
+ * into the bundle afterwards, so that adoption needs a boundary — this is it.
+ */
+export function captureTempDir(): string {
+  return join(tmpdir(), 'suna-captures')
+}
+
+/**
  * 'app:capture-rect': screenshot a region of the SENDER's window. `rect` is
  * CSS px in page coordinates — capturePage takes DIP, which equals CSS px
  * here. The response size is decoded from the written PNG, not echoed from
@@ -81,7 +91,7 @@ export async function captureRect(
   const path =
     targetPath !== undefined
       ? assertInsideAllowedRoot(targetPath)
-      : join(tmpdir(), 'suna-captures', `cap-${Date.now()}.png`)
+      : join(captureTempDir(), `cap-${Date.now()}.png`)
   const image = await event.sender.capturePage(clamped)
   const png = image.toPNG()
   await mkdir(dirname(path), { recursive: true })
