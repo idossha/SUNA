@@ -9,6 +9,7 @@ import {
   describeEvidence,
   entryMatches,
   removablePdfPath,
+  deleteExplanation,
   removeNote,
   evidenceLabel,
   firstAuthorOf,
@@ -348,5 +349,26 @@ describe('removeNote', () => {
   it('always says what happened to the PDF', () => {
     expect(removeNote('gunn1972', true)).toMatch(/deleted its PDF/)
     expect(removeNote('gunn1972', false)).not.toMatch(/PDF/)
+  })
+})
+
+describe('deleteExplanation', () => {
+  it('names every file the second click removes', () => {
+    const withPdf = deleteExplanation('gunn1972', true, false)
+    expect(withPdf).toContain('references.bib')
+    expect(withPdf).toContain('references/gunn1972.pdf')
+    expect(withPdf).toContain('reading notes')
+    expect(withPdf).toContain('cannot be undone')
+  })
+
+  it('does not promise to delete a PDF that is not there', () => {
+    const noPdf = deleteExplanation('gunn1972', false, false)
+    expect(noPdf).not.toContain('references/gunn1972.pdf')
+    expect(noPdf).toContain('No PDF in this project')
+  })
+
+  it('warns when the reference is cited in the manuscript', () => {
+    expect(deleteExplanation('gunn1972', true, true)).toContain('cited in the manuscript')
+    expect(deleteExplanation('gunn1972', true, false)).not.toContain('cited in the manuscript')
   })
 })

@@ -312,10 +312,10 @@
   border-radius: var(--s-radius);
 }
 
-/* flex-wrap, not a single line: the row carries two non-shrinking action
-   columns (PDF pills, [@]/Remove) beside the text. In a narrow sidebar they
-   used to squeeze .refs__row-main to nothing and the cite key overlapped
-   them. Wrapping drops the actions onto their own line instead. */
+/* flex-wrap, not a single line: the row carries a non-shrinking PDF-pill
+   column beside the text. In a narrow sidebar it used to squeeze
+   .refs__row-main to nothing and the cite key overlapped it. Wrapping drops
+   the pills onto their own line instead. */
 .refs__row {
   display: flex;
   flex-wrap: wrap;
@@ -407,74 +407,10 @@
   font-size: var(--s-text-xs);
 }
 
-/* The row's two actions ([@] over Remove) as one right-hand column: side by
-   side they ate width the cite key and title need in a ~230px sidebar. */
-.refs__row-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  flex-shrink: 0;
-  gap: 3px;
-}
-
-.refs__row-actions > * {
-  text-align: center;
-}
-
-.refs__copy {
-  flex-shrink: 0;
-  margin-top: 1px;
-  padding: 1px 6px;
-  border: 1px solid var(--s-border);
-  border-radius: 3px;
-  font-family: var(--s-font-mono);
-  font-size: 9px;
-  color: var(--s-ink-faint);
-  opacity: 0;
-}
-
-.refs__row:hover .refs__copy,
-.refs__row[aria-selected='true'] .refs__copy {
-  opacity: 1;
-}
-
-.refs__copy:hover {
-  color: var(--s-accent);
-  border-color: var(--s-accent);
-}
-
-/* "Remove" — like .refs__copy, hidden until the row is hovered or selected:
-   a destructive action should not be the first thing the eye lands on. Armed
-   (aria-pressed, the second click away from deleting) it turns warning-colored and
-   stays visible regardless of hover. */
-.refs__remove {
-  flex-shrink: 0;
-  margin-top: 1px;
-  padding: 1px 6px;
-  border: 1px solid var(--s-border);
-  border-radius: 3px;
-  font-family: var(--s-font-mono);
-  font-size: 9px;
-  color: var(--s-ink-faint);
-  white-space: nowrap;
-  opacity: 0;
-}
-
-.refs__row:hover .refs__remove,
-.refs__row[aria-selected='true'] .refs__remove,
-.refs__remove[aria-pressed='true'] {
-  opacity: 1;
-}
-
-.refs__remove:hover,
-.refs__remove[aria-pressed='true'] {
-  color: var(--s-warn);
-  border-color: var(--s-warn);
-}
-
 /* PDF badge (resolved) / "Attach PDF…" (unresolved) — feature-plan-4 §4.
-   Unlike .refs__copy this stays visible at rest: whether a reference has a
-   PDF is information worth seeing at a glance, not just on hover. */
+   The only row action that stays on the row rather than moving into the
+   right-click menu: whether a reference has a PDF is information worth
+   seeing at a glance, not an action to go looking for. */
 .refs__pdf-badge,
 .refs__attach-pdf {
   flex-shrink: 0;
@@ -509,12 +445,17 @@
   border-color: var(--s-accent);
 }
 
-.refs__styles {
-  display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
+/* The 'Rendered as' dropdown. Sized to the header line, and allowed to
+   shrink so a long journal name ellipsizes rather than pushing the label. */
+.refs__style-select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 60%;
+  padding: 2px 6px;
+  font-size: var(--s-text-xs);
 }
 
+/* Still used by the Search tab's provider pills (lit/SearchTab.tsx). */
 .refs__style {
   padding: 3px 8px;
   border: 1px solid var(--s-border);
@@ -2089,18 +2030,69 @@
   gap: 8px;
 }
 
-.refs__find-similar {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  font-size: var(--s-text-xs);
-  color: var(--s-ink-faint);
-  border: 1px solid var(--s-border);
-  border-radius: 999px;
+/* ---- references: the row's right-click menu ------------------------------
+   Visual language matches shell/explorer.css's .ctxmenu — an independent,
+   self-contained copy under this file's namespace, so the two can't collide
+   or drift from a shared dependency (same arrangement as
+   editor/formatting.css's .md-ctxmenu). */
+
+.refs__menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
 }
 
-.refs__find-similar:hover {
-  color: var(--s-accent);
-  border-color: var(--s-accent);
+.refs__menu {
+  position: fixed;
+  z-index: 41;
+  min-width: 168px;
+  max-width: 260px;
+  padding: 4px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+.refs__menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  text-align: left;
+}
+
+.refs__menu-item:hover {
+  background: var(--s-bg-hover);
+}
+
+.refs__menu-item--danger {
+  color: var(--s-err);
+}
+
+.refs__menu-item--armed {
+  background: rgba(217, 123, 108, 0.14);
+  font-weight: 600;
+}
+
+/* The armed delete's small print: what the second click is about to take
+   with it. Sits inside the menu so it reads as part of the confirmation, not
+   as a tooltip someone has to go hunting for. */
+.refs__menu-note {
+  max-width: 240px;
+  margin: 2px 0 2px;
+  padding: 0 10px 4px;
+  font-size: var(--s-text-xs);
+  line-height: 1.4;
+  color: var(--s-ink-faint);
+}
+
+.refs__menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--s-border);
 }
 
 /* ---- literature search (References → Search tab) -------------------------- */
