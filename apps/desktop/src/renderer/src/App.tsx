@@ -23,6 +23,7 @@ import { ImageTab } from './viewer/ImageTab'
 import { CommandPalette } from './palette/CommandPalette'
 import { HelpOverlay } from './shell/help/HelpOverlay'
 import { RepairPicker } from './shell/repair/RepairPicker'
+import { TourOverlay } from './tour/TourOverlay'
 import { LetterTab } from './documents/LetterTab'
 import { SupplementTab } from './documents/SupplementTab'
 import { RoundTab } from './documents/RoundTab'
@@ -123,6 +124,9 @@ export function App(): JSX.Element {
           may be about those overlays themselves. */}
       <HelpOverlay />
       <RepairPicker />
+      {/* Above both (z-220): a tour step may point AT the palette or the help
+          dialog, and its card has to stay readable over them. */}
+      <TourOverlay />
       <Toasts />
     </div>
   )

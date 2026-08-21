@@ -30,6 +30,7 @@ import { toggleRoundSplit } from './roundFocus'
 import { useProjectStore } from './project'
 import { resolvePreviewProfileId, useRenderProfileStore } from './renderProfile'
 import { useTerminalPanelStore } from './terminal'
+import { startAppTour } from './tour'
 import { useUiStore } from './ui'
 import { notifyExported } from '../export/exportToast'
 
@@ -333,6 +334,13 @@ registerCommand({
 // '?' everywhere it is not being typed, and ':help' inside a vim buffer,
 // where NORMAL mode swallows '?' as search-backward before any listener
 // sees it (feature-plan-9 §1). The palette still lists this command.
+registerCommand({
+  id: 'help.tour',
+  title: 'Take the App Tour',
+  category: 'View',
+  run: () => startAppTour()
+})
+
 registerCommand({
   id: 'help.shortcuts',
   title: 'Keyboard Shortcuts…',

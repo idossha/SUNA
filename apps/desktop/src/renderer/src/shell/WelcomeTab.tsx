@@ -1,6 +1,7 @@
 import type { JSX } from 'react'
 import { useProjectStore } from '../state/project'
 import { openOnboardingTab } from '../state/dock'
+import { startAppTour } from '../state/tour'
 import { RecentProjects } from './RecentProjects'
 
 export function WelcomeTab(): JSX.Element {
@@ -24,6 +25,12 @@ export function WelcomeTab(): JSX.Element {
           </button>
           <button className="btn" onClick={() => void openProject()}>
             Open project…
+          </button>
+          {/* Opens the shipped example project and walks it — see
+              tour/steps.ts. Third in the row because it is what you want on
+              your first day and never again. */}
+          <button className="btn welcome__tour" onClick={() => void startAppTour()}>
+            Take the app tour
           </button>
         </div>
         <RecentProjects />
