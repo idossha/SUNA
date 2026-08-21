@@ -166,17 +166,15 @@
   margin: 18px 0 8px;
 }
 
-.export-dialog__row {
-  display: flex;
-  gap: 12px;
-}
-
 .export-dialog__field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-bottom: 10px;
   flex: 1;
+  /* Without this a long journal name blows the select past its column and the
+     end of the name is simply cut off. */
+  min-width: 0;
 }
 
 .export-dialog__field--wide {
@@ -190,6 +188,7 @@
 
 .export-dialog__field select,
 .export-dialog__field input[type='text'] {
+  min-width: 0;
   background: var(--s-bg-raised);
   border: 1px solid var(--s-border-strong);
   border-radius: 4px;

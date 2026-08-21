@@ -371,26 +371,26 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
                 </label>
               )}
 
-              <div className="export-dialog__row">
-                <label className="export-dialog__field">
-                  <span>Format</span>
-                  <select value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)}>
-                    <option value="docx">Word (.docx)</option>
-                    <option value="pdf">PDF</option>
-                    <option value="html">Web page (.html)</option>
-                  </select>
-                </label>
-                <label className="export-dialog__field">
-                  <span>Profile</span>
-                  <select value={profileId} onChange={(e) => setProfileId(e.target.value as BundledProfileId)}>
-                    {pickerIds.map((id) => (
-                      <option key={id} value={id}>
-                        {getBundledProfile(id)?.journalName ?? id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              {/* One field per row: the form column is ~350 px and a journal
+                  name shares it with nothing without being cut in half. */}
+              <label className="export-dialog__field export-dialog__field--wide">
+                <span>Format</span>
+                <select value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)}>
+                  <option value="docx">Word (.docx)</option>
+                  <option value="pdf">PDF</option>
+                  <option value="html">Web page (.html)</option>
+                </select>
+              </label>
+              <label className="export-dialog__field export-dialog__field--wide">
+                <span>Profile</span>
+                <select value={profileId} onChange={(e) => setProfileId(e.target.value as BundledProfileId)}>
+                  {pickerIds.map((id) => (
+                    <option key={id} value={id}>
+                      {getBundledProfile(id)?.journalName ?? id}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               {profile !== null && profile.manuscript.articleTypes.length > 0 && (
                 <label className="export-dialog__field export-dialog__field--wide">
