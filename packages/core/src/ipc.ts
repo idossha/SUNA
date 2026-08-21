@@ -682,6 +682,39 @@ export const CHANNELS = {
     response: z.object({ analysis: DocxAnalysisSchema }),
   },
   /**
+   * Render an existing .docx ON DISK for the in-app viewer (a file in
+   * output/, or any Word file in the project). Nothing is written and
+   * nothing about the project is read — this is the file, not the sources
+   * that produced it.
+   *
+   * The response is PDF bytes rather than HTML because a Word document is a
+   * paged document: mammoth's text and images are laid out on the file's OWN
+   * page size, margins and default face (read from its OOXML) and printed,
+   * so the viewer shows pages. It is a faithful-but-not-identical render —
+   * Word breaks lines itself, and anything mammoth does not convert
+   * (equations, text boxes, headers/footers) is absent — so the viewer
+   * labels it approximate and offers "Open in Word".
+   */
+  'docx:preview': {
+    request: z.object({ path: z.string().min(1) }),
+    response: z.object({
+      /** Base64 PDF bytes, drawn by the same PagedDocument the export preview uses. */
+      data: z.string(),
+      /** The page the render used, in inches — the viewer names the paper from it. */
+      geometry: z.object({
+        widthIn: z.number().positive(),
+        heightIn: z.number().positive(),
+        marginTopIn: z.number().nonnegative(),
+        marginRightIn: z.number().nonnegative(),
+        marginBottomIn: z.number().nonnegative(),
+        marginLeftIn: z.number().nonnegative(),
+      }),
+      /** Non-fatal conversion notes (mammoth errors, dropped equations). */
+      warnings: z.array(z.string()).default([]),
+      ms: z.number().int().nonnegative(),
+    }),
+  },
+  /**
    * DOCX import step 2: writes the project from a (possibly user-edited)
    * `analysis` into a fresh `dir` — suna.json, manuscript/manuscript.json,
    * manuscript/manuscript.md (one flat prose file, each analyzed section's

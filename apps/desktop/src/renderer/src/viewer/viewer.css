@@ -18,7 +18,8 @@
 /* ---- shared toolbar ------------------------------------------------------- */
 
 .pdfview__toolbar,
-.imgview__toolbar {
+.imgview__toolbar,
+.docview__toolbar {
   display: flex;
   align-items: center;
   flex: none;
@@ -33,7 +34,8 @@
 }
 
 .pdfview__filename,
-.imgview__filename {
+.imgview__filename,
+.docview__filename {
   overflow: hidden;
   margin-right: auto;
   color: var(--s-ink);
@@ -142,7 +144,9 @@
 .pdfview__loading,
 .pdfview__error,
 .imgview__loading,
-.imgview__error {
+.imgview__error,
+.docview__loading,
+.docview__error {
   margin: auto;
   padding: 24px;
   max-width: 46ch;
@@ -154,7 +158,8 @@
 }
 
 .pdfview__error,
-.imgview__error {
+.imgview__error,
+.docview__error {
   color: var(--s-err);
 }
 
@@ -942,4 +947,75 @@ button.pdfnotes__dot:hover {
   border-color: var(--s-err);
   color: var(--s-err);
   max-width: 80%;
+}
+
+/* ---- document viewers (.html page, .docx pages) --------------------------- */
+
+/* The toolbar, filename, loading and error rules are the viewers' shared ones
+   above: an .html tab and an image tab are the same kind of surface, and a
+   second copy of those rules is a second thing to keep in step. What is below
+   is only what these two tabs have that the others do not. */
+
+.docview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--s-bg-shell);
+}
+
+.docview__modes {
+  display: flex;
+  gap: 2px;
+}
+
+.docview__btn {
+  flex: none;
+  padding: 3px 8px;
+  color: var(--s-ink-muted);
+  border-radius: var(--s-radius);
+  font: inherit;
+}
+
+.docview__btn:hover,
+.docview__btn[aria-pressed='true'] {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+/* View source: read-only, but selectable — the point of reading a source is
+   copying a piece of it. */
+.docview__source {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 16px;
+  overflow: auto;
+  color: var(--s-ink);
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+/* What the Word render does and does not promise, above its pages. */
+.docview__notes {
+  flex: none;
+  padding: 6px 14px;
+  background: var(--s-bg-panel);
+  border-bottom: 1px solid var(--s-border);
+}
+
+.docview__note {
+  margin: 0;
+  color: var(--s-ink-faint);
+  font-family: var(--s-font-ui);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+}
+
+.docview__note--warn {
+  color: var(--s-warn);
 }

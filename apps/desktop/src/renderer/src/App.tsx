@@ -20,6 +20,8 @@ import { TrashTab } from './shell/TrashTab'
 import { TerminalPanel } from './terminal/TerminalPanel'
 import { PdfTab } from './viewer/PdfTab'
 import { ImageTab } from './viewer/ImageTab'
+import { HtmlTab } from './viewer/HtmlTab'
+import { DocxTab } from './viewer/DocxTab'
 import { CommandPalette } from './palette/CommandPalette'
 import { HelpOverlay } from './shell/help/HelpOverlay'
 import { RepairPicker } from './shell/repair/RepairPicker'
@@ -58,7 +60,9 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   trash: TrashTab,
   'reading-notes': ReadingNotesTab,
   pdf: PdfTab,
-  image: ImageTab
+  image: ImageTab,
+  html: HtmlTab,
+  docx: DocxTab
 }
 
 export function App(): JSX.Element {

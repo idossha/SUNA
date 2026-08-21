@@ -254,6 +254,8 @@ export function sectionForSurface(surface: string | null, explorerFocused: boole
     case 'pdf':
     case 'image':
     case 'dataview':
+    case 'html':
+    case 'docx':
       return 'viewers'
     default:
       return 'global'

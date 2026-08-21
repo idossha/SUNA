@@ -30,13 +30,56 @@ function syncOpenTabs(): void {
   useOpenTabsStore.getState().setOpenTabs(paths, activePath, manuscriptRoots, activeRoot)
 }
 
+/** The welcome tab: opened once at startup, and again whenever the dock runs
+ *  empty (see reopenWelcomeIfEmpty). One id, so it is always a singleton. */
+const WELCOME_PANEL = { id: 'welcome', component: 'welcome', title: 'Welcome' }
+
+/**
+ * Depth of `withoutWelcomeReopen` calls in progress. A bulk close the APP
+ * drives (a project switch, a driver clearing the dock) passes through an
+ * empty dock on its way somewhere else; only a close the USER drives should
+ * land on the welcome screen.
+ */
+let welcomeReopenSuppressed = 0
+
+/**
+ * Run `fn` with the empty-dock -> welcome reopen suppressed. Re-entrant, and
+ * synchronous by design: the reopen fires from dockview's mutation event
+ * during `fn`, so a deferred release would come too late.
+ */
+function withoutWelcomeReopen<T>(fn: () => T): T {
+  welcomeReopenSuppressed += 1
+  try {
+    return fn()
+  } finally {
+    welcomeReopenSuppressed -= 1
+  }
+}
+
+/**
+ * Closing the last tab returns the user to the welcome screen rather than to
+ * dockview's bare watermark — the same screen the app starts on, with the
+ * recent-projects list and the "new project"/"open"/"import" entry points.
+ *
+ * Driven by `onDidMutateLayout`, which fires AFTER the outermost structural
+ * change completes: `onDidRemovePanel` fires mid-removal (before the emptied
+ * group is torn down), and adding a panel from inside that would race the
+ * teardown. Adds/moves fire it too, hence the emptiness check.
+ */
+function reopenWelcomeIfEmpty(): void {
+  if (!dockApi || welcomeReopenSuppressed > 0) return
+  if (dockApi.panels.length > 0) return
+  dockApi.addPanel({ ...WELCOME_PANEL })
+}
+
 export function setDockApi(api: DockviewApi): void {
   dockApi = api
   // Guarded: tests attach partial fakes (and `null` for the no-dock case).
-  // Real dockview always emits all three.
+  // Real dockview always emits all four.
   api?.onDidAddPanel?.(syncOpenTabs)
   api?.onDidRemovePanel?.(syncOpenTabs)
   api?.onDidActivePanelChange?.(syncOpenTabs)
+  api?.onDidMutateLayout?.(reopenWelcomeIfEmpty)
   syncOpenTabs()
 }
 
@@ -50,7 +93,7 @@ const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
  * the side group swaps the first out instead of stacking tabs, while an editor
  * the user parked there is left alone.
  */
-const VIEWER_COMPONENTS = new Set(['pdf', 'image'])
+const VIEWER_COMPONENTS = new Set(['pdf', 'image', 'html', 'docx'])
 
 /** Which dock component owns a file, by extension. Default: the editor. */
 export function componentForFile(path: string): string {
@@ -58,6 +101,11 @@ export function componentForFile(path: string): string {
   if (lower.endsWith('.svg')) return 'canvas'
   if (lower.endsWith('.csv') || lower.endsWith('.tsv')) return 'dataview'
   if (lower.endsWith('.pdf')) return 'pdf'
+  // Exports are meant to be LOOKED at: an .html or .docx in output/ opens as
+  // the page/document it is, not as its markup or as a zip the editor cannot
+  // read. Both viewers offer the source (HTML) or the real app (Word).
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html'
+  if (lower.endsWith('.docx')) return 'docx'
   if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image'
   return 'editor'
 }
@@ -395,7 +443,15 @@ export function openRoundTab(rootDir: string, roundId: string): void {
  * directory that is no longer open. The combined manuscript tab is handled
  * separately below since it keys off `params.rootDir`, not a file path.
  */
-const PROJECT_SCOPED_PATH_COMPONENTS = new Set(['editor', 'canvas', 'dataview', 'pdf', 'image'])
+const PROJECT_SCOPED_PATH_COMPONENTS = new Set([
+  'editor',
+  'canvas',
+  'dataview',
+  'pdf',
+  'image',
+  'html',
+  'docx'
+])
 
 /**
  * Close every open tab scoped to `rootDir`: editor/canvas/dataview/pdf/image
@@ -409,29 +465,35 @@ const PROJECT_SCOPED_PATH_COMPONENTS = new Set(['editor', 'canvas', 'dataview', 
  */
 export function closeProjectTabs(rootDir: string): void {
   if (!dockApi) return
+  const api = dockApi
   const prefix = `${rootDir}/`
-  for (const panel of [...dockApi.panels]) {
-    const component = panel.view.contentComponent
-    // rootDir-keyed panels: they carry the project in params, not in a path,
-    // so a stale one would silently show the previous project's content.
-    if (
-      component === 'manuscript' ||
-      component === 'letter' ||
-      component === 'round' ||
-      component === 'version' ||
-      component === 'compare' ||
-      component === 'review-import' ||
-      component === 'trash'
-    ) {
-      if (panel.params?.['rootDir'] === rootDir) dockApi.removePanel(panel)
-      continue
+  // Suppressed: the caller (adoptProject) opens the new project's manuscript
+  // right after, so the empty dock in between is a transition, not a
+  // destination — without this the switch would leave a stray welcome tab.
+  withoutWelcomeReopen(() => {
+    for (const panel of [...api.panels]) {
+      const component = panel.view.contentComponent
+      // rootDir-keyed panels: they carry the project in params, not in a path,
+      // so a stale one would silently show the previous project's content.
+      if (
+        component === 'manuscript' ||
+        component === 'letter' ||
+        component === 'round' ||
+        component === 'version' ||
+        component === 'compare' ||
+        component === 'review-import' ||
+        component === 'trash'
+      ) {
+        if (panel.params?.['rootDir'] === rootDir) api.removePanel(panel)
+        continue
+      }
+      if (!PROJECT_SCOPED_PATH_COMPONENTS.has(component)) continue
+      const path = panel.params?.['path']
+      if (typeof path === 'string' && (path === rootDir || path.startsWith(prefix))) {
+        api.removePanel(panel)
+      }
     }
-    if (!PROJECT_SCOPED_PATH_COMPONENTS.has(component)) continue
-    const path = panel.params?.['path']
-    if (typeof path === 'string' && (path === rootDir || path.startsWith(prefix))) {
-      dockApi.removePanel(panel)
-    }
-  }
+  })
 }
 
 /**
@@ -750,17 +812,21 @@ export const dockDevSeam = {
    * measuring "⌘\ yields exactly 2 groups" needs a known starting dock rather
    * than whatever the previous step left behind.
    */
-  clearDock: (): void => dockApi?.clear(),
+  clearDock: (): void => {
+    // Suppressed: the contract here is "one empty group", and a driver that
+    // asked for an empty dock would not expect a welcome tab back in it.
+    withoutWelcomeReopen(() => dockApi?.clear())
+  },
   /** Close one panel by id — how a driver proves "cancelling writes nothing". */
   closePanel: (id: string): void => {
     const panel = dockApi?.getPanel(id)
     if (panel) dockApi?.removePanel(panel)
   },
   /**
-   * Re-open the welcome tab. The app adds it once at startup and `clearDock()`
-   * removes it, so a driver measuring the welcome screen's recent-projects
-   * list (feature-plan-5 §1) after a project is already open needs a way back.
-   * Deliberately not a production entry point — nothing in the UI re-opens it.
+   * Re-open the welcome tab. The app adds it once at startup and reopens it
+   * whenever the user empties the dock, but `clearDock()` deliberately does
+   * not — so a driver measuring the welcome screen's recent-projects list
+   * (feature-plan-5 §1) after a project is already open needs a way back.
    */
   openWelcomeTab: (): void => {
     if (!dockApi) return
@@ -769,6 +835,6 @@ export const dockDevSeam = {
       existing.api.setActive()
       return
     }
-    dockApi.addPanel({ id: 'welcome', component: 'welcome', title: 'Welcome' })
+    dockApi.addPanel({ ...WELCOME_PANEL })
   }
 }
