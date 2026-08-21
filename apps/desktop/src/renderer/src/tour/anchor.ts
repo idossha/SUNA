@@ -33,8 +33,12 @@ export interface Anchored {
   readonly beak: { readonly x: number; readonly y: number }
 }
 
-/** Space left between the highlighted element and the card. */
-export const TOUR_GAP = 16
+/**
+ * Space left between the highlighted element and the card. Wide enough that
+ * the card never crowds what it is talking about, and wide enough to hold the
+ * bouncing pointer a call-to-action step draws in the gap.
+ */
+export const TOUR_GAP = 44
 /** The card never comes closer than this to a viewport edge. */
 export const TOUR_MARGIN = 12
 /** How far the beak stays from a card corner. */
