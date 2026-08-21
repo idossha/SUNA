@@ -211,9 +211,13 @@
   opacity: 0.6;
 }
 
+/* The label reads as one line: `nowrap` keeps "Line numbers" whole and
+   `wrap` drops a long stance tag onto the next line instead. */
 .export-dialog__checkbox {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  white-space: nowrap;
   gap: 8px;
   margin-bottom: 8px;
 }
