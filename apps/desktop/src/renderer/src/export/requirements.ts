@@ -102,9 +102,10 @@ export function citationModeLabel(mode: CitationMode): string {
 }
 
 /**
- * The checkbox tag text in the export form ("SLEEP requires this") — the
- * stated stance rendered as information, never as a lock: the user can
- * always override it.
+ * The checkbox tag text in the export form ("Required") — the stated stance
+ * rendered as information, never as a lock: the user can always override it.
+ * The journal is named once, by the Profile select right above these
+ * checkboxes, so the tags do not repeat it on every row.
  *
  * `house` reworks the wording for SUNA style, which states these conventions
  * as OUR OWN preference rather than reporting a journal's requirement — it
@@ -117,7 +118,7 @@ export function stanceTag(
 ): string | null {
   if (stated === null) return null
   if (house) return stated ? `${journalName} uses this` : `${journalName} leaves this off`
-  return stated ? `${journalName} requires this` : `${journalName} says do not use`
+  return stated ? 'Required' : 'Do not use'
 }
 
 /** "≥ 5 pt" / "≤ 7 pt" / "5–7 pt" from a nullable min/max pair; null when neither is stated. */

@@ -136,8 +136,9 @@ describe('statusOf / stanceTag / citationModeLabel', () => {
   })
 
   it('stanceTag words the journal stance as information, and stays silent on null', () => {
-    expect(stanceTag('SLEEP', true)).toBe('SLEEP requires this')
-    expect(stanceTag('SLEEP', false)).toBe('SLEEP says do not use')
+    // The Profile select names the journal; the tags do not repeat it.
+    expect(stanceTag('SLEEP', true)).toBe('Required')
+    expect(stanceTag('SLEEP', false)).toBe('Do not use')
     expect(stanceTag('SLEEP', null)).toBeNull()
   })
 
