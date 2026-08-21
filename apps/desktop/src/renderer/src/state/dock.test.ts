@@ -86,6 +86,9 @@ function fakeDock(): {
     onDidAddPanel: subscribe,
     onDidRemovePanel: subscribe,
     onDidActivePanelChange: subscribe,
+    // Real dockview fires this after the outermost structural change; the
+    // fake's operations are all single mutations, so `emit` matches it.
+    onDidMutateLayout: subscribe,
     get groups() {
       return groups
     },
@@ -100,6 +103,9 @@ function fakeDock(): {
     },
     removePanel(panel: FakePanel) {
       panel.api.close()
+    },
+    clear() {
+      for (const panel of groups.flatMap((g) => g.panels)) panel.api.close()
     },
     addPanel(options: AddOptions) {
       const panel: FakePanel = {
@@ -172,6 +178,13 @@ describe('componentForFile', () => {
       expect(componentForFile(`/work/paper/output/fig.${ext}`)).toBe('image')
     }
     expect(componentForFile('/work/paper/output/FIG.PNG')).toBe('image')
+  })
+
+  it('routes exported web pages and Word files to their viewers', () => {
+    expect(componentForFile('/work/paper/output/manuscript.html')).toBe('html')
+    expect(componentForFile('/work/paper/output/MANUSCRIPT.HTM')).toBe('html')
+    expect(componentForFile('/work/paper/output/manuscript.docx')).toBe('docx')
+    expect(componentForFile('/work/paper/output/MANUSCRIPT.DOCX')).toBe('docx')
   })
 
   it('leaves the existing routes alone', () => {
@@ -342,6 +355,42 @@ describe('closeProjectTabs', () => {
   it('is a no-op with no dock attached', () => {
     setDockApi(null as unknown as DockviewApi)
     expect(() => closeProjectTabs('/work/paper')).not.toThrow()
+  })
+})
+
+describe('welcome tab on an empty dock', () => {
+  it('reopens the welcome tab when the user closes the last one', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    openFileTab(PDF_A)
+
+    dock.api.getPanel(PDF_A)?.api.close()
+    expect(dock.groups.flatMap((g) => g.panels.map((p) => p.id))).toEqual([SECTION])
+
+    dock.api.getPanel(SECTION)?.api.close()
+    expect(dock.groups.flatMap((g) => g.panels.map((p) => p.id))).toEqual(['welcome'])
+  })
+
+  it('leaves a project switch alone — the empty dock there is a transition', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+    openManuscriptTab('/work/paper')
+
+    closeProjectTabs('/work/paper')
+
+    expect(dock.groups.flatMap((g) => g.panels)).toEqual([])
+  })
+
+  it('leaves clearDock alone — a driver asked for an empty dock', () => {
+    const dock = fakeDock()
+    setDockApi(dock.api)
+    openFileTab(SECTION)
+
+    dockDevSeam.clearDock()
+
+    expect(dock.groups.flatMap((g) => g.panels)).toEqual([])
   })
 })
 

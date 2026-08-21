@@ -64,6 +64,7 @@ import {
   writeReferenceNotes
 } from './services/refnotes'
 import { analyzeDocx, commitDocxAnalysis } from './services/docx-import'
+import { previewDocx } from './services/docx-preview'
 import { exportDocx } from './services/export-docx'
 import { exportHtml } from './services/export-html'
 import { exportNotes } from './services/export-notes'
@@ -572,6 +573,7 @@ export function registerIpcHandlers(): void {
   }))
 
   handle('docx:analyze', async ({ path }) => ({ analysis: await analyzeDocx(path) }))
+  handle('docx:preview', ({ path }) => previewDocx(path))
   handle('docx:commit', async ({ analysis, dir, force }) => {
     const result = await commitDocxAnalysis(analysis, dir, force)
     void healProjectAgentLayer(result.dir)

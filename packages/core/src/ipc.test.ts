@@ -48,6 +48,7 @@ describe('CHANNELS', () => {
       'documents:remove',
       'docx:analyze',
       'docx:commit',
+      'docx:preview',
       'env:create',
       'env:detect',
       'env:select',
