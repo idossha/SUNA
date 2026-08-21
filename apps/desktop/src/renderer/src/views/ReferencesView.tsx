@@ -22,6 +22,7 @@ import {
   acquireNote,
   autoOpenPdfPath,
   citeStyleOf,
+  deleteExplanation,
   entryMatches,
   FIND_PDF_BUSY_LABEL,
   FIND_PDF_HINT,
@@ -113,10 +114,17 @@ export function ReferencesView(): JSX.Element {
   const [findSimilarSeed, setFindSimilarSeed] = useState<FindSimilarSeed | null>(null)
   const [attachingKey, setAttachingKey] = useState<string | null>(null)
   const [findingKey, setFindingKey] = useState<string | null>(null)
-  // Two-step removal: the first click arms the row (label flips to "Remove?"),
-  // the second does it. A confirmation the row itself carries, rather than a
-  // modal — deleting a PDF is not undoable, so it must not be one stray click.
-  const [pendingRemoveKey, setPendingRemoveKey] = useState<string | null>(null)
+  // The per-row actions ("Find similar", "Delete", "Copy [@key]") live in a
+  // right-click menu rather than as pills printed on every row: at rest a
+  // reference is its cite key, its author-year and its title, and nothing else.
+  //
+  // `armed` is the two-step delete: the first click flips the item to
+  // "Confirm delete?", the second does it. A confirmation the menu carries
+  // itself rather than a modal — deleting a PDF is not undoable, so it must
+  // not be one stray click.
+  const [menu, setMenu] = useState<{ key: string; x: number; y: number; armed: boolean } | null>(
+    null
+  )
   const [removingKey, setRemovingKey] = useState<string | null>(null)
   const cited = useCitedKeys()
   // Reference PDFs (feature-plan-4 §3/§4): resolved once per project (and on
@@ -202,6 +210,8 @@ export function ReferencesView(): JSX.Element {
     displayRows[0]?.entry ??
     entries[0]
 
+  const menuEntry = menu === null ? undefined : entryMap.get(menu.key)
+
   // Both PDF actions write the same references/<key>.pdf, so one gate covers
   // them: while either is running, neither can be started again.
   const busyKey = attachingKey ?? findingKey
@@ -216,7 +226,6 @@ export function ReferencesView(): JSX.Element {
    *  (openViewerInSide), never stacking (feature-plan-4.md §4). */
   const selectEntry = (key: string): void => {
     setSelectedKey(key)
-    setPendingRemoveKey(null)
     const path = autoOpenPdfPath(referencePdfs.map.get(key), autoOpenPdf)
     if (path !== null) openViewerInSide(path)
   }
@@ -299,7 +308,7 @@ export function ReferencesView(): JSX.Element {
   const removeEntry = async (entry: BibEntry): Promise<void> => {
     if (rootDir === null) return
     setRemovingKey(entry.key)
-    setPendingRemoveKey(null)
+    setMenu(null)
     const bibPath = `${rootDir}/manuscript/references.bib`
     try {
       const { content } = await window.suna.invoke('fs:read-text', { path: bibPath })
@@ -352,7 +361,25 @@ export function ReferencesView(): JSX.Element {
     }
   }
 
+  // Escape closes the menu, matching the Explorer's. The scrim below handles
+  // click-outside; a menu anchored to a row is also invalidated by scrolling
+  // the list, so any scroll closes it too.
+  useEffect(() => {
+    if (menu === null) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    const onScroll = (): void => setMenu(null)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [menu])
+
   const findSimilar = (entry: BibEntry): void => {
+    setMenu(null)
     setFindSimilarSeed({ nonce: Date.now(), doi: entry.doi ?? null, title: entry.title })
     setActiveTab('search')
   }
@@ -450,8 +477,14 @@ export function ReferencesView(): JSX.Element {
                   <button
                     key={row.key}
                     className="refs__row"
+                    data-key={entry.key}
                     aria-selected={selected !== undefined && selected.key === row.key}
                     onClick={() => selectEntry(row.key)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      selectEntry(row.key)
+                      setMenu({ key: entry.key, x: e.clientX, y: e.clientY, armed: false })
+                    }}
                   >
                     {numbered && <span className="refs__num">{row.number}.</span>}
                     <span className="refs__row-main">
@@ -519,45 +552,6 @@ export function ReferencesView(): JSX.Element {
                         </span>
                       </span>
                     )}
-                    {/* Stacked, right-hand column: [@] on top with Remove
-                        directly under it, so the two row actions cost one
-                        column of width instead of two (the PDF pills to their
-                        left already own a column). */}
-                    <span className="refs__row-actions">
-                      <span
-                        className="refs__copy"
-                        role="button"
-                        title={`Copy [@${entry.key}]`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          copyKey(entry.key)
-                        }}
-                      >
-                        [@]
-                      </span>
-                      <span
-                        className="refs__remove"
-                        role="button"
-                        title={
-                          cited.set.has(entry.key)
-                            ? `${REMOVE_HINT} — warning: this reference IS cited in the manuscript`
-                            : REMOVE_HINT
-                        }
-                        aria-pressed={pendingRemoveKey === entry.key}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (removingKey !== null) return
-                          if (pendingRemoveKey === entry.key) void removeEntry(entry)
-                          else setPendingRemoveKey(entry.key)
-                        }}
-                      >
-                        {removingKey === entry.key
-                          ? REMOVE_BUSY_LABEL
-                          : pendingRemoveKey === entry.key
-                            ? REMOVE_CONFIRM_LABEL
-                            : REMOVE_LABEL}
-                      </span>
-                    </span>
                   </button>
                 )
               })}
@@ -570,25 +564,32 @@ export function ReferencesView(): JSX.Element {
 
             {selected !== undefined && profile !== null && (
               <div>
+                {/* A dropdown, not a row of pills: ten journal names wrapped
+                    to three lines and pushed the rendered preview — the thing
+                    the control exists to change — below the fold. */}
                 <div className="refs__preview-header">
-                  <div className="view__section-title">Rendered as</div>
-                  <button className="refs__find-similar" onClick={() => findSimilar(selected)}>
-                    Find similar
-                  </button>
-                </div>
-                <div className="refs__styles">
-                  {BUNDLED_PROFILE_IDS.map((id) => (
-                    <button
-                      key={id}
-                      className="refs__style"
-                      aria-pressed={id === previewProfileId}
-                      onClick={() => {
-                        if (rootDir !== null) useRenderProfileStore.getState().setPreviewProfile(rootDir, id)
-                      }}
-                    >
-                      {profileLabel(id)}
-                    </button>
-                  ))}
+                  <label className="view__section-title" htmlFor="refs-rendered-as">
+                    Rendered as
+                  </label>
+                  <select
+                    id="refs-rendered-as"
+                    className="view__select refs__style-select"
+                    value={previewProfileId}
+                    disabled={rootDir === null}
+                    onChange={(e) => {
+                      if (rootDir !== null) {
+                        useRenderProfileStore
+                          .getState()
+                          .setPreviewProfile(rootDir, e.target.value as BundledProfileId)
+                      }
+                    }}
+                  >
+                    {BUNDLED_PROFILE_IDS.map((id) => (
+                      <option key={id} value={id}>
+                        {profileLabel(id)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="refs__preview" style={{ marginTop: 8 }}>
@@ -647,6 +648,78 @@ export function ReferencesView(): JSX.Element {
       <div className={activeTab === 'search' ? 'refs__tabpanel' : 'refs__tabpanel refs__tabpanel--hidden'}>
         <SearchTab seed={findSimilarSeed} />
       </div>
+
+      {menuEntry !== undefined && menu !== null && (
+        <>
+          <div
+            className="refs__menu-scrim"
+            onMouseDown={() => setMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setMenu(null)
+            }}
+          />
+          {/* Clamped against the menu's real size (three items and a
+              separator, widest row "Confirm delete?") so the delete row can
+              never render past the bottom edge, where it cannot be clicked. */}
+          <div
+            className="refs__menu"
+            role="menu"
+            aria-label={menuEntry.key}
+            style={{
+              left: Math.min(menu.x, window.innerWidth - 260),
+              top: Math.min(menu.y, window.innerHeight - (menu.armed ? 230 : 130))
+            }}
+          >
+            <button className="refs__menu-item" onClick={() => findSimilar(menuEntry)}>
+              Find similar
+            </button>
+            <button
+              className="refs__menu-item"
+              onClick={() => {
+                copyKey(menuEntry.key)
+                setMenu(null)
+              }}
+            >
+              Copy citation
+            </button>
+            <div className="refs__menu-sep" />
+            <button
+              className={
+                menu.armed
+                  ? 'refs__menu-item refs__menu-item--danger refs__menu-item--armed'
+                  : 'refs__menu-item refs__menu-item--danger'
+              }
+              title={
+                cited.set.has(menuEntry.key)
+                  ? `${REMOVE_HINT} — warning: this reference IS cited in the manuscript`
+                  : REMOVE_HINT
+              }
+              onClick={() => {
+                if (removingKey !== null) return
+                if (menu.armed) void removeEntry(menuEntry)
+                else setMenu({ ...menu, armed: true })
+              }}
+            >
+              {removingKey === menuEntry.key
+                ? REMOVE_BUSY_LABEL
+                : menu.armed
+                  ? REMOVE_CONFIRM_LABEL
+                  : REMOVE_LABEL}
+            </button>
+            {menu.armed && (
+              <p className="refs__menu-note">
+                {deleteExplanation(
+                  menuEntry.key,
+                  rootDir !== null &&
+                    removablePdfPath(referencePdfs.map.get(menuEntry.key), rootDir) !== null,
+                  cited.set.has(menuEntry.key)
+                )}
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

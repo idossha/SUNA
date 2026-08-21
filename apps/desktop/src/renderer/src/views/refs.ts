@@ -290,11 +290,28 @@ export function acquireNote(citekey: string, outcome: LibraryAcquireOutcome): st
   }
 }
 
-export const REMOVE_LABEL = 'Remove'
-export const REMOVE_CONFIRM_LABEL = 'Remove?'
-export const REMOVE_BUSY_LABEL = 'Removing…'
+export const REMOVE_LABEL = 'Delete'
+export const REMOVE_CONFIRM_LABEL = 'Confirm delete?'
+export const REMOVE_BUSY_LABEL = 'Deleting…'
 export const REMOVE_HINT =
   'Remove this reference from references.bib, and delete its PDF from references/'
+
+/**
+ * The small print under an armed "Confirm delete?": what the second click is
+ * about to take with it. Deleting a reference is three deletions, only one of
+ * which is visible in this panel — the bib entry, the project's copy of the
+ * PDF, and the reading notes sidecar — so the confirmation names all three
+ * rather than asking "are you sure" about an unstated scope.
+ */
+export function deleteExplanation(citekey: string, deletesPdf: boolean, cited: boolean): string {
+  const what = deletesPdf
+    ? `Removes ${citekey} from references.bib and deletes references/${citekey}.pdf and any reading notes.`
+    : `Removes ${citekey} from references.bib and deletes any reading notes. No PDF in this project to delete.`
+  const undo = 'This cannot be undone.'
+  return cited
+    ? `${what} It is cited in the manuscript — those citations will lose their entry. ${undo}`
+    : `${what} ${undo}`
+}
 
 /**
  * The PDF file "Remove" may delete for an entry, or null when there is

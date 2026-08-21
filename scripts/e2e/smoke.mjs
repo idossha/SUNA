@@ -173,6 +173,21 @@ const openTreeMenu = (name) =>
     }));
   })()`)
 
+/** Choose a journal in the References panel's "Rendered as" dropdown.
+ *  React tracks a controlled <select>'s value on the DOM node itself, so a
+ *  plain `el.value = …` is swallowed as a no-op change — the value has to go
+ *  through the prototype setter before the change event is dispatched. */
+const selectRenderedAs = (label) =>
+  evalJs(`(() => {
+    const sel = document.querySelector('.refs__style-select');
+    if (!sel) throw new Error('no Rendered as dropdown');
+    const opt = [...sel.options].find((o) => o.textContent === ${JSON.stringify(label)});
+    if (!opt) throw new Error('no Rendered as option: ' + ${JSON.stringify(label)});
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')
+      .set.call(sel, opt.value);
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`)
+
 const clickMenuItem = (label) =>
   evalJs(`(() => {
     const item = [...document.querySelectorAll('.ctxmenu__item')]
@@ -2066,16 +2081,14 @@ try {
     )
     assert(before !== '', 'rendered reference preview is empty')
     await screenshot('views-references.png')
-    // toggling the style profile re-renders the reference differently
-    await evalJs(`[...document.querySelectorAll('.refs__style')]
-      .find((b) => b.textContent === 'Science').click()`)
+    // choosing another style profile re-renders the reference differently
+    await selectRenderedAs('Science')
     await sleep(400)
     const after = await evalJs(`({
       text: document.querySelector('.refs__preview')?.textContent ?? '',
-      pressed: [...document.querySelectorAll('.refs__style')]
-        .find((b) => b.textContent === 'Science').getAttribute('aria-pressed')
+      picked: document.querySelector('.refs__style-select')?.selectedOptions[0]?.textContent ?? ''
     })`)
-    assert(after.pressed === 'true', 'Science style button did not activate')
+    assert(after.picked === 'Science', `Rendered as dropdown shows: ${after.picked}`)
     assert(
       after.text !== '' && after.text !== before,
       'rendered reference did not change between profiles'
@@ -3082,16 +3095,11 @@ try {
       })()`)
 
     const pickProfile = async (label) => {
-      if (!(await evalJs(`!!document.querySelector('.refs__style')`))) {
+      if (!(await evalJs(`!!document.querySelector('.refs__style-select')`))) {
         await activateView('References')
         await sleep(1200)
       }
-      await evalJs(`(() => {
-        const b = [...document.querySelectorAll('.refs__style')]
-          .find((x) => x.textContent === ${JSON.stringify(label)});
-        if (!b) throw new Error('no Rendered as button: ' + ${JSON.stringify(label)});
-        b.click();
-      })()`)
+      await selectRenderedAs(label)
       await sleep(1600)
     }
 
