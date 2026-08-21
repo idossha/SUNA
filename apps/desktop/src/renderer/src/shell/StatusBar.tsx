@@ -192,7 +192,12 @@ export function StatusBar(): JSX.Element {
           <TerminalIcon />
           Terminal
         </button>
-        <button className="statusbar__btn" title="Settings" onClick={openSettingsTab}>
+        <button
+          className="statusbar__btn"
+          data-tour="settings"
+          title="Settings"
+          onClick={openSettingsTab}
+        >
           <GearIcon />
           Settings
         </button>

@@ -17,6 +17,9 @@ export function ActivityBar(): JSX.Element {
           <button
             key={view}
             className="activitybar__item"
+            // Stable hook for the guided tour (tour/steps.ts) and e2e probes:
+            // the icons carry no text, so there is nothing else to aim at.
+            data-view={view}
             // Tracks the active VIEW, not the panel: the highlight has to say
             // which view comes back when the panel is shown again.
             aria-pressed={activeView === view}

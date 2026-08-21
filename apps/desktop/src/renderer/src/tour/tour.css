@@ -1,0 +1,218 @@
+/* ---------------------------------------------------------------------------
+   Guided tour (tour/TourOverlay.tsx). The layer sits above the palette and
+   the repair picker so a step can point at either of them, and it is
+   pointer-transparent everywhere except the card itself — the app underneath
+   has to stay clickable for a step that asks the user to click something.
+
+   `.tour-card` and `.tour-spot` are probe selectors; rename them with the
+   probes.
+   --------------------------------------------------------------------------- */
+
+.tour-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  pointer-events: none;
+  font-family: var(--s-font-ui);
+}
+
+/* The dim is this element's box-shadow, not a backdrop: a spread that large
+   covers the window, and the element's own box is the hole. Nothing to hit-
+   test, so clicks land on whatever is being pointed at. */
+.tour-spot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1px solid var(--s-accent);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 100vmax rgba(6, 6, 10, 0.58),
+    0 0 0 1px rgba(232, 180, 92, 0.25),
+    0 0 18px rgba(232, 180, 92, 0.35);
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+.tour-beak {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  pointer-events: none;
+}
+
+.tour-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 340px;
+  padding: 12px 14px 10px;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  color: var(--s-ink);
+}
+
+.tour-card__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tour-card__count {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--s-text-sm);
+  font-weight: 600;
+  color: var(--s-accent);
+}
+
+.tour-card__count-total {
+  color: var(--s-ink-faint);
+  font-weight: 400;
+}
+
+.tour-card__eyebrow {
+  flex: 1;
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+}
+
+.tour-card__close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: 15px;
+  border-radius: 4px;
+  color: var(--s-ink-faint);
+}
+
+.tour-card__close:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.tour-card__title {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.tour-card__body {
+  margin: 6px 0 0;
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  color: var(--s-ink-muted);
+}
+
+/* The call to action. Accent-tinted so it reads as the thing to do next,
+   rather than as one more sentence of the paragraph above it. */
+.tour-card__cue {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 7px 9px;
+  border-radius: 5px;
+  background: var(--s-bg-active);
+  border: 1px solid rgba(232, 180, 92, 0.28);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.tour-card__cue-arrow {
+  color: var(--s-accent);
+  font-weight: 600;
+}
+
+.tour-card__progress {
+  height: 2px;
+  margin: 12px 0 0;
+  border-radius: 1px;
+  background: var(--s-border);
+  overflow: hidden;
+}
+
+.tour-card__progress-fill {
+  height: 100%;
+  background: var(--s-accent);
+  transition: width 160ms ease;
+}
+
+.tour-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.tour-card__skip {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-faint);
+  padding: 4px 0;
+}
+
+.tour-card__skip:hover {
+  color: var(--s-ink-muted);
+}
+
+.tour-card__nav {
+  display: flex;
+  gap: 6px;
+}
+
+.tour-card__arrow {
+  min-width: 30px;
+  height: 26px;
+  padding: 0 9px;
+  font-size: var(--s-text-sm);
+  line-height: 1;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 5px;
+  color: var(--s-ink-muted);
+}
+
+.tour-card__arrow:hover:not(:disabled) {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.tour-card__arrow:disabled {
+  opacity: 0.4;
+}
+
+.tour-card__arrow--next {
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+  font-weight: 600;
+}
+
+.tour-card__arrow--next:hover:not(:disabled) {
+  color: var(--s-accent-ink);
+  background: #f0c274;
+}
+
+/* The welcome screen's third action: quieter than "Create project", but the
+   same shape, so it reads as an offer rather than an advertisement. */
+.welcome__tour {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot,
+  .tour-card__progress-fill {
+    transition: none;
+  }
+}

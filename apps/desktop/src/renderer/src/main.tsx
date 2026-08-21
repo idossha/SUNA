@@ -20,6 +20,7 @@ import { useManuscriptStore } from './state/manuscript'
 import { openProjectAt, useProjectStore } from './state/project'
 import { getReferencePdf, useReferencePdfsStore } from './state/referencePdfs'
 import { useRenderProfileStore } from './state/renderProfile'
+import { useTourStore } from './state/tour'
 import { useUiStore } from './state/ui'
 import './styles/app.css'
 import { useRoundFocusStore } from './state/roundFocus'
@@ -42,6 +43,10 @@ if (import.meta.env.DEV) {
       // this and then reading projectStore/dock/commentsStore.
       openProjectAt,
       uiStore: useUiStore,
+      // The guided tour (tour/steps.ts): a driver starts it, steps it and
+      // reads which card is showing without having to synthesise clicks on
+      // an overlay that deliberately does not capture them.
+      tourStore: useTourStore,
       // Shared doc sessions (state/docSessions): the smoke driver reads
       // buffer truth (before a save reaches disk) and session meta to assert
       // the cross-tab live sync and the external-reload flow.

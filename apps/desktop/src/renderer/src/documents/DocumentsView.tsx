@@ -87,6 +87,7 @@ export function DocumentsView(): JSX.Element {
             className={`docs__row${
               isManuscript && !showLetters && !showReview ? ' docs__row--current' : ''
             }`}
+            data-tour="doc-manuscript"
             onClick={() => {
               // Clearing the pick explicitly: picking Letters does not change
               // which tab is frontmost, so when the manuscript was already the
@@ -110,6 +111,7 @@ export function DocumentsView(): JSX.Element {
                   ? ' docs__row--current'
                   : ''
               }${missing.includes(supplement.id) ? ' docs__row--missing' : ''}`}
+              data-tour="doc-supplement"
               onClick={() => {
                 setLettersPicked(false)
                 setReviewRoundId(false)
@@ -176,6 +178,7 @@ export function DocumentsView(): JSX.Element {
           <li>
             <button
               className={`docs__row${showReview ? ' docs__row--current' : ''}`}
+              data-tour="doc-peer-review"
               onClick={() => {
                 setLettersPicked(false)
                 setReviewRoundId((cur) => (cur === false ? null : cur))
