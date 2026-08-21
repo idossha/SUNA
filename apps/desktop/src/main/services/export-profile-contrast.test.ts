@@ -3,7 +3,7 @@
  * SAME project must come out differently under a numeric-citation profile and
  * an author-year one. export-docx.test.ts covers the fixture's structure and
  * jneurosci's alphabetical reference list; this file covers the CONTRAST, on the
- * shipped examples/demo-paper, end to end through `exportDocx` — and asserts
+ * shipped examples/hello-suna, end to end through `exportDocx` — and asserts
  * the HTML the PDF path prints, which is everything about export:pdf that is
  * reachable without an Electron runtime (printToPDF itself needs one).
  *
@@ -12,7 +12,7 @@
  * fonts, sizes, back matter) and still genuinely differ in citation mode,
  * reference ordering and any stated documentStyle deltas.
  *
- * The repo's demo-paper is copied to a temp dir first: `exportDocx` writes
+ * The repo's hello-suna is copied to a temp dir first: `exportDocx` writes
  * into `<dir>/output/`, and the shipped example must stay pristine.
  */
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -39,7 +39,7 @@ function visibleText(xml: string): string {
   return xml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ')
 }
 
-describe('profile-driven export contrast (examples/demo-paper)', () => {
+describe('profile-driven export contrast (examples/hello-suna)', () => {
   let base: string
   let work: string
   let figurePngPaths: Record<string, string>
@@ -47,16 +47,16 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
   const docxXml: Record<string, string> = {}
 
   beforeAll(async () => {
-    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'demo-paper')
+    const demoDir = resolve(import.meta.dirname, '..', '..', '..', '..', '..', 'examples', 'hello-suna')
     base = await mkdtemp(join(tmpdir(), 'suna-export-contrast-'))
-    work = join(base, 'demo-paper')
+    work = join(base, 'hello-suna')
     await cp(demoDir, work, { recursive: true })
     allowRoot(work)
 
     // figure PNGs must live inside the project: export-content validates every
     // supplied path against the allowed roots
     figurePngPaths = {}
-    for (const id of ['fig-spectrum', 'fig-velocity-map']) {
+    for (const id of ['hello', 'timesheet']) {
       const p = join(work, 'figures', id, 'figure.png')
       await writeFile(p, TINY_PNG)
       figurePngPaths[id] = p
@@ -66,7 +66,7 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
       const res = await exportDocx({
         dir: work,
         profileId,
-        outputName: `demo-${profileId}`,
+        outputName: `hello-${profileId}`,
         figurePngPaths,
         options: OPTIONS
       })
@@ -91,19 +91,18 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
   it('both exports carry the manuscript title, authors, headings and a reference', () => {
     for (const profileId of ['nature', 'jneurosci']) {
       const text = docxText[profileId] as string
-      expect(text).toContain('Rapid quenching by ram-pressure stripping')
-      expect(text).toContain('Ada Researcher')
-      expect(text).toContain('Ben Collaborator')
+      expect(text).toContain('Hello SUNA')
+      expect(text).toContain('Ada Author')
+      expect(text).toContain('Ben Coauthor')
       expect(text).toContain('Results')
-      expect(text).toContain('Discussion')
       expect(text).toContain('Methods')
-      expect(text).toMatch(/Gunn/)
-      expect(text).toMatch(/1972/)
+      expect(text).toMatch(/Knuth/)
+      expect(text).toMatch(/1984/)
     }
   })
 
   it('renders author-year in-text citations for jneurosci but not for nature', () => {
-    const authorYear = /\(Gunn[^)]*1972[^)]*\)/g
+    const authorYear = /\(Knuth[^)]*1984[^)]*\)/g
     expect((docxText['jneurosci'] as string).match(authorYear) ?? []).not.toHaveLength(0)
     expect((docxText['nature'] as string).match(authorYear) ?? []).toHaveLength(0)
   })
@@ -129,7 +128,7 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
     }
   })
 
-  it('both exports carry the demo back matter in the ground-truth order, before the references', () => {
+  it('both exports carry the back matter in the ground-truth order, before the references', () => {
     for (const profileId of ['nature', 'jneurosci']) {
       const text = docxText[profileId] as string
       const order = [
@@ -140,12 +139,16 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
         'Author Contributions',
         'References'
       ]
-      const positions = order.map((title) => text.indexOf(title))
-      for (const [i, at] of positions.entries()) {
-        expect(at, `${profileId}: "${order[i]}" missing`).toBeGreaterThan(-1)
+      // Scanned forward rather than by bare indexOf: the example's own prose
+      // contains the word "References" in a table, and a back-matter ORDER
+      // assertion must not be satisfiable — or broken — by body text.
+      let from = 0
+      for (const title of order) {
+        const at = text.indexOf(title, from)
+        expect(at, `${profileId}: "${title}" missing after position ${from}`).toBeGreaterThan(-1)
+        from = at + title.length
       }
-      expect([...positions].sort((a, b) => a - b)).toEqual(positions)
-      expect(text).toContain('Example Science Foundation (ESF-2026-0042); Cosmic Discovery Trust')
+      expect(text).toContain('Example Science Foundation (ESF-2026-0042); No One')
     }
   })
 
@@ -163,8 +166,8 @@ describe('profile-driven export contrast (examples/demo-paper)', () => {
         lineNumbers: OPTIONS.lineNumbers
       })
       expect(html.toLowerCase()).toContain('<html')
-      expect(html).toContain('Rapid quenching by ram-pressure stripping')
-      expect(html).toContain('Ada Researcher')
+      expect(html).toContain('Hello SUNA')
+      expect(html).toContain('Ada Author')
       expect(html).toContain('ms-body')
     }
   })

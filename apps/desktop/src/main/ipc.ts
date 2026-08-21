@@ -20,10 +20,17 @@ import { listVersions, logVersion, readVersionFile } from './services/version-lo
 import { listCompareSides, readCompareDocument, setRoundBaseline } from './services/compare'
 import { documentFile, projectDocument, projectDocuments } from './services/paths'
 import { readFile } from 'node:fs/promises'
+import {
+  archiveDirName,
+  EXAMPLE_STAMP_FILE,
+  parseExampleStamp,
+  serializeExampleStamp,
+  slugifyProjectName
+} from './services/example-stamp'
 import { pointStateFor } from '@suna/core'
 import { checkResponse } from '@suna/formatter'
 import { BrowserWindow, app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { access, cp } from 'node:fs/promises'
+import { access, cp, readdir, rename, writeFile } from 'node:fs/promises'
 import { basename, join, relative, resolve, sep } from 'node:path'
 import {
   CHANNELS,
@@ -195,11 +202,11 @@ async function litCliPreference(): Promise<LitCliPreference> {
 /** The demo paper shipped with the repo (dev) or app resources (packaged). */
 async function exampleProjectDir(): Promise<string> {
   const candidates = app.isPackaged
-    ? [join(process.resourcesPath, 'examples', 'demo-paper')]
+    ? [join(process.resourcesPath, 'examples', 'hello-suna')]
     : [
-        resolve(app.getAppPath(), '..', '..', 'examples', 'demo-paper'),
-        resolve(process.cwd(), '..', '..', 'examples', 'demo-paper'),
-        resolve(process.cwd(), 'examples', 'demo-paper')
+        resolve(app.getAppPath(), '..', '..', 'examples', 'hello-suna'),
+        resolve(process.cwd(), '..', '..', 'examples', 'hello-suna'),
+        resolve(process.cwd(), 'examples', 'hello-suna')
       ]
   for (const dir of candidates) {
     try {
@@ -209,24 +216,73 @@ async function exampleProjectDir(): Promise<string> {
       // keep looking
     }
   }
-  throw new Error('example project not found (examples/demo-paper)')
+  throw new Error('example project not found (examples/hello-suna)')
+}
+
+/** A project manifest's `name`, or null if it cannot be read. */
+async function projectName(dir: string): Promise<string | null> {
+  try {
+    const manifest: unknown = JSON.parse(await readFile(join(dir, 'suna.json'), 'utf8'))
+    if (typeof manifest !== 'object' || manifest === null) return null
+    const name = (manifest as Record<string, unknown>)['name']
+    return typeof name === 'string' ? name : null
+  } catch {
+    return null
+  }
+}
+
+/** The name a stale example copy is filed under when it is moved aside. */
+async function archiveStaleExampleCopy(userData: string, target: string): Promise<void> {
+  const name = await projectName(target)
+  const label = name === null ? 'previous' : slugifyProjectName(name)
+  const siblings = await readdir(userData).catch(() => [] as string[])
+  const archived = join(userData, archiveDirName(basename(target), label, siblings))
+  allowRoot(archived)
+  await rename(target, archived)
+  console.warn(`example copy came from a different bundled example; kept it at ${archived}`)
 }
 
 /**
  * The example opens as a user-owned COPY under userData so edits and commits
  * never dirty the shipped demo (or the SUNA repo in dev). The copy is made
- * once; subsequent opens reuse it as-is, preserving user edits.
+ * once and reused as-is, preserving user edits.
+ *
+ * "As-is" is qualified by WHICH example it is a copy of. The copy carries a
+ * stamp naming its source (services/example-stamp.ts); when the app starts
+ * shipping a different example, a copy of the old one no longer answers to
+ * "open the example", so it is moved aside — never deleted, it may hold real
+ * work — and a fresh copy is taken.
  */
 async function ensureExampleProjectCopy(): Promise<string> {
-  const target = join(app.getPath('userData'), 'example-project')
+  const userData = app.getPath('userData')
+  const target = join(userData, 'example-project')
   allowRoot(target)
+  const source = await exampleProjectDir()
+  const sourceId = basename(source)
+
   const alreadyCopied = await access(join(target, 'suna.json')).then(
     () => true,
     () => false
   )
-  if (alreadyCopied) return target
+  if (alreadyCopied) {
+    const stamp = parseExampleStamp(
+      await readFile(join(target, EXAMPLE_STAMP_FILE), 'utf8').catch(() => '')
+    )
+    if (stamp === sourceId) return target
+    if (stamp === null) {
+      // A copy from before stamps existed. Its manifest name is the only
+      // evidence available, and it is enough: a copy of the CURRENT example
+      // is adopted and stamped rather than needlessly archived, which is
+      // what nearly every existing install has.
+      const [copied, shipped] = await Promise.all([projectName(target), projectName(source)])
+      if (copied !== null && copied === shipped) {
+        await writeFile(join(target, EXAMPLE_STAMP_FILE), serializeExampleStamp(sourceId), 'utf8')
+        return target
+      }
+    }
+    await archiveStaleExampleCopy(userData, target)
+  }
 
-  const source = await exampleProjectDir()
   await cp(source, target, {
     recursive: true,
     filter: (src) => {
@@ -237,6 +293,7 @@ async function ensureExampleProjectCopy(): Promise<string> {
       return basename(src) !== '.DS_Store'
     }
   })
+  await writeFile(join(target, EXAMPLE_STAMP_FILE), serializeExampleStamp(sourceId), 'utf8')
   // Version control from birth; best-effort if git is unavailable.
   try {
     await gitInit(target)

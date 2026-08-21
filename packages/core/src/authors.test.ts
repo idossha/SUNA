@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import demoAuthors from '../../../examples/demo-paper/manuscript/authors.json';
+import demoAuthors from '../../../examples/hello-suna/manuscript/authors.json';
 import { AuthorsFileSchema, emptyAuthorsFile, type AuthorsFile } from './authors';
 
 const fixture = {
@@ -79,7 +79,7 @@ describe('AuthorsFileSchema', () => {
     expect(parsed.affiliations[0]).not.toHaveProperty('number');
   });
 
-  it('keeps the shipped demo-paper authors.json schema-valid', () => {
+  it('keeps the shipped hello-suna authors.json schema-valid', () => {
     const parsed = AuthorsFileSchema.parse(demoAuthors);
     expect(parsed.authors).toHaveLength(2);
     expect(parsed.affiliations).toHaveLength(2);

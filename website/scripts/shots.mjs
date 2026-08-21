@@ -2,7 +2,7 @@
 /**
  * Regenerate the website's screenshots from the real application.
  *
- * Boots SUNA hidden against a fresh copy of examples/demo-paper, drives every
+ * Boots SUNA hidden against a fresh copy of examples/hello-suna, drives every
  * documented surface (scripts/e2e/probes/docs-shots.mjs), converts the raw
  * captures to WebP, and stops the app again. The PNGs are ~500 KB each and
  * the WebPs ~120 KB for the same legibility at the width the site shows them,

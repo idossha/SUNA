@@ -1,0 +1,15 @@
+{
+  "id": "timesheet",
+  "namespace": "main",
+  "widthPreset": "single",
+  "caption": {
+    "title": "Where the week went, before and after.",
+    "body": "Hours per week spent on four chores, by week, from a self-kept timesheet. The dashed line marks the week SUNA was adopted; the participant was aware of the dashed line at the time. Rasterized at 300 dpi because 96 vector quads is not a thing anybody should email.",
+    "abbreviations": []
+  },
+  "panels": [],
+  "provenance": {
+    "generator": { "script": "source/plot.py", "interpreter": "python" },
+    "overlay": []
+  }
+}

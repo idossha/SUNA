@@ -147,7 +147,7 @@ const EXPECTED_TOOLS = [
 async function main() {
   const argv = process.argv
   const projectIndex = argv.indexOf('--project')
-  const project = projectIndex >= 0 ? argv[projectIndex + 1] : join(ROOT, 'examples', 'demo-paper')
+  const project = projectIndex >= 0 ? argv[projectIndex + 1] : join(ROOT, 'examples', 'hello-suna')
   const toolsOnly = argv.includes('--tools-only')
   const asJson = argv.includes('--json')
   const log = (line) => {

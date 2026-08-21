@@ -270,4 +270,4 @@ That is what makes the prose file safe to reorder. See [the manuscript](/writing
 
 ## A complete example
 
-The demo project shipped with SUNA is a working SciMark manuscript that uses nearly every construct on this page — bracketed and multiple citations, a labelled display equation and a reference to it, inline math, panel references, a figure embed, a table embed above a GFM table, and a `{=latex}` fence. It is at `examples/demo-paper/manuscript/manuscript.md`, and it is copyable verbatim.
+The demo project shipped with SUNA is a working SciMark manuscript that uses nearly every construct on this page — bracketed and multiple citations, a labelled display equation and a reference to it, inline math, panel references, a figure embed, a table embed above a GFM table, and a `{=latex}` fence. It is at `examples/hello-suna/manuscript/manuscript.md`, and it is copyable verbatim.

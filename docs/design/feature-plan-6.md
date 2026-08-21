@@ -135,7 +135,7 @@ warns (never blocks) on violations.
 
 - **Do not run `pnpm smoke`** for this work (user instruction). Gates are
   `pnpm typecheck && pnpm test`, plus **fixture-driven verification**: a real
-  round-trip on `examples/demo-paper` and on a small committed `.docx`
+  round-trip on `examples/hello-suna` and on a small committed `.docx`
   fixture, asserted from Node rather than the UI.
 - Import never overwrites an existing project without explicit confirmation;
   it writes into a fresh directory by default.

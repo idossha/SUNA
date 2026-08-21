@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "authors": [
+    {
+      "id": "a1",
+      "given": "Ada",
+      "family": "Author",
+      "nativeScript": null,
+      "orcid": "0000-0002-1825-0097",
+      "affiliationRefs": ["af1"],
+      "corresponding": true,
+      "email": "ada@example.edu",
+      "equalContribution": false,
+      "deceased": false
+    },
+    {
+      "id": "a2",
+      "given": "Ben",
+      "family": "Coauthor",
+      "nativeScript": null,
+      "orcid": null,
+      "affiliationRefs": ["af2"],
+      "corresponding": false,
+      "email": null,
+      "equalContribution": false,
+      "deceased": false
+    }
+  ],
+  "affiliations": [
+    { "id": "af1", "text": "Department of Writing Things Down, Example University, Madison, WI, USA" },
+    { "id": "af2", "text": "Two doors down, Example University, Madison, WI, USA" }
+  ]
+}

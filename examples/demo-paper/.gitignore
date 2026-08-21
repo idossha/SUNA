@@ -1,6 +1,0 @@
-output/
-.DS_Store
-__pycache__/
-.venv/
-.mcp.json
-manuscript/**/*.private.json

@@ -1,0 +1,21 @@
+{
+  "id": "hello",
+  "namespace": "main",
+  "widthPreset": "double",
+  "caption": {
+    "title": "The measurable effect of SUNA on the working scientist.",
+    "body": "**a**, Self-reported happiness over the life of a project, with your old text editor as the control (n = 1, the author, unblinded). **b**, Time per week spent on four chores, before and after adopting SUNA. Open this figure on the canvas and drag something to see an edit recorded against the source, then replace both panels with a real result; the colours are from the colourblind-safe palette SUNA style recommends.",
+    "abbreviations": []
+  },
+  "panels": [
+    {
+      "letter": "a",
+      "subLabels": []
+    },
+    {
+      "letter": "b",
+      "subLabels": []
+    }
+  ],
+  "provenance": null
+}

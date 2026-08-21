@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "id": "round-1",
+  "kind": "external",
+  "label": "Round 1 — demonstration",
+  "venue": "A journal you have not chosen yet",
+  "state": "returned",
+  "createdAt": "2026-08-21T06:00:13.128Z",
+  "freeze": null,
+  "recipients": [],
+  "pointStates": [
+    {
+      "pointId": "r1.1",
+      "status": "done",
+      "assignee": null,
+      "reply": "RE: The referee is right that there was no hypothesis, and we have put one where a reader would look for it:\n\n::quote\nProse is Markdown with a few additions for scientific writing. +++We hypothesise that this is enough.+++\n::\n\nThat is what a reply looks like here. You write it beside the referee's words rather than in a separate document, and their text above is read-only — nothing in SUNA offers a control that would edit it, because editing a referee's words is misconduct.\n\nA response letter has three voices and this one uses all of them: ours, the manuscript quoted back unchanged, and the part of the quotation that is new. They are marks in the text — `::quote … ::` around the excerpt, `+++ … +++` around the change — not formatting you apply, so the reply stays a plain string you could email. The response document is derived from these replies at export, which means what you write here IS the letter.",
+      "links": [
+        {
+          "documentId": "manuscript",
+          "quote": "Prose is Markdown with a few additions for scientific writing",
+          "prefix": "",
+          "suffix": ""
+        }
+      ]
+    },
+    {
+      "pointId": "r1.2",
+      "status": "rebutted",
+      "assignee": null,
+      "reply": "RE: We have considered the coffee term and respectfully decline to add it. @eq:hello is an identity over the things a manuscript is made of; coffee is a thing the author is made of.\n\nThis point is marked Rebutted, which is a real outcome rather than a failure. The counter at the top of this tab treats a rebuttal as answered, because arguing back in writing is answering — a tool that scored only compliance would quietly press you into conceding points you should defend.",
+      "links": []
+    },
+    {
+      "pointId": "r1.3",
+      "status": "drafted",
+      "assignee": null,
+      "reply": "RE: Agreed. The caption will state the sample size and the absence of blinding in its own sentence rather than in a parenthesis, and\n\n<!-- Drafted: a reply that exists but is not finished. Nothing advances the status for you — you set it when you mean it, and until then this point still counts as outstanding at the top of the tab. -->",
+      "links": []
+    },
+    {
+      "pointId": "r1.4",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r1.5",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r2.1",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r2.2",
+      "status": "done",
+      "assignee": null,
+      "reply": "RE: So noted. We thank the referee for the only unambiguous endorsement in this round.",
+      "links": []
+    },
+    {
+      "pointId": "r2.3",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r3.1",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r3.2",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    },
+    {
+      "pointId": "r3.3",
+      "status": "unaddressed",
+      "assignee": null,
+      "reply": "",
+      "links": []
+    }
+  ],
+  "decision": "major-revision",
+  "decidedAt": "2026-08-21T06:00:13.128Z",
+  "responseDocumentId": null,
+  "baselineVersionId": null
+}

@@ -60,7 +60,7 @@ afterEach(async () => {
 describe('suna.json compatibility', () => {
   it('still parses the shipped demo project, which predates the settings block', async () => {
     const path = fileURLToPath(
-      new URL('../../../../../examples/demo-paper/suna.json', import.meta.url)
+      new URL('../../../../../examples/hello-suna/suna.json', import.meta.url)
     )
     const parsed = SunaProjectManifestSchema.safeParse(
       JSON.parse(await readFile(path, 'utf8')) as unknown

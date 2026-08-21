@@ -15,7 +15,7 @@
  * Isolation/reset strategy: the app runs against a scratch userData at
  * scripts/e2e/.userdata-smoke, wiped at the start of every run — the
  * developer's real profile (settings.json, recents, localStorage) is never
- * touched, and every run starts from the pristine examples/demo-paper with
+ * touched, and every run starts from the pristine examples/hello-suna with
  * a git repo holding exactly one "Initial commit".
  *
  * Usage:  node scripts/e2e/smoke.mjs [flags]   (or: pnpm smoke)
@@ -536,7 +536,7 @@ function cleanup() {
 }
 process.on('exit', cleanup)
 
-let FIGURE = null // <copy>/figures/fig-spectrum/figure.svg — known after open
+let FIGURE = null // <copy>/figures/timesheet/figure.svg — known after open
 let originalSvg = null
 /** Scratch project directories the feature-plan-5 steps create outside the
  *  example copy; removed in the finally block however the run ends. */
@@ -616,7 +616,10 @@ try {
       rootDir === COPY_DIR,
       `open-example landed at ${rootDir}, expected the userData copy ${COPY_DIR}`
     )
-    FIGURE = join(rootDir, 'figures', 'fig-spectrum', 'figure.svg')
+    // The generated figure, not the hand-drawn one: the canvas suite drags a
+    // matplotlib-tagged element by gid, and figures/hello/ is a hand-authored
+    // SVG with no suna_mpl gids in it by design.
+    FIGURE = join(rootDir, 'figures', 'timesheet', 'figure.svg')
     originalSvg = readFileSync(FIGURE, 'utf8')
     // Normalize the persisted view preferences before anything asserts on
     // them: the editor appearance store (localStorage), the per-project
@@ -638,7 +641,7 @@ try {
       profile: document.querySelector('.statusbar__profile')?.textContent ?? null,
       tree: !!document.querySelector('.tree')
     })`)
-    assert(state.profile === 'Nature', `profile chip: ${state.profile}`)
+    assert(state.profile === 'SUNA style', `profile chip: ${state.profile}`)
     assert(state.tree, 'explorer tree missing')
     assert(existsSync(join(rootDir, '.git')), 'example copy was not git-initialized')
     await screenshot('01-project-open.png')
@@ -646,7 +649,7 @@ try {
 
   await step('editor-opens-section', async () => {
     const text = await evalJs(`document.querySelector('.cm-content')?.textContent ?? ''`)
-    assert(text.includes('Galaxies falling'), 'intro section not in editor')
+    assert(text.includes('working tour of the editor'), 'intro section not in editor')
   })
 
   await step('sidebar-resize', async () => {
@@ -795,7 +798,7 @@ try {
       artboard: document.querySelector('.canvas-tab__meta')?.textContent ?? ''
     })`)
     assert(r.svg, 'figure SVG not mounted on canvas')
-    assert(r.artboard.includes('183.0'), `artboard label: ${r.artboard}`)
+    assert(r.artboard.includes('127.0'), `artboard label: ${r.artboard}`)
     await screenshot('03-canvas.png')
   })
 
@@ -815,7 +818,7 @@ try {
     // probe inside the target's bbox for a point that actually hits it
     // (text glyphs have gaps; frameless legends are mostly holes)
     const center = await evalJs(`(() => {
-      const id = 'ax0.title.left';
+      const id = 'ax0.xlabel';
       const el = document.querySelector('.canvas-world svg [id="' + id + '"]');
       if (!el) throw new Error(id + ' not found in mounted SVG');
       const r = el.getBoundingClientRect();
@@ -907,10 +910,11 @@ try {
     await sleep(600)
     const el = tagWithId(readFileSync(FIGURE, 'utf8'), rectId)
     assert(el.name === 'rect', `id="${rectId}" is a <${el.name}>, want <rect>`)
-    // Nature states no suggested palette, so new shapes take the built-in
-    // Wong default, whose first entry is #E69F00 (spec §4: profile defaults).
+    // SUNA style suggests the Wong palette explicitly, and a new shape takes
+    // its FIRST entry — #000000 (spec §4: profile defaults). Under a profile
+    // that states no palette the built-in default (#E69F00) applies instead.
     assert(
-      el.markup.includes('fill="#E69F00"'),
+      el.markup.includes('fill="#000000"'),
       `new rect misses profile default fill: ${el.markup}`
     )
     assert(!el.markup.includes('stroke='), `new rect should carry no stroke: ${el.markup}`)
@@ -1089,14 +1093,11 @@ try {
       `[...document.querySelectorAll('.ms__row:not(.ms__row--total) .ms__row-label')].map((e) => e.textContent)`
     )
     assert(
-      outline.length === 4,
-      `outline should list 4 sections, got ${outline.length}: ${outline.join(', ')}`
+      outline.length === 3,
+      `outline should list 3 sections, got ${outline.length}: ${outline.join(', ')}`
     )
     assert(
-      outline[0] === 'untitled' &&
-        outline[1] === 'Results' &&
-        outline[2] === 'Discussion' &&
-        outline[3] === 'Methods',
+      outline[0] === 'untitled' && outline[1] === 'Results' && outline[2] === 'Methods',
       `unexpected outline: ${outline.join(', ')}`
     )
     const meta = await evalJs(
@@ -1158,19 +1159,19 @@ try {
       labels: [...document.querySelectorAll('.msdoc__label')].map((e) => e.textContent)
     })`)
     assert(
-      tp.title.includes('Rapid quenching by ram-pressure stripping'),
+      tp.title.includes('Hello SUNA'),
       `title page title: ${tp.title.slice(0, 80)}`
     )
-    assert(tp.titleKatex, 'title math ($z = 1.7$) not rendered through KaTeX')
+    assert(tp.titleKatex, 'title math ($n = 1$) not rendered through KaTeX')
     assert(
-      tp.authors.some((a) => a.includes('Ada Researcher')) &&
-        tp.authors.some((a) => a.includes('Ben Collaborator')),
+      tp.authors.some((a) => a.includes('Ada Author')) &&
+        tp.authors.some((a) => a.includes('Ben Coauthor')),
       `authors line: ${tp.authors.join(' | ')}`
     )
     assert(tp.adaSup === '1,*', `Ada's superscript markers: ${tp.adaSup} (want 1,*)`)
     assert(tp.affiliations === 2, `affiliation lines: ${tp.affiliations} (want 2)`)
     assert(
-      tp.correspondence.includes('ada@observatory.edu'),
+      tp.correspondence.includes('ada@example.edu'),
       `correspondence line: ${tp.correspondence}`
     )
     assert(
@@ -1179,7 +1180,11 @@ try {
     )
     assert(tp.labels.includes('References'), 'References block missing from the document')
 
-    // references numbered by first appearance: gunn1972 is cited first (intro)
+    // The example project drafts in SUNA style, which states author-year
+    // citations and an ALPHABETICAL reference list — so the list carries no
+    // numbers and opens on Chacon, not on the first-cited key. Both of those
+    // are the profile being obeyed, and a numeric profile is asserted against
+    // the same project in export-profile-contrast.test.ts.
     const refs = await evalJs(`({
       count: document.querySelectorAll('.msdoc__ref').length,
       unknown: document.querySelectorAll('.msdoc__ref--unknown').length,
@@ -1188,10 +1193,10 @@ try {
     })`)
     assert(refs.count === 11, `expected 11 references (all cited), got ${refs.count}`)
     assert(refs.unknown === 0, `${refs.unknown} citation keys missing from references.bib`)
-    assert(refs.firstNum === '1.', `first reference number: ${refs.firstNum} (want 1.)`)
+    assert(refs.firstNum === null, `author-year list should carry no numbers, got ${refs.firstNum}`)
     assert(
-      refs.firstText.includes('Gunn'),
-      `entry 1 should be gunn1972 (first-cited): ${refs.firstText.slice(0, 80)}`
+      refs.firstText.includes('Chacon'),
+      `entry 1 should be chacon2014 (alphabetically first): ${refs.firstText.slice(0, 80)}`
     )
 
     // title page + first section screenshot from the top of the document
@@ -1202,15 +1207,17 @@ try {
     // outline click → smooth scroll to Methods; scroll-spy marks the row
     await evalJs(`[...document.querySelectorAll('.ms__row')]
       .find((r) => r.textContent.includes('Methods')).click()`)
+    // Methods is the third and last section of the example (untitled, Results,
+    // Methods), so index 2.
     const methodsDeadline = Date.now() + 8_000
     let active = -1
-    while (Date.now() < methodsDeadline && active !== 3) {
+    while (Date.now() < methodsDeadline && active !== 2) {
       active = await evalJs(
         `(()=>{const s=window.__sunaDev.manuscriptDocStore.getState();return s.byDoc[s.activeDocumentId]??{}})().activeSectionIndex`
       )
-      if (active !== 3) await sleep(300)
+      if (active !== 2) await sleep(300)
     }
-    assert(active === 3, `after Methods click, active section is ${active} (want 3)`)
+    assert(active === 2, `after Methods click, active section is ${active} (want 2)`)
     const outline = await evalJs(`({
       activeLabel: document.querySelector('.ms__row--active .ms__row-label')?.textContent ?? null,
       // .ms__row--total carries the whole-manuscript count; the per-section
@@ -1224,7 +1231,7 @@ try {
       `outline active row: ${outline.activeLabel} (want Methods)`
     )
     assert(
-      outline.counts.length === 4 && outline.counts.every((c) => Number.isFinite(c) && c > 0),
+      outline.counts.length === 3 && outline.counts.every((c) => Number.isFinite(c) && c > 0),
       `per-section word counts missing/empty: ${outline.counts.join(', ')}`
     )
     assert(
@@ -1328,7 +1335,7 @@ try {
     '| :--- | :----: | ----: |',
     '| a | b | c |',
     '',
-    '![[fig:fig-spectrum]]',
+    '![[fig:hello]]',
     '',
     '![small raster](block-probe-small.png)',
     '',
@@ -1945,23 +1952,23 @@ try {
       )
 
       // Folder open vs closed are two different marks, not one rotated glyph.
-      // Measured on fig-spectrum/, not on a suna.json directory: those carry
+      // Measured on hello/, not on a suna.json directory: those carry
       // their own semantic icon and never switch.
       const folderIcon = () => evalJs(`(() => {
         const row = [...document.querySelectorAll('.tree__row')]
-          .find((r) => (r.dataset.path ?? '').split('/').pop() === 'fig-spectrum');
-        if (!row) throw new Error('no fig-spectrum/ row in the tree');
+          .find((r) => (r.dataset.path ?? '').split('/').pop() === 'hello');
+        if (!row) throw new Error('no hello/ row in the tree');
         return { path: row.dataset.path, icon: row.querySelector('.tree__icon svg').innerHTML,
                  expanded: row.getAttribute('aria-expanded') };
       })()`)
       const opened = await folderIcon()
-      assert(opened.expanded === 'true', `fig-spectrum/ starts collapsed (${opened.expanded})`)
+      assert(opened.expanded === 'true', `hello/ starts collapsed (${opened.expanded})`)
       await evalJs(
         `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(opened.path)})`
       )
       await sleep(400)
       const closed = await folderIcon()
-      assert(closed.expanded === 'false', `collapsing fig-spectrum/ left aria-expanded=${closed.expanded}`)
+      assert(closed.expanded === 'false', `collapsing hello/ left aria-expanded=${closed.expanded}`)
       assert(
         closed.icon !== opened.icon,
         'the folder icon is identical open and closed — no open/closed mark is drawn'
@@ -2029,24 +2036,24 @@ try {
     })`)
     assert(
       cards.names.length === 2 &&
-        cards.names.includes('fig-spectrum') &&
-        cards.names.includes('fig-velocity-map'),
+        cards.names.includes('hello') &&
+        cards.names.includes('timesheet'),
       `figure cards: ${cards.names.join(', ')}`
     )
     assert(cards.thumbs === 2, `expected 2 SVG thumbnails, got ${cards.thumbs}`)
     await screenshot('views-figures.png')
     // clicking a card opens that figure on the canvas
     await evalJs(`[...document.querySelectorAll('.figs__card')]
-      .find((c) => c.textContent.includes('fig-velocity-map')).click()`)
+      .find((c) => c.textContent.includes('timesheet')).click()`)
     await sleep(1500)
     const r = await evalJs(`({
       svg: !!document.querySelector('.canvas-world svg'),
       artboard: document.querySelector('.canvas-tab__meta')?.textContent ?? ''
     })`)
-    assert(r.svg, 'velocity-map SVG not mounted on canvas')
-    assert(r.artboard.includes('89.0'), `velocity-map artboard label: ${r.artboard}`)
+    assert(r.svg, 'timesheet SVG not mounted on canvas')
+    assert(r.artboard.includes('127.0'), `timesheet artboard label: ${r.artboard}`)
     const chip = await evalJs(`document.querySelector('.canvas-tab__issues')?.textContent ?? null`)
-    assert(chip === null, `velocity-map should be compliant (300 dpi raster), got: ${chip}`)
+    assert(chip === null, `timesheet should be compliant (300 dpi raster), got: ${chip}`)
   })
 
   await step('references-view', async () => {
@@ -2593,7 +2600,7 @@ try {
 
   await step('csv-data-grid', async () => {
     const dir = await evalJs(`window.__sunaDev.projectStore.getState().rootDir`)
-    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__DIR__/data/members.csv')}.replace('__DIR__', ${JSON.stringify(dir)}))`)
+    await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__DIR__/data/timesheet.csv')}.replace('__DIR__', ${JSON.stringify(dir)}))`)
     await sleep(1200)
     const grid = await evalJs(`({
       table: !!document.querySelector('table.dataview__table'),
@@ -2602,8 +2609,8 @@ try {
       toggle: !!document.querySelector('.dataview__toggle')
     })`)
     assert(grid.table, 'csv did not open as a data grid')
-    assert(grid.headers.some((h) => h.includes('mass')), `unexpected headers: ${grid.headers.join('|')}`)
-    assert(grid.rows > 10, `expected the demo members table to have rows, got ${grid.rows}`)
+    assert(grid.headers.some((h) => h.includes('hours')), `unexpected headers: ${grid.headers.join('|')}`)
+    assert(grid.rows > 10, `expected the timesheet table to have rows, got ${grid.rows}`)
     await screenshot('csv-grid.png')
   })
 
@@ -2709,7 +2716,7 @@ try {
     await sleep(400)
 
     // --- code/data: width never applies, never wraps, hugs the gutter, mono
-    for (const file of ['code/stripping_model.py', 'figures/fig-spectrum/figure.svg.suna.json']) {
+    for (const file of ['code/happiness_model.py', 'figures/timesheet/figure.svg.suna.json']) {
       await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify('__D__/' + file)}.replace('__D__', ${JSON.stringify(dir)}))`)
       await sleep(1400)
       const kind = await evalJs(
@@ -2966,7 +2973,7 @@ try {
     assert(texts.includes('Fig. 2'), `no "Fig. 2" chip: ${texts.join(' | ')}`)
     assert(
       texts.includes('Fig. 1a') && texts.includes('Fig. 1b'),
-      `panel-suffix crossrefs "(@fig:fig-spectrum{a})" did not resolve: ${texts.join(' | ')}`
+      `panel-suffix crossrefs "(@fig:hello{a})" did not resolve: ${texts.join(' | ')}`
     )
     assert(
       chips.every((c) => !c.cls.includes('cm-lp-xref--unresolved')),
@@ -3110,11 +3117,11 @@ try {
     )
     assert(apj.refCount === 11, `reference count under J. Neurosci.: ${apj.refCount}`)
     assert(
-      apj.refFirst.includes('Astropy'),
-      `alphabetical list should start at Astropy, got: ${apj.refFirst.slice(0, 60)}`
+      apj.refFirst.includes('Chacon'),
+      `alphabetical list should start at Chacon, got: ${apj.refFirst.slice(0, 60)}`
     )
     assert(
-      apj.sidebarNums.length === 0 && apj.sidebarKeys[0] === 'astropy2022',
+      apj.sidebarNums.length === 0 && apj.sidebarKeys[0] === 'chacon2014',
       `sidebar list not alphabetical/unnumbered: ${apj.sidebarKeys.slice(0, 3).join(', ')}`
     )
     await screenshot('fix-authoryear.png')
@@ -3136,11 +3143,11 @@ try {
     )
     assert(nat.refNums[0] === '1.', `numeric list should restart at 1., got: ${nat.refNums[0]}`)
     assert(
-      nat.refFirst.includes('Gunn'),
-      `entry 1 should be gunn1972 again: ${nat.refFirst.slice(0, 60)}`
+      nat.refFirst.includes('Knuth'),
+      `entry 1 should be knuth1984 again: ${nat.refFirst.slice(0, 60)}`
     )
     assert(
-      nat.sidebarKeys[0] === 'gunn1972' && nat.sidebarNums[0] === '1.',
+      nat.sidebarKeys[0] === 'knuth1984' && nat.sidebarNums[0] === '1.',
       `sidebar list did not renumber: ${nat.sidebarKeys.slice(0, 3).join(', ')}`
     )
   })
@@ -3264,7 +3271,7 @@ try {
     // The journal rendering — with DERIVED superscripts — is what you see
     // until you click; the editors must never replace it permanently.
     assert(
-      shape.authorLine.includes('Ada Researcher') && shape.authorLine.includes('Ben Collaborator'),
+      shape.authorLine.includes('Ada Author') && shape.authorLine.includes('Ben Coauthor'),
       `author line: ${shape.authorLine}`
     )
     assert(
@@ -3291,7 +3298,7 @@ try {
       renamed.authors[1].family === 'Kowalczyk',
       `authors.json author 2: ${renamed.authors[1].family}`
     )
-    assert(renamed.authors[0].family === 'Researcher', 'the other author was disturbed')
+    assert(renamed.authors[0].family === 'Author', 'the other author was disturbed')
     assert(Array.isArray(renamed.affiliations) && renamed.affiliations.length === 2,
       'affiliations were disturbed by an author rename')
 
@@ -3349,8 +3356,8 @@ try {
       `author line after reorder: ${reordered.authorLine}`
     )
     assert(
-      reordered.affs[0].includes('Institute for Cosmic Discovery') &&
-        reordered.affs[1].includes('Department of Astronomy'),
+      reordered.affs[0].includes('Two doors down') &&
+        reordered.affs[1].includes('Department of Writing Things Down'),
       `affiliations did not renumber: ${JSON.stringify(reordered.affs)}`
     )
     const onDisk = JSON.parse(readFileSync(AUTHORS_JSON, 'utf8'))
@@ -3380,15 +3387,15 @@ try {
 
     // --- ⌘B on a word -> **word** on disk, ⌘B again -> back ----------------
     assert(
-      (await dragSelectInSection('centroid')) === 'centroid',
+      (await dragSelectInSection('hand-maintained')) === 'hand-maintained',
       'could not select the word to format'
     )
     await key('b', 'KeyB', 4)
     await sleep(350)
     await saveSection()
     assert(
-      readFileSync(MANUSCRIPT_MD, 'utf8').includes('**centroid**'),
-      '⌘B did not write **centroid** to the section file'
+      readFileSync(MANUSCRIPT_MD, 'utf8').includes('**hand-maintained**'),
+      '⌘B did not write **hand-maintained** to the section file'
     )
     await key('b', 'KeyB', 4)
     await sleep(350)
@@ -3399,7 +3406,7 @@ try {
     )
 
     // --- right-click WITH a selection: the documented menu ------------------
-    assert((await dragSelectInSection('centroid')) === 'centroid', 'could not reselect')
+    assert((await dragSelectInSection('hand-maintained')) === 'hand-maintained', 'could not reselect')
     const at = await evalJs(`(() => {
       const r = window.getSelection().getRangeAt(0).getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
@@ -3427,9 +3434,9 @@ try {
     await evalJs(`document.querySelector('.md-ctxmenu__item[data-action="bold"]').click()`)
     await sleep(400)
     await saveSection()
-    assert(readFileSync(MANUSCRIPT_MD, 'utf8').includes('**centroid**'), 'menu Bold did not apply')
+    assert(readFileSync(MANUSCRIPT_MD, 'utf8').includes('**hand-maintained**'), 'menu Bold did not apply')
     await evalJs(`(() => {
-      const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('centroid'));
+      const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('hand-maintained'));
       cm.querySelector('.cm-content').focus();
     })()`)
     await sleep(200)
@@ -3443,8 +3450,8 @@ try {
 
     // --- right-click with NO selection: Comment disabled, Paste enabled -----
     const line = await evalJs(`(() => {
-      const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('centroid'));
-      const l = [...cm.querySelectorAll('.cm-line')].find((x) => x.textContent.includes('centroid'));
+      const cm = [...document.querySelectorAll('.msdoc .cm-editor')].find((e) => e.textContent.includes('hand-maintained'));
+      const l = [...cm.querySelectorAll('.cm-line')].find((x) => x.textContent.includes('hand-maintained'));
       const r = l.getBoundingClientRect();
       return { x: r.left + 12, y: r.top + r.height / 2 };
     })()`)
@@ -3472,7 +3479,7 @@ try {
     await sleep(300)
 
     // --- menu "Comment" == ⌘⇧M: same anchored draft ------------------------
-    assert((await dragSelectInSection('centroid')) === 'centroid', 'could not reselect for Comment')
+    assert((await dragSelectInSection('hand-maintained')) === 'hand-maintained', 'could not reselect for Comment')
     const at2 = await evalJs(`(() => {
       const r = window.getSelection().getRangeAt(0).getBoundingClientRect();
       return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
@@ -3489,7 +3496,7 @@ try {
     await evalJs(`window.__sunaDev.commentsStore.getState().cancelDraft()`)
     await sleep(250)
 
-    assert((await dragSelectInSection('centroid')) === 'centroid', 'could not reselect for ⌘⇧M')
+    assert((await dragSelectInSection('hand-maintained')) === 'hand-maintained', 'could not reselect for ⌘⇧M')
     await key('m', 'KeyM', 12)
     await sleep(700)
     const viaKey = await evalJs(`(() => {
@@ -3512,8 +3519,8 @@ try {
 
   await step('comments-select-create-anchor', async () => {
     await openManuscriptDoc()
-    const selected = await dragSelectInSection('best-fit centroid of')
-    assert(selected === 'best-fit centroid of', `selection in the section editor: ${selected}`)
+    const selected = await dragSelectInSection('number is worked out at')
+    assert(selected === 'number is worked out at', `selection in the section editor: ${selected}`)
     await key('m', 'KeyM', 12) // ⌘⇧M
     await sleep(700)
     // The comments rail (comments/CommentsRail): ⌘⇧M sets the store draft AND
@@ -3527,7 +3534,7 @@ try {
         composer: !!document.querySelector('.cmt-rail .cmt__draft')
       };
     })()`)
-    assert(draft.quote === 'best-fit centroid of', `draft anchor quote: ${draft.quote}`)
+    assert(draft.quote === 'number is worked out at', `draft anchor quote: ${draft.quote}`)
     assert(draft.path === 'manuscript.md', `draft target: ${draft.path}`)
     assert(draft.railOpen, 'starting a comment did not auto-open the rail')
     assert(draft.composer, 'no comment composer appeared in the rail')
@@ -3548,7 +3555,7 @@ try {
     assert(file.schemaVersion === 1, `comments.json schemaVersion: ${file.schemaVersion}`)
     assert(file.comments.length === 1, `comments.json entries: ${file.comments.length}`)
     assert(
-      file.comments[0].target.anchor.quote === 'best-fit centroid of',
+      file.comments[0].target.anchor.quote === 'number is worked out at',
       `stored anchor: ${JSON.stringify(file.comments[0].target.anchor)}`
     )
     assert(file.comments[0].author.kind === 'human', 'comment is not attributed to the human')
@@ -3567,7 +3574,7 @@ try {
     assert(ui.cards === 1, `comment cards in the rail: ${ui.cards}`)
     assert(ui.drafts === 0, 'the draft composer stayed open after the comment was submitted')
     assert(
-      ui.anchors.length === 1 && ui.anchors[0] === 'best-fit centroid of',
+      ui.anchors.length === 1 && ui.anchors[0] === 'number is worked out at',
       `anchor highlight: ${JSON.stringify(ui.anchors)}`
     )
   })
@@ -3587,8 +3594,8 @@ try {
     assert(state.anchorsInDom === 1, 'anchor highlight lost after an edit around it')
 
     // delete the quoted text -> detached, NEVER dropped
-    const quote = await dragSelectInSection('best-fit centroid of')
-    assert(quote === 'best-fit centroid of', `could not select the quote: ${quote}`)
+    const quote = await dragSelectInSection('number is worked out at')
+    assert(quote === 'number is worked out at', `could not select the quote: ${quote}`)
     await key('Backspace', 'Backspace')
     await sleep(300)
     await key('s', 'KeyS', 4)
@@ -3606,7 +3613,7 @@ try {
     // restore the quote -> it re-attaches (re-locate, never delete)
     const gap = await dragSelectInSection('carefully measured ')
     assert(gap === 'carefully measured ', `could not select the gap: ${gap}`)
-    await insertText('best-fit centroid of')
+    await insertText('number is worked out at')
     await sleep(300)
     await key('s', 'KeyS', 4)
     await sleep(1200)
@@ -3618,7 +3625,7 @@ try {
     await openManuscriptDoc()
     const out = mcpCall(COPY_DIR, 'add_comment', {
       path: 'manuscript.md',
-      quote: 'regular rotation pattern',
+      quote: 'renumbers everything for you',
       body: 'The kinematic asymmetry needs an uncertainty here.'
     })
     assert(/^added c-/.test(out.trim()), `MCP add_comment said: ${out.trim()}`)
@@ -3936,9 +3943,9 @@ try {
     await openManuscriptDoc()
     const marker = 'SYNCMARK-' + Date.now().toString(36)
     // type into the MANUSCRIPT tab (helpers target .msdoc__editor)
-    const sel = await dragSelectInSection('regular rotation pattern')
-    assert(sel === 'regular rotation pattern', `could not select in the manuscript tab: ${sel}`)
-    await insertText('regular rotation pattern ' + marker)
+    const sel = await dragSelectInSection('renumbers everything for you')
+    assert(sel === 'renumbers everything for you', `could not select in the manuscript tab: ${sel}`)
+    await insertText('renumbers everything for you ' + marker)
     await sleep(600)
 
     // buffer truth has it; disk does NOT (no save yet)
@@ -4003,8 +4010,8 @@ try {
     // split across highlight spans in either editor, and it doubles as an
     // external-reload exercise: the live buffers must follow the revert
     mcpCall(COPY_DIR, 'edit_manuscript', {
-      find: 'regular rotation pattern ' + marker,
-      replace: 'regular rotation pattern'
+      find: 'renumbers everything for you ' + marker,
+      replace: 'renumbers everything for you'
     })
     await sleep(1500)
     assert(
@@ -4031,8 +4038,8 @@ try {
     await openManuscriptDoc()
     const scrollBefore = await evalJs(`document.querySelector('.msdoc').scrollTop`)
     const out = mcpCall(COPY_DIR, 'edit_manuscript', {
-      find: 'regular rotation pattern',
-      replace: 'regular rotation pattern (externally edited)'
+      find: 'renumbers everything for you',
+      replace: 'renumbers everything for you (externally edited)'
     })
     assert(/replaced \d+ chars/.test(out), `edit_manuscript said: ${out}`)
     await sleep(1500) // watcher debounce (150ms) + reload round trip
@@ -4056,8 +4063,8 @@ try {
 
     // revert out-of-band too; the live buffer must follow again
     mcpCall(COPY_DIR, 'edit_manuscript', {
-      find: 'regular rotation pattern (externally edited)',
-      replace: 'regular rotation pattern'
+      find: 'renumbers everything for you (externally edited)',
+      replace: 'renumbers everything for you'
     })
     await sleep(1500)
     const back = await evalJs(
@@ -4115,12 +4122,12 @@ try {
       `artboard is not really on screen: ${ruler.artWidthPx}×${ruler.artHeightPx} px`)
     assert(ruler.hLast - ruler.hFirst > 100,
       `ruler spans ${ruler.hLast - ruler.hFirst} px — it is not tracking the artboard`)
-    // 183 mm artboard -> 1 mm minor ticks 0..183 and labels every 10 mm
-    assert(ruler.hCount === 184, `horizontal mm ticks: ${ruler.hCount} (want 184 for 183 mm)`)
-    assert(ruler.vCount === 59, `vertical mm ticks: ${ruler.vCount} (want 59 for 58 mm)`)
-    assert(ruler.hLabels[0] === '0' && ruler.hLabels[1] === '10' && ruler.hLabels.at(-1) === '180',
+    // 127 mm artboard -> 1 mm minor ticks 0..127 and labels every 10 mm
+    assert(ruler.hCount === 128, `horizontal mm ticks: ${ruler.hCount} (want 128 for 127 mm)`)
+    assert(ruler.vCount === 63, `vertical mm ticks: ${ruler.vCount} (want 63 for 62 mm)`)
+    assert(ruler.hLabels[0] === '0' && ruler.hLabels[1] === '10' && ruler.hLabels.at(-1) === '120',
       `major labels: ${ruler.hLabels.join(',')}`)
-    assert(ruler.artboardLabel.includes('183.0'), `artboard readout: ${ruler.artboardLabel}`)
+    assert(ruler.artboardLabel.includes('127.0'), `artboard readout: ${ruler.artboardLabel}`)
     // origin at the artboard's top-left, max tick at its far edge (±1 px)
     assert(Math.abs(ruler.hFirst - ruler.artLeft) < 1,
       `ruler 0 mm at ${ruler.hFirst}px, artboard left edge at ${ruler.artLeft}px`)
@@ -4260,8 +4267,10 @@ try {
     `))
     assert(labels.length === before + 2,
       `auto-letter inserted ${labels.length - before} labels (want 2 for the two-panel demo figure)`)
-    // Nature's convention: lowercase, bold, no wrapper
-    assert(labels[0].text === 'a' && labels[1].text === 'b',
+    // SUNA style's convention: UPPERCASE, bold, no wrapper. The letter case is
+    // profile-driven — Nature states lowercase — so this asserts the active
+    // profile is being obeyed, not a fixed house habit.
+    assert(labels[0].text === 'A' && labels[1].text === 'B',
       `panel letters: ${labels.map((l) => l.text).join(',')}`)
     assert(labels[0].x < labels[1].x, 'panel letters are not in reading order')
     assert(labels.every((l) => l.size > 0 && l.family), 'panel letters carry no font')
@@ -4330,7 +4339,7 @@ try {
     const selectJs = (i) => `[...CT.querySelectorAll('.canvas-props__field--wide select')][${i}]`
     const optionText = await evalJs(canvasJs(`return [...${selectJs(0)}.options].map((o) => o.value + '|' + o.text);`))
     assert(
-      optionText.some((o) => o.startsWith('double|') && o.includes('183 mm')),
+      optionText.some((o) => o.startsWith('double|') && o.includes('178 mm')),
       `width presets are not profile-driven: ${optionText.join(', ')}`
     )
     const setSelect = (i, value) =>
@@ -4350,13 +4359,15 @@ try {
     `))
     const m = /(\d+)×(\d+) px/.exec(readout)
     assert(m, `no pixel readout: ${readout}`)
-    assert(/183 × 58 mm @ 300 dpi/.test(readout), `readout: ${readout}`)
+    // switching to the double preset scales the height with the width:
+    // 62 mm × (178/127) = 86.9 mm
+    assert(/178 × 86.9 mm @ 300 dpi/.test(readout), `readout: ${readout}`)
     const wantW = Number(m[1])
     const wantH = Number(m[2])
-    // 183 mm at 300 dpi is 2161 px — the arithmetic, not a magic number
-    assert(wantW === Math.round((183 / 25.4) * 300), `readout width ${wantW} px is not 183 mm @ 300 dpi`)
+    // 178 mm at 300 dpi is 2102 px — the arithmetic, not a magic number
+    assert(wantW === Math.round((178 / 25.4) * 300), `readout width ${wantW} px is not 178 mm @ 300 dpi`)
 
-    const png = join(COPY_DIR, 'output', 'fig-spectrum.png')
+    const png = join(COPY_DIR, 'output', 'hello.png')
     rmSync(png, { force: true })
     await evalJs(canvasJs(`
       [...CT.querySelectorAll('.canvas-figure__action')].find((b) => b.textContent.trim() === 'PNG').click();
@@ -4419,16 +4430,16 @@ try {
     )
     assert(valid.ok, `figure.json is not schema-valid: ${valid.issues.join('; ')}`)
 
-    // artboard width == the active profile's double-column preset (183mm for
-    // Nature), height == 0.618 * width
+    // artboard width == the active profile's double-column preset (178mm for
+    // SUNA style), height == 0.618 * width
     const svgText = readFileSync(figSvg, 'utf8')
     const wpt = /width="([\d.]+)pt"/.exec(svgText)
     const hpt = /height="([\d.]+)pt"/.exec(svgText)
     assert(wpt && hpt, `blank figure.svg has no pt width/height: ${svgText.slice(0, 120)}`)
     const wmm = Number(wpt[1]) * 0.3528
     const hmm = Number(hpt[1]) * 0.3528
-    assert(Math.abs(wmm - 183) < 0.5, `artboard width ${wmm.toFixed(2)}mm != the 183mm double-column preset`)
-    assert(Math.abs(hmm - 183 * 0.618) < 0.5, `artboard height ${hmm.toFixed(2)}mm != 0.618 * width`)
+    assert(Math.abs(wmm - 178) < 0.5, `artboard width ${wmm.toFixed(2)}mm != the 178mm double-column preset`)
+    assert(Math.abs(hmm - 178 * 0.618) < 0.5, `artboard height ${hmm.toFixed(2)}mm != 0.618 * width`)
 
     // registered in manuscript.json, still schema-valid
     const ms = JSON.parse(readFileSync(join(COPY_DIR, 'manuscript', 'manuscript.json'), 'utf8'))
@@ -4450,7 +4461,7 @@ try {
     assert(hint && /Drop or import a plot/.test(hint), `blank canvas hint: ${hint}`)
     await screenshot('new-figure.png')
 
-    // --- import the demo figure.svg by drag-and-drop -----------------------
+    // --- import the example's generated figure.svg by drag-and-drop --------
     const demo = readFileSync(FIGURE, 'utf8')
     await evalJs(canvasJs(`
       const vp = CT.querySelector('.canvas-viewport');
@@ -4476,7 +4487,10 @@ try {
     `))
     assert(imported.group, 'the dropped SVG was not inserted as <g id="imported-1">')
     assert(imported.topLevelGroups === 1, `expected one top-level group, got ${imported.topLevelGroups}`)
-    assert(imported.ids > 100, `the import brought in only ${imported.ids} ids — did it inline the content?`)
+    // The generated figure carries ~67 ids (matplotlib gids, defs and glyph
+    // refs). The floor is here to catch an import that dropped the content
+    // and kept the wrapper, not to pin an exact count.
+    assert(imported.ids > 50, `the import brought in only ${imported.ids} ids — did it inline the content?`)
     assert(
       imported.dupes.length === 0,
       `duplicate ids after the import: ${imported.dupes.slice(0, 5).join(', ')}`
@@ -4833,10 +4847,16 @@ try {
       .filter((e) => e.getBoundingClientRect().width > 0)
       .map((e) => e.textContent)`)
 
+  /**
+   * Three real PDFs from a LOCAL stash at <repo>/references/, which is not in
+   * the repository — these steps are skipped-by-failure on a checkout that
+   * has no stash. The citekeys are the shipped example's; which PDF backs
+   * which key is arbitrary, the step only cares that a file arrives.
+   */
   const REF_PDFS = {
-    gunn1972: join(ROOT, 'references', 'nphys3816.pdf'),
-    cortese2021: join(ROOT, 'references', 's41550-026-02905-7.pdf'),
-    jachym2019: join(ROOT, 'references', 's41550-026-02892-9.pdf')
+    knuth1984: join(ROOT, 'references', 'nphys3816.pdf'),
+    wong2011: join(ROOT, 'references', 's41550-026-02905-7.pdf'),
+    hunter2007: join(ROOT, 'references', 's41550-026-02892-9.pdf')
   }
   const INTRO_MD = join(COPY_DIR, 'manuscript', 'manuscript.md')
 
@@ -4965,7 +4985,7 @@ try {
   await step('image-viewer-dimensions-match-ihdr', async () => {
     await resetDock()
     // the PNG the canvas export step already wrote, reopened in the viewer
-    const png = join(COPY_DIR, 'output', 'fig-spectrum.png')
+    const png = join(COPY_DIR, 'output', 'hello.png')
     assert(existsSync(png), `no exported PNG at ${png} (the canvas export step should have written it)`)
     const real = pngIhdr(png)
     assert(
@@ -5051,7 +5071,7 @@ try {
     // Three entries in a row: exactly one PDF tab, in the SIDE group, showing
     // the last one clicked — replacing, never stacking.
     const seen = []
-    for (const citekey of ['gunn1972', 'cortese2021', 'jachym2019']) {
+    for (const citekey of ['knuth1984', 'wong2011', 'hunter2007']) {
       await clickRow(citekey)
       await sleep(2500)
       const state = await dockState()
@@ -6421,7 +6441,7 @@ try {
 
     const dataDir = join(COPY_DIR, 'data')
     const figuresDir = join(COPY_DIR, 'figures')
-    const spectrumDir = join(figuresDir, 'fig-spectrum')
+    const helloFigDir = join(figuresDir, 'hello')
     const atRoot = join(COPY_DIR, 'drag-probe.md')
     const inData = join(dataDir, 'drag-probe.md')
 
@@ -6545,16 +6565,16 @@ try {
       await until(async () => (await panelIds()).includes(atRoot), 'the tab retargeting back to the root path')
 
       // --- refused: a folder onto its own child ----------------------------
-      const refused = await hover(figuresDir, spectrumDir)
+      const refused = await hover(figuresDir, helloFigDir)
       assert(
         refused.rowHighlights.length === 0 && !refused.rootHighlighted,
         `figures/ onto its own child painted a target: ${JSON.stringify(refused.rowHighlights)}`
       )
       await drop()
       await sleep(800)
-      assert(existsSync(spectrumDir), `${spectrumDir} disappeared — the refused drop moved something`)
+      assert(existsSync(helloFigDir), `${helloFigDir} disappeared — the refused drop moved something`)
       assert(
-        !existsSync(join(spectrumDir, 'figures')),
+        !existsSync(join(helloFigDir, 'figures')),
         'figures/ moved into its own child — the descendant guard did not hold'
       )
       assert(readdirSync(COPY_DIR).includes('figures'), 'figures/ is no longer at the project root')
@@ -6779,7 +6799,7 @@ try {
     /** The inlined figure in the prose: its <text> count and its panel letters. */
     const embedded = () =>
       evalJs(`(() => {
-        const host = document.querySelector('[data-suna-asset-path$="fig-spectrum/figure.svg"]');
+        const host = document.querySelector('[data-suna-asset-path$="hello/figure.svg"]');
         if (!host) return null;
         return {
           texts: host.querySelectorAll('text').length,
@@ -6799,7 +6819,7 @@ try {
       await sleep(400)
       before = await embedded()
     }
-    assert(before !== null, 'the manuscript never painted the fig-spectrum embed')
+    assert(before !== null, 'the manuscript never painted the hello embed')
     assert(before.texts > 0, 'the embedded figure inlined no text at all')
     assert(before.letters.length === 0,
       `the embed already carries panel letters: ${before.letters.join(',')}`)
@@ -6913,14 +6933,14 @@ try {
     // The demo's two figures, in manuscript order (which is figure-numbering
     // order). Earlier steps legitimately add more — new-figure-and-svg-import
     // creates one — so this pins the known two rather than the whole list.
-    const spectrumAt = picker.ids.indexOf('fig-spectrum')
-    const velocityAt = picker.ids.indexOf('fig-velocity-map')
+    const helloAt = picker.ids.indexOf('hello')
+    const timesheetAt = picker.ids.indexOf('timesheet')
     assert(
-      spectrumAt !== -1 && velocityAt !== -1,
+      helloAt !== -1 && timesheetAt !== -1,
       `picker lists ${JSON.stringify(picker.ids)} — missing one of the demo figures`
     )
     assert(
-      spectrumAt < velocityAt,
+      helloAt < timesheetAt,
       `picker is not in manuscript order: ${JSON.stringify(picker.ids)}`
     )
     assert(
@@ -6928,13 +6948,13 @@ try {
       `${picker.thumbs} thumbnails for ${picker.ids.length} figures`
     )
 
-    // typing narrows the list. Filtered on 'fig-velocity', not 'velocity':
-    // new-figure-and-svg-import may have left a 'velocity-map' figure in the
-    // project, and only the demo's carries the 'fig-' prefix.
+    // typing narrows the list. Filtered on 'timesheet', a name no other
+    // figure in the project shares: new-figure-and-svg-import may have left a
+    // 'velocity-map' figure behind, and 'hello' is the other example figure.
     await evalJs(`(() => {
       const input = document.querySelector('.md-figpicker__input');
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(input, 'fig-velocity');
+      setter.call(input, 'timesheet');
       input.dispatchEvent(new Event('input', { bubbles: true }));
       return 'ok';
     })()`)
@@ -6943,8 +6963,8 @@ try {
       `[...document.querySelectorAll('.md-figpicker__item')].map((b) => b.dataset.figureId)`
     )
     assert(
-      filtered.length === 1 && filtered[0] === 'fig-velocity-map',
-      `filtering by "fig-velocity" left ${JSON.stringify(filtered)}`
+      filtered.length === 1 && filtered[0] === 'timesheet',
+      `filtering by "timesheet" left ${JSON.stringify(filtered)}`
     )
 
     // ↵ places the embed as its own paragraph and closes the picker
@@ -6952,7 +6972,7 @@ try {
     await sleep(600)
     const placed = await evalJs(`window.__sunaDev.docSessions.peek(${JSON.stringify(scratch)})`)
     assert(
-      placed.startsWith('![[fig:fig-velocity-map]]\n\n'),
+      placed.startsWith('![[fig:timesheet]]\n\n'),
       `↵ did not place the embed as its own paragraph: ${JSON.stringify(placed)}`
     )
     assert(
@@ -6969,7 +6989,7 @@ try {
     await sleep(600)
     const referenced = await evalJs(`window.__sunaDev.docSessions.peek(${JSON.stringify(scratch)})`)
     assert(
-      /@fig:fig-spectrum/.test(referenced),
+      /@fig:hello/.test(referenced),
       `⇧↵ did not insert a cross-reference: ${JSON.stringify(referenced)}`
     )
 

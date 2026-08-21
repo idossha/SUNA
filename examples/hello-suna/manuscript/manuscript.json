@@ -1,0 +1,86 @@
+{
+  "title": "Hello SUNA: a working tour of a manuscript, with an $n = 1$ result attached",
+  "articleType": "article",
+  "doi": null,
+  "openAccess": null,
+  "history": {
+    "received": null,
+    "accepted": null,
+    "publishedOnline": null
+  },
+  "abstract": {
+    "content": "We report that researcher happiness rises monotonically with time spent in SUNA while the control condition, the author’s previous text editor, drifts gently in the other direction, and that four categories of manuscript chore collapse to a fraction of their former weekly cost. The sample is one person, who was not blind to condition and also wrote the software. Every file behind these claims — prose, figures, references, the referee reports and the replies to them — is plain text you can read without this application, which is the actual result."
+  },
+  "manuscriptFile": "manuscript.md",
+  "figures": [
+    {
+      "id": "hello",
+      "namespace": "main",
+      "canvasRef": "figures/hello/figure.svg",
+      "widthPreset": "double",
+      "caption": {
+        "title": "The measurable effect of SUNA on the working scientist.",
+        "body": "**a**, Self-reported happiness over the life of a project, with your old text editor as the control (n = 1, the author, unblinded). **b**, Time per week spent on four chores, before and after adopting SUNA. Open this figure on the canvas and drag something to see an edit recorded against the source, then replace both panels with a real result; the colours are from the colourblind-safe palette SUNA style recommends.",
+        "abbreviations": []
+      },
+      "panels": [
+        {
+          "letter": "a",
+          "subLabels": []
+        },
+        {
+          "letter": "b",
+          "subLabels": []
+        }
+      ]
+    },
+    {
+      "id": "timesheet",
+      "namespace": "main",
+      "canvasRef": "figures/timesheet/figure.svg",
+      "widthPreset": "single",
+      "caption": {
+        "title": "Where the week went, before and after.",
+        "body": "Hours per week spent on four chores, by week, from a self-kept timesheet. The dashed line marks the week SUNA was adopted; the participant was aware of the dashed line at the time. Rasterized at 300 dpi because 96 vector quads is not a thing anybody should email.",
+        "abbreviations": []
+      },
+      "panels": []
+    }
+  ],
+  "tables": [
+    {
+      "id": "hello",
+      "namespace": "main",
+      "source": "native",
+      "caption": {
+        "title": "What a SUNA project is made of.",
+        "body": "Every row is a plain-text file you can open in any editor and track in git."
+      },
+      "footnotes": []
+    }
+  ],
+  "availability": {
+    "data": "The timesheet and the happiness log are in `data/`, in this repository, as CSV. There is no accession number and there never will be.",
+    "code": "`analysis/fit_happiness.py` and `code/happiness_model.py`, beside the data they read."
+  },
+  "backMatter": {
+    "acknowledgements": "The author thanks the corridor colleague who read the abstract and said it was fine.",
+    "authorContributions": "A.A. conceived the study, collected the data, was the data, and analysed the data. B.C. pointed out that this was a problem.",
+    "funding": [
+      {
+        "funder": "Example Science Foundation",
+        "grant": "ESF-2026-0042"
+      },
+      {
+        "funder": "No One",
+        "grant": null
+      }
+    ],
+    "competingInterests": "The authors declare no competing interests. The authors do declare a strong preference.",
+    "peerReview": null,
+    "supplementaryInfo": null
+  },
+  "bibliography": "references.bib",
+  "shortTitle": "Hello SUNA",
+  "significance": "A manuscript is a pile of files that have to agree with each other, and they usually do not. This example shows one that does: every number in the prose traces to a file in `results/`, every figure to the code or the hand that made it, and every referee point to the byte range of the letter it came from. The study underneath is a joke about one researcher; the arrangement of files is the actual claim."
+}

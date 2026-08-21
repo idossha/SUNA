@@ -131,7 +131,7 @@ so.
 | **14d** `CompareTab` + `compareSegments.ts` + `compare.css`, both layouts, nav, filters | **done**, 21 tests |
 | **14e** quoting into the focused reply, and the ways in | **done**, verified in the running app |
 
-Verified against a real project (a copy of `examples/demo-paper` with v1.1
+Verified against a real project (a copy of `examples/hello-suna` with v1.1
 logged, the round pointed at it, and the working copy edited): 7 changes
 across 3 of 5 sections plus one added reference, deletions and additions in
 both layouts, and a `❝` click that put a `+++`-marked quote into the focused

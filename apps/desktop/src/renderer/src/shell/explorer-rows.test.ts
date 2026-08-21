@@ -158,7 +158,7 @@ describe('iconKindForFile', () => {
   })
 
   it('reads the extension from the LAST dot', () => {
-    // examples/demo-paper/figures/fig-spectrum/figure.svg.suna.json is the
+    // examples/hello-suna/figures/fig-spectrum/figure.svg.suna.json is the
     // sidecar, not the figure it describes
     expect(iconKindForFile('figure.svg.suna.json')).toBe('json')
   })

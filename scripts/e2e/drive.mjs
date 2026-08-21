@@ -135,7 +135,7 @@ async function attach() {
 // ---------------------------------------------------------------- open project
 /**
  * Same page-side seam as smoke.mjs's 'open-example-project' step: the welcome
- * screen's "Open example" button copies examples/demo-paper under userData
+ * screen's "Open example" button copies examples/hello-suna under userData
  * and git-inits it — copy + init + tree listing take a moment on first open.
  */
 async function openExample(ctx) {

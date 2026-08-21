@@ -56,7 +56,7 @@ A project opened with the old layout is migrated on open:
    `detached` rather than being dropped.
 6. Migration is idempotent — opening an already-flat project does nothing.
 
-Also migrate `examples/demo-paper` in the repo (as a committed change, so the
+Also migrate `examples/hello-suna` in the repo (as a committed change, so the
 shipped example is already flat).
 
 ### Everything that reads sections must follow
