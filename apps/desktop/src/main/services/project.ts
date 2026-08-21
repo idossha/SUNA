@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { constants as fsConstants } from 'node:fs'
-import { copyFile, mkdir, readFile, readdir, writeFile, access } from 'node:fs/promises'
-import { extname, join, relative } from 'node:path'
+import { mkdir, readFile, writeFile, access } from 'node:fs/promises'
+import { join } from 'node:path'
 import { promisify } from 'node:util'
 import {
   AuthorsFileSchema,
@@ -76,11 +76,7 @@ function starterAuthors(): AuthorsFile {
   } satisfies AuthorsFile)
 }
 
-const IMPORT_PLACEHOLDER = `Imported files are in manuscript/imported/. Copy the prose you want to keep
-into this file — nothing was auto-linked.
-`
-
-/** Onboarding wizard "Blank"/"Import" scaffold: minimal, schema-valid, no demo prose. */
+/** Onboarding wizard "Blank" scaffold: minimal, schema-valid, no demo prose. */
 function blankManuscript(name: string, bibliography = 'references.bib'): Manuscript {
   return ManuscriptSchema.parse({
     title: name,
@@ -272,90 +268,11 @@ export async function checkScaffoldTarget(
   return { path, exists: pathExists, parentWritable }
 }
 
-export interface ImportableFile {
-  path: string
-  name: string
-  ext: 'md' | 'tex' | 'bib'
-}
-
-const IMPORTABLE_EXTENSIONS: Record<string, ImportableFile['ext']> = {
-  '.md': 'md',
-  '.tex': 'tex',
-  '.bib': 'bib'
-}
-const IMPORT_SCAN_IGNORED = new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__'])
-const IMPORT_SCAN_MAX_DEPTH = 4
-
-/** Step 3 "Import existing": shallow-scan a folder for files the wizard can copy in. */
-export async function listImportableFiles(dir: string): Promise<ImportableFile[]> {
-  const out: ImportableFile[] = []
-
-  async function walk(current: string, depth: number): Promise<void> {
-    if (depth > IMPORT_SCAN_MAX_DEPTH) return
-    let entries
-    try {
-      entries = await readdir(current, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith('.') || IMPORT_SCAN_IGNORED.has(entry.name)) continue
-      const full = join(current, entry.name)
-      if (entry.isDirectory()) {
-        await walk(full, depth + 1)
-        continue
-      }
-      if (!entry.isFile()) continue
-      const kind = IMPORTABLE_EXTENSIONS[extname(entry.name).toLowerCase()]
-      if (kind !== undefined) out.push({ path: full, name: entry.name, ext: kind })
-    }
-  }
-
-  await walk(dir, 0)
-  out.sort((a, b) => a.path.localeCompare(b.path))
-  return out
-}
-
-/**
- * Copies every importable file into `<manuscriptDir>/imported/`, flat (source
- * subdirectories are not preserved — names are what the user will recognize
- * their own files by). A name collision is skipped, not overwritten; the
- * caller surfaces skips as warnings. Returns the first `.bib` copy's path
- * relative to `manuscriptDir`, if any, for the manifest's `bibliography` field.
- */
-async function copyImportableFiles(
-  importDir: string,
-  manuscriptDir: string
-): Promise<{ copied: string[]; skipped: string[]; bibliography: string | null }> {
-  const found = await listImportableFiles(importDir)
-  const destDir = join(manuscriptDir, 'imported')
-  await mkdir(destDir, { recursive: true })
-
-  const copied: string[] = []
-  const skipped: string[] = []
-  let bibliography: string | null = null
-
-  for (const file of found) {
-    const dest = join(destDir, file.name)
-    try {
-      await copyFile(file.path, dest, fsConstants.COPYFILE_EXCL)
-      copied.push(file.name)
-      if (file.ext === 'bib' && bibliography === null) {
-        bibliography = relative(manuscriptDir, dest)
-      }
-    } catch {
-      skipped.push(file.name)
-    }
-  }
-  return { copied, skipped, bibliography }
-}
-
 export interface ScaffoldRequest {
   dir: string
   name: string
   activeProfileId: string
-  scaffold: 'blank' | 'starter' | 'import' | 'document'
-  importDir: string | null
+  scaffold: 'blank' | 'starter' | 'document'
   /** Source .docx/.pdf/.html manuscript when `scaffold` is 'document'. */
   documentPath?: string | null
   settings: ProjectSettings
@@ -371,17 +288,17 @@ export interface ScaffoldResult {
 
 /**
  * Step 7 "Create project": the one call that writes anything for the
- * onboarding wizard. Directories → suna.json → the scaffolded/imported
- * manuscript → .gitignore → git init/commit, in that order, mirroring
- * createProject's shape but parameterized by profile/scaffold-kind/import and
- * an optional settings patch (feature-plan-5 §4/§5). A git failure is
- * reported as a warning, never thrown — the project still exists on success.
+ * onboarding wizard. Directories → suna.json → the scaffolded manuscript →
+ * .gitignore → git init/commit, in that order, mirroring createProject's
+ * shape but parameterized by profile/scaffold-kind and an optional settings
+ * patch (feature-plan-5 §4/§5). A git failure is reported as a warning, never
+ * thrown — the project still exists on success.
  */
 export async function scaffoldProject(
   req: ScaffoldRequest,
   agent?: McpInvocation
 ): Promise<ScaffoldResult> {
-  const { dir, name, activeProfileId, scaffold, importDir, settings } = req
+  const { dir, name, activeProfileId, scaffold, settings } = req
   const documentPath = req.documentPath ?? null
   if (await exists(join(dir, 'suna.json'))) {
     throw new Error(`already a SUNA project: ${dir}`)
@@ -420,8 +337,6 @@ export async function scaffoldProject(
     await writeStarterFigure(dir, DEFAULT_PROJECT_DIRS.figures)
     await writeStarterLetter(manuscriptDir, name, activeProfileId)
     await writeStarterRound(dir, manifest.createdAt)
-  } else if (scaffold === 'blank') {
-    await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
   } else if (scaffold === 'document') {
     // A blank manuscript first, so the project is valid even when the
     // document turns out to be unreadable — the import writes over it.
@@ -439,23 +354,7 @@ export async function scaffoldProject(
       }
     }
   } else {
-    let bibliography: string | null = null
-    if (importDir !== null) {
-      const result = await copyImportableFiles(importDir, manuscriptDir)
-      bibliography = result.bibliography
-      if (result.copied.length === 0) {
-        warnings.push(`No .md/.tex/.bib files found in ${importDir}`)
-      }
-      for (const name2 of result.skipped) {
-        warnings.push(`Skipped "${name2}" — a file with that name already exists`)
-      }
-    }
-    await writeManuscriptDir(
-      manuscriptDir,
-      blankManuscript(name, bibliography ?? 'references.bib'),
-      IMPORT_PLACEHOLDER,
-      bibliography === null ? '' : null
-    )
+    await writeManuscriptDir(manuscriptDir, blankManuscript(name), '', '')
   }
 
   // Agent layer before git init so the stubs + context/ land in the initial

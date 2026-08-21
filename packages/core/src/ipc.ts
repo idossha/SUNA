@@ -600,40 +600,20 @@ export const CHANNELS = {
     }),
   },
   /**
-   * Onboarding wizard step 3 "Import existing": shallow-scans `dir` (depth
-   * capped, `.git`/`node_modules`/venvs skipped) for `.md`/`.tex`/`.bib`
-   * files so the step can list what will be copied in before anything is
-   * written.
-   */
-  'project:list-importable': {
-    request: z.object({ dir: z.string().min(1) }),
-    response: z.object({
-      files: z.array(
-        z.object({
-          path: z.string().min(1),
-          name: z.string().min(1),
-          ext: z.enum(['md', 'tex', 'bib']),
-        }),
-      ),
-    }),
-  },
-  /**
    * Onboarding wizard step 7 "Create project" (feature-plan-5 §5): the one
    * call that actually writes anything — directories, suna.json, the
    * scaffolded/imported manuscript, and (best-effort) a git init + first
    * commit. Never called before the review step. `settings` is the step-6
    * "save to this project" patch (possibly empty). Distinct from
    * 'project:create', which always writes the fixed starter manuscript with
-   * no profile/scaffold-kind/import choice.
+   * no profile or scaffold-kind choice.
    */
   'project:scaffold': {
     request: z.object({
       dir: z.string().min(1),
       name: z.string().min(1),
       activeProfileId: z.string().min(1),
-      scaffold: z.enum(['blank', 'starter', 'import', 'document']),
-      /** Source folder for 'import'; ignored otherwise. */
-      importDir: z.string().min(1).nullable(),
+      scaffold: z.enum(['blank', 'starter', 'document']),
       /** Source .docx/.pdf/.html manuscript for 'document'; ignored otherwise. */
       documentPath: z.string().min(1).nullable().default(null),
       settings: ProjectSettingsSchema,
@@ -643,7 +623,7 @@ export const CHANNELS = {
       gitInitialized: z.boolean(),
       /** Whether the agent layer (stubs, context/, .mcp.json) was fully written. */
       agentLayerWritten: z.boolean(),
-      /** Non-fatal issues (e.g. git unavailable, an import name collision). */
+      /** Non-fatal issues (e.g. git unavailable, an unreadable source document). */
       warnings: z.array(z.string()),
     }),
   },

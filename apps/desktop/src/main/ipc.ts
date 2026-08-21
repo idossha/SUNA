@@ -143,7 +143,6 @@ import { ghCreateRepo, githubOwners } from './services/github'
 import {
   checkScaffoldTarget,
   createProject,
-  listImportableFiles,
   openProject,
   scaffoldProject,
   scaffoldStatus,
@@ -489,7 +488,6 @@ export function registerIpcHandlers(): void {
     approvePeerReviewAi({ dir, approvedBy, source, learnedFrom })
   )
   handle('project:check-target', ({ parentDir, name }) => checkScaffoldTarget(parentDir, name))
-  handle('project:list-importable', async ({ dir }) => ({ files: await listImportableFiles(dir) }))
   handle('project:scaffold', async (req) => {
     const result = await scaffoldProject(req, appMcpInvocation())
     await noteRecentProject(req.dir, result.manifest.name)

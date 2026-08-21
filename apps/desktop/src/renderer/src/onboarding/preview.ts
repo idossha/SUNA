@@ -25,9 +25,7 @@ export function projectTreeLines(state: WizardState): string[] {
   lines.push('    authors.json')
   lines.push('    manuscript.md')
 
-  const importedBib =
-    state.scaffold === 'import' && state.importFiles.some((f) => f.ext === 'bib')
-  if (!importedBib) lines.push('    references.bib')
+  lines.push('    references.bib')
 
   // Only the starter ships a letter and a demonstration review round; every
   // other scaffold writes the manuscript alone (ADR-009).
@@ -35,11 +33,6 @@ export function projectTreeLines(state: WizardState): string[] {
     lines.push('    letters/')
     lines.push('      cover.md')
     lines.push('      cover.json')
-  }
-
-  if (state.scaffold === 'import' && state.importFiles.length > 0) {
-    lines.push('    imported/')
-    for (const file of state.importFiles) lines.push(`      ${file.name}`)
   }
 
   for (const dir of Object.values(DEFAULT_PROJECT_DIRS)) {

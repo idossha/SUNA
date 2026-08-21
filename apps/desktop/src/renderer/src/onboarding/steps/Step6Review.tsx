@@ -26,8 +26,7 @@ const SUBSTEP_LABELS: Record<CreateSubstep, string> = {
 function scaffoldSummary(state: StepProps['state']): string {
   if (state.scaffold === 'blank') return 'Blank — no demo prose.'
   if (state.scaffold === 'starter') return 'Starter — demo section, citation, and figure script.'
-  const n = state.importFiles.length
-  return `Import existing — ${n} file${n === 1 ? '' : 's'} from ${state.importDir ?? '?'}.`
+  return `From an existing manuscript — ${state.documentPath ?? 'no file chosen'}.`
 }
 
 function pythonSummary(state: StepProps['state']): string {

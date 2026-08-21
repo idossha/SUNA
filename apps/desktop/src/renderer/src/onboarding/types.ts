@@ -8,7 +8,7 @@ import type { ProjectSettings, ResponseOf } from '@suna/core'
  */
 export type WizardMode = 'create' | 'setup'
 
-export type ScaffoldKind = 'blank' | 'starter' | 'import' | 'document'
+export type ScaffoldKind = 'blank' | 'starter' | 'document'
 
 export type PythonChoice = 'skip' | 'existing' | 'create-uv'
 
@@ -18,7 +18,6 @@ export type AiChoice = 'cli' | 'api' | 'skip'
 export const AGENT_PROVIDER_IDS = ['anthropic', 'openai', 'ollama'] as const
 export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number]
 
-export type ImportableFileRow = ResponseOf<'project:list-importable'>['files'][number]
 export type DetectedEnvRow = ResponseOf<'env:detect'>['envs'][number]
 
 export type StepStatus = 'pending' | 'active' | 'done' | 'error' | 'skipped'
@@ -82,9 +81,6 @@ export interface WizardState {
 
   // Step 2 — What to scaffold
   scaffold: ScaffoldKind
-  importDir: string | null
-  importFiles: ImportableFileRow[]
-  importScanning: boolean
   /** 'document' scaffold: the .docx/.pdf/.html manuscript to start from. */
   documentPath: string | null
 
@@ -148,9 +144,6 @@ export function createInitialWizardState(
     checkingTarget: false,
 
     scaffold: 'starter',
-    importDir: null,
-    importFiles: [],
-    importScanning: false,
     documentPath: null,
 
     pythonChoice: 'skip',

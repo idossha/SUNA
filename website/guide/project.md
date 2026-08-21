@@ -61,7 +61,6 @@ A freshly scaffolded project is smaller than this. The wizard writes the seven d
 | `manuscript/references.bib` | You, via SUNA | BibTeX. See [references](/writing/references). |
 | `manuscript/comments.json` | SUNA | Review comments. Created on the first comment write; reading before that returns an empty file and creates nothing. See [review comments](/writing/comments). |
 | `manuscript/supplementary.md` | You | Optional. Without it, exporting Supplementary Information fails with `no supplementary manuscript found`. |
-| `manuscript/imported/` | SUNA | Only from the wizard's "Import existing" path: your `.md`, `.tex` and `.bib` files copied in flat. |
 | `figures/<id>/figure.json` | SUNA | `id`, `namespace`, `widthPreset`, `caption` (`title`, `body`), `panels`, `provenance` (`generator`, `overlay`). |
 | `figures/<id>/figure.svg` | SUNA's canvas | The figure itself. Do not hand-edit it. |
 | `figures/<id>/figure.svg.suna.json` | `suna_mpl` | Sidecar manifest: `schemaVersion`, `svgSha256`, `widthMm`, `heightMm`, and per-axis anchors mapping data coordinates to SVG coordinates. |
@@ -200,9 +199,7 @@ Step 3 decides what lands in `manuscript/`:
 | --- | --- |
 | **Blank** | The project directories, an empty `manuscript.md` and an empty `references.bib`. |
 | **Starter** (default) | A one-section manuscript with demo prose, a real citation, a `$$ … {#eq:stripping}` equation, Results and Methods sections, and a one-entry `references.bib`. |
-| **Import existing** | Point at a folder; matching `.md`, `.tex` and `.bib` files are copied flat into `manuscript/imported/`. |
-
-The import scan looks only for `.md`, `.tex` and `.bib`, descends at most four directory levels, and skips `.git`, `node_modules`, `.venv`, `venv`, `__pycache__` and every dot-prefixed entry. A name collision is skipped, not overwritten, and reported as a warning. Your `manuscript.md` is left with a placeholder telling you where the files went — nothing is auto-linked. The first imported `.bib` becomes `manuscript.json`'s `bibliography`.
+| **From an existing manuscript** | Point at a `.docx`, `.pdf` or `.html` paper; its title, authors, abstract, sections and references are read into the new project. |
 
 Creation runs in a fixed order, reported as five sub-steps: **Creating directories** → **Writing manuscript files** → **Initializing git** → **Python environment** → **Agent wiring**. On disk the order is directories, `suna.json`, the manuscript files, `.gitignore`, the agent layer, then git. The agent layer is written before `git init` on purpose, so `AGENTS.md`, `CLAUDE.md` and `context/` land in the first commit while `.mcp.json` — already listed in the `.gitignore` written a moment earlier — stays out.
 
