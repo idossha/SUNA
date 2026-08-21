@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "comments": [
+    {
+      "id": "c-2026-08-18-hello01",
+      "target": {
+        "kind": "section",
+        "path": "manuscript.md",
+        "anchor": {
+          "quote": "A citation is its BibTeX key in square brackets [@knuth1984]",
+          "prefix": "ditions for scientific writing. ",
+          "suffix": ", and the reference list at the "
+        }
+      },
+      "body": "Is knuth1984 a real entry, or a placeholder we still owe a citation for?\n\nThis is a comment. It is anchored to the sentence rather than typed into it — the prose above is untouched, and the thread lives beside it in `manuscript/comments.json`. Select any text and press ⌘⇧M to leave one of your own.",
+      "author": {
+        "kind": "human",
+        "name": "Ben Coauthor"
+      },
+      "createdAt": "2026-08-18T09:14:00.000Z",
+      "resolved": false,
+      "detached": false,
+      "replies": [
+        {
+          "id": "r-2026-08-18-hello01a",
+          "body": "Real: `references.bib` carries the entry and its DOI resolves.\n\nI have replied and left the thread open, which is the only thing an agent can do — there is no verb that resolves a comment, so the judgement of whether an answer settles the matter stays yours. An open thread is a decision still owed.",
+          "author": {
+            "kind": "agent",
+            "name": "Agent"
+          },
+          "createdAt": "2026-08-18T09:41:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "c-2026-08-18-hello02",
+      "target": {
+        "kind": "section",
+        "path": "manuscript.md",
+        "anchor": {
+          "quote": "Describe how the work was done.",
+          "prefix": " tool (@tbl:hello).\n\n# Methods\n\n",
+          "suffix": " Headings become the outline in "
+        }
+      },
+      "body": "This is still the scaffold's sentence, and it is now the only one in the paper that does not describe this paper. I can draft a real Methods from `analysis/fit_happiness.py` and `code/happiness_model.py`, but what belongs in Methods is your call, so the question waits in your margin instead of interrupting you.\n\nAn agent raises a comment the same way you do, into the same file. Reply to this one and it becomes a conversation; delete it and nothing else in the project notices.",
+      "author": {
+        "kind": "agent",
+        "name": "Agent"
+      },
+      "createdAt": "2026-08-18T09:41:00.000Z",
+      "resolved": false,
+      "detached": false,
+      "replies": []
+    },
+    {
+      "id": "c-2026-08-18-hello03",
+      "target": {
+        "kind": "section",
+        "path": "manuscript.md",
+        "anchor": {
+          "quote": "We report this in the spirit in which it was measured.",
+          "prefix": "y `analysis/fit_happiness.py`). ",
+          "suffix": "\n\nTables work the same way: an e"
+        }
+      },
+      "body": "Should this say the slope is significant?",
+      "author": {
+        "kind": "human",
+        "name": "Ben Coauthor"
+      },
+      "createdAt": "2026-08-17T16:02:00.000Z",
+      "resolved": true,
+      "detached": false,
+      "replies": [
+        {
+          "id": "r-2026-08-18-hello03a",
+          "body": "It should not. `results/happiness_fit.json` records n = 1, unblinded, by the author of the software — a p-value computed over that would be arithmetic, not evidence. The sentence as written says exactly as much as the data support.",
+          "author": {
+            "kind": "agent",
+            "name": "Agent"
+          },
+          "createdAt": "2026-08-17T16:20:00.000Z"
+        }
+      ]
+    }
+  ]
+}
