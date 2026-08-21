@@ -183,7 +183,7 @@ The welcome screen offers five buttons — **Create project**, **Open project…
 | --- | --- |
 | **Create project** | Opens the seven-step wizard in a new folder. |
 | **Open project…** | Folder picker titled "Open a SUNA project folder". |
-| **Open example** | Copies the bundled demo into the app's own data folder as `example-project` and opens the copy, so the shipped example is never modified. The copy is made once; later opens reuse it, edits and all. |
+| **Open example** | Copies the bundled demo into the app's own data folder as `example-project` and opens the copy, so the shipped example is never modified. The copy is made once; later opens reuse it, edits and all. A copy of an example the app no longer ships is moved aside, not overwritten. |
 | **Set up project…** | Picks an *existing* folder and runs the same wizard from step 2 against it. If the folder already has a `suna.json` it refuses and tells you to use Open project instead. |
 | **Import .docx…** | Picks a Word file and opens an Import Review tab. Nothing is written until you press Import in that tab. |
 
