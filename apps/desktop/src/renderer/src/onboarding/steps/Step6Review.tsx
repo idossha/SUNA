@@ -58,37 +58,41 @@ export function Step6Review({ state, update, targetPath }: Step6Props): JSX.Elem
       : null
 
   return (
-    <div className="onboard__step-page" style={{ maxWidth: 880 }}>
+    <div className="onboard__step-page" style={{ maxWidth: 1040 }}>
       <h2 className="onboard__step-title">Review</h2>
       <p className="onboard__step-sub">
         Nothing has been written yet. Create project runs these steps in order.
       </p>
 
-      <div className="onboard__review-summary" style={{ marginBottom: 20 }}>
-        <div>
-          <span>Location</span> {targetPath ?? '—'}
+      {/* Summary left, version control right: the summary's last line is the
+          VCS choice, so the panel that changes it reads best beside it. */}
+      <div className="onboard__review-top">
+        <div className="onboard__review-summary">
+          <div>
+            <span>Location</span> {targetPath ?? '—'}
+          </div>
+          <div>
+            <span>Scaffold</span> {scaffoldSummary(state)}
+          </div>
+          <div>
+            <span>Python</span> {pythonSummary(state)}
+          </div>
+          <div>
+            <span>AI</span> {aiSummary(state)}
+          </div>
+          <div>
+            <span>Defaults</span> Saved to this project
+          </div>
+          <div>
+            <span>Version control</span>{' '}
+            {state.publishToGitHub
+              ? `git, published to GitHub as ${state.githubRepoName} (${state.githubVisibility})`
+              : 'git repository on this machine'}
+          </div>
         </div>
-        <div>
-          <span>Scaffold</span> {scaffoldSummary(state)}
-        </div>
-        <div>
-          <span>Python</span> {pythonSummary(state)}
-        </div>
-        <div>
-          <span>AI</span> {aiSummary(state)}
-        </div>
-        <div>
-          <span>Defaults</span> Saved to this project
-        </div>
-        <div>
-          <span>Version control</span>{' '}
-          {state.publishToGitHub
-            ? `git, published to GitHub as ${state.githubRepoName} (${state.githubVisibility})`
-            : 'git repository on this machine'}
-        </div>
-      </div>
 
-      <GitHubPublish state={state} update={update} />
+        <GitHubPublish state={state} update={update} />
+      </div>
 
       <div className="onboard__review-grid">
         <div className="onboard__review-section">
