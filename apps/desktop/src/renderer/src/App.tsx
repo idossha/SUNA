@@ -24,6 +24,7 @@ import { CommandPalette } from './palette/CommandPalette'
 import { HelpOverlay } from './shell/help/HelpOverlay'
 import { RepairPicker } from './shell/repair/RepairPicker'
 import { LetterTab } from './documents/LetterTab'
+import { SupplementTab } from './documents/SupplementTab'
 import { RoundTab } from './documents/RoundTab'
 import { VersionTab } from './documents/VersionTab'
 import { CompareTab } from './documents/CompareTab'
@@ -44,6 +45,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   dataview: DataGridTab,
   manuscript: ManuscriptTab,
   letter: LetterTab,
+  supplement: SupplementTab,
   round: RoundTab,
   version: VersionTab,
   compare: CompareTab,

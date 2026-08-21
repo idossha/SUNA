@@ -45,7 +45,10 @@ const DEBOUNCE_MS = 250
  * export pipeline; a letter goes through its own simpler one, and says so
  * rather than pretending a letter has a journal profile and figures.
  */
-export type PagesSource = { kind: 'manuscript' } | { kind: 'letter'; documentId: string }
+export type PagesSource =
+  | { kind: 'manuscript' }
+  | { kind: 'supplement' }
+  | { kind: 'letter'; documentId: string }
 
 export function DocumentPages({ source }: { source: PagesSource }): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
@@ -108,7 +111,7 @@ export function DocumentPages({ source }: { source: PagesSource }): JSX.Element 
           pageNumbers: submission.pageNumbers ?? true,
           theme
         },
-        target: 'manuscript'
+        target: source.kind === 'supplement' ? 'supplement' : 'manuscript'
       })
       setOversized(res.oversized)
       if (res.kind === 'pdf') setData(res.data)
@@ -153,7 +156,13 @@ export function DocumentPages({ source }: { source: PagesSource }): JSX.Element 
       status={status}
       banner={banner}
       fit="page"
-      emptyLabel={source.kind === 'letter' ? 'Laying the letter out as pages…' : 'Laying the manuscript out as pages…'}
+      emptyLabel={
+        source.kind === 'letter'
+          ? 'Laying the letter out as pages…'
+          : source.kind === 'supplement'
+            ? 'Laying the supplement out as pages…'
+            : 'Laying the manuscript out as pages…'
+      }
     />
   )
 }

@@ -321,6 +321,20 @@ export const CHANNELS = {
     request: z.object({ dir: z.string().min(1), documentId: z.string().min(1) }),
     response: z.object({ documents: z.array(DocumentEntrySchema) }),
   },
+  /**
+   * Create the project's Supplementary Information: one document per project,
+   * at the fixed path manuscript/supplementary.md that the export pipeline
+   * already reads. Adopts an existing file rather than overwriting it.
+   */
+  'supplement:new': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({
+      documentId: z.string(),
+      proseFile: z.string(),
+      /** False when a supplementary.md was already on disk and was adopted. */
+      fileCreated: z.boolean(),
+    }),
+  },
   /** Create a cover letter: prose + sidecar + gitignored private sidecar. */
   'letter:new': {
     request: z.object({
