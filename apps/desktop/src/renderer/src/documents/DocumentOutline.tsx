@@ -1,51 +1,47 @@
 import type { JSX } from 'react'
-import { countWords, docSlice, useManuscriptDocStore } from '../state/manuscriptDoc'
+import type { DocumentEntry } from '@suna/core'
+import { docSlice, useManuscriptDocStore } from '../state/manuscriptDoc'
+import { useProjectStore } from '../state/project'
+import { openDocumentTab } from '../state/dock'
+import { OutlineList } from '../views/OutlineList'
 import './documents.css'
 
 /**
  * The outline of a non-manuscript document (document-kinds-ux.md §A.1).
  *
- * Deliberately plainer than `ManuscriptView`. That view carries title-page
- * metadata, figure and table counts and a reference list — all of which
- * describe the manuscript. Rendering it under a cover letter would put
- * "2 figures, 1 table" beside a document that has neither.
+ * The same list the manuscript gets — same rows, same chips, same rolled-up
+ * word counts, same collapse twisties (views/OutlineList) — because a
+ * supplement is read the same way a manuscript is, and two outlines that
+ * looked and behaved differently for no reason was the whole bug.
+ *
+ * What stays document-specific is the heading and what a click does: the
+ * document's own tab is brought to the front before the scroll, since "take
+ * me to Supplementary Methods" is meaningless while the supplement is not the
+ * frontmost tab.
  */
-export function DocumentOutline({
-  documentId,
-  title
-}: {
-  documentId: string
-  title: string
-}): JSX.Element {
-  const slice = useManuscriptDocStore((s) => docSlice(s, documentId))
-  const total = slice.outline.reduce((n, s) => n + countWords(s.title), 0)
+export function DocumentOutline({ doc }: { doc: DocumentEntry }): JSX.Element {
+  const rootDir = useProjectStore((s) => s.rootDir)
+  const slice = useManuscriptDocStore((s) => docSlice(s, doc.id))
 
   return (
     <div className="docout">
-      <div className="docout__title">{title}</div>
-      {slice.outline.length === 0 ? (
-        <p className="docout__empty">
-          {slice.tabMounted ? 'No headings in this document.' : 'Open the document to see its outline.'}
-        </p>
-      ) : (
-        <ul className="docout__list">
-          {slice.outline.map((section, i) => (
-            <li key={i}>
-              <button
-                className={`docout__row${slice.activeSectionIndex === i ? ' is-active' : ''}`}
-                style={{ paddingLeft: `${8 + Math.max(0, section.level - 1) * 12}px` }}
-                onClick={() => useManuscriptDocStore.getState().requestScroll(documentId, i)}
-              >
-                <span className="docout__row-title">
-                  {section.title === '' ? 'untitled' : section.title}
-                </span>
-                <span className="docout__row-words">{section.words}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {total > 0 && <div className="docout__total">{slice.outline.length} sections</div>}
+      <OutlineList
+        title={doc.title}
+        sections={slice.outline}
+        activeIndex={slice.activeSectionIndex}
+        highlightActive={slice.tabActive}
+        disabled={rootDir === null}
+        emptyLabel={
+          slice.tabMounted
+            ? 'No headings in this document.'
+            : 'Open the document to see its outline.'
+        }
+        onPick={(index) => {
+          if (rootDir === null) return
+          openDocumentTab(rootDir, doc.id, doc.kind, doc.file, doc.title)
+          useManuscriptDocStore.getState().requestScroll(doc.id, index)
+        }}
+      />
     </div>
   )
 }

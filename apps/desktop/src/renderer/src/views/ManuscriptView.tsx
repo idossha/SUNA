@@ -9,7 +9,7 @@ import { useManuscriptStore } from '../state/manuscript'
 import { activeSlice, countWords, useManuscriptDocStore } from '../state/manuscriptDoc'
 import { openManuscriptTab } from '../state/dock'
 import { splitTexSpans } from '../manuscript/title-page'
-import { activeRowKey, outlineRows, totalWords, visibleRows } from './outline'
+import { OutlineList } from './OutlineList'
 import './views.css'
 import './manuscript-view.css'
 
@@ -60,7 +60,6 @@ export function ManuscriptView(): JSX.Element {
   const tabMounted = useManuscriptDocStore((s) => activeSlice(s).tabMounted)
 
   const [diskOutline, setDiskOutline] = useState<OutlineSection[]>([])
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set())
 
   // The version the working copy carries, and the one button that freezes it.
   // Both live here rather than on the document list above, because what is
@@ -96,21 +95,6 @@ export function ManuscriptView(): JSX.Element {
   }, [tabMounted, rootDir, manuscript, saveBump])
 
   const sections = tabMounted ? liveOutline : diskOutline
-  const rows = useMemo(() => outlineRows(sections), [sections])
-  const visible = useMemo(() => visibleRows(rows, collapsed), [rows, collapsed])
-  const total = useMemo(() => totalWords(sections), [sections])
-  const activeKey = useMemo(
-    () => activeRowKey(rows, visible, activeSectionIndex),
-    [rows, visible, activeSectionIndex]
-  )
-
-  const toggle = (key: string): void => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (!next.delete(key)) next.add(key)
-      return next
-    })
-  }
 
   const significanceWords =
     manuscript?.significance == null ? 0 : countWords(manuscript.significance)
@@ -181,64 +165,23 @@ export function ManuscriptView(): JSX.Element {
         </div>
       </div>
 
-      <div>
-        <div className="view__section-title">Outline</div>
-        <div className="ms__outline">
-          {visible.map((row) => {
-            const index = rows.indexOf(row)
-            const active = tabActive && activeKey === row.key
-            const isCollapsed = collapsed.has(row.key)
-            return (
-              <button
-                key={row.key}
-                className={active ? 'ms__row ms__row--active' : 'ms__row'}
-                style={{ paddingLeft: `${6 + row.depth * 14}px` }}
-                disabled={rootDir === null}
-                onClick={() => {
-                  if (rootDir === null) return
-                  openManuscriptTab(rootDir)
-                  if (activeDocumentId !== null)
-                    useManuscriptDocStore.getState().requestScroll(activeDocumentId, index)
-                }}
-              >
-                {row.hasChildren ? (
-                  <span
-                    className="ms__twisty"
-                    role="button"
-                    tabIndex={-1}
-                    aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
-                    aria-expanded={!isCollapsed}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggle(row.key)
-                    }}
-                  >
-                    {isCollapsed ? '\u203a' : '\u2304'}
-                  </span>
-                ) : (
-                  <span className="ms__twisty ms__twisty--empty" />
-                )}
-                {row.chip !== '' && <span className="chip">{row.chip}</span>}
-                <span
-                  className={
-                    row.label === null
-                      ? 'ms__row-label ms__row-label--untitled'
-                      : 'ms__row-label'
-                  }
-                >
-                  {row.label ?? 'untitled'}
-                </span>
-                <span className="ms__count">{row.words}</span>
-              </button>
-            )
-          })}
-          <div className="ms__row ms__row--total">
-            <span className="ms__twisty ms__twisty--empty" />
-            <span className="ms__row-label">Total</span>
-            <span className="ms__count">{total}</span>
-          </div>
-        </div>
-      </div>
+      <OutlineList
+        title="Outline"
+        sections={sections}
+        activeIndex={activeSectionIndex}
+        highlightActive={tabActive}
+        disabled={rootDir === null}
+        emptyLabel="No headings in the manuscript yet."
+        onPick={(index) => {
+          if (rootDir === null) return
+          // Opening the tab FIRST: a click here means "take me to this
+          // section", which is meaningless while the document it belongs to
+          // is not on screen.
+          openManuscriptTab(rootDir)
+          if (activeDocumentId !== null)
+            useManuscriptDocStore.getState().requestScroll(activeDocumentId, index)
+        }}
+      />
 
       <div className="ms__meta">
         <span>
