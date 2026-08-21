@@ -18,7 +18,7 @@ let dir = ''
 const MANIFEST = {
   schemaVersion: 1,
   name: 'Test paper',
-  activeProfileId: 'nature-astronomy',
+  activeProfileId: 'nature',
   directories: DEFAULT_PROJECT_DIRS,
   createdAt: '2026-01-01T00:00:00.000Z'
 }

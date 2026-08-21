@@ -6,7 +6,7 @@ describe('buildProjectManifest', () => {
   it('produces a manifest that validates against SunaProjectManifestSchema', () => {
     const manifest = buildProjectManifest({
       name: 'Ram Pressure Paper',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       settings: {},
       createdAt: '2026-08-15T10:00:00.000Z'
     })
@@ -40,7 +40,7 @@ describe('buildProjectManifest', () => {
   it('omits the settings key entirely when the wizard set no project defaults', () => {
     const manifest = buildProjectManifest({
       name: 'Paper',
-      activeProfileId: 'mnras',
+      activeProfileId: 'science',
       settings: {},
       createdAt: '2026-08-15T10:00:00.000Z'
     })
@@ -50,7 +50,7 @@ describe('buildProjectManifest', () => {
   it('includes the step-6 settings block when defaults are saved to the project', () => {
     const manifest = buildProjectManifest({
       name: 'Paper',
-      activeProfileId: 'apj-aas',
+      activeProfileId: 'jneurosci',
       settings: { editor: { fontSizePx: 16, lineHeight: 1.5, contentWidthCh: 72 } },
       createdAt: '2026-08-15T10:00:00.000Z'
     })
@@ -62,7 +62,7 @@ describe('buildProjectManifest', () => {
   it('defaults createdAt to now when not supplied, and it is a valid ISO datetime', () => {
     const manifest = buildProjectManifest({
       name: 'Paper',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       settings: {}
     })
     expect(SunaProjectManifestSchema.shape.createdAt.safeParse(manifest.createdAt).success).toBe(
@@ -74,7 +74,7 @@ describe('buildProjectManifest', () => {
     expect(() =>
       buildProjectManifest({
         name: 'Paper',
-        activeProfileId: 'nature-astronomy',
+        activeProfileId: 'nature',
         settings: { editor: { fontSizePx: 999 } },
         createdAt: '2026-08-15T10:00:00.000Z'
       })

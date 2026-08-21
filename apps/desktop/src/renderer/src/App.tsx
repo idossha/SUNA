@@ -26,6 +26,7 @@ import { RepairPicker } from './shell/repair/RepairPicker'
 import { LetterTab } from './documents/LetterTab'
 import { RoundTab } from './documents/RoundTab'
 import { VersionTab } from './documents/VersionTab'
+import { CompareTab } from './documents/CompareTab'
 import { ReviewImportTab } from './documents/ReviewImportTab'
 import { useUiStore } from './state/ui'
 import { useEditorSettings } from './editor/settings'
@@ -45,6 +46,7 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   letter: LetterTab,
   round: RoundTab,
   version: VersionTab,
+  compare: CompareTab,
   'review-import': ReviewImportTab,
   onboarding: OnboardingTab,
   'docx-import': DocxImportTab,

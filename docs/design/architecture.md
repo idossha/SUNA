@@ -27,7 +27,7 @@ SUNA/
   python/
     suna_mpl/           # pip package: matplotlib gid tagging + journal presets + SVG export
   resources/
-    profiles/           # publisher profiles (nature-astronomy.json, nature-physics.json, …)
+    profiles/           # publisher profiles (nature.json, science.json, …)
     templates/          # LaTeX templates per profile
   docs/design/          # this document, reference-analysis.md, decisions
   references/           # user-supplied exemplar PDFs

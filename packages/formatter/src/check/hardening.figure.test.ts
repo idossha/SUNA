@@ -1,7 +1,7 @@
 /**
  * Adversarial hardening tests for the figure checker: inheritance attacks,
  * <defs> exclusion, null-rule silence, and an end-to-end run of the real
- * bundled apj-aas profile (through the loader) against the shared matplotlib
+ * bundled science profile (through the loader) against the shared matplotlib
  * fixture.
  */
 import { readFileSync } from 'node:fs';
@@ -169,26 +169,18 @@ describe('hardening — null rules stay silent', () => {
   });
 });
 
-describe('hardening — real apj-aas.json through the loader against mpl-two-panel', () => {
-  const profile = realProfile('apj-aas');
+describe('hardening — real science.json through the loader against mpl-two-panel', () => {
+  const profile = realProfile('science');
   const source = readFileSync(FIXTURE_PATH, 'utf8');
   const diags = checkFigureSvg(source, profile, { figureId: 'two-panel' });
 
-  it('emits no font diagnostics (fixture text is 6.5-7pt against the 6pt minimum)', () => {
+  it('emits no font diagnostics (fixture text is 6.5-7pt inside the 6-9pt band)', () => {
     expect(byId(diags, 'fig.min-font')).toEqual([]);
     expect(byId(diags, 'fig.max-font')).toEqual([]);
   });
 
-  it('the only line-weight diagnostics are the fixture\'s genuine 0.4pt minor ticks vs the stated 0.5pt minimum', () => {
-    // The fixture really does contain 0.4pt tick strokes, which violate the
-    // official AAS 0.5pt floor — a clean "no line-weight errors" is not
-    // truthfully assertable, so pin the diagnostics to exactly that cause.
-    const lw = byId(diags, 'fig.line-weight');
-    expect(lw.length).toBeGreaterThan(0);
-    for (const d of lw) {
-      expect(d.message).toContain('0.4pt');
-      expect(d.message).toContain('0.5pt');
-    }
+  it("emits no line-weight diagnostics (the fixture's thinnest stroke is 0.4pt, over the stated 0.28pt floor)", () => {
+    expect(byId(diags, 'fig.line-weight')).toEqual([]);
   });
 
   it('emits no artboard, dpi, or palette diagnostics for the real profile', () => {

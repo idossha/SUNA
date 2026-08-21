@@ -108,7 +108,7 @@ async function writeOldProject(overrides: Record<string, unknown> = {}): Promise
       {
         schemaVersion: 1,
         name: 'demo',
-        activeProfileId: 'nature-astronomy',
+        activeProfileId: 'nature',
         directories: {
           manuscript: 'manuscript',
           figures: 'figures',

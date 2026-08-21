@@ -624,7 +624,7 @@ try {
     // The scratch-userData wipe already resets localStorage each run, so
     // this is now a belt-and-braces guard — it keeps the run deterministic
     // even if the wipe is ever skipped or the suite is pointed at a live
-    // instance, where a run that ended on MNRAS would otherwise decide the
+    // instance, where a run that ended on Science would otherwise decide the
     // next run's citation numbering.
     await evalJs(`(() => {
       window.__sunaDev.editorSettings.getState().reset();
@@ -638,7 +638,7 @@ try {
       profile: document.querySelector('.statusbar__profile')?.textContent ?? null,
       tree: !!document.querySelector('.tree')
     })`)
-    assert(state.profile === 'Nature Astronomy', `profile chip: ${state.profile}`)
+    assert(state.profile === 'Nature', `profile chip: ${state.profile}`)
     assert(state.tree, 'explorer tree missing')
     assert(existsSync(join(rootDir, '.git')), 'example copy was not git-initialized')
     await screenshot('01-project-open.png')
@@ -795,7 +795,7 @@ try {
       artboard: document.querySelector('.canvas-tab__meta')?.textContent ?? ''
     })`)
     assert(r.svg, 'figure SVG not mounted on canvas')
-    assert(r.artboard.includes('180.0'), `artboard label: ${r.artboard}`)
+    assert(r.artboard.includes('183.0'), `artboard label: ${r.artboard}`)
     await screenshot('03-canvas.png')
   })
 
@@ -907,9 +907,10 @@ try {
     await sleep(600)
     const el = tagWithId(readFileSync(FIGURE, 'utf8'), rectId)
     assert(el.name === 'rect', `id="${rectId}" is a <${el.name}>, want <rect>`)
-    // Nature Astronomy palette[0] is #000000 (spec §4: profile defaults).
+    // Nature states no suggested palette, so new shapes take the built-in
+    // Wong default, whose first entry is #E69F00 (spec §4: profile defaults).
     assert(
-      el.markup.includes('fill="#000000"'),
+      el.markup.includes('fill="#E69F00"'),
       `new rect misses profile default fill: ${el.markup}`
     )
     assert(!el.markup.includes('stroke='), `new rect should carry no stroke: ${el.markup}`)
@@ -944,7 +945,7 @@ try {
     await sleep(600)
     const el = tagWithId(readFileSync(FIGURE, 'utf8'), rectId)
     assert(
-      el.markup.includes('fill="#e69f00"'),
+      el.markup.toLowerCase().includes('fill="#e69f00"'),
       `set-style fill did not land in saved file: ${el.markup}`
     )
   })
@@ -2043,7 +2044,7 @@ try {
       artboard: document.querySelector('.canvas-tab__meta')?.textContent ?? ''
     })`)
     assert(r.svg, 'velocity-map SVG not mounted on canvas')
-    assert(r.artboard.includes('88.0'), `velocity-map artboard label: ${r.artboard}`)
+    assert(r.artboard.includes('89.0'), `velocity-map artboard label: ${r.artboard}`)
     const chip = await evalJs(`document.querySelector('.canvas-tab__issues')?.textContent ?? null`)
     assert(chip === null, `velocity-map should be compliant (300 dpi raster), got: ${chip}`)
   })
@@ -2060,14 +2061,14 @@ try {
     await screenshot('views-references.png')
     // toggling the style profile re-renders the reference differently
     await evalJs(`[...document.querySelectorAll('.refs__style')]
-      .find((b) => b.textContent === 'MNRAS').click()`)
+      .find((b) => b.textContent === 'Science').click()`)
     await sleep(400)
     const after = await evalJs(`({
       text: document.querySelector('.refs__preview')?.textContent ?? '',
       pressed: [...document.querySelectorAll('.refs__style')]
-        .find((b) => b.textContent === 'MNRAS').getAttribute('aria-pressed')
+        .find((b) => b.textContent === 'Science').getAttribute('aria-pressed')
     })`)
-    assert(after.pressed === 'true', 'MNRAS style button did not activate')
+    assert(after.pressed === 'true', 'Science style button did not activate')
     assert(
       after.text !== '' && after.text !== before,
       'rendered reference did not change between profiles'
@@ -3087,11 +3088,11 @@ try {
       await sleep(1600)
     }
 
-    // --- ApJ (AAS): author-year in the body, alphabetical unnumbered list
-    await pickProfile('ApJ (AAS)')
+    // --- J. Neurosci.: author-year in the body, alphabetical unnumbered list
+    await pickProfile('J. Neurosci.')
     const apj = await bodyState()
     assert(
-      apj.renderedAs !== null && apj.renderedAs.includes('Astrophysical Journal'),
+      apj.renderedAs !== null && apj.renderedAs.includes('Journal of Neuroscience'),
       `manuscript still says: ${apj.renderedAs}`
     )
     assert(apj.chips.length > 0, 'no citation chips rendered in the manuscript body')
@@ -3107,7 +3108,7 @@ try {
       apj.refNums.length === 0,
       `author-year reference list should be unnumbered, got: ${apj.refNums.join(' ')}`
     )
-    assert(apj.refCount === 11, `reference count under ApJ: ${apj.refCount}`)
+    assert(apj.refCount === 11, `reference count under J. Neurosci.: ${apj.refCount}`)
     assert(
       apj.refFirst.includes('Astropy'),
       `alphabetical list should start at Astropy, got: ${apj.refFirst.slice(0, 60)}`
@@ -3118,11 +3119,11 @@ try {
     )
     await screenshot('fix-authoryear.png')
 
-    // --- back to Nature Astronomy: superscript numerals return
-    await pickProfile('Nat. Astron.')
+    // --- back to Nature: superscript numerals return
+    await pickProfile('Nature')
     const nat = await bodyState()
     assert(
-      nat.renderedAs !== null && nat.renderedAs.includes('Nature Astronomy'),
+      nat.renderedAs !== null && nat.renderedAs.includes('Nature'),
       `manuscript did not switch back: ${nat.renderedAs}`
     )
     assert(
@@ -4114,12 +4115,12 @@ try {
       `artboard is not really on screen: ${ruler.artWidthPx}×${ruler.artHeightPx} px`)
     assert(ruler.hLast - ruler.hFirst > 100,
       `ruler spans ${ruler.hLast - ruler.hFirst} px — it is not tracking the artboard`)
-    // 180 mm artboard -> 1 mm minor ticks 0..180 and labels every 10 mm
-    assert(ruler.hCount === 181, `horizontal mm ticks: ${ruler.hCount} (want 181 for 180 mm)`)
+    // 183 mm artboard -> 1 mm minor ticks 0..183 and labels every 10 mm
+    assert(ruler.hCount === 184, `horizontal mm ticks: ${ruler.hCount} (want 184 for 183 mm)`)
     assert(ruler.vCount === 59, `vertical mm ticks: ${ruler.vCount} (want 59 for 58 mm)`)
     assert(ruler.hLabels[0] === '0' && ruler.hLabels[1] === '10' && ruler.hLabels.at(-1) === '180',
       `major labels: ${ruler.hLabels.join(',')}`)
-    assert(ruler.artboardLabel.includes('180.0'), `artboard readout: ${ruler.artboardLabel}`)
+    assert(ruler.artboardLabel.includes('183.0'), `artboard readout: ${ruler.artboardLabel}`)
     // origin at the artboard's top-left, max tick at its far edge (±1 px)
     assert(Math.abs(ruler.hFirst - ruler.artLeft) < 1,
       `ruler 0 mm at ${ruler.hFirst}px, artboard left edge at ${ruler.artLeft}px`)
@@ -4259,7 +4260,7 @@ try {
     `))
     assert(labels.length === before + 2,
       `auto-letter inserted ${labels.length - before} labels (want 2 for the two-panel demo figure)`)
-    // Nature Astronomy's convention: lowercase, bold, no wrapper
+    // Nature's convention: lowercase, bold, no wrapper
     assert(labels[0].text === 'a' && labels[1].text === 'b',
       `panel letters: ${labels.map((l) => l.text).join(',')}`)
     assert(labels[0].x < labels[1].x, 'panel letters are not in reading order')
@@ -4329,7 +4330,7 @@ try {
     const selectJs = (i) => `[...CT.querySelectorAll('.canvas-props__field--wide select')][${i}]`
     const optionText = await evalJs(canvasJs(`return [...${selectJs(0)}.options].map((o) => o.value + '|' + o.text);`))
     assert(
-      optionText.some((o) => o.startsWith('double|') && o.includes('180 mm')),
+      optionText.some((o) => o.startsWith('double|') && o.includes('183 mm')),
       `width presets are not profile-driven: ${optionText.join(', ')}`
     )
     const setSelect = (i, value) =>
@@ -4349,11 +4350,11 @@ try {
     `))
     const m = /(\d+)×(\d+) px/.exec(readout)
     assert(m, `no pixel readout: ${readout}`)
-    assert(/180 × 58 mm @ 300 dpi/.test(readout), `readout: ${readout}`)
+    assert(/183 × 58 mm @ 300 dpi/.test(readout), `readout: ${readout}`)
     const wantW = Number(m[1])
     const wantH = Number(m[2])
-    // 180 mm at 300 dpi is 2126 px — the arithmetic, not a magic number
-    assert(wantW === Math.round((180 / 25.4) * 300), `readout width ${wantW} px is not 180 mm @ 300 dpi`)
+    // 183 mm at 300 dpi is 2161 px — the arithmetic, not a magic number
+    assert(wantW === Math.round((183 / 25.4) * 300), `readout width ${wantW} px is not 183 mm @ 300 dpi`)
 
     const png = join(COPY_DIR, 'output', 'fig-spectrum.png')
     rmSync(png, { force: true })
@@ -4418,16 +4419,16 @@ try {
     )
     assert(valid.ok, `figure.json is not schema-valid: ${valid.issues.join('; ')}`)
 
-    // artboard width == the active profile's double-column preset (180mm for
-    // Nature Astronomy), height == 0.618 * width
+    // artboard width == the active profile's double-column preset (183mm for
+    // Nature), height == 0.618 * width
     const svgText = readFileSync(figSvg, 'utf8')
     const wpt = /width="([\d.]+)pt"/.exec(svgText)
     const hpt = /height="([\d.]+)pt"/.exec(svgText)
     assert(wpt && hpt, `blank figure.svg has no pt width/height: ${svgText.slice(0, 120)}`)
     const wmm = Number(wpt[1]) * 0.3528
     const hmm = Number(hpt[1]) * 0.3528
-    assert(Math.abs(wmm - 180) < 0.5, `artboard width ${wmm.toFixed(2)}mm != the 180mm double-column preset`)
-    assert(Math.abs(hmm - 180 * 0.618) < 0.5, `artboard height ${hmm.toFixed(2)}mm != 0.618 * width`)
+    assert(Math.abs(wmm - 183) < 0.5, `artboard width ${wmm.toFixed(2)}mm != the 183mm double-column preset`)
+    assert(Math.abs(hmm - 183 * 0.618) < 0.5, `artboard height ${hmm.toFixed(2)}mm != 0.618 * width`)
 
     // registered in manuscript.json, still schema-valid
     const ms = JSON.parse(readFileSync(join(COPY_DIR, 'manuscript', 'manuscript.json'), 'utf8'))

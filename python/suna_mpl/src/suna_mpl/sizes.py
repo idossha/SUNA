@@ -14,9 +14,8 @@ MM_PER_INCH = 25.4
 #: preset name -> width in mm, per journal profile (values from official
 #: author guidelines; see SUNA resources/profiles/*.json)
 PROFILE_WIDTHS_MM: dict[str, dict[str, float]] = {
-    "nature": {"single": 88.0, "onehalf": 136.0, "double": 180.0},
+    "nature": {"single": 89.0, "onehalf": 136.0, "double": 183.0},
     "science": {"single": 90.0, "onehalf": 138.0, "double": 183.0},
-    "mnras": {"single": 80.0, "onehalf": 120.0, "double": 168.0},
 }
 
 #: default preset table (Nature-family)

@@ -1,7 +1,4 @@
 import { PublisherProfileSchema, type PublisherProfile } from '@suna/core';
-import apjAas from '../../../resources/profiles/apj-aas.json';
-import mnras from '../../../resources/profiles/mnras.json';
-import natureAstronomy from '../../../resources/profiles/nature-astronomy.json';
 import science from '../../../resources/profiles/science.json';
 import nature from '../../../resources/profiles/nature.json';
 import neuron from '../../../resources/profiles/neuron.json';
@@ -21,10 +18,7 @@ export const BUNDLED_PROFILE_IDS = [
   // The house style comes first: it is what a new project drafts in, and the
   // only entry here that is NOT derived from a journal's author guidelines.
   'suna',
-  'nature-astronomy',
   'science',
-  'apj-aas',
-  'mnras',
   'nature',
   'neuron',
   'pnas',
@@ -37,26 +31,9 @@ export const BUNDLED_PROFILE_IDS = [
 
 export type BundledProfileId = (typeof BUNDLED_PROFILE_IDS)[number];
 
-/**
- * Profiles temporarily HIDDEN from every profile picker (export dialog,
- * settings, onboarding, references view) — removed from the UI "for now" at
- * the user's request, NOT deleted: they stay bundled, loadable and valid, so
- * an existing project pointing at one keeps working and its picker shows the
- * hidden entry as the current selection. Restore by deleting from this list.
- */
-export const HIDDEN_PROFILE_IDS = ['nature-astronomy', 'apj-aas', 'mnras'] as const satisfies readonly BundledProfileId[];
-
-/** What profile pickers actually offer: the bundled list minus the hidden set. */
-export const PICKER_PROFILE_IDS = BUNDLED_PROFILE_IDS.filter(
-  (id) => !(HIDDEN_PROFILE_IDS as readonly string[]).includes(id)
-);
-
 /** Raw (unvalidated) bundled profile documents, keyed by id — the default `extends` registry. */
 export const BUNDLED_RAW: Readonly<Record<string, unknown>> = {
   suna,
-  'apj-aas': apjAas,
-  mnras,
-  'nature-astronomy': natureAstronomy,
   science,
   nature,
   neuron,

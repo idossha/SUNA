@@ -39,7 +39,7 @@ const writeManifest = async (extra: Record<string, unknown> = {}): Promise<void>
     JSON.stringify({
       schemaVersion: 1,
       name: 'Fixture',
-      activeProfileId: 'nature-astronomy',
+      activeProfileId: 'nature',
       directories: DIRS,
       createdAt: '2026-08-14T00:00:00.000Z',
       ...extra

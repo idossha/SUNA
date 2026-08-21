@@ -22,6 +22,8 @@ export * from './profile';
 export * from './docx-import';
 export * from './ipc';
 export * from './word-diff';
+export * from './doc-diff';
+export * from './compare';
 export * from './merge3';
 export * from './revisions';
 export * from './trash';

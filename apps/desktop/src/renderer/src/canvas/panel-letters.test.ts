@@ -87,8 +87,8 @@ describe('resolvePanelLabelConvention', () => {
     })
   })
 
-  it('defaults every null field even when a profile states none of them (apj-aas)', () => {
-    const profile = getBundledProfile('apj-aas')
+  it('defaults every null field even when a profile states none of them (neuron)', () => {
+    const profile = getBundledProfile('neuron')
     expect(resolvePanelLabelConvention(profile)).toEqual({
       letterCase: 'lower',
       weight: 'bold',
@@ -96,8 +96,8 @@ describe('resolvePanelLabelConvention', () => {
     })
   })
 
-  it('reads the stated convention from nature-astronomy', () => {
-    const profile = getBundledProfile('nature-astronomy')
+  it('reads the stated convention from nature', () => {
+    const profile = getBundledProfile('nature')
     expect(resolvePanelLabelConvention(profile)).toEqual({
       letterCase: 'lower',
       weight: 'bold',
@@ -114,8 +114,8 @@ describe('resolvePanelLabelConvention', () => {
     })
   })
 
-  it('reads a parens wrapper and defaults the unstated weight from mnras', () => {
-    const profile = getBundledProfile('mnras')
+  it('reads a parens wrapper and defaults the unstated weight from jne', () => {
+    const profile = getBundledProfile('jne')
     expect(resolvePanelLabelConvention(profile)).toEqual({
       letterCase: 'lower',
       weight: 'bold',

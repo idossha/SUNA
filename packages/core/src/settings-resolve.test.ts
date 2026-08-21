@@ -284,7 +284,7 @@ describe('applySettingsPatch', () => {
   const manifest = {
     schemaVersion: 1,
     name: 'my-paper',
-    activeProfileId: 'nature-astronomy',
+    activeProfileId: 'nature',
     directories: { manuscript: 'manuscript' },
     createdAt: '2026-08-13T09:30:00Z',
   };

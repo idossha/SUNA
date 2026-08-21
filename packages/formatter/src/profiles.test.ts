@@ -5,8 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { PublisherProfileSchema, type PublisherProfile, type ArticleTypeRules } from '@suna/core';
 import {
   BUNDLED_PROFILE_IDS,
-  HIDDEN_PROFILE_IDS,
-  PICKER_PROFILE_IDS,
   loadProfile,
   type BundledProfileId,
 } from './profiles';
@@ -59,13 +57,10 @@ const HOUSE_STYLE_IDS: readonly string[] = ['suna'];
 const JOURNAL_PROFILE_IDS = BUNDLED_PROFILE_IDS.filter((id) => !HOUSE_STYLE_IDS.includes(id));
 
 describe('bundled publisher profiles', () => {
-  it('lists exactly the twelve journal ids, plus the house style', () => {
+  it('lists exactly the nine journal ids, plus the house style', () => {
     expect([...BUNDLED_PROFILE_IDS].sort()).toEqual([...JOURNAL_PROFILE_IDS, 'suna'].sort());
     expect([...JOURNAL_PROFILE_IDS].sort()).toEqual(
       [
-        'apj-aas',
-        'mnras',
-        'nature-astronomy',
         'science',
         'nature',
         'neuron',
@@ -119,84 +114,6 @@ describe('bundled publisher profiles', () => {
   }
 });
 
-describe('apj-aas facts from the AAS author guidelines', () => {
-  const apj = profiles['apj-aas'];
-
-  it('figures: 6 pt minimum font, 0.5 pt minimum line weight, 300 dpi raster floor', () => {
-    expect(apj.figures.minFontPt).toBe(6);
-    expect(apj.figures.lineWeightPt.min).toBe(0.5);
-    expect(apj.figures.formats.minDpi).toBe(300);
-  });
-
-  it('citations: author-year with initials, ampersand joiner, et al. from 3 authors, ADS abbreviations', () => {
-    expect(apj.citations.mode).toBe('author-year');
-    expect(apj.citations.authorYear?.includeInitials).toBe(true);
-    expect(apj.citations.authorYear?.twoAuthorJoiner).toBe('&');
-    expect(apj.citations.authorYear?.etAlFromNAuthors).toBe(3);
-    expect(apj.citations.referenceList.journalAbbreviation).toBe('ads');
-    expect(apj.citations.referenceList.sortOrder).toBe('alphabetical');
-    expect(apj.citations.referenceList.authorTruncation).toEqual({
-      etAlAllowed: true,
-      truncateWhenMoreThan: 5,
-      keepFirstN: 3,
-    });
-  });
-
-  it('RNAAS: hard 1500-word total limit including references and captions, 150-word abstract', () => {
-    const rnaas = articleType(apj, 'rnaas');
-    expect(rnaas.wordLimit).toEqual({
-      max: 1500,
-      scope: 'total, including references and captions',
-      hard: true,
-    });
-    expect(rnaas.abstractWordLimit).toBe(150);
-    expect(rnaas.maxDisplayItems).toBe(1);
-  });
-
-  it('manuscript: 250-word abstract, 44-char running head, soft 3500-word ApJL limit, line numbers required', () => {
-    expect(articleType(apj, 'apj-article').abstractWordLimit).toBe(250);
-    expect(apj.manuscript.runningHeadLimitChars).toBe(44);
-    const letter = articleType(apj, 'apj-letter');
-    expect(letter.wordLimit?.max).toBe(3500);
-    expect(letter.wordLimit?.hard).toBe(false);
-    expect(apj.manuscript.submissionFormat.lineNumbers).toBe(true);
-  });
-});
-
-describe('nature-astronomy facts from Nature Portfolio guidelines', () => {
-  const nat = profiles['nature-astronomy'];
-
-  it('citations: numeric superscript with collapsed ranges, cited in order of appearance', () => {
-    expect(nat.citations.mode).toBe('numeric-superscript');
-    expect(nat.citations.collapseRanges).toBe(true);
-    expect(nat.citations.authorYear).toBeNull();
-    expect(nat.citations.referenceList.sortOrder).toBe('appearance');
-    expect(nat.citations.referenceList.authorTruncation.truncateWhenMoreThan).toBe(5);
-    expect(nat.citations.referenceList.authorTruncation.keepFirstN).toBe(1);
-  });
-
-  it('figures: 88/180 mm columns, 5-7 pt text, 0.25-1 pt lines, required Wong colorblind-safe palette', () => {
-    expect(nat.figures.widthPresetsMm.single).toBe(88);
-    expect(nat.figures.widthPresetsMm.double).toBe(180);
-    expect(nat.figures.minFontPt).toBe(5);
-    expect(nat.figures.maxFontPt).toBe(7);
-    expect(nat.figures.lineWeightPt).toEqual({ min: 0.25, max: 1 });
-    expect(nat.figures.palette.requirement).toBe('colorblind-safe-required');
-    expect(nat.figures.palette.suggestedHex).toHaveLength(8);
-    expect(nat.figures.palette.suggestedHex).toContain('#e69f00');
-    expect(nat.figures.panelLabel).toEqual({ letterCase: 'lower', weight: 'bold', wrapper: 'none' });
-  });
-
-  it('manuscript: Article 3000 words / 200-word abstract / 6 display items / 50 refs, data availability mandatory', () => {
-    const article = articleType(nat, 'article');
-    expect(article.wordLimit?.max).toBe(3000);
-    expect(article.abstractWordLimit).toBe(200);
-    expect(article.maxDisplayItems).toBe(6);
-    expect(article.maxReferences).toBe(50);
-    expect(nat.manuscript.availabilityStatements.data).toBe(true);
-  });
-});
-
 describe('science facts from AAAS instructions', () => {
   const sci = profiles['science'];
 
@@ -224,43 +141,6 @@ describe('science facts from AAAS instructions', () => {
     expect(ra.maxReferences).toBe(50);
     expect(sci.manuscript.submissionFormat.doubleSpacing).toBe(false);
     expect(sci.manuscript.availabilityStatements).toEqual({ data: true, code: true });
-  });
-});
-
-describe('mnras facts from the OUP instructions to authors', () => {
-  const mnras = profiles['mnras'];
-
-  it('citations: author-year; current official page examples include first initials', () => {
-    expect(mnras.citations.mode).toBe('author-year');
-    // The official page's own examples — '(J. Brown 1999)', 'J. Brown & P. Jones (1991)' —
-    // include initials (unlike traditional mnras.bst output; see profile notes).
-    expect(mnras.citations.authorYear?.includeInitials).toBe(true);
-    expect(mnras.citations.authorYear?.twoAuthorJoiner).toBe('&');
-    expect(mnras.citations.authorYear?.etAlFromNAuthors).toBe(4);
-    expect(mnras.citations.referenceList.sortOrder).toBe('alphabetical');
-    expect(mnras.citations.referenceList.authorTruncation).toEqual({
-      etAlAllowed: true,
-      truncateWhenMoreThan: 8,
-      keepFirstN: 1,
-    });
-  });
-
-  it('figures: 80 mm single column, 0.3 pt minimum line weight, red/green discouraged, lowercase (a) labels', () => {
-    expect(mnras.figures.widthPresetsMm.single).toBe(80);
-    expect(mnras.figures.lineWeightPt.min).toBe(0.3);
-    expect(mnras.figures.palette.redGreenDiscouraged).toBe(true);
-    expect(mnras.figures.panelLabel.letterCase).toBe('lower');
-    expect(mnras.figures.panelLabel.wrapper).toBe('parens');
-  });
-
-  it('manuscript: 250/200-word abstracts, mandatory Data Availability, single spacing', () => {
-    expect(articleType(mnras, 'mnras-paper').abstractWordLimit).toBe(250);
-    expect(articleType(mnras, 'mnras-letter').abstractWordLimit).toBe(200);
-    expect(mnras.manuscript.availabilityStatements.data).toBe(true);
-    expect(
-      mnras.manuscript.requiredSections.some((s) => s.id === 'data-availability' && s.required),
-    ).toBe(true);
-    expect(mnras.manuscript.submissionFormat.doubleSpacing).toBe(false);
   });
 });
 
@@ -292,8 +172,8 @@ describe('nature facts from the flagship Nature formatting guide', () => {
     expect(nat.figures.minFontPt).toBe(5);
     expect(nat.figures.maxFontPt).toBe(7);
     expect(nat.figures.lineWeightPt).toEqual({ min: 0.25, max: 1 });
-    // Unlike nature-astronomy, the flagship pages state no colorblind-safe
-    // palette rule — this profile must not borrow the sibling's requirement.
+    // The flagship pages state no colorblind-safe palette rule — this
+    // profile must not borrow one from a branded Nature journal.
     expect(nat.figures.palette.requirement).toBe('none-stated');
     expect(nat.figures.palette.suggestedHex).toBeNull();
   });
@@ -370,22 +250,6 @@ describe('pnas facts from the PNAS author center', () => {
   it('requiredSections places Results before Materials and Methods (PNAS-distinctive ordering)', () => {
     const ids = pnas.manuscript.requiredSections.map((s) => s.id);
     expect(ids.indexOf('results')).toBeLessThan(ids.indexOf('materials-methods'));
-  });
-});
-
-describe('picker visibility', () => {
-  it('hides exactly the astronomy journals from pickers, for now — they stay bundled and loadable', () => {
-    expect([...HIDDEN_PROFILE_IDS].sort()).toEqual(['apj-aas', 'mnras', 'nature-astronomy']);
-    expect(PICKER_PROFILE_IDS).not.toEqual(expect.arrayContaining(['nature-astronomy']));
-    // hidden ≠ removed: the profiles still load and validate
-    for (const id of HIDDEN_PROFILE_IDS) {
-      expect(profiles[id].id).toBe(id);
-    }
-    // the picker list is the bundled list minus the hidden set, order kept
-    expect(PICKER_PROFILE_IDS).toEqual(
-      BUNDLED_PROFILE_IDS.filter((id) => !(HIDDEN_PROFILE_IDS as readonly string[]).includes(id)),
-    );
-    expect(PICKER_PROFILE_IDS[0]).toBe('suna');
   });
 });
 
@@ -651,14 +515,6 @@ describe('provenance annotations on the bundled profiles', () => {
     }
   });
 
-  it('nature-astronomy marks collapseRanges as inferred (not stated on official pages)', () => {
-    const entry = profiles['nature-astronomy'].citations.provenance?.find((e) =>
-      e.claim.startsWith('collapseRanges'),
-    );
-    expect(entry?.basis).toBe('inferred');
-    expect(entry?.source).toBeNull();
-  });
-
   it('science records BOTH sides of the official column-width and line-weight conflicts', () => {
     const claims = (profiles['science'].figures.provenance ?? []).map((e) => e.claim);
     expect(claims.some((c) => c.startsWith('widthPresetsMm'))).toBe(true);
@@ -667,26 +523,8 @@ describe('provenance annotations on the bundled profiles', () => {
     expect(claims.some((c) => c.includes('conflicting official line-weight'))).toBe(true);
   });
 
-  it('apj-aas documents its stated figure minima from the graphics guide', () => {
-    const figures = profiles['apj-aas'].figures.provenance ?? [];
-    const minFont = figures.find((e) => e.claim.startsWith('minFontPt'));
-    expect(minFont?.basis).toBe('documented');
-    expect(minFont?.source).toBe('https://journals.aas.org/graphics-guide/');
-  });
-
-  it('nature-astronomy states the initial-submission stage severity downgrade', () => {
-    const nat = profiles['nature-astronomy'];
-    expect(nat.manuscript.stageSeverity).toEqual({
-      'initial-submission': 'warning',
-      accepted: 'error',
-    });
-    const entry = nat.manuscript.provenance?.find((e) => e.claim.startsWith('stageSeverity'));
-    expect(entry?.basis).toBe('inferred');
-  });
-
-  it('the other bundled profiles state no stage severity mapping', () => {
+  it('no bundled profile states a stage severity mapping', () => {
     for (const id of BUNDLED_PROFILE_IDS) {
-      if (id === 'nature-astronomy') continue;
       expect(profiles[id].manuscript.stageSeverity).toBeUndefined();
     }
   });
@@ -694,8 +532,8 @@ describe('provenance annotations on the bundled profiles', () => {
 
 describe('loadProfile', () => {
   it('returns the parsed profile for valid input', () => {
-    const parsed = loadProfile(readProfileJson('apj-aas'));
-    expect(parsed.id).toBe('apj-aas');
+    const parsed = loadProfile(readProfileJson('science'));
+    expect(parsed.id).toBe('science');
   });
 
   it('throws a friendly error listing field paths for invalid input', () => {
@@ -704,12 +542,12 @@ describe('loadProfile', () => {
   });
 
   it('names the offending profile when the document has an id', () => {
-    const broken = JSON.parse(JSON.stringify(readProfileJson('mnras'))) as {
+    const broken = JSON.parse(JSON.stringify(readProfileJson('science'))) as {
       id: string;
       citations: { mode: string };
     };
     broken.citations.mode = 'footnotes';
-    expect(() => loadProfile(broken)).toThrowError(/Invalid publisher profile "mnras":/);
+    expect(() => loadProfile(broken)).toThrowError(/Invalid publisher profile "science":/);
     expect(() => loadProfile(broken)).toThrowError(/citations\.mode/);
   });
 
@@ -790,14 +628,12 @@ describe('the SUNA house style', () => {
     });
   });
 
-  it("nature-astronomy, mnras and brain-stimulation state the 'Fig.' label their pages document; nobody else does", () => {
-    expect(profiles['nature-astronomy'].documentStyle).toEqual({ figureLabel: 'Fig.' });
-    expect(profiles['mnras'].documentStyle).toEqual({ figureLabel: 'Fig.' });
+  it("brain-stimulation states the 'Fig.' label its pages document; nobody else does", () => {
     // Elsevier's appendix-numbering format ("Table A.1; Fig. A.1, etc.") is
     // the guide's stated label form, generalized — see the profile's notes.
     expect(profiles['brain-stimulation'].documentStyle).toEqual({ figureLabel: 'Fig.' });
     for (const id of JOURNAL_PROFILE_IDS) {
-      if (id === 'nature-astronomy' || id === 'mnras' || id === 'brain-stimulation') continue;
+      if (id === 'brain-stimulation') continue;
       expect(
         profiles[id].documentStyle?.figureLabel,
         `${id} must not state a figure label its guidelines never gave`,

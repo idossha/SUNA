@@ -19,7 +19,7 @@ let dir: string
 const MANIFEST = {
   schemaVersion: 1,
   name: 'Fixture',
-  activeProfileId: 'nature-astronomy',
+  activeProfileId: 'nature',
   directories: {
     manuscript: 'manuscript',
     figures: 'figures',
@@ -215,7 +215,7 @@ describe('createLetter', () => {
   })
 
   it('opens the letter with the target journal, not the project active profile', async () => {
-    // The project targets nature-astronomy; the letter targets Science. The
+    // The project targets nature; the letter targets Science. The
     // letter must never silently inherit.
     const res = await createLetter({
       rootDir: dir,
@@ -225,6 +225,6 @@ describe('createLetter', () => {
     })
     const meta = CoverLetterMetaSchema.parse(JSON.parse(await read(join('manuscript', res.metaFile))))
     expect(meta.targetProfileId).toBe('science')
-    expect(MANIFEST.activeProfileId).toBe('nature-astronomy')
+    expect(MANIFEST.activeProfileId).toBe('nature')
   })
 })

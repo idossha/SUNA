@@ -258,7 +258,7 @@ describe('checkManuscriptCompliance', () => {
 
   it('returns diagnostics (or a compliant verdict) against a bundled profile', async () => {
     await writeFile(join(dir, 'manuscript', 'manuscript.json'), JSON.stringify(meta), 'utf8')
-    const out = await checkManuscriptCompliance({ ...ctx, activeProfileId: 'nature-astronomy' })
+    const out = await checkManuscriptCompliance({ ...ctx, activeProfileId: 'nature' })
     // The tiny fixture is under every limit but misses required sections /
     // availability statements — either way the checker must speak, not throw.
     expect(out).toMatch(/compliant with|error |warning /)

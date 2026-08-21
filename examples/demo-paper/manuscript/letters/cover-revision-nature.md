@@ -2,7 +2,7 @@ Dear Editor,
 
 Please find enclosed the revised version of our manuscript entitled “Rapid
 quenching by ram-pressure stripping in a young cluster at $z = 1.7$”, which we
-resubmit to Nature Astronomy following review. A point-by-point response to
+resubmit to Nature following review. A point-by-point response to
 both referees accompanies this letter.
 
 ::assert{revisionSummary}
@@ -13,7 +13,7 @@ Results rather than asserted. We have declined one request — Referee 1's point
 4 — and the response letter says why rather than quietly conceding it.
 
 ::assert{dualPublication}
-The revised manuscript remains under consideration at Nature Astronomy alone.
+The revised manuscript remains under consideration at Nature alone.
 
 ::assert{competingInterests}
 The authors continue to declare no competing interests.

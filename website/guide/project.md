@@ -91,7 +91,7 @@ A minimal manifest, as written for the bundled example:
 {
   "schemaVersion": 1,
   "name": "Ram-pressure stripping in a z=1.7 cluster (demo)",
-  "activeProfileId": "nature-astronomy",
+  "activeProfileId": "nature",
   "directories": {
     "manuscript": "manuscript",
     "figures": "figures",

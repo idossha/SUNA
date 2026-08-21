@@ -49,7 +49,7 @@ function report(overrides: Partial<ReviewerReport> = {}): ReviewerReport {
 function round(overrides: Partial<Round> = {}): Round {
   return {
     schemaVersion: 1,
-    id: 'r2-nature-astronomy',
+    id: 'r2-nature',
     kind: 'external',
     label: 'Round 2 — Nature Astronomy',
     venue: 'Nature Astronomy',
@@ -63,6 +63,7 @@ function round(overrides: Partial<Round> = {}): Round {
     decision: null,
     decidedAt: null,
     responseDocumentId: null,
+    baselineVersionId: null,
     ...overrides
   }
 }

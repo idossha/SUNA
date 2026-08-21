@@ -1,7 +1,7 @@
 We thank both referees for reports that were detailed and, in the case of the
 error budget, plainly right. The revision is stronger for them. Below we answer
 every point in turn; referee text is quoted from
-`rounds/r2-nature-astronomy/reviewers/`, which holds it verbatim, and each reply
+`rounds/r2-nature/reviewers/`, which holds it verbatim, and each reply
 names the point it answers so that nothing can go missing from the numbering.
 
 # Reviewer 1

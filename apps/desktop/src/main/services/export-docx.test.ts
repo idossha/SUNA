@@ -198,7 +198,7 @@ describe('tables are held together across a page break (feature-plan-13 §A3)', 
 describe('buildDocxDocument + Packer', () => {
   it('produces a .docx whose document.xml contains the title, an author, a heading and a reference', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const doc = await buildDocxDocument(content, OPTIONS)
 
     const { Packer } = await import('docx')
@@ -227,7 +227,7 @@ describe('buildDocxDocument + Packer', () => {
 
   it('embeds the figure image and its numbered caption', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'brain-stimulation', figurePngPaths })
     const doc = await buildDocxDocument(content, OPTIONS)
     const { Packer } = await import('docx')
     const buffer = await Packer.toBuffer(doc)
@@ -243,7 +243,7 @@ describe('buildDocxDocument + Packer', () => {
 
   it('applies native line numbers and continuous page numbers when requested', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const doc = await buildDocxDocument(content, { doubleSpacing: false, lineNumbers: true, pageNumbers: true })
     const { Packer } = await import('docx')
     const buffer = await Packer.toBuffer(doc)
@@ -259,7 +259,7 @@ describe('buildDocxDocument + Packer', () => {
 
   it('omits line numbers and the page-number footer when the options say so', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
     const doc = await buildDocxDocument(content, { doubleSpacing: false, lineNumbers: false, pageNumbers: false })
     const { Packer } = await import('docx')
     const buffer = await Packer.toBuffer(doc)
@@ -271,9 +271,9 @@ describe('buildDocxDocument + Packer', () => {
     expect(footerFiles).toHaveLength(0)
   })
 
-  it('renders an author-year reference list alphabetically for apj-aas', async () => {
+  it('renders an author-year reference list alphabetically for jneurosci', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'apj-aas', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'jneurosci', figurePngPaths })
     const doc = await buildDocxDocument(content, OPTIONS)
     const { Packer } = await import('docx')
     const buffer = await Packer.toBuffer(doc)
@@ -426,7 +426,7 @@ describe('markdown table alignment', () => {
   it('honours it under a journal profile too, which otherwise states no alignment', async () => {
     await writeFixtureProject(dir)
     await appendProse(ALIGNED)
-    expect(cellAlignments(await documentXmlFor('nature-astronomy'))).toEqual([
+    expect(cellAlignments(await documentXmlFor('nature'))).toEqual([
       ['left', 'center', 'right'],
       ['left', 'center', 'right']
     ])
@@ -443,7 +443,7 @@ describe('markdown table alignment', () => {
       ['left', 'center', 'center']
     ]
     expect(cellAlignments(await documentXmlFor('suna'))).toEqual(apa)
-    expect(cellAlignments(await documentXmlFor('nature-astronomy'))).toEqual(apa)
+    expect(cellAlignments(await documentXmlFor('nature'))).toEqual(apa)
   })
 
   it('shrink-wraps and centres the table instead of stretching it to 100%', async () => {
@@ -464,7 +464,7 @@ describe('exportDocx', () => {
 
     const result = await exportDocx({
       dir,
-      profileId: 'nature-astronomy',
+      profileId: 'nature',
       outputName: 'fixture-paper',
       figurePngPaths,
       options: OPTIONS
@@ -498,7 +498,7 @@ describe('examples/demo-paper round trip', () => {
 
     const content = await buildExportContent({
       dir: demoDir,
-      profileId: 'nature-astronomy',
+      profileId: 'nature',
       figurePngPaths: { 'fig-spectrum': specFig, 'fig-velocity-map': velFig }
     })
     const doc = await buildDocxDocument(content, OPTIONS)
@@ -602,7 +602,7 @@ describe('SUNA style (the house style)', () => {
    * so every export drafts in SUNA style.
    */
   it('a journal profile inherits the SUNA typography plus only its stated deltas', async () => {
-    const xml = await buildXml('nature-astronomy')
+    const xml = await buildXml('brain-stimulation')
     // US Letter with 0.5 in (720 twip) margins — the SUNA page, not A4/1in.
     expect(xml).toContain('w:w="12240"')
     expect(xml).toContain('w:h="15840"')
@@ -615,12 +615,12 @@ describe('SUNA style (the house style)', () => {
     // docx-tools' corresponding-author line, not the legacy "*e-mail:" one.
     expect(xml).toContain('* Corresponding author:')
     expect(xml).not.toContain('*e-mail:')
-    // The one delta nature-astronomy's guidelines state: "Fig. 1" labels.
+    // The one delta brain-stimulation's guidelines state: "Fig. 1" labels.
     expect(xml).toContain('Fig. 1')
   })
 
   it('a journal profile with no documentStyle at all still drafts in full SUNA style', async () => {
-    const xml = await buildXml('apj-aas')
+    const xml = await buildXml('jneurosci')
     expect(xml).toContain('w:w="12240"')
     expect(xml).toMatch(/w:top="720"/)
     expect(xml).toMatch(/w:line="276"/)

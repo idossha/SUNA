@@ -13,13 +13,13 @@ describe('widthPresetsFor', () => {
   })
 
   it('uses the profile-stated mm for presets it defines, falling back per-key otherwise', () => {
-    // nature-astronomy fixture: single 88, onehalf null, double 180.
-    const profile = getBundledProfile('nature-astronomy')
+    // nature: single 89, onehalf null, double 183.
+    const profile = getBundledProfile('nature')
     const presets = widthPresetsFor(profile)
     expect(presets.find((p) => p.key === 'single')).toEqual({
       key: 'single',
-      widthMm: 88,
-      label: 'Single column (88 mm)'
+      widthMm: 89,
+      label: 'Single column (89 mm)'
     })
     expect(presets.find((p) => p.key === 'onehalf')).toEqual({
       key: 'onehalf',
@@ -28,13 +28,13 @@ describe('widthPresetsFor', () => {
     })
     expect(presets.find((p) => p.key === 'double')).toEqual({
       key: 'double',
-      widthMm: 180,
-      label: 'Double column (180 mm)'
+      widthMm: 183,
+      label: 'Double column (183 mm)'
     })
   })
 
   it('always returns exactly the three presets, in order', () => {
-    const profile = getBundledProfile('apj-aas') // every widthPresetsMm value is null
+    const profile = getBundledProfile('neuron') // every widthPresetsMm value is null
     expect(widthPresetsFor(profile).map((p) => p.key)).toEqual(['single', 'onehalf', 'double'])
   })
 })
@@ -45,6 +45,6 @@ describe('defaultDpi', () => {
   })
 
   it('reads the profile minDpi', () => {
-    expect(defaultDpi(getBundledProfile('nature-astronomy'))).toBe(300)
+    expect(defaultDpi(getBundledProfile('nature'))).toBe(300)
   })
 })

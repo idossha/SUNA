@@ -15,7 +15,7 @@ import {
   type ReviewerReport,
   type Round
 } from '@suna/core'
-import { checkLetter, checkResponse, getBundledProfile } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, checkLetter, checkResponse, getBundledProfile } from '@suna/formatter'
 import { resolveInside, type ProjectContext } from './project'
 
 /**
@@ -216,20 +216,7 @@ export async function checkLetterCompliance(
 
 function knownJournalNames(): string[] {
   const out: string[] = []
-  for (const id of [
-    'nature',
-    'science',
-    'pnas',
-    'neuron',
-    'jneurosci',
-    'jne',
-    'sleep',
-    'sleep-advances',
-    'brain-stimulation',
-    'nature-astronomy',
-    'apj-aas',
-    'mnras'
-  ]) {
+  for (const id of BUNDLED_PROFILE_IDS) {
     const p = getBundledProfile(id)
     if (p !== null) out.push(p.journalName)
   }

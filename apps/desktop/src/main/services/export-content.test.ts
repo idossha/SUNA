@@ -92,8 +92,8 @@ describe('pngDimensions', () => {
 describe('widthMmForPreset', () => {
   it('falls back to the generic width when the profile leaves a preset null', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'apj-aas', figurePngPaths })
-    // apj-aas states no widthPresetsMm values (all null) — see canvas/export-presets.test.ts's own note.
+    const content = await buildExportContent({ dir, profileId: 'neuron', figurePngPaths })
+    // neuron states no widthPresetsMm values (all null) — see canvas/export-presets.test.ts's own note.
     expect(widthMmForPreset('single', content.profile)).toBe(89)
     expect(widthMmForPreset('double', content.profile)).toBe(180)
   })
@@ -196,7 +196,7 @@ describe('table embeds and derived numbering order', () => {
 describe('buildExportContent', () => {
   it('assembles sections in document order with their parsed prose', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
 
     expect(content.sections.map((s) => s.heading)).toEqual(['Introduction', 'Results'])
     expect(content.sections[0]?.source).toContain('baseline')
@@ -208,7 +208,7 @@ describe('buildExportContent', () => {
 
   it('numbers citations by first appearance and renders numeric-superscript style', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
 
     // Appearance order across the whole document: smith2020, jones2019, missing2099.
     expect(content.numbers.get('smith2020')).toBe(1)
@@ -223,7 +223,7 @@ describe('buildExportContent', () => {
 
   it('sorts the reference list alphabetically for an author-year profile', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'apj-aas', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'jneurosci', figurePngPaths })
 
     expect(content.citeStyle.mode).toBe('author-year')
     // Alphabetical by first author surname among resolvable entries: Jones before Smith;
@@ -233,7 +233,7 @@ describe('buildExportContent', () => {
 
   it('numbers affiliations and figures/labels the same way the live document does', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'brain-stimulation', figurePngPaths })
 
     expect(content.affiliations.ordered.map((a) => a.id)).toEqual(['af1', 'af2'])
     expect(content.labels.figures.get('fig-a')).toBe('Fig. 1')
@@ -243,7 +243,7 @@ describe('buildExportContent', () => {
 
   it('resolves a @fig: cross-reference against the figure label', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
-    const content = await buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths })
+    const content = await buildExportContent({ dir, profileId: 'brain-stimulation', figurePngPaths })
     const resultsSource = content.sections[1]?.source ?? ''
     expect(resultsSource).toContain('@fig:fig-a')
     expect(content.labels.figures.get('fig-a')).toBe('Fig. 1')
@@ -251,7 +251,7 @@ describe('buildExportContent', () => {
 
   it('throws naming the figure when a manuscript figure has no rasterized PNG supplied', async () => {
     await writeFixtureProject(dir)
-    await expect(buildExportContent({ dir, profileId: 'nature-astronomy', figurePngPaths: {} })).rejects.toThrow(
+    await expect(buildExportContent({ dir, profileId: 'nature', figurePngPaths: {} })).rejects.toThrow(
       /fig-a/
     )
   })
@@ -266,15 +266,17 @@ describe('buildExportContent', () => {
   it('routes the figure label word through the resolved style, defaulting to "Figure"', async () => {
     const { figurePngPaths } = await writeFixtureProject(dir)
     // SUNA and any profile stating no figureLabel delta: "Figure 1".
-    for (const profileId of ['suna', 'nature', 'apj-aas']) {
+    for (const profileId of ['suna', 'nature', 'jneurosci']) {
       const content = await buildExportContent({ dir, profileId, figurePngPaths })
       expect(content.labels.figures.get('fig-a'), profileId).toBe('Figure 1')
     }
-    // Profiles whose guidelines state the abbreviated form: "Fig. 1".
-    for (const profileId of ['nature-astronomy', 'mnras']) {
-      const content = await buildExportContent({ dir, profileId, figurePngPaths })
-      expect(content.labels.figures.get('fig-a'), profileId).toBe('Fig. 1')
-    }
+    // The profile whose guidelines state the abbreviated form: "Fig. 1".
+    const abbreviated = await buildExportContent({
+      dir,
+      profileId: 'brain-stimulation',
+      figurePngPaths
+    })
+    expect(abbreviated.labels.figures.get('fig-a')).toBe('Fig. 1')
   })
 })
 
@@ -358,7 +360,7 @@ describe('buildExportContent — examples/demo-paper round trip', () => {
 
     const content = await buildExportContent({
       dir: demoDir,
-      profileId: 'nature-astronomy',
+      profileId: 'nature',
       figurePngPaths: { 'fig-spectrum': specFig, 'fig-velocity-map': velFig }
     })
 

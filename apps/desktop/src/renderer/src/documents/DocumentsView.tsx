@@ -4,7 +4,7 @@ import { stageLabel, versionsNewestFirst } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useDocumentsStore, refreshDocuments, secondaryDocuments } from '../state/documents'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
-import { openDocumentTab, openManuscriptTab, openVersionTab } from '../state/dock'
+import { openCompareTab, openDocumentTab, openManuscriptTab, openVersionTab } from '../state/dock'
 import { ManuscriptView } from '../views/ManuscriptView'
 import { DocumentOutline } from './DocumentOutline'
 import { LetterList } from './LetterList'
@@ -212,7 +212,7 @@ export function DocumentsView(): JSX.Element {
           {versionsOpen && (
             <ul className="docs__list docs__versions-list">
               {versionsNewestFirst(versions).map((v) => (
-                <li key={v.id}>
+                <li key={v.id} className="docs__vrow">
                   <button
                     className="docs__row docs__row--nested"
                     onClick={() => {
@@ -224,6 +224,19 @@ export function DocumentsView(): JSX.Element {
                   >
                     <span className="docs__badge">{v.id}</span>
                     <span className="docs__row-title">{stageLabel(v.stage)}</span>
+                  </button>
+                  {/* Reading a version and comparing against it are different
+                      questions, so they are different targets rather than one
+                      row that has to guess which you meant. */}
+                  <button
+                    className="docs__vcmp"
+                    title={`Compare ${v.id} with the working copy`}
+                    aria-label={`Compare ${v.id} with the working copy`}
+                    onClick={() => {
+                      if (rootDir !== null) openCompareTab(rootDir, `version:${v.id}`, 'working')
+                    }}
+                  >
+                    ⇄
                   </button>
                 </li>
               ))}

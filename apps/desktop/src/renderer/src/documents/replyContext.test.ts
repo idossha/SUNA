@@ -41,6 +41,7 @@ function round(over: Partial<Round> = {}): Round {
     decision: 'major-revision',
     decidedAt: null,
     responseDocumentId: null,
+    baselineVersionId: null,
     ...over
   }
 }

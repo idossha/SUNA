@@ -161,7 +161,7 @@ Messages name the measured value against the journal's rule, for example `Text "
 
 ## Rulers, units and the artboard
 
-The artboard is measured in physical millimetres, read from the root SVG's `width` and `height` with unit conversion, so a figure that says 180 mm is 180 mm on paper. The toolbar shows the artboard size — `180.0 × 58.0 mm` — and beside it the selected element's id, or `N selected`.
+The artboard is measured in physical millimetres, read from the root SVG's `width` and `height` with unit conversion, so a figure that says 183 mm is 183 mm on paper. The toolbar shows the artboard size — `183.0 × 58.0 mm` — and beside it the selected element's id, or `N selected`.
 
 Rulers run along the top and left, ticked at 1 mm with a labelled major tick every 10 mm, origin at the artboard's top-left, with a live cursor marker. The **Rulers** button in the toolbar toggles them; they start on.
 

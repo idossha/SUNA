@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "r2-nature-astronomy",
+  "id": "r2-nature",
   "kind": "external",
-  "label": "Round 1 — Nature Astronomy",
-  "venue": "Nature Astronomy",
+  "label": "Round 1 — Nature",
+  "venue": "Nature",
   "state": "returned",
   "createdAt": "2026-04-11T08:30:00.000Z",
   "freeze": {

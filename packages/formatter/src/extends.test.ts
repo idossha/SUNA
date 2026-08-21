@@ -11,10 +11,10 @@ import { BUNDLED_RAW, loadProfile } from './profiles';
 function child(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     schemaVersion: 3,
-    id: 'apj-child',
-    extends: 'apj-aas',
-    journalName: 'ApJ Child Journal',
-    publisher: 'AAS / IOP',
+    id: 'science-child',
+    extends: 'science',
+    journalName: 'Science Child Journal',
+    publisher: 'American Association for the Advancement of Science (AAAS)',
     ...overrides,
   };
 }
@@ -22,14 +22,14 @@ function child(overrides: Record<string, unknown> = {}): Record<string, unknown>
 describe('loadProfile — extends against the bundled registry', () => {
   it('inherits everything the child does not state', () => {
     const p = loadProfile(child());
-    expect(p.id).toBe('apj-child');
-    expect(p.extends).toBe('apj-aas');
-    expect(p.journalName).toBe('ApJ Child Journal');
-    // Inherited from apj-aas untouched:
-    expect(p.citations.mode).toBe('author-year');
-    expect(p.citations.authorYear?.etAlFromNAuthors).toBe(3);
+    expect(p.id).toBe('science-child');
+    expect(p.extends).toBe('science');
+    expect(p.journalName).toBe('Science Child Journal');
+    // Inherited from science untouched:
+    expect(p.citations.mode).toBe('parenthetical-numeric');
+    expect(p.citations.referenceList.authorTruncation.etAlAllowed).toBe(false);
     expect(p.figures.minFontPt).toBe(6);
-    expect(p.manuscript.runningHeadLimitChars).toBe(44);
+    expect(p.figures.formats.minDpi).toBe(300);
     expect(p.lastVerified).toBe('2026-08-13');
   });
 
@@ -40,9 +40,9 @@ describe('loadProfile — extends against the bundled registry', () => {
       }),
     );
     expect(p.figures.minFontPt).toBe(7); // overridden
-    expect(p.figures.lineWeightPt.min).toBe(0.5); // sibling object inherited
+    expect(p.figures.lineWeightPt.min).toBe(0.28); // sibling object inherited
     expect(p.figures.palette.requirement).toBe('none-stated'); // overridden leaf
-    expect(p.figures.palette.colorAsSoleDelimiter).toBe('forbidden'); // sibling leaf inherited
+    expect(p.figures.palette.redGreenDiscouraged).toBe(true); // sibling leaf inherited
     expect(p.figures.formats.minDpi).toBe(300);
   });
 
@@ -55,34 +55,35 @@ describe('loadProfile — extends against the bundled registry', () => {
     );
     expect(p.citations.sources).toEqual(['https://example.org/child-style']);
     expect(p.notes).toEqual(['child note']);
-    // apj-aas has 3 article types; untouched array inherited as-is.
+    // science has 4 article types; untouched array inherited as-is.
     expect(p.manuscript.articleTypes.map((t) => t.id)).toEqual([
-      'apj-article',
-      'apj-letter',
-      'rnaas',
+      'research-article',
+      'research-article-extended',
+      'review',
+      'perspective',
     ]);
   });
 
   it('explicit child null overrides an inherited value', () => {
-    const p = loadProfile(child({ manuscript: { runningHeadLimitChars: null } }));
-    expect(p.manuscript.runningHeadLimitChars).toBeNull();
+    const p = loadProfile(child({ figures: { minFontPt: null } }));
+    expect(p.figures.minFontPt).toBeNull();
   });
 
   it('resolves multi-level chains through a custom registry', () => {
     const registry = {
       ...BUNDLED_RAW,
-      'apj-mid': child({ id: 'apj-mid', figures: { minFontPt: 8 } }),
+      'science-mid': child({ id: 'science-mid', figures: { minFontPt: 8 } }),
     };
-    const leaf = child({ id: 'apj-leaf', extends: 'apj-mid', figures: { maxFontPt: 12 } });
+    const leaf = child({ id: 'science-leaf', extends: 'science-mid', figures: { maxFontPt: 12 } });
     const p = loadProfile(leaf, { registry });
     expect(p.figures.minFontPt).toBe(8); // from mid
     expect(p.figures.maxFontPt).toBe(12); // from leaf
-    expect(p.citations.mode).toBe('author-year'); // from apj-aas grandparent
+    expect(p.citations.mode).toBe('parenthetical-numeric'); // from science grandparent
   });
 
   it('throws on an unknown parent id, naming the child', () => {
     expect(() => loadProfile(child({ extends: 'no-such-journal' }))).toThrowError(
-      /Unknown parent profile "no-such-journal".*"apj-child"/,
+      /Unknown parent profile "no-such-journal".*"science-child"/,
     );
   });
 
@@ -101,13 +102,13 @@ describe('loadProfile — extends against the bundled registry', () => {
 
   it('validates the merged document — invalid overrides still fail loudly', () => {
     expect(() => loadProfile(child({ figures: { minFontPt: -3 } }))).toThrowError(
-      /Invalid publisher profile "apj-child"/,
+      /Invalid publisher profile "science-child"/,
     );
   });
 
   it('a profile without extends is untouched by the resolver', () => {
-    const p = loadProfile(BUNDLED_RAW['apj-aas']);
+    const p = loadProfile(BUNDLED_RAW['science']);
     expect(p.extends).toBeUndefined();
-    expect(p.id).toBe('apj-aas');
+    expect(p.id).toBe('science');
   });
 });

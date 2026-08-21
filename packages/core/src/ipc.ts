@@ -17,6 +17,7 @@ import {
   RoundSchema,
 } from './rounds';
 import { LoggedVersionSchema } from './versions';
+import { CompareDocumentSchema, CompareRefSchema, CompareSideSchema } from './compare';
 import { TrashEntrySchema } from './trash';
 import { NoteColorSchema } from './refnotes';
 import {
@@ -380,6 +381,34 @@ export const CHANNELS = {
   'round:write': {
     request: z.object({ dir: z.string().min(1), round: RoundSchema }),
     response: z.object({ ok: z.literal(true) }),
+  },
+
+  /**
+   * Point a round at the version its reviewers read (feature-plan-14 §1).
+   * `versionId: null` clears the pointer, which puts the round back on the
+   * date-inferred baseline rather than leaving it with none.
+   */
+  'round:set-baseline': {
+    request: z.object({
+      dir: z.string().min(1),
+      roundId: z.string().min(1),
+      versionId: z.string().nullable(),
+    }),
+    response: z.object({ round: RoundSchema }),
+  },
+
+  /**
+   * Version comparison (feature-plan-14 §2). Reading only: a comparison
+   * writes nothing, and the diff itself is computed in the renderer from the
+   * two texts, so the same pure functions serve the tests and the screen.
+   */
+  'compare:sides': {
+    request: z.object({ dir: z.string().min(1) }),
+    response: z.object({ sides: z.array(CompareSideSchema) }),
+  },
+  'compare:read': {
+    request: z.object({ dir: z.string().min(1), ref: CompareRefSchema }),
+    response: z.object({ document: CompareDocumentSchema }),
   },
 
   /**

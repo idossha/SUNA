@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { DEFAULT_PROJECT_DIRS, formatVersionId, workingVersion } from '@suna/core'
-import { PICKER_PROFILE_IDS, getBundledProfile, type BundledProfileId, type Diagnostic } from '@suna/formatter'
+import { BUNDLED_PROFILE_IDS, getBundledProfile, type BundledProfileId, type Diagnostic } from '@suna/formatter'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useManuscriptStore } from '../state/manuscript'
 import { useProjectStore } from '../state/project'
@@ -126,12 +126,6 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   const [rightTab, setRightTab] = useState<'preview' | 'requirements'>('preview')
 
   const profile = getBundledProfile(profileId)
-
-  // A hidden profile a project already points at stays selectable — the
-  // picker offers the visible set plus, when needed, the current selection.
-  const pickerIds: readonly BundledProfileId[] = PICKER_PROFILE_IDS.includes(profileId)
-    ? PICKER_PROFILE_IDS
-    : [...PICKER_PROFILE_IDS, profileId]
 
   // Article-type ids are journal-specific — switching journals resets the
   // selector to None (the generic overview).
@@ -394,7 +388,7 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
               <label className="export-dialog__field export-dialog__field--wide">
                 <span>Profile</span>
                 <select value={profileId} onChange={(e) => setProfileId(e.target.value as BundledProfileId)}>
-                  {pickerIds.map((id) => (
+                  {BUNDLED_PROFILE_IDS.map((id) => (
                     <option key={id} value={id}>
                       {getBundledProfile(id)?.journalName ?? id}
                     </option>

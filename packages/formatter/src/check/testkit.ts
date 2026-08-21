@@ -1,8 +1,9 @@
 /**
  * Shared fixtures for the checker tests (not exported from the package).
- * The profile mirrors the realistic ApJ example in @suna/core's
- * profile.test.ts; both factories validate through the zod schemas so a
- * schema drift fails loudly here rather than silently skewing the checks.
+ * `apjProfile` is a SYNTHETIC author-year journal — a realistic shape to
+ * check against, not a bundled profile (SUNA bundles no ApJ profile). Both
+ * factories validate through the zod schemas so a schema drift fails loudly
+ * here rather than silently skewing the checks.
  */
 import {
   ManuscriptSchema,

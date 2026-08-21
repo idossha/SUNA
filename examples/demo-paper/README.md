@@ -4,13 +4,13 @@ A small but complete SUNA research project: a synthetic study of ram-pressure st
 
 ## What this project demonstrates
 
-- **Manuscript as data** — `manuscript/` is flat and holds exactly four files: `manuscript.md` (the entire prose — sections are Markdown headings, and the introduction is deliberately unheaded), `manuscript.json` (journal-agnostic metadata, validated by `@suna/core`'s `ManuscriptSchema`), `authors.json` (byline + affiliations, `AuthorsFileSchema`) and `references.bib`. The outline is DERIVED from the Markdown, and numbering of figures, tables, equations, and references is never stored — only derived from order plus the active publisher profile (`suna.json` → `nature-astronomy`).
+- **Manuscript as data** — `manuscript/` is flat and holds exactly four files: `manuscript.md` (the entire prose — sections are Markdown headings, and the introduction is deliberately unheaded), `manuscript.json` (journal-agnostic metadata, validated by `@suna/core`'s `ManuscriptSchema`), `authors.json` (byline + affiliations, `AuthorsFileSchema`) and `references.bib`. The outline is DERIVED from the Markdown, and numbering of figures, tables, equations, and references is never stored — only derived from order plus the active publisher profile (`suna.json` → `nature`).
 - **Reproducible figures** — each figure directory holds `figure.svg`, its `figure.json` document (caption, panels, provenance), and the generating script under `source/`. Exports via `suna_mpl` are byte-deterministic, carry stable element ids (`ax0.title.left`, `ax1.line.quenching-threshold`, ...) that the SUNA canvas addresses, and write a `figure.svg.suna.json` manifest mapping data coordinates to SVG coordinates.
 - **A real analysis chain** — raw inputs in `data/` are processed by `analysis/fit_spectrum.py` into `results/spectrum_fit.json`; the values quoted in the manuscript's Results section come from that file. Reusable model code (the Gunn–Gott stripping radius) lives in `code/`.
 - **Citations from BibTeX** — `manuscript/references.bib` mixes `@article`, `@book`, `@software`, and `@misc` entries, cited from the prose with `[@key]` syntax.
 - **A document set, not one manuscript** — `suna.json` declares a `documents` registry (adr-009): the manuscript, the supplement, two cover letters and a response to referees. Letters live under `manuscript/letters/` so they inherit the comment gutter, versions and the AI diff bar that the manuscript already has.
 - **Letters that make checkable claims** — each letter is prose (`<id>.md`) plus a sidecar (`<id>.json`). Factual assertions — no dual publication, no competing interests, where the data live — are structured in the sidecar and placed in the prose with `::assert{id}`, so "no repository named" is a fact the checker reads rather than a sentence it guesses at. The confidential suggested/excluded-reviewer list (`<id>.private.json`) is gitignored by design and is therefore **not** shipped in this example.
-- **A peer-review ledger** — `rounds/` records what happened to the paper: an internal circulation to co-authors, then a Nature Astronomy round that came back `major-revision`. The referees' words live in `rounds/r2-nature-astronomy/reviewers/*.json`, segmented into 14 points by the offline importer, each one a byte-exact contiguous slice of the retained source. Nothing in the app offers an edit control for them.
+- **A peer-review ledger** — `rounds/` records what happened to the paper: an internal circulation to co-authors, then a Nature round that came back `major-revision`. The referees' words live in `rounds/r2-nature/reviewers/*.json`, segmented into 14 points by the offline importer, each one a byte-exact contiguous slice of the retained source. Nothing in the app offers an edit control for them.
 
 ## Directory map
 
@@ -45,7 +45,7 @@ Every step is deterministic: rerunning it reproduces the committed files byte fo
 
 ## The review round, and what it is showing you
 
-`rounds/r2-nature-astronomy/` is a returned external round with a `major-revision` decision. Its `round.json` holds the **mutable half** — one `pointStates` entry per referee point, with the author's status, assignee, reply and links back into the manuscript. The **immutable half** is `reviewers/1.json` and `reviewers/2.json`, which retain the full decision letter as `sourceText` and cut it into points by offset.
+`rounds/r2-nature/` is a returned external round with a `major-revision` decision. Its `round.json` holds the **mutable half** — one `pointStates` entry per referee point, with the author's status, assignee, reply and links back into the manuscript. The **immutable half** is `reviewers/1.json` and `reviewers/2.json`, which retain the full decision letter as `sourceText` and cut it into points by offset.
 
 Three things in there are deliberate and are not defects:
 

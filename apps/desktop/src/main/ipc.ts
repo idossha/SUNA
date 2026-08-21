@@ -17,6 +17,7 @@ import {
   writeRound
 } from './services/round-new'
 import { listVersions, logVersion, readVersionFile } from './services/version-log'
+import { listCompareSides, readCompareDocument, setRoundBaseline } from './services/compare'
 import { documentFile, projectDocument, projectDocuments } from './services/paths'
 import { readFile } from 'node:fs/promises'
 import { pointStateFor } from '@suna/core'
@@ -384,6 +385,15 @@ export function registerIpcHandlers(): void {
     await writeRound(dir, round)
     return { ok: true as const }
   })
+
+  handle('round:set-baseline', async ({ dir, roundId, versionId }) => ({
+    round: await setRoundBaseline(dir, roundId, versionId)
+  }))
+
+  handle('compare:sides', async ({ dir }) => ({ sides: await listCompareSides(dir) }))
+  handle('compare:read', async ({ dir, ref }) => ({
+    document: await readCompareDocument(dir, ref)
+  }))
 
   handle('version:list', async ({ dir }) => ({ versions: await listVersions(dir) }))
   handle('version:log', async ({ dir, stage, note }) => ({

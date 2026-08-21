@@ -54,7 +54,7 @@
         "source": "https://www.jneurosci.org/content/information-authors"
       },
       {
-        "claim": "collapseRanges: false, and authorYear's individual fields (includeInitials, twoAuthorJoiner, etAlFromNAuthors, sameYearSuffixes) left null — author-year citation formatting details were not confirmed for JNeurosci specifically; false/null chosen by convention matching the other author-year profile in this repo (mnras.json) rather than any JNeurosci-specific statement.",
+        "claim": "collapseRanges: false, and authorYear's individual fields (includeInitials, twoAuthorJoiner, etAlFromNAuthors, sameYearSuffixes) left null — author-year citation formatting details were not confirmed for JNeurosci specifically; false/null chosen by convention rather than any JNeurosci-specific statement.",
         "basis": "inferred",
         "source": null
       },

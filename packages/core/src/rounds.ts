@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { VERSION_ID_RE, compareVersions, parseVersionId, type LoggedVersion } from './versions';
 
 /**
  * Rounds — the development ledger (ADR-009, feature-plan-12 §3 and §6).
@@ -190,6 +191,23 @@ export const RoundSchema = z.object({
   decidedAt: z.iso.datetime().nullable().default(null),
   /** Registry id of the response document answering this round, if any. */
   responseDocumentId: z.string().min(1).nullable().default(null),
+  /**
+   * The logged version (`manuscript/archive/vX.Y`) that went out — the exact
+   * text these reviewers read (feature-plan-14 §1).
+   *
+   * A pointer into the version archive rather than a second copy of the
+   * bytes: the archive is already read-only, already carries the code and
+   * figures behind the prose, and its numbering already means this (1.x is
+   * the first submission, 2.x is after the first round of corrections). A
+   * round that copied the manuscript again would be a second archive to keep
+   * in step with the first.
+   *
+   * Null on a round nobody has pointed at a version, which is the normal
+   * state of every round created before this field existed —
+   * `baselineVersionFor` infers one from the dates rather than making the
+   * comparison unavailable.
+   */
+  baselineVersionId: z.string().regex(VERSION_ID_RE).nullable().default(null),
 });
 export type Round = z.infer<typeof RoundSchema>;
 
@@ -276,4 +294,33 @@ export function unaddressedPoints(
  */
 export function reportIsFaithful(report: ReviewerReport): boolean {
   return report.points.every((p) => report.sourceText.slice(p.from, p.to) === p.verbatim);
+}
+
+/**
+ * The version this round's reviewers read.
+ *
+ * The stored pointer when there is one; otherwise the newest version logged
+ * at or before the round was created. The inference is deliberately not
+ * written back: it is a reading of the dates, and the moment the author sets
+ * the pointer by hand the guess must lose. What it buys is that every round
+ * already on disk — none of which carry the field — opens with a working
+ * comparison instead of an empty picker.
+ */
+export function baselineVersionFor(
+  round: Pick<Round, 'baselineVersionId' | 'createdAt'>,
+  versions: readonly LoggedVersion[],
+): LoggedVersion | null {
+  if (round.baselineVersionId !== null) {
+    return versions.find((v) => v.id === round.baselineVersionId) ?? null;
+  }
+  let best: LoggedVersion | null = null;
+  for (const v of versions) {
+    if (v.createdAt > round.createdAt) continue;
+    if (best === null || compareVersions(numberOf(v), numberOf(best)) > 0) best = v;
+  }
+  return best;
+}
+
+function numberOf(v: LoggedVersion): { stage: number; minor: number } {
+  return parseVersionId(v.id) ?? { stage: v.stage, minor: v.minor };
 }
