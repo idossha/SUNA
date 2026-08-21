@@ -60,19 +60,31 @@ export default async (ctx) => {
     'a pane header showed with only one pane on screen'
   )
 
-  const toggle = `[...document.querySelectorAll('.round__mode')].find((b) => b.textContent.includes('Compare'))`
-  assert(await ctx.evalJs(`!!${toggle}`), 'no Compare toggle in the round header')
-  await ctx.evalJs(`${toggle}.click()`)
+  // Compare is one menu over both comparisons — the second pane and the
+  // manuscript diff — so the toggle is now its first item, not its own button.
+  const button = `document.querySelector('.round__cmp')`
+  const paneItem = `[...document.querySelectorAll('.docs__menu [role=menuitem]')].find((b) => b.textContent.includes('Another point'))`
+  const openPaneItem = async () => {
+    assert(await ctx.evalJs(`!!${button}`), 'no Compare button in the round header')
+    await ctx.evalJs(`${button}.click()`)
+    await ctx.waitFor(`!!${paneItem}`, {
+      timeoutMs: 10000,
+      desc: "the Compare menu's second-pane item"
+    })
+    await ctx.evalJs(`${paneItem}.click()`)
+  }
+
+  await openPaneItem()
   await ctx.waitFor(`document.querySelectorAll('.round__pane').length === 2`, {
     timeoutMs: 10000,
     desc: 'two panes after Compare'
   })
   assert(
-    (await ctx.evalJs(`${toggle}.getAttribute('aria-pressed')`)) === 'true',
-    'the Compare toggle does not report itself pressed'
+    (await ctx.evalJs(`${button}.className`)).includes('is-on'),
+    'the Compare button does not show itself lit while split'
   )
 
-  await ctx.evalJs(`${toggle}.click()`)
+  await openPaneItem()
   await ctx.waitFor(`document.querySelectorAll('.round__pane').length === 1`, {
     timeoutMs: 10000,
     desc: 'back to one pane'

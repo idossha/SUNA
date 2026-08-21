@@ -3122,8 +3122,7 @@ button:disabled {
 .round__cmp {
   background: none;
   border: 1px solid var(--s-border);
-  border-right: 0;
-  border-radius: 6px 0 0 6px;
+  border-radius: 6px;
   color: var(--s-ink-muted);
   cursor: pointer;
   font-size: 12px;
@@ -3131,24 +3130,28 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* The caret is part of the one button now — the second pane and the
+   manuscript diff are two answers to the same question, so they hang off the
+   same control rather than two buttons that look like two features. */
 .round__cmp-caret {
-  background: none;
-  border: 1px solid var(--s-border);
-  border-radius: 0 6px 6px 0;
-  color: var(--s-ink-muted);
-  cursor: pointer;
-  font-size: 10px;
-  padding: 4px 6px;
+  font-size: 9px;
+  margin-left: 4px;
+  opacity: 0.7;
 }
 
-.round__cmp:hover:not(:disabled),
-.round__cmp-caret:hover:not(:disabled) {
+.round__cmp:hover:not(:disabled) {
   color: var(--s-ink);
   border-color: var(--s-border-strong);
 }
 
-.round__cmp:disabled,
-.round__cmp-caret:disabled {
+/* Lit while the second pane is open — the button is also the way back out. */
+.round__cmp.is-on {
+  background: var(--s-bg-panel);
+  border-color: var(--s-border-strong);
+  color: var(--s-ink);
+}
+
+.round__cmp:disabled {
   opacity: 0.4;
   cursor: default;
 }
