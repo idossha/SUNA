@@ -7,7 +7,7 @@ import { useProjectStore } from '../state/project'
 import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { HOUSE_PROFILE_ID, resolvePreviewProfileId } from '../state/renderProfile'
 import { useEditorSettings } from '../editor/settings'
-import { useResolved } from '../state/settings'
+import { getResolved, useResolved } from '../state/settings'
 import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
 import { splitDiagnosticSources } from './diagSources'
@@ -101,9 +101,13 @@ export function ExportDialog({ params }: DockPanelProps): JSX.Element {
   /** '' = None: the requirements panel shows the generic journal overview. */
   const [articleTypeId, setArticleTypeId] = useState<string>('')
   const [outputName, setOutputName] = useState<string>('')
-  const [doubleSpacing, setDoubleSpacing] = useState(true)
-  const [lineNumbers, setLineNumbers] = useState(true)
-  const [pageNumbers, setPageNumbers] = useState(true)
+  // Seeded from the `export:` block of the user's config.yml — a house style
+  // that applies until a chosen journal profile states otherwise (below).
+  const [doubleSpacing, setDoubleSpacing] = useState(
+    () => getResolved('export.doubleSpacing').value
+  )
+  const [lineNumbers, setLineNumbers] = useState(() => getResolved('export.lineNumbers').value)
+  const [pageNumbers, setPageNumbers] = useState(() => getResolved('export.pageNumbers').value)
   /**
    * Compress the embedded figures? The user's call, always — never inferred
    * from how big the file turned out. Off by default, because the export a

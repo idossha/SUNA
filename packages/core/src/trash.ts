@@ -25,7 +25,11 @@ import { z } from 'zod';
  */
 export const SUNA_DIR = '.suna';
 
-/** Shipped policy: 2 MB, 30 days. Both are global settings (see TRASH_KEYS). */
+/**
+ * Shipped policy: 2 MB, 30 days. Both are settings — `trash.maxFileMb` and
+ * `trash.retentionDays` in the user's config.yml — and these are the values
+ * the registry in settings-resolve.ts defaults them to.
+ */
 export const TRASH_DEFAULTS = {
   maxFileMb: 2,
   retentionDays: 30,
@@ -83,9 +87,13 @@ function bounded(
 }
 
 /**
- * Read the policy out of the global settings bag. Forgiving on purpose: a
- * hand-edited settings.json with a nonsense number must not stop the user
- * deleting a file, it just falls back to the shipped policy.
+ * Read the policy out of a flat settings bag, keyed by TRASH_KEYS. Forgiving
+ * on purpose: a nonsense number must not stop the user deleting a file, it
+ * just falls back to the shipped policy.
+ *
+ * The app resolves these two through the config file instead (see
+ * services/trash.ts); this stays as the bounds-checking helper and the one
+ * place the shipped policy is spelled out.
  */
 export function trashPolicy(global: Record<string, unknown>): TrashPolicy {
   const mb = bounded(

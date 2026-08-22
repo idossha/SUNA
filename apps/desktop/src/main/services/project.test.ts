@@ -25,7 +25,6 @@ import { outlineFromMarkdown } from '@suna/markdown'
 import {
   checkScaffoldTarget,
   scaffoldProject,
-  updateProjectSettings
 } from './project'
 import { allowRoot } from './roots'
 
@@ -60,7 +59,7 @@ afterEach(async () => {
 })
 
 describe('suna.json compatibility', () => {
-  it('still parses the shipped demo project, which predates the settings block', async () => {
+  it('still parses the shipped demo project', async () => {
     const path = fileURLToPath(
       new URL('../../../../../examples/hello-suna/suna.json', import.meta.url)
     )
@@ -69,87 +68,6 @@ describe('suna.json compatibility', () => {
     )
     expect(parsed.success).toBe(true)
     expect(parsed.success && parsed.data.settings).toBeUndefined()
-  })
-})
-
-describe('updateProjectSettings', () => {
-  it('adds a settings block and leaves every other manifest key alone', async () => {
-    const manifest = await updateProjectSettings(dir, { editor: { contentWidthCh: 90 } })
-    expect(manifest.settings?.editor?.contentWidthCh).toBe(90)
-    const onDisk = await readManifest()
-    expect(onDisk['settings']).toEqual({ editor: { contentWidthCh: 90 } })
-    expect(onDisk['name']).toBe('my-paper')
-    expect(onDisk['createdAt']).toBe(baseManifest.createdAt)
-  })
-
-  it('merges a second key into the existing block', async () => {
-    await updateProjectSettings(dir, { editor: { contentWidthCh: 90 } })
-    await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
-    expect((await readManifest())['settings']).toEqual({
-      editor: { contentWidthCh: 90, fontSizePx: 18 }
-    })
-  })
-
-  it('deletes a key on null and prunes the block when it empties', async () => {
-    await updateProjectSettings(dir, { editor: { contentWidthCh: 90, fontSizePx: 18 } })
-    await updateProjectSettings(dir, { editor: { contentWidthCh: null } })
-    expect((await readManifest())['settings']).toEqual({ editor: { fontSizePx: 18 } })
-    await updateProjectSettings(dir, { editor: { fontSizePx: null } })
-    expect('settings' in (await readManifest())).toBe(false)
-  })
-
-  it('re-reads the file, so a concurrent external edit is never clobbered', async () => {
-    await updateProjectSettings(dir, { editor: { contentWidthCh: 90 } })
-    // An agent (or the user, in the editor) renames the project on disk.
-    await writeManifest({
-      ...baseManifest,
-      name: 'renamed-by-an-agent',
-      settings: { editor: { contentWidthCh: 90 } }
-    })
-    const manifest = await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
-    expect(manifest.name).toBe('renamed-by-an-agent')
-    expect((await readManifest())['name']).toBe('renamed-by-an-agent')
-  })
-
-  it('preserves manifest keys the schema does not know about', async () => {
-    await writeManifest({ ...baseManifest, futureKey: { keepMe: true } })
-    await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
-    expect((await readManifest())['futureKey']).toEqual({ keepMe: true })
-  })
-
-  it('rejects an out-of-range value and leaves the file untouched', async () => {
-    const before = await readFile(manifestFile, 'utf8')
-    await expect(updateProjectSettings(dir, { editor: { fontSizePx: 400 } })).rejects.toThrow()
-    expect(await readFile(manifestFile, 'utf8')).toBe(before)
-  })
-
-  it('refuses a manifest that is already invalid rather than half-fixing it', async () => {
-    await writeManifest({ ...baseManifest, schemaVersion: 2 })
-    await expect(updateProjectSettings(dir, { editor: { fontSizePx: 18 } })).rejects.toThrow()
-  })
-
-  it('reports unparseable JSON honestly', async () => {
-    await writeFile(manifestFile, '{ not json', 'utf8')
-    await expect(updateProjectSettings(dir, {})).rejects.toThrow(/not valid JSON/)
-  })
-
-  it('refuses a directory that is not a project', async () => {
-    const empty = await mkdtemp(join(tmpdir(), 'suna-not-a-project-'))
-    allowRoot(empty)
-    await expect(updateProjectSettings(empty, {})).rejects.toThrow(/no suna\.json/)
-    await rm(empty, { recursive: true, force: true })
-  })
-
-  it('refuses a path outside every open project root', async () => {
-    await expect(updateProjectSettings('/definitely/not/open', {})).rejects.toThrow(
-      /outside any open project/
-    )
-  })
-
-  it('writes atomically, leaving no temp files behind', async () => {
-    await updateProjectSettings(dir, { editor: { fontSizePx: 18 } })
-    const entries = await readdir(dir)
-    expect(entries.filter((name) => name.endsWith('.tmp'))).toEqual([])
   })
 })
 
@@ -201,8 +119,7 @@ describe('scaffoldProject', () => {
         name: 'x',
         activeProfileId: 'nature',
         scaffold: 'blank',
-        settings: {}
-      })
+        })
     ).rejects.toThrow(/already a SUNA project/)
   })
 
@@ -212,7 +129,6 @@ describe('scaffoldProject', () => {
       name: 'My New Paper',
       activeProfileId: 'science',
       scaffold: 'blank',
-      settings: {}
     })
     expect(result.manifest.activeProfileId).toBe('science')
     expect(result.manifest.settings).toBeUndefined()
@@ -252,7 +168,6 @@ describe('scaffoldProject', () => {
       name: 'Starter Paper',
       activeProfileId: 'nature',
       scaffold: 'starter',
-      settings: {}
     })
     expect(result.warnings).toEqual([])
     const prose = await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')
@@ -275,7 +190,6 @@ describe('scaffoldProject', () => {
       name: 'Starter Paper',
       activeProfileId: 'suna',
       scaffold: 'starter',
-      settings: {}
     })
     const read = (...parts: string[]): Promise<string> => readFile(join(target, ...parts), 'utf8')
     const prose = await read('manuscript', 'manuscript.md')
@@ -300,16 +214,59 @@ describe('scaffoldProject', () => {
     }
   })
 
-  it('writes the requested project-level settings block onto the manifest', async () => {
+
+  it('writes the starter demo manuscript for scaffold "starter"', async () => {
     const result = await scaffoldProject({
       dir: target,
-      name: 'Configured Paper',
+      name: 'Starter Paper',
       activeProfileId: 'nature',
-      scaffold: 'blank',
-      settings: { editor: { contentWidthCh: 90, fontSizePx: 18 } }
+      scaffold: 'starter',
     })
-    expect(result.manifest.settings).toEqual({ editor: { contentWidthCh: 90, fontSizePx: 18 } })
+    expect(result.warnings).toEqual([])
+    const prose = await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')
+    expect(prose).toContain('Hello,\n\nThis starter manuscript')
+    // One file, three sections: an unheaded intro plus two Markdown headings.
+    expect(outlineFromMarkdown(prose).map((s) => [s.level, s.title])).toEqual([
+      [0, ''],
+      [1, 'Results'],
+      [1, 'Methods']
+    ])
+    const manuscript = ManuscriptSchema.parse(
+      JSON.parse(await readFile(join(target, 'manuscript', 'manuscript.json'), 'utf8'))
+    )
+    expect(manuscript.manuscriptFile).toBe('manuscript.md')
   })
+
+  it('starter: every embed and citation in the prose has something real behind it', async () => {
+    await scaffoldProject({
+      dir: target,
+      name: 'Starter Paper',
+      activeProfileId: 'suna',
+      scaffold: 'starter',
+    })
+    const read = (...parts: string[]): Promise<string> => readFile(join(target, ...parts), 'utf8')
+    const prose = await read('manuscript', 'manuscript.md')
+    const manuscript = ManuscriptSchema.parse(JSON.parse(await read('manuscript', 'manuscript.json')))
+
+    // The figure the prose embeds is registered AND present on disk — a
+    // starter that ships a dangling ![[fig:…]] teaches the wrong lesson.
+    expect(prose).toContain('![[fig:hello]]')
+    expect(manuscript.figures.map((f) => f.id)).toEqual(['hello'])
+    const svg = await read(manuscript.figures[0]!.canvasRef)
+    expect(svg).toContain('<svg')
+    const figureDoc = JSON.parse(await read('figures', 'hello', 'figure.json')) as { id: string }
+    expect(figureDoc.id).toBe('hello')
+
+    // Same for the table and both citations.
+    expect(prose).toContain('![[tbl:hello]]')
+    expect(manuscript.tables.map((t) => t.id)).toEqual(['hello'])
+    const bib = await read('manuscript', 'references.bib')
+    for (const key of ['knuth1984', 'wong2011']) {
+      expect(prose).toContain(`@${key}`)
+      expect(bib).toContain(`{${key},`)
+    }
+  })
+
 })
 
 describe('the starter scaffold ships a letter and a review round', () => {
@@ -331,7 +288,6 @@ describe('the starter scaffold ships a letter and a review round', () => {
       name: 'My Starter Paper',
       activeProfileId: 'science',
       scaffold: 'starter',
-      settings: {}
     })
   }
 
@@ -482,8 +438,7 @@ describe('the starter scaffold ships a letter and a review round', () => {
         name: 'Plain',
         activeProfileId: 'science',
         scaffold,
-        settings: {}
-      })
+        })
       const raw = await readFile(join(dirName, 'suna.json'), 'utf8')
       // Absent, not empty: a manifest with `documents: []` is a different
       // thing on disk from one that never mentions documents at all.

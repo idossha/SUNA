@@ -28,7 +28,7 @@ import { useRevision } from '../state/revisions'
 import { openCitationPicker } from './CitationPicker'
 import { openFigurePicker } from './FigurePicker'
 import { editorSurfaceStyle, useEditorSettings } from './settings'
-import { EDITOR_THEME_CLASS } from './themes'
+import { editorThemeClass } from './themes'
 import { SettingsPopover } from './SettingsPopover'
 import { CONTENT_KIND_CLASS, contentKindFor } from './contentKind'
 import { RunButton } from '../run/RunButton'
@@ -360,7 +360,7 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   return (
     <div
       ref={rootRef}
-      className={`editor-tab ${CONTENT_KIND_CLASS[contentKind]} ${EDITOR_THEME_CLASS[editorTheme]}`}
+      className={`editor-tab ${CONTENT_KIND_CLASS[contentKind]} ${editorThemeClass(editorTheme)}`}
       style={editorSurfaceStyle(editorSettings)}
     >
       <div className="editor-tab__toolbar editor-tab__toolbar--row">

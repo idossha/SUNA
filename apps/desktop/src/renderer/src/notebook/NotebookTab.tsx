@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { editorSurfaceStyle, useEditorSettings } from '../editor/settings'
-import { EDITOR_THEME_CLASS } from '../editor/themes'
+import { editorThemeClass } from '../editor/themes'
 import { CellView } from './CellView'
 import { acquireNotebook, cellKey, useNotebookMeta, type NotebookSession } from './session'
 // the `.editor-tab` class carries the --ed-* palette this tab reuses
@@ -127,7 +127,7 @@ export function NotebookTab({ params }: DockPanelProps): JSX.Element {
 
   return (
     <div
-      className={`editor-tab nb ${EDITOR_THEME_CLASS[editorSettings.editorTheme]}`}
+      className={`editor-tab nb ${editorThemeClass(editorSettings.editorTheme)}`}
       style={editorSurfaceStyle(editorSettings)}
       // `version` is the whole re-render signal: the notebook is mutated in
       // place, so nothing below would change identity on its own.

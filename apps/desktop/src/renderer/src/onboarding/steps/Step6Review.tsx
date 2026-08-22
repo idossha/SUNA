@@ -1,6 +1,5 @@
 import type { JSX } from 'react'
 import {
-  buildScaffoldSettings,
   CREATE_SUBSTEPS,
   type CreateSubstep,
   type StepProps
@@ -52,8 +51,7 @@ export function Step6Review({ state, update, targetPath }: Step6Props): JSX.Elem
     targetPath !== null
       ? buildProjectManifest({
           name: state.name || (targetPath.split('/').pop() ?? 'project'),
-          activeProfileId: HOUSE_PROFILE_ID,
-          settings: buildScaffoldSettings(state)
+          activeProfileId: HOUSE_PROFILE_ID
         })
       : null
 

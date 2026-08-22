@@ -8,12 +8,9 @@ import {
   DEFAULT_PROJECT_DIRS,
   ManuscriptSchema,
   SunaProjectManifestSchema,
-  applySettingsPatch,
-  mergeProjectSettings,
   type AuthorsFile,
   type Manuscript,
   LETTER_PRIVATE_GITIGNORE_LINE,
-  type ProjectSettings,
   type SunaProjectManifest
 } from '@suna/core'
 import { ensureProjectAgentLayer, type McpInvocation } from '@suna/agent'
@@ -200,39 +197,6 @@ export async function openProject(
   return { manifest, manuscriptPresent }
 }
 
-/**
- * Read → merge → validate → atomic write on suna.json's `settings` block, the
- * same contract manuscript:update honours: the file is re-read from disk every
- * time (the user or an agent may be editing it), the patch is merged onto that
- * fresh object, the result is validated BEFORE anything is written, and every
- * other manifest key — including ones this schema version does not know — is
- * preserved verbatim. A null in the patch deletes its key ("Reset to global").
- */
-export async function updateProjectSettings(
-  dir: string,
-  patch: ProjectSettings
-): Promise<SunaProjectManifest> {
-  const root = assertInsideAllowedRoot(dir)
-  const file = join(root, 'suna.json')
-  const raw = await readFile(file, 'utf8').catch(() => {
-    throw new Error(`not a SUNA project (no suna.json): ${dir}`)
-  })
-  let current: unknown
-  try {
-    current = JSON.parse(raw) as unknown
-  } catch (error) {
-    throw new Error(
-      `suna.json is not valid JSON (${file}): ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-
-  const next = applySettingsPatch(current, patch)
-  // Validate before writing: an invalid patch must never reach the file.
-  const manifest = SunaProjectManifestSchema.parse(next)
-  await writeFileAtomic(file, JSON.stringify(next, null, 2) + '\n')
-  return manifest
-}
-
 export async function scaffoldStatus(
   dir: string
 ): Promise<{ manifestPresent: boolean; dirs: Record<string, boolean> }> {
@@ -278,7 +242,6 @@ export interface ScaffoldRequest {
   scaffold: 'blank' | 'starter' | 'document'
   /** Source .docx/.pdf/.html manuscript when `scaffold` is 'document'. */
   documentPath?: string | null
-  settings: ProjectSettings
 }
 
 export interface ScaffoldResult {
@@ -301,14 +264,13 @@ export async function scaffoldProject(
   req: ScaffoldRequest,
   agent?: McpInvocation
 ): Promise<ScaffoldResult> {
-  const { dir, name, activeProfileId, scaffold, settings } = req
+  const { dir, name, activeProfileId, scaffold } = req
   const documentPath = req.documentPath ?? null
   if (await exists(join(dir, 'suna.json'))) {
     throw new Error(`already a SUNA project: ${dir}`)
   }
 
   const warnings: string[] = []
-  const settingsBlock = mergeProjectSettings({}, settings)
   const manifest = SunaProjectManifestSchema.parse({
     schemaVersion: 1,
     name,
@@ -319,7 +281,6 @@ export async function scaffoldProject(
     // registry. Every other scaffold keeps the synthesized one-manuscript
     // registry it has always had — a zero-file difference (ADR-009).
     ...(scaffold === 'starter' ? { documents: starterDocuments() } : {}),
-    ...(settingsBlock !== undefined ? { settings: settingsBlock } : {})
   })
 
   await mkdir(dir, { recursive: true })

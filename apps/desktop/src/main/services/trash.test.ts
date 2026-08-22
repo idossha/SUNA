@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { SUNA_DIR, TRASH_KEYS } from '@suna/core'
+import { SUNA_DIR } from '@suna/core'
 import { allowRoot } from './roots'
 
 // shell.trashItem is recorded rather than performed — a unit test must not put
@@ -17,9 +17,15 @@ vi.mock('electron', () => ({
   }
 }))
 
-// The policy comes from global settings; the test drives it directly.
-const { settings } = vi.hoisted(() => ({ settings: { value: {} as Record<string, unknown> } }))
-vi.mock('./settings', () => ({ readSettings: async () => settings.value }))
+// The policy comes from the user's config.yml; the test drives it directly.
+const { settings } = vi.hoisted(() => ({
+  settings: { value: {} as Record<string, unknown> }
+}))
+vi.mock('./userconfig', () => ({
+  currentConfig: async () => ({
+    settings: { 'trash.maxFileMb': 2, 'trash.retentionDays': 30, ...settings.value }
+  })
+}))
 
 const { emptyTrash, listTrash, purgeExpired, restoreTrash, trashEntry } = await import('./trash')
 
@@ -57,7 +63,7 @@ describe('trashEntry', () => {
   })
 
   it('sends a file over the size limit to the OS trash instead', async () => {
-    settings.value = { [TRASH_KEYS.maxFileMb]: 0.001 } // 1 KB
+    settings.value = { 'trash.maxFileMb': 0.001 } // 1 KB
     const path = await writeSized('big.svg', 4096)
 
     expect(await trashEntry(path)).toEqual({ destination: 'system' })
@@ -186,7 +192,7 @@ describe('restoreTrash', () => {
 
 describe('retention', () => {
   it('purges entries past their stamped expiry to the OS trash', async () => {
-    settings.value = { [TRASH_KEYS.retentionDays]: 1 }
+    settings.value = { 'trash.retentionDays': 1 }
     const path = await writeSized('old.md', 3)
     await trashEntry(path)
     const [entry] = await listTrash(root)

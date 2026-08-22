@@ -4,7 +4,6 @@ import { useResolved, useSettingsStore } from '../state/settings'
 import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from '../settings/aiChoice'
 import {
   EDITOR_SETTINGS_LIMITS,
-  EDITOR_THEME_LABELS,
   useEditorSettings,
   type EditorFontFamily,
   type EditorThemeName
@@ -35,18 +34,14 @@ export function SettingsPopover({
   const ref = useRef<HTMLDivElement>(null)
   const settings = useEditorSettings()
   const isCode = contentKind === 'code'
-  // vim lives in the two-level settings hierarchy (shared with the Settings
-  // tab), not in the editor-local appearance store — so this shows the
-  // RESOLVED value and names the level it came from, instead of implying the
-  // popover owns a value a project may be overriding. The checkbox still
-  // writes the global level; the project level is the Settings tab's job.
-  const { value: vimMotions, source: vimSource } = useResolved('editor.vimMotions')
-  // Same story for the AI's model and effort: resolved value shown, global
-  // level written, locked while a project overrides.
-  const { value: aiModel, source: aiModelSource } = useResolved('ai.model')
-  const { value: aiEffort, source: aiEffortSource } = useResolved('ai.effort')
-  const setGlobal = useSettingsStore((s) => s.setGlobal)
-  const overriddenByProject = vimSource === 'project'
+  // Every control here writes the user's ~/.suna/config.yml, the same file the
+  // Settings tab and a hand-edit write. There is no second level to be
+  // overridden by, so nothing in this popover is ever locked.
+  const { value: vimMotions } = useResolved('editor.vimMotions')
+  const { value: aiModel } = useResolved('ai.model')
+  const { value: aiEffort } = useResolved('ai.effort')
+  const setSetting = useSettingsStore((s) => s.set)
+  const themes = useSettingsStore((s) => s.themes)
 
   useEffect(() => {
     const onMouseDown = (event: MouseEvent): void => {
@@ -138,32 +133,22 @@ export function SettingsPopover({
           value={settings.editorTheme}
           onChange={(event) => settings.setEditorTheme(event.target.value as EditorThemeName)}
         >
-          {(Object.keys(EDITOR_THEME_LABELS) as EditorThemeName[]).map((theme) => (
-            <option key={theme} value={theme}>
-              {EDITOR_THEME_LABELS[theme]}
+          {/* Built-ins and the user's own ~/.suna/themes/*.yml, in one list
+              and indistinguishable — which is the point of the theme file. */}
+          {themes.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.name}
             </option>
           ))}
         </select>
       </div>
       <div className="editor-settings__row editor-settings__row--toggle">
         <label htmlFor="ed-set-vim">Vim motions</label>
-        {/* Disabled while a project override is in force. The control shows
-            the RESOLVED value but writes the GLOBAL level, so with an override
-            present every click re-resolves back to the project's value and the
-            box visibly snaps back — a checkbox that cannot be checked. The
-            tooltip says where to change it; which level a value came from is
-            Settings-page detail, not something this popover spells out. */}
         <input
           id="ed-set-vim"
           type="checkbox"
           checked={vimMotions}
-          disabled={overriddenByProject}
-          title={
-            overriddenByProject
-              ? 'Set by this project — change it in Settings → This project'
-              : undefined
-          }
-          onChange={(event) => void setGlobal('editor.vimMotions', event.target.checked)}
+          onChange={(event) => void setSetting('editor.vimMotions', event.target.checked)}
         />
       </div>
       <div className="editor-settings__group">AI</div>
@@ -172,13 +157,7 @@ export function SettingsPopover({
         <select
           id="ed-set-ai-model"
           value={aiModel}
-          disabled={aiModelSource === 'project'}
-          title={
-            aiModelSource === 'project'
-              ? 'Set by this project — change it in Settings → This project'
-              : undefined
-          }
-          onChange={(event) => void setGlobal('ai.model', event.target.value as AiModel)}
+          onChange={(event) => void setSetting('ai.model', event.target.value as AiModel)}
         >
           {AI_MODELS.map((id) => (
             <option key={id} value={id}>
@@ -192,13 +171,7 @@ export function SettingsPopover({
         <select
           id="ed-set-ai-effort"
           value={aiEffort}
-          disabled={aiEffortSource === 'project'}
-          title={
-            aiEffortSource === 'project'
-              ? 'Set by this project — change it in Settings → This project'
-              : undefined
-          }
-          onChange={(event) => void setGlobal('ai.effort', event.target.value as AiEffort)}
+          onChange={(event) => void setSetting('ai.effort', event.target.value as AiEffort)}
         >
           {AI_EFFORTS.map((id) => (
             <option key={id} value={id}>

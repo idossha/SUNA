@@ -135,7 +135,7 @@ export async function cliGate(): Promise<CliGateResult> {
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) }
   }
-  return gateFromStatus(useSettingsStore.getState().settings['lit.cli'], available)
+  return gateFromStatus(useSettingsStore.getState().settings['literature.cli'], available)
 }
 
 /* ---------------------------------------------------------------- runner -- */

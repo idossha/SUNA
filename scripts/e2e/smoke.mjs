@@ -533,6 +533,9 @@ const appHandle = await launchApp({
   port: PORT,
   hidden: !SHOW,
   userData: USER_DATA,
+  // The user's real ~/.suna must never be touched by a test run: config.yml
+  // and their themes live there, and a driven app writes settings.
+  env: { SUNA_CONFIG_HOME: join(USER_DATA, 'suna-config') },
   ...(KEEP ? { logFile: LOG_FILE } : {})
 })
 const { devLog } = appHandle
@@ -1561,12 +1564,12 @@ try {
     try {
       writeFileSync(VIM_FILE, 'first line\nsecond line\nthird line\n', 'utf8')
       await evalJs(
-        `window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', true)`
+        `window.__sunaDev.settingsStore.getState().set('editor.vimMotions', true)`
       )
       let resolved = null
       for (let i = 0; i < 20 && resolved !== true; i++) {
         resolved = await evalJs(
-          `window.__sunaDev.settingsStore.getState().resolved.value['editor.vimMotions']`
+          `window.__sunaDev.settingsStore.getState().settings['editor.vimMotions']`
         )
         if (resolved !== true) await sleep(250)
       }
@@ -1585,9 +1588,9 @@ try {
       await openManuscript()
       await sleep(1200)
       const source = await evalJs(
-        `window.__sunaDev.settingsStore.getState().resolved.sources['editor.vimMotions']`
+        `window.__sunaDev.settingsStore.getState().sources['editor.vimMotions']`
       )
-      assert(source === 'global', `vim resolved from ${source} (want global)`)
+      assert(source === 'config', `vim resolved from ${source} (want config)`)
       assert(
         (await vimClassOn('.msdoc__editor .cm-scroller')) === true,
         'the manuscript editor has no vim keymap'
@@ -1712,7 +1715,7 @@ try {
       )
     } finally {
       await evalJs(
-        `window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', false)`
+        `window.__sunaDev.settingsStore.getState().set('editor.vimMotions', false)`
       ).catch(() => {})
       await sleep(600)
       await evalJs(`window.__sunaDev.dock.closePanel(${JSON.stringify(VIM_FILE)})`).catch(() => {})
@@ -3946,8 +3949,12 @@ try {
     // default) would write the edit out mid-step and clear the dirty flag the
     // assertions are reading, so it is off here and restored at the end.
     await evalJs(
-      `window.__sunaDev.settingsStore.getState().update('editor.autosave', false).then(() => 'ok')`
+      `window.__sunaDev.settingsStore.getState().set('editor.autosave', false).then(() => 'ok')`
     )
+    // try/finally, because every step after this one runs under the shipped
+    // default: an assertion failing mid-step used to leave autosave off for
+    // the rest of the suite, turning one failure into several.
+    try {
     await openManuscriptDoc()
     const marker = 'SYNCMARK-' + Date.now().toString(36)
     // type into the MANUSCRIPT tab (helpers target .msdoc__editor)
@@ -4031,10 +4038,13 @@ try {
     )
     assert(bufferReverted, 'the live buffer did not follow the out-of-band revert')
 
-    // autosave back on: it is the shipped default every later step runs under
-    await evalJs(
-      `window.__sunaDev.settingsStore.getState().update('editor.autosave', true).then(() => 'ok')`
-    )
+    } finally {
+      // Back to the shipped default — a RESET, not a write of `true`: the key
+      // must leave config.yml so later steps see a pristine default.
+      await evalJs(
+        `window.__sunaDev.settingsStore.getState().reset('editor.autosave').then(() => 'ok')`
+      )
+    }
   })
 
   /**
@@ -5667,22 +5677,17 @@ try {
   })
 
   /**
-   * §2 — the shipped typography defaults. "Settings cleared" means all three
-   * levels: the localStorage appearance store, the project's suna.json block,
-   * and the global userData keys. Measured as COMPUTED style on `.cm-content`,
-   * so it is what the surface really renders, not what a store holds.
+   * §2 — the shipped typography defaults. "Settings cleared" means the three
+   * keys removed from the user's config.yml, which is the only place they can
+   * live. Measured as COMPUTED style on `.cm-content`, so it is what the
+   * surface really renders, not what a store holds.
    */
   await step('typography-defaults-14px-1_6', async () => {
     await evalJs(`(async () => {
-      localStorage.removeItem('suna-editor-settings');
-      window.__sunaDev.editorSettings.getState().reset();
       const store = window.__sunaDev.settingsStore.getState();
       for (const key of ['editor.fontSizePx', 'editor.lineHeight', 'editor.contentWidthCh']) {
-        await store.clearProject(key);
+        await store.reset(key);
       }
-      await window.suna.invoke('settings:set', {
-        patch: { 'editor.fontSizePx': null, 'editor.lineHeight': null, 'editor.contentWidthCh': null }
-      });
     })()`)
     await sleep(800)
     await evalJs(`window.__sunaDev.dock.clearDock()`)
@@ -5693,14 +5698,14 @@ try {
     const typography = await evalJs(`(() => {
       const host = [...document.querySelectorAll('.editor-tab')].find((h) => h.getBoundingClientRect().width > 0);
       const cs = getComputedStyle(host.querySelector('.cm-content'));
-      const resolved = window.__sunaDev.settingsStore.getState().resolved;
+      const state = window.__sunaDev.settingsStore.getState();
       return {
         fontSize: cs.fontSize,
         lineHeight: cs.lineHeight,
-        resolvedFont: resolved.value['editor.fontSizePx'],
-        resolvedLine: resolved.value['editor.lineHeight'],
-        fontSource: resolved.sources['editor.fontSizePx'],
-        lineSource: resolved.sources['editor.lineHeight']
+        resolvedFont: state.settings['editor.fontSizePx'],
+        resolvedLine: state.settings['editor.lineHeight'],
+        fontSource: state.sources['editor.fontSizePx'],
+        lineSource: state.sources['editor.lineHeight']
       };
     })()`)
     assert(typography.fontSize === '14px', `computed font-size ${typography.fontSize} (want 14px)`)
@@ -5725,85 +5730,74 @@ try {
    * level ever writes the other's file, so userData/settings.json is compared
    * as BYTES across a project-level write.
    */
-  await step('settings-project-vs-global-scopes', async () => {
-    const SUNA_JSON = join(COPY_DIR, 'suna.json')
-    const USER_SETTINGS = join(USER_DATA, 'settings.json')
+  await step('settings-live-in-one-config-file', async () => {
+    // The whole configuration contract in one step: the GUI writes the user's
+    // config.yml (comments intact), the value reaches the editor surface, a
+    // reset removes the key, and a hand-edit of the file re-resolves live.
+    const CONFIG = join(USER_DATA, 'suna-config', 'config.yml')
+
     // Earlier steps drive the appearance popover, which legitimately writes a
-    // GLOBAL width — so clear that key first to get back to the pristine
-    // "default" baseline this step measures the precedence chain from.
-    // The appearance popover's store is persisted in localStorage and mirrors
-    // its values into global settings asynchronously, so a write from an
-    // earlier step can land after a single reset. Reset both layers and poll
-    // until the resolver actually reports the pristine baseline.
+    // width — clear it to get back to the "default" baseline this measures
+    // the chain from. Poll: the write is a file round trip.
     let baseline = null
     for (let attempt = 0; attempt < 8; attempt++) {
       baseline = await evalJs(`(async () => {
-        window.__sunaDev.editorSettings.getState().reset();
-        await window.suna.invoke('settings:set', {
-          patch: { 'editor.contentWidthCh': null, 'editor.fontSizePx': null, 'editor.lineHeight': null }
-        });
+        const store = window.__sunaDev.settingsStore.getState();
+        for (const key of ['editor.contentWidthCh', 'editor.fontSizePx', 'editor.lineHeight']) {
+          await store.reset(key);
+        }
         await window.__sunaDev.settingsStore.getState().load();
-        return window.__sunaDev.settingsStore.getState().resolved?.sources?.['editor.contentWidthCh'] ?? null;
+        return window.__sunaDev.settingsStore.getState().sources?.['editor.contentWidthCh'] ?? null;
       })()`)
       if (baseline === 'default') break
       await sleep(400)
     }
     assert(baseline === 'default', `could not reach a pristine width baseline: ${baseline}`)
+
     await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
     await sleep(1200)
 
-    const scopes = await evalJs(`[...document.querySelectorAll('.settings__scope')].map((s) => s.dataset.scope)`)
-    assert(
-      scopes.join(',') === 'global,project',
-      `the Settings page is not split into two scopes: ${JSON.stringify(scopes)}`
-    )
-
     const before = await evalJs(`(() => {
-      const input = document.querySelector('#proj-content-width');
+      const input = document.querySelector('#cfg-content-width');
       const row = input.closest('.settings-tab__row');
       return { value: input.value, badge: row.querySelector('.settings__source').textContent,
                resetDisabled: row.querySelector('.settings__reset').disabled };
     })()`)
     assert(before.badge === 'default', `content width starts at ${before.badge}, want "default"`)
-    assert(before.resetDisabled === true, '"Reset to global" is enabled with no override set')
+    assert(before.resetDisabled === true, '"Reset to default" is enabled with nothing set')
 
-    const userBytes = readFileSync(USER_SETTINGS)
-    await evalJs(setFieldJs(`document.querySelector('#proj-content-width')`, '97'))
-    await evalJs(`document.querySelector('#proj-content-width').blur()`)
-    await sleep(1000)
+    // --- the GUI writes the user's own file, comments and all -------------
+    await evalJs(setFieldJs(`document.querySelector('#cfg-content-width')`, '97'))
+    await evalJs(`document.querySelector('#cfg-content-width').blur()`)
+    await sleep(1200)
 
-    const manifest = JSON.parse(readFileSync(SUNA_JSON, 'utf8'))
+    // Match only UNcommented lines: the seeded block carries a commented
+    // `#  contentWidthCh: 140`, which a naive regex hits every time.
+    const liveKeys = (text) =>
+      text.split('\n').filter((line) => !line.trim().startsWith('#')).join('\n')
+    const written = liveKeys(readFileSync(CONFIG, 'utf8'))
+    assert(/contentWidthCh:\s*97/.test(written), `config.yml did not gain contentWidthCh: 97`)
     assert(
-      manifest.settings?.editor?.contentWidthCh === 97,
-      `suna.json did not gain settings.editor.contentWidthCh: ${JSON.stringify(manifest.settings)}`
+      readFileSync(CONFIG, 'utf8').includes('# SUNA configuration.'),
+      'the GUI write threw away the seeded comment block'
     )
-    assert(
-      readFileSync(USER_SETTINGS).equals(userBytes),
-      'a PROJECT-level write also changed userData/settings.json'
-    )
-    const validManifest = await evalJs(
-      `window.__sunaDev.validateFile('manuscript', ${JSON.stringify(join(COPY_DIR, 'manuscript', 'manuscript.json'))})`
-    )
-    assert(validManifest.ok, `manuscript.json stopped validating: ${JSON.stringify(validManifest.issues)}`)
 
     const after = await evalJs(`(() => {
-      const input = document.querySelector('#proj-content-width');
+      const input = document.querySelector('#cfg-content-width');
       const row = input.closest('.settings-tab__row');
-      const resolved = window.__sunaDev.settingsStore.getState().resolved;
+      const state = window.__sunaDev.settingsStore.getState();
       return { value: input.value, badge: row.querySelector('.settings__source').textContent,
                resetDisabled: row.querySelector('.settings__reset').disabled,
-               source: resolved.sources['editor.contentWidthCh'],
-               resolved: resolved.value['editor.contentWidthCh'] };
+               source: state.sources['editor.contentWidthCh'],
+               resolved: state.settings['editor.contentWidthCh'] };
     })()`)
-    assert(after.badge === 'from project', `badge reads ${JSON.stringify(after.badge)}`)
-    assert(after.source === 'project' && after.resolved === 97, `resolver: ${JSON.stringify(after)}`)
-    assert(after.resetDisabled === false, '"Reset to global" stayed disabled with an override set')
+    assert(after.badge === 'from your config', `badge reads ${JSON.stringify(after.badge)}`)
+    assert(after.source === 'config' && after.resolved === 97, `resolver: ${JSON.stringify(after)}`)
+    assert(after.resetDisabled === false, '"Reset to default" stayed disabled with a value set')
 
-    // The override must actually reach the editor surface, or the hierarchy
-    // is decorative (this is what state/editorSettingsBridge.ts exists for).
-    // Bring a PROSE editor to the front and measure that: '.editor-tab' is
-    // also worn by the data-grid tab (which sets no --ed-* variables), and
-    // with the Settings tab focused no editor surface need be mounted at all.
+    // The value must actually reach the editor surface, or the config is
+    // decorative. Measure a PROSE editor: '.editor-tab' is also worn by the
+    // data-grid tab, which sets no --ed-* variables.
     await evalJs(
       `window.__sunaDev.openFileTab(${JSON.stringify(join(COPY_DIR, 'manuscript', 'manuscript.md'))})`
     )
@@ -5813,30 +5807,24 @@ try {
       return { cssVar: host?.style.getPropertyValue('--ed-content-width') ?? null,
                store: window.__sunaDev.editorSettings.getState().contentWidthCh };
     })()`)
-    // Opening that editor moved focus off the Settings tab; the assertions
-    // below query its DOM again.
     await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
     await sleep(900)
     assert(
       surface.cssVar === '97ch' && surface.store === 97,
-      `the project override never reached the editor: ${JSON.stringify(surface)}`
+      `the configured width never reached the editor: ${JSON.stringify(surface)}`
     )
-    await screenshot('settings-scopes.png')
+    await screenshot('settings-config.png')
 
-    // --- Reset to global removes the key and the value falls back ---------
-    await evalJs(`document.querySelector('#proj-content-width').closest('.settings-tab__row')
+    // --- Reset removes the key and the value falls back -------------------
+    await evalJs(`document.querySelector('#cfg-content-width').closest('.settings-tab__row')
       .querySelector('.settings__reset').click()`)
-    await sleep(1000)
-    const reset = JSON.parse(readFileSync(SUNA_JSON, 'utf8'))
+    await sleep(1200)
     assert(
-      reset.settings?.editor?.contentWidthCh === undefined,
-      `Reset to global left the key behind: ${JSON.stringify(reset.settings)}`
+      !/contentWidthCh:\s*\d/.test(liveKeys(readFileSync(CONFIG, 'utf8'))),
+      'Reset left the key behind in config.yml'
     )
-    // Read the Settings row while it is focused, then bring the editor forward
-    // for its own measurement: dockview unmounts hidden panels, so the two
-    // surfaces are never in the DOM at the same time.
     const afterResetRow = await evalJs(`(() => {
-      const input = document.querySelector('#proj-content-width');
+      const input = document.querySelector('#cfg-content-width');
       const row = input.closest('.settings-tab__row');
       return { value: input.value, badge: row.querySelector('.settings__source').textContent };
     })()`)
@@ -5852,56 +5840,118 @@ try {
     }
     assert(afterReset.badge === 'default', `after reset the badge reads ${afterReset.badge}`)
     // 140 is SETTINGS_DEFAULTS['editor.contentWidthCh'] (settings-resolve.ts)
-    assert(afterReset.value === '140', `after reset the value is ${afterReset.value} (want the 140 default)`)
-    assert(
-      afterReset.cssVar === '140ch',
-      `the editor stayed on the reset override: ${afterReset.cssVar}`
-    )
+    assert(afterReset.value === '140', `after reset the value is ${afterReset.value} (want 140)`)
+    assert(afterReset.cssVar === '140ch', `the editor stayed on the old value: ${afterReset.cssVar}`)
 
-    // --- an OUT-OF-BAND edit re-resolves with no restart ------------------
-    // Written straight from node — no IPC, no save, nothing in the app knows.
-    // This is the "or an agent" half of §4's watch requirement.
-    // Bring Settings back to the front: the measurement above left the editor
-    // focused, and dockview unmounts the hidden panel's DOM.
+    // --- a HAND EDIT re-resolves with no restart --------------------------
+    // Written straight from node: no IPC, no save, nothing in the app knows.
+    // This is the "or an agent, or vim" half of the watch requirement.
+    //
+    // Edited through the YAML rather than by appending a block: earlier steps
+    // have already put an `editor:` mapping in this file, and a second one
+    // appended below it is a duplicate key that makes the whole document fail
+    // to parse — which is a broken test, not a hand edit anyone would make.
+    // `ui.radiusPx` is the subject because no step before this writes it.
     await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
     await sleep(900)
-    const handEdited = JSON.parse(readFileSync(SUNA_JSON, 'utf8'))
-    handEdited.settings = { editor: { contentWidthCh: 123 } }
-    writeFileSync(SUNA_JSON, JSON.stringify(handEdited, null, 2) + '\n', 'utf8')
+    // Let the app's own pending config writes land before capturing the file:
+    // a write that finishes after this read would clobber the hand edit below.
+    await sleep(1500)
+    const original = readFileSync(CONFIG, 'utf8')
+    // Strip any live `ui:` block first: appending a second one is a duplicate
+    // key, which makes the whole document fail to parse — a broken test, not
+    // a hand edit anyone would make.
+    const withoutUi = original.replace(/^ui:\n(?:[ \t]+.*\n)*/m, '')
+    const handEdit = (value) => `${withoutUi}\nui:\n  radiusPx: ${value}\n`
+    writeFileSync(CONFIG, handEdit(11), 'utf8')
     let watched = null
-    for (let i = 0; i < 20 && watched?.resolved !== 123; i++) {
-      await sleep(300)
+    for (let i = 0; i < 40 && watched?.resolved !== 11; i++) {
+      await sleep(400)
       watched = await evalJs(`(() => {
-        const resolved = window.__sunaDev.settingsStore.getState().resolved;
-        return { resolved: resolved.value['editor.contentWidthCh'],
-                 source: resolved.sources['editor.contentWidthCh'],
-                 uiValue: document.querySelector('#proj-content-width')?.value ?? null };
+        const state = window.__sunaDev.settingsStore.getState();
+        return { resolved: state.settings['ui.radiusPx'],
+                 source: state.sources['ui.radiusPx'],
+                 cssVar: getComputedStyle(document.documentElement).getPropertyValue('--s-radius').trim() };
       })()`)
     }
     assert(
-      watched.resolved === 123 && watched.source === 'project',
-      `an external suna.json edit never re-resolved: ${JSON.stringify(watched)}`
+      watched.resolved === 11 && watched.source === 'config',
+      `a hand edit of config.yml never re-resolved: ${JSON.stringify(watched)}`
     )
-    assert(watched.uiValue === '123', `the Settings page shows ${watched.uiValue} after the external edit`)
+    // and it reached the page, not just the store
+    assert(watched.cssVar === '11px', `--s-radius is ${watched.cssVar} after the hand edit`)
 
-    // --- an out-of-range value is rejected by the writer -------------------
-    const rejected = await evalJs(`(async () => {
-      try {
-        await window.suna.invoke('project:update-settings', {
-          dir: ${JSON.stringify(COPY_DIR)}, patch: { editor: { contentWidthCh: 9999 } }
-        });
-        return false;
-      } catch { return true; }
-    })()`)
-    assert(rejected, 'the writer accepted a content width of 9999')
+    // --- an out-of-range value is reported, not applied -------------------
+    writeFileSync(CONFIG, handEdit(9999), 'utf8')
+    let rejected = null
+    for (let i = 0; i < 40 && rejected?.resolved !== 4; i++) {
+      await sleep(400)
+      rejected = await evalJs(`(() => {
+        const state = window.__sunaDev.settingsStore.getState();
+        return { resolved: state.settings['ui.radiusPx'],
+                 source: state.sources['ui.radiusPx'],
+                 diagnostics: state.diagnostics.map((d) => d.path) };
+      })()`)
+    }
     assert(
-      JSON.parse(readFileSync(SUNA_JSON, 'utf8')).settings?.editor?.contentWidthCh === 123,
-      'the rejected write still changed suna.json'
+      rejected.resolved === 4 && rejected.source === 'default',
+      `an out-of-range radius was applied anyway: ${JSON.stringify(rejected)}`
+    )
+    assert(
+      rejected.diagnostics.includes('ui.radiusPx'),
+      `the bad value was dropped silently: ${JSON.stringify(rejected.diagnostics)}`
     )
 
-    // put the project back the way the run found it
-    await evalJs(`window.__sunaDev.settingsStore.getState().clearProject('editor.contentWidthCh')`)
+    // --- a custom THEME file is as first-class as a shipped one -----------
+    const themeFile = join(USER_DATA, 'suna-config', 'themes', 'smoke-nord.yml')
+    writeFileSync(
+      themeFile,
+      [
+        'name: Smoke Nord',
+        'base: dark',
+        'extends: suna-dark',
+        'palette:',
+        '  frost: "#88c0d0"',
+        'chrome:',
+        '  bg.shell: "#2e3440"',
+        '  accent: frost',
+        ''
+      ].join('\n'),
+      'utf8'
+    )
+    TEMP_FILES.push(themeFile)
+    let themed = null
+    for (let i = 0; i < 20 && !themed?.listed; i++) {
+      await sleep(300)
+      themed = await evalJs(`(() => {
+        const state = window.__sunaDev.settingsStore.getState();
+        return { listed: state.themes.some((t) => t.id === 'smoke-nord' && !t.builtin) };
+      })()`)
+    }
+    assert(themed.listed, 'a theme dropped into ~/.suna/themes never appeared')
+
+    await evalJs(`window.__sunaDev.settingsStore.getState().set('editor.editorTheme', 'smoke-nord')`)
+    await sleep(1200)
+    const painted = await evalJs(`(() => {
+      const app = document.querySelector('.app');
+      const cs = getComputedStyle(app);
+      return { attr: app.getAttribute('data-suna-theme'),
+               accent: cs.getPropertyValue('--s-accent').trim(),
+               shell: cs.getPropertyValue('--s-bg-shell').trim(),
+               // inherited from suna-dark, which this theme extends
+               graph: cs.getPropertyValue('--s-graph-1').trim() };
+    })()`)
+    assert(painted.attr === 'smoke-nord', `the app is on theme ${painted.attr}`)
+    assert(painted.accent === '#88c0d0', `accent is ${painted.accent} (want the palette's frost)`)
+    assert(painted.shell === '#2e3440', `shell is ${painted.shell}`)
+    assert(painted.graph === '#7fb8a4', `an unstated token did not inherit: ${painted.graph}`)
+    await screenshot('settings-custom-theme.png')
+    await evalJs(`window.__sunaDev.settingsStore.getState().reset('editor.editorTheme')`)
     await sleep(800)
+
+    // put the config back the way the run found it — later steps read it
+    writeFileSync(CONFIG, original, 'utf8')
+    await sleep(900)
   })
 
   /**
@@ -6704,7 +6754,7 @@ try {
         return panel ? panel.textContent : null;
       })()`)
 
-    await evalJs(`window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', true)`)
+    await evalJs(`window.__sunaDev.settingsStore.getState().set('editor.vimMotions', true)`)
     try {
       await focusBuffer()
       // The status-bar chip is the only signal that the keymap is installed on
@@ -6788,7 +6838,7 @@ try {
       assert(bufferAfter === bufferBefore, 'the vim pass changed the manuscript buffer')
     } finally {
       // Vim off however this ended: every later step's keyboard depends on it.
-      await evalJs(`window.__sunaDev.settingsStore.getState().setGlobal('editor.vimMotions', false)`)
+      await evalJs(`window.__sunaDev.settingsStore.getState().set('editor.vimMotions', false)`)
     }
   })
 
@@ -7075,7 +7125,7 @@ try {
 
     // off in global settings -> nothing writes itself, but ⌘S still does
     await evalJs(
-      `window.__sunaDev.settingsStore.getState().update('editor.autosave', false).then(() => 'ok')`
+      `window.__sunaDev.settingsStore.getState().set('editor.autosave', false).then(() => 'ok')`
     )
     await sleep(300)
     try {
@@ -7092,9 +7142,10 @@ try {
         '⌘S did not save while autosave was off'
       )
     } finally {
-      // Back on however this ended: it is the shipped default.
+      // Back on however this ended: a RESET removes the key, which is what
+      // "the shipped default" means now that config.yml is the only store.
       await evalJs(
-        `window.__sunaDev.settingsStore.getState().update('editor.autosave', true).then(() => 'ok')`
+        `window.__sunaDev.settingsStore.getState().reset('editor.autosave').then(() => 'ok')`
       )
     }
   })

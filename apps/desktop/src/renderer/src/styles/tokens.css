@@ -1,69 +1,22 @@
 /* ---------------------------------------------------------------------------
-   SUNA design tokens — "dark-adapted instrument" theme.
-   Deep blue-black surfaces (night sky), warm off-white ink, one gold accent
-   (dark-adapted observatory lighting) reserved for active/focus states.
+   SUNA design tokens.
+
+   COLOURS ARE NOT HERE. Every palette — the six shipped themes and whatever
+   the user keeps in ~/.suna/themes/*.yml — is generated from the theme
+   registry in @suna/core (packages/core/src/theme.ts) and injected as one
+   stylesheet at runtime (state/settings.ts's applyThemeCss), scoped by
+   `[data-suna-theme]` on .app/<body> and `.editor-tab--theme-<id>` on text
+   surfaces. That is what makes a user's theme indistinguishable from a shipped
+   one: there is exactly one code path.
+
+   What lives here is everything a theme deliberately does NOT own: the type
+   scale, the font stacks, and the chrome geometry. Those are layout, shared by
+   every theme, and configurable per user through the `ui:` block of
+   ~/.suna/config.yml — which sets these same properties inline on :root (see
+   applyChrome). The values below are therefore the shipped defaults, and the
+   fallbacks whenever the config says nothing.
    --------------------------------------------------------------------------- */
 :root {
-  /* surfaces, darkest (window chrome) → lightest (raised panels) */
-  --s-bg-chrome: #101014;
-  --s-bg-shell: #16161c;
-  --s-bg-panel: #1a1a21;
-  --s-bg-editor: #1e1e26;
-  --s-bg-raised: #23232c;
-  --s-bg-hover: rgba(255, 255, 255, 0.05);
-  --s-bg-active: rgba(232, 180, 92, 0.12);
-  /* selected rows in a list (explorer multi-selection): reads above both the
-     panel and the hover tint, so a swept-over selection stays visible */
-  --s-bg-selected: rgba(232, 180, 92, 0.18);
-
-  /* ink */
-  --s-ink: #e8e6e1;
-  --s-ink-muted: #a09d97;
-  --s-ink-faint: #6b6963;
-
-  /* the one accent: dark-adapted gold */
-  --s-accent: #e8b45c;
-  --s-accent-ink: #16161c;
-
-  /* semantic, used sparingly */
-  --s-ok: #7fb8a4;
-  --s-warn: #d9915b;
-  --s-err: #d97b6c;
-
-  /* The three voices of a response letter (reply-markup.ts). The exported
-     document uses the observed hex — black comment, #0432FF reply, #EE0000
-     change — but #000000 on a #1e1e26 panel is unreadable, so the dark themes
-     carry the same three ROLES at a legible lightness. The light themes below
-     resolve to exactly the exported values, which is what makes the workspace
-     a preview of the file rather than a different picture of it. */
-  --s-role-comment: var(--s-ink);
-  --s-role-reply: #7fa6ff;
-  --s-role-change: #ff8577;
-
-  /* An inserted-word wash has to survive being laid UNDER prose on a dark
-     surface: --s-ok is a desaturated teal that, tinted down, sank into the
-     editor background and read as a smudge rather than a mark. The diff
-     insert therefore carries its own, brighter green; every other theme
-     points it back at --s-ok, which already reads there. */
-  --s-diff-ins: #57d9a3;
-
-  /* lines */
-  --s-border: #2a2a33;
-  --s-border-strong: #3a3a45;
-
-  /* commit-graph lanes. Eight hues that stay distinguishable side by side at
-     2px, muted enough that a busy history does not shout over the prose next
-     to it. Lane 0 is the accent, because the branch you are on is lane 0
-     nearly always. The three dark themes share these; suna-light overrides. */
-  --s-graph-0: #e8b45c;
-  --s-graph-1: #7fb8a4;
-  --s-graph-2: #8fa8d9;
-  --s-graph-3: #d9915b;
-  --s-graph-4: #b89ad9;
-  --s-graph-5: #d97b6c;
-  --s-graph-6: #9fbf7f;
-  --s-graph-7: #c9a9c9;
-
   /* type */
   --s-font-ui:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -76,210 +29,18 @@
   --s-text-md: 13px;
   --s-text-lg: 15px;
 
-  /* metrics */
+  /* metrics (ui.titleBarHeightPx, ui.activityBarWidthPx, ui.statusBarHeightPx,
+     ui.radiusPx in config.yml) */
   --s-titlebar-h: 40px;
   --s-activitybar-w: 46px;
   --s-statusbar-h: 24px;
   --s-radius: 4px;
 
+  /* The dark palette is the app's default look, so it is also the ground the
+     first paint stands on before the generated stylesheet arrives. Only the
+     handful of properties a blank window can actually show. */
+  --s-bg-shell: #16161c;
+  --s-bg-editor: #1e1e26;
+  --s-ink: #e8e6e1;
   color-scheme: dark;
-}
-
-/* ---------------------------------------------------------------------------
-   Chrome themes. App.tsx stamps data-suna-theme (the resolved editor theme)
-   on the .app root and mirrors it to <body> so body-portalled chrome (the
-   project menu) and the body background itself follow along. 'suna-dark'
-   has no block: the :root palette above IS the default look.
-   Each block overrides the full color set; fonts and metrics never change.
-   --------------------------------------------------------------------------- */
-
-/* suna-light: warm paper chrome matching the suna-light editor surface */
-.app[data-suna-theme='suna-light'],
-body[data-suna-theme='suna-light'] {
-  --s-bg-chrome: #ece7dd;
-  --s-bg-shell: #f2ede3;
-  --s-bg-panel: #f5f0e6;
-  --s-bg-editor: #f7f2e9;
-  --s-bg-raised: #fffdf8;
-  --s-bg-hover: rgba(43, 38, 32, 0.06);
-  --s-bg-active: rgba(138, 106, 47, 0.14);
-  --s-bg-selected: rgba(138, 106, 47, 0.2);
-
-  --s-ink: #2b2620;
-  --s-ink-muted: #6b6257;
-  --s-ink-faint: #9a9184;
-
-  --s-accent: #8a6a2f;
-  --s-accent-ink: #fbf7ee;
-
-  --s-ok: #3f6b4f;
-  --s-diff-ins: var(--s-ok);
-  --s-warn: #a05c22;
-  --s-err: #b0503f;
-
-  /* The exported response's own hex: on paper-coloured surfaces the workspace
-     shows exactly what the .docx will contain. */
-  --s-role-comment: var(--s-ink);
-  --s-role-reply: #0432ff;
-  --s-role-change: #ee0000;
-
-  --s-border: #d8cfbf;
-  --s-border-strong: #c2b8a5;
-
-  /* Darkened lanes: the dark-theme hues are near-invisible on warm paper. */
-  --s-graph-0: #8a6a2f;
-  --s-graph-1: #2f6b57;
-  --s-graph-2: #415a94;
-  --s-graph-3: #a05c22;
-  --s-graph-4: #6b4a94;
-  --s-graph-5: #b0503f;
-  --s-graph-6: #4f7030;
-  --s-graph-7: #8a4a76;
-
-  color-scheme: light;
-}
-
-/* gruvbox: Gruvbox Dark's bg0_h → bg1 ramp, yellow as the one accent */
-.app[data-suna-theme='gruvbox'],
-body[data-suna-theme='gruvbox'] {
-  --s-bg-chrome: #1d2021;
-  --s-bg-shell: #282828;
-  --s-bg-panel: #32302f;
-  --s-bg-editor: #282828;
-  --s-bg-raised: #3c3836;
-  --s-bg-hover: rgba(235, 219, 178, 0.07);
-  --s-bg-active: rgba(250, 189, 47, 0.15);
-  --s-bg-selected: rgba(250, 189, 47, 0.22);
-
-  --s-ink: #ebdbb2;
-  --s-ink-muted: #bdae93;
-  --s-ink-faint: #928374;
-
-  --s-accent: #fabd2f;
-  --s-accent-ink: #282828;
-
-  --s-ok: #b8bb26;
-  --s-diff-ins: var(--s-ok);
-  --s-warn: #fe8019;
-  --s-err: #fb4934;
-
-  --s-border: #3c3836;
-  --s-border-strong: #504945;
-}
-
-/* jellybeans: near-black surfaces, the theme's function-yellow as accent */
-.app[data-suna-theme='jellybeans'],
-body[data-suna-theme='jellybeans'] {
-  --s-bg-chrome: #101010;
-  --s-bg-shell: #151515;
-  --s-bg-panel: #191919;
-  --s-bg-editor: #151515;
-  --s-bg-raised: #1c1c1c;
-  --s-bg-hover: rgba(232, 232, 211, 0.06);
-  --s-bg-active: rgba(250, 208, 122, 0.12);
-  --s-bg-selected: rgba(250, 208, 122, 0.18);
-
-  --s-ink: #e8e8d3;
-  --s-ink-muted: #a8a89a;
-  --s-ink-faint: #888888;
-
-  --s-accent: #fad07a;
-  --s-accent-ink: #151515;
-
-  --s-ok: #99ad6a;
-  --s-diff-ins: var(--s-ok);
-  --s-warn: #ffb964;
-  --s-err: #cf6a4c;
-
-  --s-border: #252525;
-  --s-border-strong: #404040;
-}
-
-/* mono-blue-dark: neutral black-and-white chrome, one restrained blue accent.
-   The greys are true neutrals so the blue is the only hue in the shell; the
-   semantic colours are desaturated to keep them from competing with it. */
-.app[data-suna-theme='mono-blue-dark'],
-body[data-suna-theme='mono-blue-dark'] {
-  --s-bg-chrome: #0a0a0b;
-  --s-bg-shell: #0e0e10;
-  --s-bg-panel: #131315;
-  --s-bg-editor: #0e0e10;
-  --s-bg-raised: #1a1a1d;
-  --s-bg-hover: rgba(255, 255, 255, 0.06);
-  --s-bg-active: rgba(91, 157, 217, 0.14);
-  --s-bg-selected: rgba(91, 157, 217, 0.2);
-
-  --s-ink: #f2f2f2;
-  --s-ink-muted: #a6a6a8;
-  --s-ink-faint: #6e6e72;
-
-  --s-accent: #5b9dd9;
-  --s-accent-ink: #0a0a0b;
-
-  --s-ok: #7fae93;
-  --s-diff-ins: #63c79b;
-  --s-warn: #c9a26a;
-  --s-err: #cf7a72;
-
-  --s-border: #232326;
-  --s-border-strong: #3a3a3f;
-
-  /* Lanes stay mostly greyscale; the accent blue leads, with two further
-     blues so a busy history still separates without adding new hues. */
-  --s-graph-0: #5b9dd9;
-  --s-graph-1: #9a9a9e;
-  --s-graph-2: #7fb6e6;
-  --s-graph-3: #6e6e72;
-  --s-graph-4: #3f7fb3;
-  --s-graph-5: #c4c4c8;
-  --s-graph-6: #4f4f54;
-  --s-graph-7: #a8c8e4;
-}
-
-/* mono-blue-light: the same neutral-grey-plus-one-blue idea inverted onto
-   white paper. The blue darkens to #2f6fae so it holds contrast against a
-   white surface, where the dark theme's lighter blue would wash out. */
-.app[data-suna-theme='mono-blue-light'],
-body[data-suna-theme='mono-blue-light'] {
-  --s-bg-chrome: #eaeaee;
-  --s-bg-shell: #f1f1f4;
-  --s-bg-panel: #f6f6f8;
-  --s-bg-editor: #ffffff;
-  --s-bg-raised: #ffffff;
-  --s-bg-hover: rgba(23, 23, 26, 0.06);
-  --s-bg-active: rgba(47, 111, 174, 0.14);
-  --s-bg-selected: rgba(47, 111, 174, 0.2);
-
-  --s-ink: #17171a;
-  --s-ink-muted: #5c5c63;
-  --s-ink-faint: #8e8e96;
-
-  --s-accent: #2f6fae;
-  --s-accent-ink: #ffffff;
-
-  --s-ok: #2f6b4f;
-  --s-diff-ins: var(--s-ok);
-  --s-warn: #8a5a1f;
-  --s-err: #a8463a;
-
-  /* The exported response's own hex: on paper-coloured surfaces the workspace
-     shows exactly what the .docx will contain. */
-  --s-role-comment: var(--s-ink);
-  --s-role-reply: #0432ff;
-  --s-role-change: #ee0000;
-
-  --s-border: #dcdce1;
-  --s-border-strong: #c9c9d0;
-
-  /* Darkened lanes: greys and blues that stay legible on white. */
-  --s-graph-0: #2f6fae;
-  --s-graph-1: #5c5c63;
-  --s-graph-2: #1f4f80;
-  --s-graph-3: #8e8e96;
-  --s-graph-4: #4a86c4;
-  --s-graph-5: #3a3a40;
-  --s-graph-6: #6d93b5;
-  --s-graph-7: #77777f;
-
-  color-scheme: light;
 }

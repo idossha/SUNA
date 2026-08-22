@@ -7,7 +7,6 @@ describe('buildProjectManifest', () => {
     const manifest = buildProjectManifest({
       name: 'Ram Pressure Paper',
       activeProfileId: 'nature',
-      settings: {},
       createdAt: '2026-08-15T10:00:00.000Z'
     })
     expect(SunaProjectManifestSchema.safeParse(manifest).success).toBe(true)
@@ -17,7 +16,6 @@ describe('buildProjectManifest', () => {
     const manifest = buildProjectManifest({
       name: 'Ram Pressure Paper',
       activeProfileId: 'science',
-      settings: {},
       createdAt: '2026-08-15T10:00:00.000Z'
     })
     expect(manifest).toEqual({
@@ -37,47 +35,22 @@ describe('buildProjectManifest', () => {
     })
   })
 
-  it('omits the settings key entirely when the wizard set no project defaults', () => {
+  it('never writes a settings block — settings live in ~/.suna/config.yml now', () => {
     const manifest = buildProjectManifest({
       name: 'Paper',
       activeProfileId: 'science',
-      settings: {},
       createdAt: '2026-08-15T10:00:00.000Z'
     })
     expect('settings' in manifest).toBe(false)
   })
 
-  it('includes the step-6 settings block when defaults are saved to the project', () => {
-    const manifest = buildProjectManifest({
-      name: 'Paper',
-      activeProfileId: 'jneurosci',
-      settings: { editor: { fontSizePx: 16, lineHeight: 1.5, contentWidthCh: 72 } },
-      createdAt: '2026-08-15T10:00:00.000Z'
-    })
-    expect(manifest.settings).toEqual({
-      editor: { fontSizePx: 16, lineHeight: 1.5, contentWidthCh: 72 }
-    })
-  })
-
   it('defaults createdAt to now when not supplied, and it is a valid ISO datetime', () => {
     const manifest = buildProjectManifest({
       name: 'Paper',
-      activeProfileId: 'nature',
-      settings: {}
+      activeProfileId: 'nature'
     })
     expect(SunaProjectManifestSchema.shape.createdAt.safeParse(manifest.createdAt).success).toBe(
       true
     )
-  })
-
-  it('rejects an out-of-range settings value rather than silently clamping it', () => {
-    expect(() =>
-      buildProjectManifest({
-        name: 'Paper',
-        activeProfileId: 'nature',
-        settings: { editor: { fontSizePx: 999 } },
-        createdAt: '2026-08-15T10:00:00.000Z'
-      })
-    ).toThrow()
   })
 })

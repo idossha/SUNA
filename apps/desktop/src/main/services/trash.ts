@@ -10,13 +10,13 @@ import {
   partitionExpired,
   sortByDeletedAt,
   trashDestination,
-  trashPolicy,
+  BYTES_PER_MB,
   type TrashEntry,
   type TrashPolicy
 } from '@suna/core'
 import { writeFileAtomic } from './atomic'
 import { assertInsideAllowedRoot, rootForPath } from './roots'
-import { readSettings } from './settings'
+import { currentConfig } from './userconfig'
 
 /**
  * SUNA's own trash: a recycle bin for the light plain-text sources a project
@@ -54,7 +54,11 @@ function indexPath(root: string): string {
 }
 
 async function policy(): Promise<TrashPolicy> {
-  return trashPolicy(await readSettings())
+  const { settings } = await currentConfig()
+  return {
+    maxFileBytes: Math.round(settings['trash.maxFileMb'] * BYTES_PER_MB),
+    retentionDays: settings['trash.retentionDays']
+  }
 }
 
 /**

@@ -1,15 +1,15 @@
 import type { CSSProperties } from 'react'
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { useSettingsStore } from '../state/settings'
 
 export type EditorFontFamily = 'serif' | 'sans' | 'mono'
-export type EditorThemeName =
-  | 'suna-dark'
-  | 'suna-light'
-  | 'gruvbox'
-  | 'jellybeans'
-  | 'mono-blue-dark'
-  | 'mono-blue-light'
+
+/**
+ * A theme id. A plain string, not a union over the built-ins: the user's own
+ * `~/.suna/themes/nord.yml` names itself, and the compiler cannot know that
+ * name. The loader is what decides whether an id resolves to a theme.
+ */
+export type EditorThemeName = string
 
 /**
  * Two surfaces on one editable CodeMirror instance: 'source' is plain
@@ -95,7 +95,8 @@ export const FONT_FAMILY_STACKS: Record<EditorFontFamily, string> = {
   mono: 'var(--s-font-mono)'
 }
 
-export const EDITOR_THEME_LABELS: Record<EditorThemeName, string> = {
+/** Display names for the built-ins; a user theme carries its own `name`. */
+export const EDITOR_THEME_LABELS: Record<string, string> = {
   'suna-dark': 'SUNA Dark',
   'suna-light': 'SUNA Light',
   gruvbox: 'Gruvbox',
@@ -138,57 +139,63 @@ interface EditorSettingsState extends EditorSettings {
   reset: () => void
 }
 
-export const useEditorSettings = create<EditorSettingsState>()(
-  persist(
-    (set) => ({
-      ...EDITOR_SETTINGS_DEFAULTS,
-      setContentWidthCh: (value) =>
-        set({ contentWidthCh: clampSetting('contentWidthCh', value) }),
-      setFontSizePx: (value) => set({ fontSizePx: clampSetting('fontSizePx', value) }),
-      setLineHeight: (value) => set({ lineHeight: clampSetting('lineHeight', value) }),
-      setFontFamily: (value) => set({ fontFamily: value }),
-      setEditorTheme: (value) => set({ editorTheme: value }),
-      reset: () => set({ ...EDITOR_SETTINGS_DEFAULTS })
-    }),
-    {
-      name: 'suna-editor-settings',
-      version: 2,
-      // v1 -> v2: the default measure moved 68ch -> 140ch. Installs that never
-      // touched the slider have 68 persisted verbatim and would otherwise be
-      // pinned to the old default forever; adopt the new one for them only.
-      // A deliberate 68 is indistinguishable from the old default, so it is
-      // (knowingly) reset too — every other stored width is left alone.
-      migrate: (persisted, version) => {
-        const state = (persisted ?? {}) as Partial<EditorSettings>
-        if (version < 2 && Number(state.contentWidthCh) === 68) {
-          return { ...state, contentWidthCh: EDITOR_SETTINGS_DEFAULTS.contentWidthCh }
-        }
-        return state
-      },
-      // Clamp persisted numeric values on rehydrate so stored settings from
-      // older builds (or hand-edited storage) always land inside the limits;
-      // coerce a theme id that no longer exists (e.g. the removed
-      // 'high-contrast') back to the default.
-      merge: (persisted, current) => {
-        const merged = { ...current, ...((persisted ?? {}) as Partial<EditorSettings>) }
-        return {
-          ...merged,
-          contentWidthCh: clampSetting('contentWidthCh', Number(merged.contentWidthCh)),
-          fontSizePx: clampSetting('fontSizePx', Number(merged.fontSizePx)),
-          lineHeight: clampSetting('lineHeight', Number(merged.lineHeight)),
-          editorTheme:
-            merged.editorTheme in EDITOR_THEME_LABELS
-              ? merged.editorTheme
-              : EDITOR_SETTINGS_DEFAULTS.editorTheme
-        }
-      },
-      partialize: (state) => ({
-        contentWidthCh: state.contentWidthCh,
-        fontSizePx: state.fontSizePx,
-        fontFamily: state.fontFamily,
-        lineHeight: state.lineHeight,
-        editorTheme: state.editorTheme
-      })
-    }
-  )
-)
+/**
+ * The editor surface's live view of the five appearance settings.
+ *
+ * A PROJECTION of the config, not a store of its own: nothing here is
+ * persisted, and every setter writes straight into ~/.suna/config.yml. It
+ * exists because the editor surface and CodeMirror read these on a hot path
+ * and want them without a resolution lookup, and because the gear popover
+ * predates the config file. `syncEditorSettings` below keeps it in step.
+ */
+export const useEditorSettings = create<EditorSettingsState>()((set) => ({
+  ...EDITOR_SETTINGS_DEFAULTS,
+  setContentWidthCh: (value) => {
+    void useSettingsStore
+      .getState()
+      .set('editor.contentWidthCh', clampSetting('contentWidthCh', value))
+  },
+  setFontSizePx: (value) => {
+    void useSettingsStore.getState().set('editor.fontSizePx', clampSetting('fontSizePx', value))
+  },
+  setLineHeight: (value) => {
+    void useSettingsStore.getState().set('editor.lineHeight', clampSetting('lineHeight', value))
+  },
+  setFontFamily: (value) => {
+    void useSettingsStore.getState().set('editor.fontFamily', value)
+  },
+  setEditorTheme: (value) => {
+    void useSettingsStore.getState().set('editor.editorTheme', value)
+  },
+  reset: () => {
+    const store = useSettingsStore.getState()
+    void store.reset('editor.contentWidthCh')
+    void store.reset('editor.fontSizePx')
+    void store.reset('editor.lineHeight')
+    void store.reset('editor.fontFamily')
+    void store.reset('editor.editorTheme')
+    set({ ...EDITOR_SETTINGS_DEFAULTS })
+  }
+}))
+
+/**
+ * Mirror the resolved config onto this store. Subscribed once at module load;
+ * the initial call adopts whatever is already resolved, so a surface mounted
+ * before the first config:get still paints with the shipped defaults rather
+ * than with nothing.
+ */
+function adoptResolved(): void {
+  const { settings } = useSettingsStore.getState()
+  useEditorSettings.setState({
+    contentWidthCh: clampSetting('contentWidthCh', settings['editor.contentWidthCh']),
+    fontSizePx: clampSetting('fontSizePx', settings['editor.fontSizePx']),
+    lineHeight: clampSetting('lineHeight', settings['editor.lineHeight']),
+    fontFamily: settings['editor.fontFamily'],
+    editorTheme: settings['editor.editorTheme']
+  })
+}
+
+adoptResolved()
+useSettingsStore.subscribe((state, prev) => {
+  if (state.settings !== prev.settings) adoptResolved()
+})

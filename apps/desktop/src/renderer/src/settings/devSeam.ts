@@ -1,4 +1,4 @@
-import { GLOBAL_SETTINGS_DEFAULTS, useSettingsStore } from '../state/settings'
+import { SETTINGS_DEFAULTS, useSettingsStore } from '../state/settings'
 
 /**
  * Dev-only seam for e2e drivers (wired into window.__sunaDev by the verifier;
@@ -6,5 +6,5 @@ import { GLOBAL_SETTINGS_DEFAULTS, useSettingsStore } from '../state/settings'
  */
 export const settingsDevSeam = {
   settingsStore: useSettingsStore,
-  defaults: GLOBAL_SETTINGS_DEFAULTS
+  defaults: SETTINGS_DEFAULTS
 }

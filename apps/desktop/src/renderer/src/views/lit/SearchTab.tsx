@@ -69,7 +69,7 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
   const rootDir = useProjectStore((s) => s.rootDir)
   const noteFileSaved = useProjectStore((s) => s.noteFileSaved)
   const setStatusNote = useUiStore((s) => s.setStatusNote)
-  const cliPreference = useSettingsStore((s) => s.settings['lit.cli'])
+  const cliPreference = useSettingsStore((s) => s.settings['literature.cli'])
   // The same citekey -> resolved-PDF map the Library tab badges from, so a
   // hit whose PDF is already filed says so here too — before anyone presses
   // "Find PDF", and after, without a second source of truth.

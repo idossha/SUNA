@@ -14,7 +14,7 @@ import type { DockPanelProps } from '../shell/dock/DockHost'
 import { useEditorSettings } from '../editor/settings'
 import type { EditorViewMode } from '../editor/EditorTab'
 import { getResolved, useResolved } from '../state/settings'
-import { EDITOR_THEME_CLASS } from '../editor/themes'
+import { editorThemeClass } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
 import { GearIcon } from '../editor/GearIcon'
 import '../editor/editor.css'
@@ -168,7 +168,7 @@ export function VersionTab({ params }: DockPanelProps): JSX.Element {
   return (
     <div ref={wrapRef} className="mstab">
       <div
-        className={`msdoc msdoc--${mode} editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
+        className={`msdoc msdoc--${mode} editor-tab ${editorThemeClass(editorTheme)}`}
         style={settingsStyle}
       >
         <div className="msdoc__toolbar">

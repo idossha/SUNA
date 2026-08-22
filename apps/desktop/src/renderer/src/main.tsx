@@ -8,6 +8,7 @@ import { editorDevSeam } from './editor/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
 import { onboardingSeam } from './onboarding/devSeam'
 import { settingsDevSeam } from './settings/devSeam'
+import { useSettingsStore } from './state/settings'
 import { screenAskDevSeam } from './shell/screenask/devSeam'
 import { restoreFloatTerminal } from './shell/screenask/screenask'
 import { terminalDevSeam } from './terminal/devSeam'
@@ -136,6 +137,12 @@ if (import.meta.env.DEV) {
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('missing #root element')
+
+// Read ~/.suna/config.yml before the first paint, so the window opens in the
+// user's theme and metrics instead of flashing the shipped defaults and then
+// correcting itself. Fire-and-forget: a config that is slow or unreadable must
+// not stop the app rendering — the defaults are a valid app.
+void useSettingsStore.getState().load()
 
 createRoot(rootElement).render(
   <StrictMode>

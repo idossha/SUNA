@@ -43,6 +43,8 @@ describe('CHANNELS', () => {
       'comments:write',
       'compare:read',
       'compare:sides',
+      'config:get',
+      'config:set',
       'dialog:pick-directory',
       'dialog:pick-file',
       'documents:list',
@@ -147,7 +149,6 @@ describe('CHANNELS', () => {
       'project:scaffold',
       'project:scaffold-status',
       'project:touch-recent',
-      'project:update-settings',
       'refnotes:embed',
       'refnotes:list-all',
       'refnotes:read',
@@ -258,39 +259,37 @@ describe('CHANNELS', () => {
     expect(CHANNELS['project:scaffold-status'].response.safeParse(bad).success).toBe(false);
   });
 
-  it('validates a project:update-settings patch and rejects an out-of-range one', () => {
-    const req: RequestOf<'project:update-settings'> = {
-      dir: '/work/my-paper',
-      patch: { editor: { contentWidthCh: 90 } },
-    };
-    expect(CHANNELS['project:update-settings'].request.parse(req)).toEqual(req);
-    // null is how "Reset to global" travels
+  it('validates a config:set request, with null meaning "reset to default"', () => {
+    const req: RequestOf<'config:set'> = { key: 'editor.contentWidthCh', value: 90 };
+    expect(CHANNELS['config:set'].request.parse(req)).toEqual(req);
     expect(
-      CHANNELS['project:update-settings'].request.safeParse({
-        dir: req.dir,
-        patch: { editor: { contentWidthCh: null } },
-      }).success,
+      CHANNELS['config:set'].request.safeParse({ key: 'editor.contentWidthCh', value: null })
+        .success,
     ).toBe(true);
-    expect(
-      CHANNELS['project:update-settings'].request.safeParse({
-        dir: req.dir,
-        patch: { editor: { contentWidthCh: 4000 } },
-      }).success,
-    ).toBe(false);
+    // The key has to name something; a blank one is a bug, not a reset.
+    expect(CHANNELS['config:set'].request.safeParse({ key: '', value: 1 }).success).toBe(false);
   });
 
-  it('returns the whole manifest from project:update-settings', () => {
-    const res: ResponseOf<'project:update-settings'> = {
-      manifest: {
-        schemaVersion: 1,
-        name: 'My Paper',
-        activeProfileId: 'nature',
-        directories: DEFAULT_PROJECT_DIRS,
-        createdAt: '2026-08-13T09:30:00Z',
-        settings: { editor: { contentWidthCh: 90 } },
+  it('returns the whole config from config:get, themes and diagnostics included', () => {
+    const res: ResponseOf<'config:get'> = {
+      config: {
+        revision: 3,
+        path: '/home/me/.suna/config.yml',
+        text: 'editor:\n  lineHeight: 1.8\n',
+        settings: { 'editor.lineHeight': 1.8 },
+        sources: { 'editor.lineHeight': 'config' },
+        themesCss: '.app[data-suna-theme="nord"] { --s-ink: #eceff4; }',
+        themes: [{ id: 'nord', name: 'Nord', base: 'dark', builtin: false }],
+        diagnostics: [{ path: 'editor.fontSizePx', message: 'out of range' }],
       },
     };
-    expect(CHANNELS['project:update-settings'].response.parse(res)).toEqual(res);
+    expect(CHANNELS['config:get'].response.parse(res)).toEqual(res);
+    // 'project' is not a level any more; only the two real ones parse.
+    expect(
+      CHANNELS['config:get'].response.safeParse({
+        config: { ...res.config, sources: { 'editor.lineHeight': 'project' } },
+      }).success,
+    ).toBe(false);
   });
 
   it('carries a freshly stat-ed exists flag on every recents row', () => {
@@ -339,7 +338,6 @@ describe('CHANNELS', () => {
       activeProfileId: 'nature',
       scaffold: 'starter',
       documentPath: null,
-      settings: { editor: { contentWidthCh: 90 } },
     };
     expect(CHANNELS['project:scaffold'].request.parse(req)).toEqual(req);
     expect(

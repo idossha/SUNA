@@ -6,14 +6,15 @@ import {
   AI_MODES,
   DOWNLOAD_POLICIES,
   EDITOR_FONT_FAMILIES,
-  EDITOR_THEME_IDS,
   EDITOR_VIEW_MODES,
+  type EditorViewMode,
   REVIEW_AI_DIFF_MODES,
   FIGURE_WIDTH_PRESETS,
   LIT_CLI_PREFERENCE_IDS,
   LIT_PROVIDER_IDS,
   LIT_PROVIDER_META,
   SETTINGS_LIMITS,
+  UI_LIMITS,
   TRASH_LIMITS,
   UI_LIT_PROVIDER_IDS,
   type AiEffort,
@@ -38,28 +39,17 @@ import { GitHubAccount } from '../views/GitHubAccount'
 import { openFileTab, openTrashTab } from '../state/dock'
 import { profileLabel } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
-import {
-  UI_SCALE_CHOICES,
-  useResolved,
-  useSettingsStore,
-  type EditorModeSetting,
-  type EditorThemeSetting
-} from '../state/settings'
+import { useResolved, useSettingsStore } from '../state/settings'
+
+/** Whole-window zoom steps the picker offers. */
+const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
 import { sourceLabel } from './sourceLabel'
+import type { SettingSource } from '@suna/core'
 import './settings.css'
 
-const MODE_LABELS: Record<EditorModeSetting, string> = {
+const MODE_LABELS: Record<EditorViewMode, string> = {
   reading: 'Reading (live preview)',
   source: 'Source (plain markdown)'
-}
-
-const THEME_LABELS: Record<EditorThemeSetting, string> = {
-  'suna-dark': 'SUNA Dark',
-  'suna-light': 'SUNA Light',
-  gruvbox: 'Gruvbox',
-  jellybeans: 'Jellybeans',
-  'mono-blue-dark': 'Mono Blue Dark',
-  'mono-blue-light': 'Mono Blue Light'
 }
 
 const FONT_FAMILY_LABELS: Record<EditorFontFamily, string> = {
@@ -212,8 +202,8 @@ function cliDisplayName(id: LitCliId): string {
 
 /** "AI CLI preference": which agent CLI the 'ai-cli' literature provider spawns. */
 function AiCliSection(): JSX.Element {
-  const cliPreference = useSettingsStore((s) => s.settings['lit.cli'])
-  const update = useSettingsStore((s) => s.update)
+  const cliPreference = useSettingsStore((s) => s.settings['literature.cli'])
+  const setSetting = useSettingsStore((s) => s.set)
   const [available, setAvailable] = useState<LitCliId[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -244,7 +234,7 @@ function AiCliSection(): JSX.Element {
       <select
         id="set-lit-cli"
         value={cliPreference}
-        onChange={(e) => void update('lit.cli', e.target.value as LitCliPreference)}
+        onChange={(e) => void setSetting('literature.cli', e.target.value as LitCliPreference)}
       >
         {LIT_CLI_PREFERENCE_IDS.map((id) => (
           <option key={id} value={id}>
@@ -548,16 +538,23 @@ function ReferenceLibrarySection(): JSX.Element {
 }
 
 /* --------------------------------------------------------------------------
-   Two-level hierarchy (feature-plan-5 §4): generic row builders shared by the
-   "This project" scope. Every row here reads via useResolved (reactive to
-   external suna.json edits through watchProjectSettings, already wired in
-   state/settings.ts) and writes via setProject/clearProject — never
-   setGlobal, so a project row can never cross into userData/settings.json.
+   Generic row builders. Every row reads through useResolved — reactive to an
+   external edit of ~/.suna/config.yml, which main watches — and writes through
+   the store's set/reset, which edit that same file in place, comments and all.
+   There is no second level for a row to cross into.
    -------------------------------------------------------------------------- */
 
-type NumberSettingKey = 'editor.contentWidthCh' | 'editor.fontSizePx' | 'editor.lineHeight'
+type NumberSettingKey =
+  | 'editor.contentWidthCh'
+  | 'editor.fontSizePx'
+  | 'editor.lineHeight'
+  | 'ui.textScale'
+  | 'ui.radiusPx'
+  | 'ui.titleBarHeightPx'
+  | 'ui.activityBarWidthPx'
+  | 'ui.statusBarHeightPx'
 
-type ProjectSelectKey =
+type ConfigSelectKey =
   | 'editor.defaultMode'
   | 'editor.editorTheme'
   | 'editor.fontFamily'
@@ -567,14 +564,23 @@ type ProjectSelectKey =
   | 'ai.effort'
   | 'review.aiDiffs'
 
-type ProjectNullableKey = 'previewProfileId' | 'literature.provider'
+type ConfigNullableKey = 'previewProfileId' | 'literature.provider'
+
+type ConfigToggleKey =
+  | 'editor.vimMotions'
+  | 'editor.autosave'
+  | 'editor.lineNumbers'
+  | 'export.doubleSpacing'
+  | 'export.lineNumbers'
+  | 'export.pageNumbers'
+  | 'references.autoOpenPdf'
 
 const AI_DIFF_LABELS: Record<ReviewAiDiffs, string> = {
   inline: 'Show inline',
   off: 'Hidden'
 }
 
-function SourceBadge({ source }: { source: 'project' | 'global' | 'default' }): JSX.Element {
+function SourceBadge({ source }: { source: SettingSource }): JSX.Element {
   return <span className={`settings__source settings__source--${source}`}>{sourceLabel(source)}</span>
 }
 
@@ -582,23 +588,23 @@ function ResetButton({
   source,
   onReset
 }: {
-  source: 'project' | 'global' | 'default'
+  source: SettingSource
   onReset: () => void
 }): JSX.Element {
   return (
     <button
       type="button"
       className="settings__reset"
-      disabled={source !== 'project'}
-      title="Remove the project override so this falls back to global/default"
+      disabled={source !== 'config'}
+      title="Remove this key from config.yml so it falls back to the shipped default"
       onClick={onReset}
     >
-      Reset to global
+      Reset to default
     </button>
   )
 }
 
-function ProjectNumberRow(props: {
+function ConfigNumberRow(props: {
   settingKey: NumberSettingKey
   id: string
   label: string
@@ -609,8 +615,8 @@ function ProjectNumberRow(props: {
 }): JSX.Element {
   const { settingKey, id, label, hint, min, max, step } = props
   const { value, source } = useResolved(settingKey)
-  const setProject = useSettingsStore((s) => s.setProject)
-  const clearProject = useSettingsStore((s) => s.clearProject)
+  const setSetting = useSettingsStore((s) => s.set)
+  const resetSetting = useSettingsStore((s) => s.reset)
   const [draft, setDraft] = useState(String(value))
 
   useEffect(() => {
@@ -620,7 +626,7 @@ function ProjectNumberRow(props: {
   const commit = (): void => {
     const num = Number(draft)
     if (Number.isFinite(num) && num >= min && num <= max) {
-      if (num !== value) void setProject(settingKey, num)
+      if (num !== value) void setSetting(settingKey, num)
     } else {
       setDraft(String(value))
     }
@@ -647,13 +653,13 @@ function ProjectNumberRow(props: {
           }}
         />
         <SourceBadge source={source} />
-        <ResetButton source={source} onReset={() => void clearProject(settingKey)} />
+        <ResetButton source={source} onReset={() => void resetSetting(settingKey)} />
       </div>
     </div>
   )
 }
 
-function ProjectSelectRow<K extends ProjectSelectKey>(props: {
+function ConfigSelectRow<K extends ConfigSelectKey>(props: {
   settingKey: K
   id: string
   label: string
@@ -663,8 +669,8 @@ function ProjectSelectRow<K extends ProjectSelectKey>(props: {
 }): JSX.Element {
   const { settingKey, id, label, hint, options, labelFor } = props
   const { value, source } = useResolved(settingKey)
-  const setProject = useSettingsStore((s) => s.setProject)
-  const clearProject = useSettingsStore((s) => s.clearProject)
+  const setSetting = useSettingsStore((s) => s.set)
+  const resetSetting = useSettingsStore((s) => s.reset)
 
   return (
     <div className="settings-tab__row settings__project-row">
@@ -678,7 +684,7 @@ function ProjectSelectRow<K extends ProjectSelectKey>(props: {
           value={String(value)}
           onChange={(e) => {
             const found = options.find((opt) => String(opt) === e.target.value)
-            if (found !== undefined) void setProject(settingKey, found)
+            if (found !== undefined) void setSetting(settingKey, found)
           }}
         >
           {options.map((opt) => (
@@ -688,13 +694,13 @@ function ProjectSelectRow<K extends ProjectSelectKey>(props: {
           ))}
         </select>
         <SourceBadge source={source} />
-        <ResetButton source={source} onReset={() => void clearProject(settingKey)} />
+        <ResetButton source={source} onReset={() => void resetSetting(settingKey)} />
       </div>
     </div>
   )
 }
 
-function ProjectNullableSelectRow<K extends ProjectNullableKey>(props: {
+function ConfigNullableSelectRow<K extends ConfigNullableKey>(props: {
   settingKey: K
   id: string
   label: string
@@ -705,8 +711,8 @@ function ProjectNullableSelectRow<K extends ProjectNullableKey>(props: {
 }): JSX.Element {
   const { settingKey, id, label, hint, autoLabel, options, labelFor } = props
   const { value, source } = useResolved(settingKey)
-  const setProject = useSettingsStore((s) => s.setProject)
-  const clearProject = useSettingsStore((s) => s.clearProject)
+  const setSetting = useSettingsStore((s) => s.set)
+  const resetSetting = useSettingsStore((s) => s.reset)
 
   return (
     <div className="settings-tab__row settings__project-row">
@@ -721,11 +727,11 @@ function ProjectNullableSelectRow<K extends ProjectNullableKey>(props: {
           onChange={(e) => {
             const raw = e.target.value
             if (raw === '') {
-              void clearProject(settingKey)
+              void resetSetting(settingKey)
               return
             }
             const found = options.find((opt) => String(opt) === raw)
-            if (found !== undefined) void setProject(settingKey, found)
+            if (found !== undefined) void setSetting(settingKey, found)
           }}
         >
           <option value="">{autoLabel}</option>
@@ -736,41 +742,48 @@ function ProjectNullableSelectRow<K extends ProjectNullableKey>(props: {
           ))}
         </select>
         <SourceBadge source={source} />
-        <ResetButton source={source} onReset={() => void clearProject(settingKey)} />
+        <ResetButton source={source} onReset={() => void resetSetting(settingKey)} />
       </div>
     </div>
   )
 }
 
-function ProjectVimRow(): JSX.Element {
-  const { value, source } = useResolved('editor.vimMotions')
-  const setProject = useSettingsStore((s) => s.setProject)
-  const clearProject = useSettingsStore((s) => s.clearProject)
+/** Any boolean setting, with its source badge and reset. */
+function ConfigToggleRow(props: {
+  settingKey: ConfigToggleKey
+  id: string
+  label: string
+  hint: string
+}): JSX.Element {
+  const { settingKey, id, label, hint } = props
+  const { value, source } = useResolved(settingKey)
+  const setSetting = useSettingsStore((s) => s.set)
+  const resetSetting = useSettingsStore((s) => s.reset)
 
   return (
     <div className="settings-tab__row settings__project-row">
-      <label htmlFor="proj-vim">
-        Vim motions
-        <span className="settings-tab__hint">Vim keybindings in the source editor, for this project only.</span>
+      <label htmlFor={id}>
+        {label}
+        <span className="settings-tab__hint">{hint}</span>
       </label>
       <div className="settings__control">
         <input
-          id="proj-vim"
+          id={id}
           type="checkbox"
           checked={value}
-          onChange={(e) => void setProject('editor.vimMotions', e.target.checked)}
+          onChange={(e) => void setSetting(settingKey, e.target.checked)}
         />
         <SourceBadge source={source} />
-        <ResetButton source={source} onReset={() => void clearProject('editor.vimMotions')} />
+        <ResetButton source={source} onReset={() => void resetSetting(settingKey)} />
       </div>
     </div>
   )
 }
 
-function ProjectPythonEnvRow(): JSX.Element {
+function ConfigPythonEnvRow(): JSX.Element {
   const { value, source } = useResolved('python.envPath')
-  const setProject = useSettingsStore((s) => s.setProject)
-  const clearProject = useSettingsStore((s) => s.clearProject)
+  const setSetting = useSettingsStore((s) => s.set)
+  const resetSetting = useSettingsStore((s) => s.reset)
   const [draft, setDraft] = useState(value ?? '')
 
   useEffect(() => {
@@ -780,13 +793,13 @@ function ProjectPythonEnvRow(): JSX.Element {
   const commit = (): void => {
     const trimmed = draft.trim()
     if (trimmed === (value ?? '')) return
-    if (trimmed === '') void clearProject('python.envPath')
-    else void setProject('python.envPath', trimmed)
+    if (trimmed === '') void resetSetting('python.envPath')
+    else void setSetting('python.envPath', trimmed)
   }
 
   return (
     <div className="settings-tab__row settings__project-row">
-      <label htmlFor="proj-python-env">
+      <label htmlFor="cfg-python-env">
         Python environment
         <span className="settings-tab__hint">
           Absolute interpreter/venv path this project&apos;s figure scripts run in. Empty follows
@@ -795,7 +808,7 @@ function ProjectPythonEnvRow(): JSX.Element {
       </label>
       <div className="settings__control">
         <input
-          id="proj-python-env"
+          id="cfg-python-env"
           type="text"
           spellCheck={false}
           placeholder="e.g. /usr/local/envs/paper/bin/python"
@@ -807,7 +820,7 @@ function ProjectPythonEnvRow(): JSX.Element {
           }}
         />
         <SourceBadge source={source} />
-        <ResetButton source={source} onReset={() => void clearProject('python.envPath')} />
+        <ResetButton source={source} onReset={() => void resetSetting('python.envPath')} />
       </div>
     </div>
   )
@@ -823,9 +836,9 @@ function PreviewProfileRow(): JSX.Element {
         : activeProfileId
 
   return (
-    <ProjectNullableSelectRow
+    <ConfigNullableSelectRow
       settingKey="previewProfileId"
-      id="proj-preview-profile"
+      id="cfg-preview-profile"
       label="Preview / render profile"
       hint="Which publisher profile the References view and the combined manuscript preview render as."
       autoLabel={`Auto (${activeLabel})`}
@@ -835,11 +848,11 @@ function PreviewProfileRow(): JSX.Element {
   )
 }
 
-function ProjectLiteratureProviderRow(): JSX.Element {
+function ConfigLiteratureProviderRow(): JSX.Element {
   return (
-    <ProjectNullableSelectRow
+    <ConfigNullableSelectRow
       settingKey="literature.provider"
-      id="proj-lit-provider"
+      id="cfg-lit-provider"
       label="Literature provider"
       hint="Which search provider the References panel defaults to in this project."
       autoLabel="Auto (prefers a detected agent CLI)"
@@ -850,100 +863,140 @@ function ProjectLiteratureProviderRow(): JSX.Element {
 }
 
 /**
- * "This project" scope — only meaningful controls when a project is open.
- * Every row here writes suna.json's `settings` block through
- * project:update-settings and never touches userData/settings.json.
+ * The theme picker. Its options come from the loaded config, NOT from a
+ * compile-time list: a theme dropped into ~/.suna/themes/ appears here the
+ * moment the file is saved, beside the built-ins and indistinguishable from
+ * them, which is the whole point of the theme file.
  */
-function ProjectSettingsSection(): JSX.Element {
-  const rootDir = useProjectStore((s) => s.rootDir)
-  const manifest = useProjectStore((s) => s.manifest)
-  const projectError = useSettingsStore((s) => s.projectError)
-
-  if (rootDir === null) {
-    return (
-      <section className="settings__scope" data-scope="project">
-        <h2 className="settings-tab__scope-title">This project</h2>
-        <p className="settings__empty">Open a project to see and override its settings here.</p>
-      </section>
-    )
-  }
+function ConfigThemeRow(): JSX.Element {
+  const { value, source } = useResolved('editor.editorTheme')
+  const themes = useSettingsStore((s) => s.themes)
+  const setSetting = useSettingsStore((s) => s.set)
+  const resetSetting = useSettingsStore((s) => s.reset)
+  const known = themes.some((theme) => theme.id === value)
 
   return (
-    <section className="settings__scope" data-scope="project">
+    <div className="settings-tab__row">
+      <label htmlFor="cfg-editor-theme">
+        Theme
+        <span className="settings-tab__hint">
+          Editor surface and app chrome. Add your own as ~/.suna/themes/&lt;name&gt;.yml.
+        </span>
+      </label>
+      <div className="settings__control">
+        <select
+          id="cfg-editor-theme"
+          value={known ? value : ''}
+          onChange={(e) => void setSetting('editor.editorTheme', e.target.value)}
+        >
+          {/* A theme id the config names but nothing defines still shows, so
+              the picker reflects the file rather than silently disagreeing. */}
+          {!known && <option value="">{value} (not found)</option>}
+          {themes.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.builtin ? theme.name : `${theme.name} · yours`}
+            </option>
+          ))}
+        </select>
+        <SourceBadge source={source} />
+        <ResetButton source={source} onReset={() => void resetSetting('editor.editorTheme')} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The settings that live in ~/.suna/config.yml and have a row here. Every one
+ * writes that file directly, which is the same file a hand-edit writes.
+ */
+function ConfigSettingsSection(): JSX.Element {
+  const configPath = useSettingsStore((s) => s.path)
+
+  return (
+    <section className="settings__scope" data-scope="config">
       <h2 className="settings-tab__scope-title">
-        This project <span>· {manifest?.name ?? rootDir}</span>
+        Appearance and defaults <span>· ~/.suna/config.yml</span>
       </h2>
-      {projectError !== null && <div className="settings-tab__error">{projectError}</div>}
 
       <h3 className="settings-tab__section">Preview</h3>
       <PreviewProfileRow />
 
       <h3 className="settings-tab__section">Editor</h3>
-      <ProjectSelectRow
+      <ConfigSelectRow
         settingKey="editor.defaultMode"
-        id="proj-editor-mode"
+        id="cfg-editor-mode"
         label="Default editor mode"
-        hint="How markdown files in this project open."
+        hint="How Markdown files open. Reading is the editable live preview."
         options={EDITOR_VIEW_MODES}
         labelFor={(mode) => MODE_LABELS[mode]}
       />
-      <ProjectNumberRow
+      <ConfigNumberRow
         settingKey="editor.contentWidthCh"
-        id="proj-content-width"
+        id="cfg-content-width"
         label="Content width"
         hint="Reading-mode column width, in characters."
         min={SETTINGS_LIMITS.contentWidthCh.min}
         max={SETTINGS_LIMITS.contentWidthCh.max}
         step={1}
       />
-      <ProjectNumberRow
+      <ConfigNumberRow
         settingKey="editor.fontSizePx"
-        id="proj-font-size"
+        id="cfg-font-size"
         label="Font size"
         hint="Base editor font size, in px."
         min={SETTINGS_LIMITS.fontSizePx.min}
         max={SETTINGS_LIMITS.fontSizePx.max}
         step={1}
       />
-      <ProjectNumberRow
+      <ConfigNumberRow
         settingKey="editor.lineHeight"
-        id="proj-line-height"
+        id="cfg-line-height"
         label="Line height"
         hint="Line spacing for both modes."
         min={SETTINGS_LIMITS.lineHeight.min}
         max={SETTINGS_LIMITS.lineHeight.max}
         step={0.1}
       />
-      <ProjectSelectRow
+      <ConfigSelectRow
         settingKey="editor.fontFamily"
-        id="proj-font-family"
+        id="cfg-font-family"
         label="Body font"
         hint="Reading-mode body font; source view stays monospace."
         options={EDITOR_FONT_FAMILIES}
         labelFor={(family) => FONT_FAMILY_LABELS[family]}
       />
-      <ProjectSelectRow
-        settingKey="editor.editorTheme"
-        id="proj-editor-theme"
-        label="Editor theme"
-        hint="Theme for this project — editor surface and app chrome."
-        options={EDITOR_THEME_IDS}
-        labelFor={(theme) => THEME_LABELS[theme]}
-      />
-      <ProjectSelectRow
+      <ConfigThemeRow />
+      <ConfigSelectRow
         settingKey="review.aiDiffs"
-        id="proj-ai-diffs"
+        id="cfg-ai-diffs"
         label="AI changes"
         hint="Show what the AI changed, removals in red and additions in green, until you accept or reject them."
         options={REVIEW_AI_DIFF_MODES}
         labelFor={(mode) => AI_DIFF_LABELS[mode]}
       />
-      <ProjectVimRow />
+      <ConfigToggleRow
+        settingKey="editor.vimMotions"
+        id="cfg-vim"
+        label="Vim motions"
+        hint="Vim keybindings in the source editor."
+      />
+      <ConfigToggleRow
+        settingKey="editor.lineNumbers"
+        id="cfg-line-numbers"
+        label="Line numbers"
+        hint="Line numbers in the source view's gutter."
+      />
+      <ConfigToggleRow
+        settingKey="editor.autosave"
+        id="cfg-autosave"
+        label="Autosave"
+        hint="Save editors and the figure canvas a second after you stop editing. ⌘S still works."
+      />
 
       <h3 className="settings-tab__section">Figures</h3>
-      <ProjectSelectRow
+      <ConfigSelectRow
         settingKey="figures.defaultWidthPreset"
-        id="proj-figure-width"
+        id="cfg-figure-width"
         label="Default figure width"
         hint="Width preset new figures are inserted at."
         options={FIGURE_WIDTH_PRESETS}
@@ -951,31 +1004,31 @@ function ProjectSettingsSection(): JSX.Element {
       />
 
       <h3 className="settings-tab__section">Python</h3>
-      <ProjectPythonEnvRow />
+      <ConfigPythonEnvRow />
 
       <h3 className="settings-tab__section">Literature</h3>
-      <ProjectLiteratureProviderRow />
+      <ConfigLiteratureProviderRow />
 
       <h3 className="settings-tab__section">AI</h3>
-      <ProjectSelectRow
+      <ConfigSelectRow
         settingKey="ai.mode"
-        id="proj-ai-mode"
+        id="cfg-ai-mode"
         label="AI mode"
         hint="How this project talks to an AI: an agent CLI, an API key, or not at all."
         options={AI_MODES}
         labelFor={(mode) => AI_MODE_LABELS[mode]}
       />
-      <ProjectSelectRow
+      <ConfigSelectRow
         settingKey="ai.model"
-        id="proj-ai-model"
+        id="cfg-ai-model"
         label="Model"
         hint="Model tier every AI call in this project runs at."
         options={AI_MODELS}
         labelFor={(model) => AI_MODEL_LABELS[model]}
       />
-      <ProjectSelectRow
+      <ConfigSelectRow
         settingKey="ai.effort"
-        id="proj-ai-effort"
+        id="cfg-ai-effort"
         label="Effort"
         hint="How hard it thinks before answering. Higher costs more and takes longer."
         options={AI_EFFORTS}
@@ -984,10 +1037,17 @@ function ProjectSettingsSection(): JSX.Element {
 
       <div className="settings__footer">
         <p className="settings__footer-note">
-          Project settings live in <code>suna.json</code> — you can edit it directly.
+          Every setting here lives in <code>{configPath}</code>, fully commented. Editing it by
+          hand and using these controls are the same thing — the file is watched, and the
+          controls write into it without disturbing your comments.
         </p>
-        <button type="button" className="btn" onClick={() => openFileTab(`${rootDir}/suna.json`)}>
-          Open suna.json
+        <button
+          type="button"
+          className="btn"
+          disabled={configPath === ''}
+          onClick={() => openFileTab(configPath)}
+        >
+          Open config.yml
         </button>
       </div>
     </section>
@@ -1012,7 +1072,7 @@ function GlobalNumberField(props: {
 }): JSX.Element {
   const { settingKey, id, label, hint, min, max, step } = props
   const { value } = useResolved(settingKey)
-  const setGlobal = useSettingsStore((s) => s.setGlobal)
+  const setSetting = useSettingsStore((s) => s.set)
   const [draft, setDraft] = useState(String(value))
 
   useEffect(() => {
@@ -1022,7 +1082,7 @@ function GlobalNumberField(props: {
   const commit = (): void => {
     const num = Number(draft)
     if (Number.isFinite(num) && num >= min && num <= max) {
-      if (num !== value) void setGlobal(settingKey, num)
+      if (num !== value) void setSetting(settingKey, num)
     } else {
       setDraft(String(value))
     }
@@ -1053,7 +1113,7 @@ function GlobalNumberField(props: {
 
 function GlobalFontFamilyField(): JSX.Element {
   const { value } = useResolved('editor.fontFamily')
-  const setGlobal = useSettingsStore((s) => s.setGlobal)
+  const setSetting = useSettingsStore((s) => s.set)
 
   return (
     <div className="settings-tab__row">
@@ -1064,7 +1124,7 @@ function GlobalFontFamilyField(): JSX.Element {
       <select
         id="set-body-font"
         value={value}
-        onChange={(e) => void setGlobal('editor.fontFamily', e.target.value as EditorFontFamily)}
+        onChange={(e) => void setSetting('editor.fontFamily', e.target.value as EditorFontFamily)}
       >
         {EDITOR_FONT_FAMILIES.map((family) => (
           <option key={family} value={family}>
@@ -1085,7 +1145,7 @@ function GlobalFontFamilyField(): JSX.Element {
 function GlobalAiChoiceFields(): JSX.Element {
   const { value: model, source: modelSource } = useResolved('ai.model')
   const { value: effort, source: effortSource } = useResolved('ai.effort')
-  const setGlobal = useSettingsStore((s) => s.setGlobal)
+  const setSetting = useSettingsStore((s) => s.set)
 
   return (
     <>
@@ -1100,7 +1160,7 @@ function GlobalAiChoiceFields(): JSX.Element {
           <select
             id="set-ai-model"
             value={model}
-            onChange={(e) => void setGlobal('ai.model', e.target.value as AiModel)}
+            onChange={(e) => void setSetting('ai.model', e.target.value as AiModel)}
           >
             {AI_MODELS.map((id) => (
               <option key={id} value={id}>
@@ -1122,7 +1182,7 @@ function GlobalAiChoiceFields(): JSX.Element {
           <select
             id="set-ai-effort"
             value={effort}
-            onChange={(e) => void setGlobal('ai.effort', e.target.value as AiEffort)}
+            onChange={(e) => void setSetting('ai.effort', e.target.value as AiEffort)}
           >
             {AI_EFFORTS.map((id) => (
               <option key={id} value={id}>
@@ -1149,7 +1209,7 @@ function GlobalAiChoiceFields(): JSX.Element {
 function TrashSection(): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
   const settings = useSettingsStore((s) => s.settings)
-  const update = useSettingsStore((s) => s.update)
+  const setSetting = useSettingsStore((s) => s.set)
   const [sizeDraft, setSizeDraft] = useState(String(settings['trash.maxFileMb']))
   const [daysDraft, setDaysDraft] = useState(String(settings['trash.retentionDays']))
 
@@ -1169,7 +1229,7 @@ function TrashSection(): JSX.Element {
   ): void => {
     const num = Number(draft)
     if (Number.isFinite(num) && num >= limits.min && num <= limits.max) {
-      if (num !== settings[key]) void update(key, num)
+      if (num !== settings[key]) void setSetting(key, num)
     } else {
       reset(String(settings[key]))
     }
@@ -1256,11 +1316,11 @@ export function SettingsTab(): JSX.Element {
   const loaded = useSettingsStore((s) => s.loaded)
   const error = useSettingsStore((s) => s.error)
   const load = useSettingsStore((s) => s.load)
-  const update = useSettingsStore((s) => s.update)
+  const setSetting = useSettingsStore((s) => s.set)
   const rootDir = useProjectStore((s) => s.rootDir)
 
   const [shellDraft, setShellDraft] = useState(settings['terminal.shell'])
-  const [mailtoDraft, setMailtoDraft] = useState(settings['lit.mailto'])
+  const [mailtoDraft, setMailtoDraft] = useState(settings['literature.mailto'])
 
   useEffect(() => {
     void load()
@@ -1269,17 +1329,17 @@ export function SettingsTab(): JSX.Element {
   // adopt the persisted value once it arrives (or after another writer changes it)
   useEffect(() => {
     setShellDraft(settings['terminal.shell'])
-    setMailtoDraft(settings['lit.mailto'])
+    setMailtoDraft(settings['literature.mailto'])
   }, [settings])
 
   const commitShell = (): void => {
     const value = shellDraft.trim()
-    if (value !== settings['terminal.shell']) void update('terminal.shell', value)
+    if (value !== settings['terminal.shell']) void setSetting('terminal.shell', value)
   }
 
   const commitMailto = (): void => {
     const value = mailtoDraft.trim()
-    if (value !== settings['lit.mailto']) void update('lit.mailto', value)
+    if (value !== settings['literature.mailto']) void setSetting('literature.mailto', value)
   }
 
   return (
@@ -1287,98 +1347,16 @@ export function SettingsTab(): JSX.Element {
       <div className="settings-tab__page">
         <h1 className="settings-tab__title">Settings</h1>
         <p className="settings-tab__sub">
-          Two levels: Global applies everywhere; This project overrides it in suna.json
+          Everything here is stored in your <code>~/.suna/config.yml</code> — hand-edit it or use
+          these controls; they are the same file
           {!loaded && ' — loading…'}
         </p>
         {error !== null && <div className="settings-tab__error">{error}</div>}
 
         <section className="settings__scope" data-scope="global">
           <h2 className="settings-tab__scope-title">
-            Global <span>· all projects</span>
+            Workspace <span>· tools and integrations</span>
           </h2>
-
-          <h3 className="settings-tab__section">General</h3>
-          <div className="settings-tab__row">
-            <label htmlFor="set-default-mode">
-              Default editor mode
-              <span className="settings-tab__hint">How markdown files open. Reading is the editable live preview.</span>
-            </label>
-            <select
-              id="set-default-mode"
-              value={settings['editor.defaultMode']}
-              onChange={(e) => void update('editor.defaultMode', e.target.value as EditorModeSetting)}
-            >
-              {(Object.keys(MODE_LABELS) as EditorModeSetting[]).map((mode) => (
-                <option key={mode} value={mode}>
-                  {MODE_LABELS[mode]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="settings-tab__row">
-            <label htmlFor="set-ai-diffs">
-              AI changes
-              <span className="settings-tab__hint">
-                Show what the AI changed — removals in red, additions in green — until you accept
-                or reject them.
-              </span>
-            </label>
-            <select
-              id="set-ai-diffs"
-              value={settings['review.aiDiffs']}
-              onChange={(e) => void update('review.aiDiffs', e.target.value as ReviewAiDiffs)}
-            >
-              {REVIEW_AI_DIFF_MODES.map((mode) => (
-                <option key={mode} value={mode}>
-                  {AI_DIFF_LABELS[mode]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="settings-tab__row">
-            <label htmlFor="set-vim">
-              Vim motions
-              <span className="settings-tab__hint">Vim keybindings in the source editor.</span>
-            </label>
-            <input
-              id="set-vim"
-              type="checkbox"
-              checked={settings['editor.vimMotions']}
-              onChange={(e) => void update('editor.vimMotions', e.target.checked)}
-            />
-          </div>
-          <div className="settings-tab__row">
-            <label htmlFor="set-editor-theme">
-              Editor theme
-              <span className="settings-tab__hint">Default theme for the whole app — editor surface and chrome.</span>
-            </label>
-            <select
-              id="set-editor-theme"
-              value={settings['editor.theme']}
-              onChange={(e) => void update('editor.theme', e.target.value as EditorThemeSetting)}
-            >
-              {(Object.keys(THEME_LABELS) as EditorThemeSetting[]).map((theme) => (
-                <option key={theme} value={theme}>
-                  {THEME_LABELS[theme]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="settings-tab__row">
-            <label htmlFor="set-autosave">
-              Autosave
-              <span className="settings-tab__hint">
-                Save editors and the figure canvas a second after you stop editing. ⌘S still
-                works; turn this off to save only by hand.
-              </span>
-            </label>
-            <input
-              id="set-autosave"
-              type="checkbox"
-              checked={settings['editor.autosave']}
-              onChange={(e) => void update('editor.autosave', e.target.checked)}
-            />
-          </div>
 
           <h3 className="settings-tab__section">Appearance</h3>
           <div className="settings-tab__row">
@@ -1388,8 +1366,8 @@ export function SettingsTab(): JSX.Element {
             </label>
             <select
               id="set-ui-scale"
-              value={String(settings['appearance.uiScale'])}
-              onChange={(e) => void update('appearance.uiScale', Number(e.target.value))}
+              value={String(settings['ui.scale'])}
+              onChange={(e) => void setSetting('ui.scale', Number(e.target.value))}
             >
               {UI_SCALE_CHOICES.map((scale) => (
                 <option key={scale} value={String(scale)}>
@@ -1398,34 +1376,72 @@ export function SettingsTab(): JSX.Element {
               ))}
             </select>
           </div>
-          <GlobalNumberField
-            settingKey="editor.fontSizePx"
-            id="set-font-size"
-            label="Font size"
-            hint="Base editor font size, in px. Default 14."
-            min={SETTINGS_LIMITS.fontSizePx.min}
-            max={SETTINGS_LIMITS.fontSizePx.max}
+
+          <ConfigNumberRow
+            settingKey="ui.textScale"
+            id="set-ui-text-scale"
+            label="Interface text"
+            hint="Multiplies the chrome type scale — labels, tabs, the status bar. Unlike Interface scale this leaves geometry alone."
+            min={UI_LIMITS.textScale.min}
+            max={UI_LIMITS.textScale.max}
+            step={0.05}
+          />
+          <ConfigNumberRow
+            settingKey="ui.radiusPx"
+            id="set-ui-radius"
+            label="Corner radius"
+            hint="Rounding on buttons, inputs and popovers, in px. 0 for square corners."
+            min={UI_LIMITS.radiusPx.min}
+            max={UI_LIMITS.radiusPx.max}
             step={1}
           />
-          <GlobalNumberField
-            settingKey="editor.lineHeight"
-            id="set-line-height"
-            label="Line height"
-            hint="Line spacing for both modes. Default 1.6."
-            min={SETTINGS_LIMITS.lineHeight.min}
-            max={SETTINGS_LIMITS.lineHeight.max}
-            step={0.1}
-          />
-          <GlobalNumberField
-            settingKey="editor.contentWidthCh"
-            id="set-content-width"
-            label="Content width"
-            hint="Reading-mode column width, in characters."
-            min={SETTINGS_LIMITS.contentWidthCh.min}
-            max={SETTINGS_LIMITS.contentWidthCh.max}
+          <ConfigNumberRow
+            settingKey="ui.titleBarHeightPx"
+            id="set-ui-titlebar"
+            label="Title bar height"
+            hint="In px."
+            min={UI_LIMITS.titleBarHeightPx.min}
+            max={UI_LIMITS.titleBarHeightPx.max}
             step={1}
           />
-          <GlobalFontFamilyField />
+          <ConfigNumberRow
+            settingKey="ui.activityBarWidthPx"
+            id="set-ui-activitybar"
+            label="Activity bar width"
+            hint="In px. 0 hides the icon rail's width entirely."
+            min={UI_LIMITS.activityBarWidthPx.min}
+            max={UI_LIMITS.activityBarWidthPx.max}
+            step={1}
+          />
+          <ConfigNumberRow
+            settingKey="ui.statusBarHeightPx"
+            id="set-ui-statusbar"
+            label="Status bar height"
+            hint="In px."
+            min={UI_LIMITS.statusBarHeightPx.min}
+            max={UI_LIMITS.statusBarHeightPx.max}
+            step={1}
+          />
+
+          <h3 className="settings-tab__section">Export</h3>
+          <ConfigToggleRow
+            settingKey="export.doubleSpacing"
+            id="set-export-double"
+            label="Double-space manuscripts"
+            hint="The default for a new export. A journal profile that states its own requirement still overrides it in the export dialog."
+          />
+          <ConfigToggleRow
+            settingKey="export.lineNumbers"
+            id="set-export-lines"
+            label="Line numbers"
+            hint="Continuous line numbers down the exported manuscript's margin."
+          />
+          <ConfigToggleRow
+            settingKey="export.pageNumbers"
+            id="set-export-pages"
+            label="Page numbers"
+            hint="Page numbers in the exported manuscript."
+          />
 
           <h3 className="settings-tab__section">Terminal</h3>
           <div className="settings-tab__row">
@@ -1453,27 +1469,15 @@ export function SettingsTab(): JSX.Element {
           <VersionControlSection />
 
           <h3 className="settings-tab__section">References</h3>
-          <div className="settings-tab__row">
-            <label htmlFor="set-refs-auto-open">
-              Auto-open reference PDF
-              <span className="settings-tab__hint">
-                Selecting a reference with a PDF opens it beside the list. Off leaves selection silent
-                — use the PDF badge or &quot;Attach PDF…&quot; to open/attach manually.
-              </span>
-            </label>
-            <input
-              id="set-refs-auto-open"
-              type="checkbox"
-              checked={settings['references.autoOpenPdf']}
-              onChange={(e) => void update('references.autoOpenPdf', e.target.checked)}
-            />
-          </div>
+          <ConfigToggleRow
+            settingKey="references.autoOpenPdf"
+            id="set-refs-auto-open"
+            label="Auto-open reference PDF"
+            hint="Selecting a reference with a PDF opens it beside the list. Off leaves selection silent — use the PDF badge or “Attach PDF…” to open it by hand."
+          />
 
           <h3 className="settings-tab__section">Trash</h3>
           <TrashSection />
-
-          <h3 className="settings-tab__section">AI</h3>
-          <GlobalAiChoiceFields />
 
           <h3 className="settings-tab__section">Literature providers</h3>
           <div className="settings-tab__row">
@@ -1504,7 +1508,7 @@ export function SettingsTab(): JSX.Element {
           <ReferenceLibrarySection />
         </section>
 
-        <ProjectSettingsSection />
+        <ConfigSettingsSection />
 
         <h2 className="settings-tab__section">About</h2>
         <div className="settings-tab__info">

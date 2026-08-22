@@ -1,54 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { ProjectSettingsSchema } from '@suna/core'
-import {
-  buildScaffoldSettings,
-  createInitialWizardState,
-  defaultsToProjectSettings,
-  FALLBACK_DEFAULTS,
-  repoNameFromProjectName
-} from './types'
+import { SETTING_KEYS } from '@suna/core'
+import { createInitialWizardState, wizardSettingWrites, repoNameFromProjectName } from './types'
 
-describe('defaultsToProjectSettings', () => {
-  it('nests the five Defaults values under editor and validates against ProjectSettingsSchema', () => {
-    const patch = defaultsToProjectSettings(FALLBACK_DEFAULTS)
-    expect(ProjectSettingsSchema.safeParse(patch).success).toBe(true)
-    expect(patch).toEqual({
-      editor: {
-        defaultMode: 'reading',
-        editorTheme: 'suna-dark',
-        fontSizePx: 14,
-        lineHeight: 1.6,
-        contentWidthCh: 140
-      }
-    })
-  })
-})
-
-describe('buildScaffoldSettings', () => {
-  it('always includes the AI choice, mapping "skip" to mode "none"', () => {
-    const state = createInitialWizardState('create', { aiChoice: 'skip' })
-    expect(buildScaffoldSettings(state).ai).toEqual({ mode: 'none', cliCommand: null })
+describe('wizardSettingWrites', () => {
+  it('maps the "skip" AI choice to mode "none" and clears the CLI command', () => {
+    const writes = wizardSettingWrites(createInitialWizardState('create', { aiChoice: 'skip' }))
+    expect(writes).toContainEqual({ key: 'ai.mode', value: 'none' })
+    expect(writes).toContainEqual({ key: 'ai.cliCommand', value: null })
   })
 
   it('carries the chosen CLI command when aiChoice is "cli"', () => {
     const state = createInitialWizardState('create', { aiChoice: 'cli', aiCliCommand: 'claude' })
-    expect(buildScaffoldSettings(state).ai).toEqual({ mode: 'cli', cliCommand: 'claude' })
+    const writes = wizardSettingWrites(state)
+    expect(writes).toContainEqual({ key: 'ai.mode', value: 'cli' })
+    expect(writes).toContainEqual({ key: 'ai.cliCommand', value: 'claude' })
   })
 
-  it('always writes the defaults into the project, and they validate', () => {
-    const state = createInitialWizardState('create')
-    const settings = buildScaffoldSettings(state)
-    expect(settings.editor).toEqual({
-      defaultMode: 'reading',
-      editorTheme: 'suna-dark',
-      fontSizePx: 14,
-      lineHeight: 1.6,
-      contentWidthCh: 140
-    })
-    expect(ProjectSettingsSchema.safeParse(settings).success).toBe(true)
+  it('writes all five Defaults, and every key it names is a real setting', () => {
+    const writes = wizardSettingWrites(createInitialWizardState('create'))
+    expect(writes).toContainEqual({ key: 'editor.editorTheme', value: 'suna-dark' })
+    expect(writes).toContainEqual({ key: 'editor.lineHeight', value: 1.6 })
+    expect(writes).toContainEqual({ key: 'editor.contentWidthCh', value: 140 })
+    for (const write of writes) {
+      expect(SETTING_KEYS[write.key], write.key).toBeDefined()
+    }
   })
 })
-
 describe('repoNameFromProjectName', () => {
   it('passes a name that is already a valid repository name through', () => {
     expect(repoNameFromProjectName('quenching-paper')).toBe('quenching-paper')

@@ -40,9 +40,6 @@ import { useEditorSettings } from './editor/settings'
 import { setDockApi } from './state/dock'
 // Registers the app's built-in commands as an import side effect (state/commands.ts).
 import './state/commands'
-// Feeds resolved project/global settings into the editor surface store
-// (feature-plan-5 §4) as an import side effect — see state/editorSettingsBridge.ts.
-import './state/editorSettingsBridge'
 
 const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
   welcome: WelcomeTab,
@@ -72,10 +69,10 @@ const DOCK_COMPONENTS: Record<string, DockPanelComponent> = {
 export function App(): JSX.Element {
   const sidebarVisible = useUiStore((s) => s.sidebarVisible)
   const railVisible = useUiStore((s) => s.railVisible)
-  // Same store EditorTab renders its theme class from, so chrome and editor
-  // surface can never disagree. tokens.css keys its chrome palettes off this
-  // attribute; a theme without a block there (suna-dark) leaves the :root
-  // palette — i.e. today's look — untouched.
+  // Same store EditorTab renders its theme from, so chrome and editor surface
+  // can never disagree. The palette itself is a generated stylesheet keyed off
+  // this attribute (state/settings.ts's applyThemeCss), which is what puts a
+  // user's own ~/.suna/themes/*.yml on exactly the same footing as a built-in.
   const editorTheme = useEditorSettings((s) => s.editorTheme)
 
   // Mirrored onto <body> for body-portalled chrome (ProjectMenu) and the body

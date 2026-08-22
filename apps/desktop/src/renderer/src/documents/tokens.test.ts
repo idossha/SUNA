@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { CHROME_TOKENS, EDITOR_TOKENS, SYNTAX_TOKENS } from '@suna/core'
 
 /**
  * A stylesheet may only use the app's real design tokens.
@@ -18,9 +19,18 @@ import { describe, expect, it } from 'vitest'
 const STYLE_DIR = join(__dirname)
 const TOKENS_CSS = join(__dirname, '..', 'styles', 'tokens.css')
 
+/**
+ * Every custom property the app really defines: the metrics and font stacks
+ * declared in tokens.css, plus every COLOUR token, which is generated per
+ * theme from @suna/core's registry rather than written in any stylesheet.
+ * Both halves matter — a name absent from either is the invented-variable bug
+ * this test exists for.
+ */
 function definedTokens(): Set<string> {
   const css = readFileSync(TOKENS_CSS, 'utf8')
-  return new Set([...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map((m) => m[1]!))
+  const declared = [...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map((m) => m[1]!)
+  const themed = [...CHROME_TOKENS, ...EDITOR_TOKENS, ...SYNTAX_TOKENS].map((t) => t.cssVar)
+  return new Set([...declared, ...themed])
 }
 
 function cssFiles(): string[] {

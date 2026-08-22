@@ -1,4 +1,4 @@
-import type { ProjectSettings, ResponseOf } from '@suna/core'
+import type { EditorThemeId, ResolvedSettingKey, ResponseOf } from '@suna/core'
 
 /**
  * Onboarding wizard (feature-plan-5 §5). Two entry points share every step
@@ -54,9 +54,8 @@ export function repoNameFromProjectName(name: string): string {
 /** Defaults step seed/output — the five resolved keys the spec names for "Defaults". */
 export interface WizardDefaults {
   defaultMode: 'source' | 'reading'
-  editorTheme: 'suna-dark' | 'suna-light' | 'gruvbox' | 'jellybeans'
-    | 'mono-blue-dark'
-    | 'mono-blue-light'
+  /** Any theme id — a built-in or one of the user's own. */
+  editorTheme: EditorThemeId
   fontSizePx: number
   lineHeight: number
   contentWidthCh: number
@@ -174,31 +173,26 @@ export function createInitialWizardState(
   }
 }
 
-/** The project-settings `editor` block the Defaults step contributes. */
-export function defaultsToProjectSettings(defaults: WizardDefaults): ProjectSettings {
-  return {
-    editor: {
-      defaultMode: defaults.defaultMode,
-      editorTheme: defaults.editorTheme,
-      fontSizePx: defaults.fontSizePx,
-      lineHeight: defaults.lineHeight,
-      contentWidthCh: defaults.contentWidthCh
-    }
-  }
-}
-
 /**
- * The Review step's full scaffold `settings` patch: the AI choice and the
- * Defaults block, both written into this project's suna.json. The wizard
- * defines project-level values only — global settings are the Settings tab's
- * business, and a new project must not quietly rewrite them.
+ * The config-file writes the wizard's Defaults and AI steps imply, as
+ * (key, value) pairs for `config:set`.
+ *
+ * They go into the user's ~/.suna/config.yml, not into the project: there is
+ * no project settings level. That is a real consequence worth stating — the
+ * wizard's Defaults step configures SUNA, not this one paper, so a second
+ * project created later inherits what the first one chose.
  */
-export function buildScaffoldSettings(state: WizardState): ProjectSettings {
-  return {
-    ai: {
-      mode: state.aiChoice === 'skip' ? 'none' : state.aiChoice,
-      cliCommand: state.aiChoice === 'cli' ? state.aiCliCommand : null
-    },
-    editor: defaultsToProjectSettings(state.defaults).editor
-  }
+export function wizardSettingWrites(
+  state: WizardState,
+): { key: ResolvedSettingKey; value: unknown }[] {
+  const { defaults } = state
+  return [
+    { key: 'ai.mode', value: state.aiChoice === 'skip' ? 'none' : state.aiChoice },
+    { key: 'ai.cliCommand', value: state.aiChoice === 'cli' ? state.aiCliCommand : null },
+    { key: 'editor.defaultMode', value: defaults.defaultMode },
+    { key: 'editor.editorTheme', value: defaults.editorTheme },
+    { key: 'editor.fontSizePx', value: defaults.fontSizePx },
+    { key: 'editor.lineHeight', value: defaults.lineHeight },
+    { key: 'editor.contentWidthCh', value: defaults.contentWidthCh }
+  ]
 }

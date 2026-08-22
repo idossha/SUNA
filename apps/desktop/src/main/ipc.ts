@@ -39,6 +39,7 @@ import {
   LIT_PROVIDER_IDS,
   LIT_PROVIDER_META,
   type ChannelName,
+  type LoadedConfigPayload,
   type LitCliPreference,
   type MigrationOutcome,
   type RequestOf,
@@ -156,8 +157,7 @@ import {
   createProject,
   openProject,
   scaffoldProject,
-  scaffoldStatus,
-  updateProjectSettings
+  scaffoldStatus
 } from './services/project'
 import { watchProjectManifest } from './services/projectWatch'
 import { watchProjectTree } from './services/projectTreeWatch'
@@ -176,10 +176,16 @@ import {
   forgetRecentProject,
   listRecentProjects,
   readSettings,
-  resolveAiChoice,
   touchRecentProject,
   writeSettings
 } from './services/settings'
+import {
+  getSetting,
+  loadConfig,
+  resolveAiChoice,
+  setSetting,
+  type LoadedConfig
+} from './services/userconfig'
 import { openPathWithOs, revealPath } from './services/shell-open'
 import {
   adoptTerminal,
@@ -200,23 +206,30 @@ import {
 const AGENT_PROVIDER_IDS = ['anthropic', 'openai', 'ollama'] as const
 
 /**
- * Contact address for the Crossref/OpenAlex polite pools. Settings own it; the
- * renderer writes either key with `settings:set`.
+ * The config, as the IPC contract spells it. `settings` and `sources` are open
+ * records on the wire (see LoadedConfigSchema): the typed shape lives in
+ * @suna/core, and re-declaring it in zod would be a second place to add a key.
  */
-async function politeMailto(): Promise<string | null> {
-  const settings = await readSettings()
-  for (const key of ['lit.mailto', 'user.email']) {
-    const value = settings[key]
-    if (typeof value === 'string' && value.trim() !== '') return value.trim()
-  }
-  return null
+function toPayload(config: LoadedConfig): LoadedConfigPayload {
+  return config as unknown as LoadedConfigPayload
 }
 
-/** Settings key 'lit.cli': which agent CLI the 'ai-cli' provider should prefer. */
+/**
+ * Contact address for the Crossref/OpenAlex polite pools. `literature.mailto`
+ * in the user's config.yml; an empty one falls back to the identity SUNA
+ * already knows, which is what makes the polite pool work without the user
+ * being asked for an address twice.
+ */
+async function politeMailto(): Promise<string | null> {
+  const configured = (await getSetting('literature.mailto')).trim()
+  if (configured !== '') return configured
+  const email = (await readSettings())['user.email']
+  return typeof email === 'string' && email.trim() !== '' ? email.trim() : null
+}
+
+/** `literature.cli`: which agent CLI the 'ai-cli' provider should prefer. */
 async function litCliPreference(): Promise<LitCliPreference> {
-  const settings = await readSettings()
-  const value = settings['lit.cli']
-  return value === 'claude' || value === 'codex' ? value : 'auto'
+  return getSetting('literature.cli')
 }
 
 /** The demo paper shipped with the repo (dev) or app resources (packaged). */
@@ -610,9 +623,6 @@ export function registerIpcHandlers(): void {
     return { dir, manifest, migration }
   })
   handle('project:scaffold-status', ({ dir }) => scaffoldStatus(dir))
-  handle('project:update-settings', async ({ dir, patch }) => ({
-    manifest: await updateProjectSettings(dir, patch)
-  }))
   handle('peer-review:approve', async ({ dir, approvedBy, source, learnedFrom }) =>
     approvePeerReviewAi({ dir, approvedBy, source, learnedFrom })
   )
@@ -805,11 +815,11 @@ export function registerIpcHandlers(): void {
     const askId = `ai-ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const webContents = event.sender
     const cliPreference = await litCliPreference()
-    // Model/effort resolve from this project's suna.json over global settings,
-    // so a hand-edited manifest reaches the spawn without renderer help — and
-    // a per-task choice from the caller beats both, because "this one letter
-    // is worth Opus" is a decision about the task, not about the project.
-    const resolved = await resolveAiChoice(dir)
+    // Model/effort resolve from ~/.suna/config.yml here rather than being
+    // passed in, so a hand-edited config reaches the spawn without renderer
+    // help — and a per-task choice from the caller beats it, because "this one
+    // letter is worth Opus" is a decision about the task, not about the setup.
+    const resolved = await resolveAiChoice()
     const model = input.model ?? resolved.model
     const effort = input.effort ?? resolved.effort
 
@@ -947,7 +957,7 @@ export function registerIpcHandlers(): void {
     if (provider !== 'ollama' && key === null) {
       throw new Error(`no API key configured for ${provider} — add one in settings`)
     }
-    const { model, effort } = await resolveAiChoice(dir ?? undefined)
+    const { model, effort } = await resolveAiChoice()
     // The tier only names an Anthropic model; openai/ollama keep their own
     // default and take the effort hint only if their adapter understands it.
     const modelId = provider === 'anthropic' ? anthropicModelId(model) : undefined
@@ -1011,6 +1021,14 @@ export function registerIpcHandlers(): void {
   handle('env:uv-available', async () => ({ available: await uvAvailable() }))
   handle('env:create', ({ dir }) => createEnvWithUv(dir))
 
+  handle('config:get', async () => ({ config: toPayload(await loadConfig()) }))
+  handle('config:set', async ({ key, value }) => {
+    // The key arrives as a string over IPC; setSetting validates it against the
+    // registry, so an unknown key is a rejected write rather than a stray
+    // top-level entry appearing in the user's file.
+    const out = await setSetting(key as Parameters<typeof setSetting>[0], value ?? null)
+    return { config: toPayload(out.config), error: out.error }
+  })
   handle('settings:get', async () => ({ settings: await readSettings() }))
   handle('settings:set', async ({ patch }) => ({ settings: await writeSettings(patch) }))
 

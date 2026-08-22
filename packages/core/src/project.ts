@@ -54,8 +54,35 @@ export const EDITOR_THEME_IDS = [
   'mono-blue-dark',
   'mono-blue-light',
 ] as const;
-export const EditorThemeIdSchema = z.enum(EDITOR_THEME_IDS);
+export type BuiltinThemeId = (typeof EDITOR_THEME_IDS)[number];
+
+/**
+ * A theme id. Deliberately NOT an enum over the built-ins: a user's own theme
+ * in `~/.suna/themes/nord.yml` names itself, and the settings schema cannot
+ * know that name. Shape only, therefore — the loader is what decides whether
+ * a well-formed id actually resolves to a theme (an unknown one falls back to
+ * the default theme and is reported as a config diagnostic).
+ */
+export const EditorThemeIdSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, 'lowercase letters, digits and dashes only');
 export type EditorThemeId = z.infer<typeof EditorThemeIdSchema>;
+
+/**
+ * Bounds for the chrome-geometry settings (`ui:` in config.yml). Wide enough
+ * to be worth changing, narrow enough that a typo cannot produce a window with
+ * no title bar or a 400px status bar.
+ */
+export const UI_LIMITS = {
+  scale: { min: 0.75, max: 1.5 },
+  titleBarHeightPx: { min: 28, max: 64 },
+  activityBarWidthPx: { min: 0, max: 96 },
+  statusBarHeightPx: { min: 16, max: 48 },
+  radiusPx: { min: 0, max: 16 },
+  textScale: { min: 0.8, max: 1.4 },
+} as const;
 
 /** Figure width presets, keyed like a profile's `figures.widthPresetsMm`. */
 export const FIGURE_WIDTH_PRESETS = ['single', 'onehalf', 'double'] as const;
@@ -161,7 +188,14 @@ export const SunaProjectManifestSchema = z.object({
   activeProfileId: z.string().min(1),
   directories: z.record(ProjectDirKeySchema, z.string().min(1)),
   createdAt: z.iso.datetime(),
-  /** Absent on every project created before feature-plan-5 §4. */
+  /**
+   * DEPRECATED and no longer read. Settings live in the user's
+   * ~/.suna/config.yml (see settings-resolve.ts and docs/design/
+   * configuration.md); there is no project level any more. The field stays in
+   * the schema so every suna.json written while it existed still validates —
+   * removing it would make those manifests fail to open, which is a far worse
+   * outcome than an ignored key.
+   */
   settings: ProjectSettingsSchema.optional(),
   /**
    * The document registry (ADR-009). Absent on every project created before

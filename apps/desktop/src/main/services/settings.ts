@@ -2,24 +2,23 @@ import { app } from 'electron'
 import { access, readFile, writeFile, rename, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
-  ProjectSettingsSchema,
   RECENT_PROJECTS_KEY,
-  resolveSetting,
   coerceRecentProjects,
   forgetRecentProject as dropRecent,
   touchRecentProject as pushRecent,
-  type AiEffort,
-  type AiModel,
-  type ProjectSettings,
   type RecentProject,
   type RecentProjectEntry
 } from '@suna/core'
 
 /**
- * App-wide settings persisted to userData/settings.json. Values are opaque to
- * the main process: the renderer owns their meaning, this is a durable bag.
- * Per-project keys (e.g. the selected python env) are namespaced by the
- * caller, so one file covers both scopes.
+ * MACHINE STATE, persisted to userData/settings.json.
+ *
+ * Not configuration — configuration lives in ~/.suna/config.yml (see
+ * userconfig.ts) and nothing here may shadow it. What belongs here is the
+ * state a user would never hand-edit and would never carry to another
+ * machine: the recents list, the python env picked for a given directory,
+ * the cached git identity. Values are opaque to the main process; the caller
+ * namespaces its own keys.
  */
 type Settings = Record<string, unknown>
 
@@ -46,8 +45,7 @@ export async function readSettings(): Promise<Settings> {
  *
  * A `null` value CLEARS the key rather than storing null: callers use it to
  * mean "unset this", and a stored null would otherwise read back as a value
- * that shadows the built-in default (a resolver would report the setting as
- * coming "from global" when the user had reset it).
+ * that shadows the built-in default.
  */
 export async function writeSettings(patch: Settings): Promise<Settings> {
   const current = await readSettings()
@@ -117,45 +115,4 @@ export async function forgetRecentProject(path: string): Promise<RecentProjectEn
   const next = dropRecent(await readRecentProjects(), path)
   await writeSettings({ [RECENT_PROJECTS_KEY]: next })
   return withExistence(next)
-}
-
-/* ------------------------------------------------------------------ */
-/* The AI's model tier and effort — resolved main-side                  */
-/* ------------------------------------------------------------------ */
-
-/**
- * A project's own `settings` block, or undefined when `dir` is not a project
- * (or its suna.json is unreadable/invalid). Deliberately forgiving: a broken
- * manifest must degrade to the global level, never fail the AI call that is
- * only asking which model to use.
- */
-async function projectSettingsAt(dir: string): Promise<ProjectSettings | undefined> {
-  try {
-    const raw = await readFile(join(dir, 'suna.json'), 'utf8')
-    const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return undefined
-    const block = (parsed as { settings?: unknown }).settings
-    const settings = ProjectSettingsSchema.safeParse(block)
-    return settings.success ? settings.data : undefined
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * Which model tier and effort an AI call runs at, resolved project-then-global
- * exactly as the Settings surface resolves it. Resolved HERE rather than
- * passed in from the renderer so that every entry point — palette ask,
- * directed action, chat — obeys a hand-edited suna.json without its own
- * plumbing. `dir` absent = global level only.
- */
-export async function resolveAiChoice(
-  dir?: string
-): Promise<{ model: AiModel; effort: AiEffort }> {
-  const global = await readSettings()
-  const project = dir === undefined ? undefined : await projectSettingsAt(dir)
-  return {
-    model: resolveSetting('ai.model', global, project).value,
-    effort: resolveSetting('ai.effort', global, project).value
-  }
 }

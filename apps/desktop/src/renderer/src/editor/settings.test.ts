@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SETTINGS_DEFAULTS } from '@suna/core'
+import { useSettingsStore } from '../state/settings'
 import {
   clampSetting,
   editorSurfaceStyle,
@@ -58,7 +60,9 @@ describe('clampSetting', () => {
 
 describe('useEditorSettings store', () => {
   beforeEach(() => {
-    useEditorSettings.getState().reset()
+    vi.unstubAllGlobals()
+    useSettingsStore.setState({ settings: SETTINGS_DEFAULTS })
+    useEditorSettings.setState({ ...EDITOR_SETTINGS_DEFAULTS })
   })
 
   it('starts at the documented defaults', () => {
@@ -71,27 +75,37 @@ describe('useEditorSettings store', () => {
     expect(state.editorTheme).toBe('suna-dark')
   })
 
-  it('clamps numeric setters', () => {
+  it('delegates a setter to the config store rather than mutating locally', async () => {
+    const invoke = vi.fn().mockResolvedValue({
+      config: {
+        path: '/home/me/.suna/config.yml',
+        text: '',
+        settings: { ...SETTINGS_DEFAULTS, 'editor.fontSizePx': 22 },
+        sources: {},
+        themesCss: '',
+        themes: [],
+        diagnostics: []
+      },
+      error: null
+    })
+    vi.stubGlobal('window', { suna: { invoke } })
+
+    // Clamped on the way out: the store's own limits are what the config file
+    // is asked for, so an out-of-range slider drag cannot land in the file.
     useEditorSettings.getState().setFontSizePx(99)
+    expect(invoke).toHaveBeenCalledWith('config:set', { key: 'editor.fontSizePx', value: 22 })
+
+    // And the surface follows once the config comes back — this store is a
+    // projection of the config, never a second place a value lives.
+    await Promise.resolve()
+    await Promise.resolve()
     expect(useEditorSettings.getState().fontSizePx).toBe(22)
-    useEditorSettings.getState().setContentWidthCh(1)
-    expect(useEditorSettings.getState().contentWidthCh).toBe(50)
-    useEditorSettings.getState().setLineHeight(0.5)
-    expect(useEditorSettings.getState().lineHeight).toBe(1.4)
   })
 
-  it('sets categorical settings and resets', () => {
-    useEditorSettings.getState().setFontFamily('mono')
-    useEditorSettings.getState().setEditorTheme('suna-light')
-    expect(useEditorSettings.getState().fontFamily).toBe('mono')
-    expect(useEditorSettings.getState().editorTheme).toBe('suna-light')
-    useEditorSettings.getState().reset()
-    expect(useEditorSettings.getState().fontFamily).toBe('serif')
-    expect(useEditorSettings.getState().editorTheme).toBe('suna-dark')
-  })
-
-  it('feeds the surface style from the store', () => {
-    useEditorSettings.getState().setContentWidthCh(92)
+  it('projects the resolved config onto the surface style', () => {
+    useSettingsStore.setState({
+      settings: { ...SETTINGS_DEFAULTS, 'editor.contentWidthCh': 92 }
+    })
     const style = editorSurfaceStyle(useEditorSettings.getState()) as Record<string, string>
     expect(style['--ed-content-width']).toBe('92ch')
   })

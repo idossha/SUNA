@@ -21,7 +21,7 @@ import { DOC_MODE_OPTIONS, nextDocMode, type DocViewMode, type EditorViewMode } 
 import { DocumentPages } from '../export/DocumentPages'
 import { SegmentedControl } from '../shell/SegmentedControl'
 import { getResolved, useResolved } from '../state/settings'
-import { EDITOR_THEME_CLASS } from '../editor/themes'
+import { editorThemeClass } from '../editor/themes'
 import { SettingsPopover } from '../editor/SettingsPopover'
 import { GearIcon } from '../editor/GearIcon'
 import { NewDocumentMenu } from './NewDocumentMenu'
@@ -219,7 +219,7 @@ export function LetterTab({ api, params }: DockPanelProps): JSX.Element {
     <div ref={wrapRef} className="mstab">
       <div
         ref={rootRef}
-        className={`msdoc msdoc--${mode} editor-tab ${EDITOR_THEME_CLASS[editorTheme]}`}
+        className={`msdoc msdoc--${mode} editor-tab ${editorThemeClass(editorTheme)}`}
         style={settingsStyle}
       >
         <div className="msdoc__toolbar">

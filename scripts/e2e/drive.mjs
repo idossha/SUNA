@@ -196,6 +196,9 @@ async function boot() {
     port: opts.port,
     hidden: !opts.show,
     userData: USER_DATA,
+    // The user's real ~/.suna must never be touched by a driven run: their
+    // config.yml and themes live there, and the app writes settings into it.
+    env: { SUNA_CONFIG_HOME: join(USER_DATA, 'suna-config') },
     logFile: LOG_FILE
   })
   const client = await connect({

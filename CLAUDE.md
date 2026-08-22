@@ -39,3 +39,10 @@ Electron academic-writing platform. pnpm monorepo, TypeScript strict.
   root `package.json` (`pnpm.onlyBuiltDependencies`).
 - matplotlib SVG export: `svg.fonttype: none` keeps text editable — required
   for canvas text editing (suna_mpl sets it).
+- Settings and themes live in ONE user-owned file, `~/.suna/config.yml`, plus
+  `~/.suna/themes/*.yml` — there is no project settings level and no second
+  store. Add a setting by adding one entry to `SETTING_KEYS`
+  (`packages/core/src/settings-resolve.ts`); the seeded config file, defaults,
+  validation and resolver all follow. Colours are NOT in any stylesheet: they
+  come from the theme registry (`packages/core/src/theme.ts`) as a generated
+  sheet. See `docs/design/configuration.md`.

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { createEditor, type EditorHandle } from '../editor/codemirror'
 import { editorSurfaceStyle, useEditorSettings } from '../editor/settings'
-import { EDITOR_THEME_CLASS } from '../editor/themes'
+import { editorThemeClass } from '../editor/themes'
 import { CONTENT_KIND_CLASS } from '../editor/contentKind'
 import { MAX_RENDERED_ROWS, parseDataFile, type DataTable } from './grid'
 // the `.editor-tab` class carries the --ed-* palette and the column layout
@@ -127,7 +127,7 @@ export function DataGridTab({ params }: DockPanelProps): JSX.Element {
     <div
       // Data files (CSV/TSV, and their raw-text CodeMirror view) are always
       // 'code' content-kind: no prose width/wrap/centering, always monospace.
-      className={`editor-tab dataview ${CONTENT_KIND_CLASS.code} ${EDITOR_THEME_CLASS[editorTheme]}`}
+      className={`editor-tab dataview ${CONTENT_KIND_CLASS.code} ${editorThemeClass(editorTheme)}`}
       style={editorSurfaceStyle(editorSettings)}
     >
       <div className="dataview__toolbar">

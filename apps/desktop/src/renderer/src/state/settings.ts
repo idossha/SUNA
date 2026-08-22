@@ -1,188 +1,67 @@
 import { create } from 'zustand'
 import {
-  BYTES_PER_MB,
   SETTINGS_DEFAULTS,
   SETTING_KEYS,
-  TRASH_DEFAULTS,
-  trashPolicy,
-  SunaProjectManifestSchema,
-  mergeProjectSettings,
-  projectSettingPatch,
   resolveSettings,
-  type LitCliPreference,
-  type ProjectSettings,
+  type LoadedConfigPayload,
   type ResolvedSettingKey,
   type ResolvedSettings,
-  type ReviewAiDiffs,
-  type SettingSource,
-  type SettingsResolution,
-  type SunaProjectManifest
+  type SettingSource
 } from '@suna/core'
 import { mirrorAutosave } from './autosave'
-import { useProjectStore } from './project'
 
 /**
- * App-wide settings, persisted by the MAIN process (userData) via the frozen
- * settings:get / settings:set IPC contract. The record is an open bag of
- * namespaced keys — unknown keys written by other zones are preserved because
- * `update` sends single-key patches only.
+ * The app's configuration, as the renderer sees it.
  *
- * Cross-zone contract (for the editor zone — coordinate via the settings IPC,
- * not by importing this module):
- *   'editor.defaultMode'  'reading' | 'source'  initial view mode for newly
- *                         opened markdown tabs; READING is the default.
- *   'editor.vimMotions'   boolean               vim keymap in the source view.
- *   'editor.theme'        'suna-dark' | 'suna-light' | 'gruvbox' |
- *                         'jellybeans' |
- *                         'mono-blue-dark' | 'mono-blue-light'
- *                         default app theme (editor surface + chrome).
- *   'editor.autosave'     boolean               save a dirty buffer (and the
- *                         figure canvas) after a pause in editing. ON by
- *                         default; `autosaveEnabled()` below is the consumer's
- *                         entry point.
- * The editor zone should read these once on startup via
- * `window.suna.invoke('settings:get', {})` and seed its own store's defaults.
+ * ONE source: `~/.suna/config.yml`, owned by the main process (see
+ * main/services/userconfig.ts). This store holds the resolved values, where
+ * each came from, the theme stylesheet, and anything wrong with the file. It
+ * never persists anything of its own — a second store of the same values is
+ * exactly what makes an rc file feel like a lie.
  *
- * The main process consumes:
- *   'terminal.shell'      string  shell override for new ptys ('' = default).
- *   'lit.mailto'          string  polite-pool contact for Crossref/OpenAlex
- *                                 lit:search and lit:by-doi requests; falls
- *                                 back to 'user.email' when empty ('' = none).
- *   'lit.cli'              LitCliPreference  which agent CLI 'lit:ai-search'
- *                                 should prefer ('auto' tries claude, then
- *                                 codex).
- *   'references.autoOpenPdf' boolean         References view (feature-plan-4
- *                                 §4): auto-open a resolved PDF beside the
- *                                 list on selecting an entry. Default on.
+ * Reading a value:
+ *   const { value, source } = useResolved('editor.lineHeight')
+ *   //  source: 'config' | 'default' → "from your config" / "default"
+ *   getResolved('editor.fontSizePx')            // outside React
  *
- * ---------------------------------------------------------------------------
- * TWO-LEVEL HIERARCHY (feature-plan-5 §4) — what other zones should use.
+ * Writing one — both go straight into the user's config.yml, comments intact:
+ *   useSettingsStore.getState().set('editor.fontSizePx', 16)
+ *   useSettingsStore.getState().reset('editor.fontSizePx')   // delete the key
  *
- * `settings` above stays the GLOBAL-only view (the Settings page's own
- * controls). Anything a project may override goes through the resolver
- * instead, keyed by the dot-path the value has inside suna.json's `settings`
- * block (see @suna/core's SETTING_KEYS / SETTINGS_DEFAULTS):
- *
- *   const { value, source } = useResolved('editor.contentWidthCh')
- *   //  source: 'project' | 'global' | 'default'  → "from project" / "from
- *   //  global" / "default" in the UI
- *   getResolved('editor.fontSizePx')          // same, outside React
- *   store.setGlobal('editor.fontSizePx', 16)  // → settings:set
- *   store.setProject('editor.fontSizePx', 16) // → project:update-settings
- *   store.clearProject('editor.fontSizePx')   // "Reset to global"
- *
- * The resolution re-runs whenever global settings change, whenever the project
- * store's manifest changes, and whenever a file is saved (which is how a
- * hand-edit of suna.json in the editor re-resolves without a restart).
+ * The file is watched by main, so a hand-edit in any editor arrives here as a
+ * push (EVENT_CHANNELS.configChanged) and repaints without a reload.
  */
-export type EditorModeSetting = 'reading' | 'source'
-export type EditorThemeSetting =
-  | 'suna-dark'
-  | 'suna-light'
-  | 'gruvbox'
-  | 'jellybeans'
-  | 'mono-blue-dark'
-  | 'mono-blue-light'
 
-export interface GlobalSettings {
-  'editor.defaultMode': EditorModeSetting
-  'editor.vimMotions': boolean
-  'editor.theme': EditorThemeSetting
-  /** Save after a pause in editing instead of waiting for ⌘S. Default ON. */
-  'editor.autosave': boolean
-  /** Whole-window zoom factor (0.9 … 1.25). */
-  'appearance.uiScale': number
-  /** Shell override for new terminals; '' means the platform default. */
-  'terminal.shell': string
-  /** Polite-pool contact for Crossref/OpenAlex; '' falls back to 'user.email'. */
-  'lit.mailto': string
-  /** Which agent CLI the 'ai-cli' literature provider prefers. */
-  'lit.cli': LitCliPreference
-  /** Auto-open a resolved reference PDF beside the References list. */
-  'references.autoOpenPdf': boolean
-  /** Show the AI's unreviewed changes inline in the editor (feature-plan-11). */
-  'review.aiDiffs': ReviewAiDiffs
-  /**
-   * Deleted FILES at or under this many MB go to SUNA's own trash, where they
-   * stay restorable; anything bigger (and every directory) goes to the OS
-   * trash. Read main-side too — see services/trash.ts.
-   */
-  'trash.maxFileMb': number
-  /** How long a file waits in SUNA's trash before it is passed to the OS trash. */
-  'trash.retentionDays': number
-}
+export type ThemeSummary = LoadedConfigPayload['themes'][number]
+export type ConfigDiagnostic = LoadedConfigPayload['diagnostics'][number]
 
-export const GLOBAL_SETTINGS_DEFAULTS: GlobalSettings = {
-  'editor.defaultMode': 'reading',
-  'editor.vimMotions': false,
-  'editor.theme': 'suna-dark',
-  'editor.autosave': true,
-  'appearance.uiScale': 1,
-  'terminal.shell': '',
-  'lit.mailto': '',
-  'lit.cli': 'auto',
-  'references.autoOpenPdf': true,
-  'review.aiDiffs': 'inline',
-  'trash.maxFileMb': TRASH_DEFAULTS.maxFileMb,
-  'trash.retentionDays': TRASH_DEFAULTS.retentionDays
-}
+const DEFAULT_SOURCES = Object.fromEntries(
+  Object.keys(SETTING_KEYS).map((key) => [key, 'default'])
+) as Record<ResolvedSettingKey, SettingSource>
 
-export const UI_SCALE_CHOICES = [0.9, 1, 1.1, 1.25] as const
-
-const EDITOR_THEMES: readonly EditorThemeSetting[] = [
-  'suna-dark',
-  'suna-light',
-  'gruvbox',
-  'jellybeans',
-  'mono-blue-dark',
-  'mono-blue-light'
-]
-
-/** Coerce the untyped persisted record into a fully-populated settings object. */
-export function coerceSettings(raw: Record<string, unknown>): GlobalSettings {
-  const out: GlobalSettings = { ...GLOBAL_SETTINGS_DEFAULTS }
-  const mode = raw['editor.defaultMode']
-  if (mode === 'reading' || mode === 'source') out['editor.defaultMode'] = mode
-  const theme = raw['editor.theme']
-  if (EDITOR_THEMES.includes(theme as EditorThemeSetting)) {
-    out['editor.theme'] = theme as EditorThemeSetting
-  }
-  if (typeof raw['editor.vimMotions'] === 'boolean') {
-    out['editor.vimMotions'] = raw['editor.vimMotions']
-  }
-  if (typeof raw['editor.autosave'] === 'boolean') {
-    out['editor.autosave'] = raw['editor.autosave']
-  }
-  const aiDiffs = raw['review.aiDiffs']
-  if (aiDiffs === 'inline' || aiDiffs === 'off') out['review.aiDiffs'] = aiDiffs
-  const scale = raw['appearance.uiScale']
-  if (typeof scale === 'number' && scale >= 0.75 && scale <= 1.5) {
-    out['appearance.uiScale'] = scale
-  }
-  if (typeof raw['terminal.shell'] === 'string') {
-    out['terminal.shell'] = raw['terminal.shell']
-  }
-  if (typeof raw['lit.mailto'] === 'string') {
-    out['lit.mailto'] = raw['lit.mailto']
-  }
-  const cliPreference = raw['lit.cli']
-  if (cliPreference === 'auto' || cliPreference === 'claude' || cliPreference === 'codex') {
-    out['lit.cli'] = cliPreference
-  }
-  if (typeof raw['references.autoOpenPdf'] === 'boolean') {
-    out['references.autoOpenPdf'] = raw['references.autoOpenPdf']
-  }
-  // The main process resolves the same two keys through trashPolicy(); the
-  // bounds live in @suna/core so the page and the delete path cannot disagree.
-  const policy = trashPolicy(raw)
-  out['trash.maxFileMb'] = policy.maxFileBytes / BYTES_PER_MB
-  out['trash.retentionDays'] = policy.retentionDays
-  return out
-}
-
-function applyUiScale(scale: number): void {
-  // Chromium's non-standard `zoom` scales the whole window uniformly.
-  document.documentElement.style.setProperty('zoom', String(scale))
+interface SettingsState {
+  /** Resolved value of every setting. */
+  settings: ResolvedSettings
+  /** Per key: did the config file set it, or is this the shipped default? */
+  sources: Record<ResolvedSettingKey, SettingSource>
+  /** Every theme the app knows, built-in and the user's own. */
+  themes: ThemeSummary[]
+  /** Absolute path of config.yml — the "open my config" target. */
+  path: string
+  /** Revision of the config currently held; see `adopt`. */
+  revision: number
+  /** Whatever is wrong with the config file or a theme file. */
+  diagnostics: ConfigDiagnostic[]
+  loaded: boolean
+  /** Non-null when the config could not be read or written. */
+  error: string | null
+  load: () => Promise<void>
+  /** Write one setting into config.yml. Optimistic; rolls back on failure. */
+  set: <K extends ResolvedSettingKey>(key: K, value: ResolvedSettings[K]) => Promise<void>
+  /** Remove the key from config.yml, so it falls back to the shipped default. */
+  reset: (key: ResolvedSettingKey) => Promise<void>
+  /** Adopt a config pushed by main (an external edit). */
+  adopt: (config: LoadedConfigPayload) => void
 }
 
 function errorMessage(error: unknown): string {
@@ -190,120 +69,30 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Parse a suna.json payload down to its settings block. Split out from the
- * store so the failure wording is unit-testable: a project whose manifest went
- * invalid keeps its last good settings and says so, rather than silently
- * reverting every project override to the global value.
- */
-export function parseProjectSettings(content: string): {
-  settings: ProjectSettings | null
-  error: string | null
-  /** The whole manifest, so a caller can re-seed the project store from the same read. */
-  manifest: SunaProjectManifest | null
-} {
-  let json: unknown
-  try {
-    json = JSON.parse(content) as unknown
-  } catch (error) {
-    return {
-      settings: null,
-      error: `suna.json is not valid JSON: ${errorMessage(error)}`,
-      manifest: null
-    }
-  }
-  const parsed = SunaProjectManifestSchema.safeParse(json)
-  if (!parsed.success) {
-    const first = parsed.error.issues[0]
-    const where = first && first.path.length > 0 ? ` at ${first.path.join('.')}` : ''
-    return {
-      settings: null,
-      error: `suna.json is invalid${where}: ${first?.message ?? 'unknown error'}`,
-      manifest: null
-    }
-  }
-  return { settings: parsed.data.settings ?? null, error: null, manifest: parsed.data }
-}
-
-interface SettingsState {
-  settings: GlobalSettings
-  /**
-   * Everything persisted globally, untyped — the resolver reads keys that the
-   * GlobalSettings view does not model (e.g. 'editor.contentWidthCh').
-   */
-  raw: Record<string, unknown>
-  /** The open project's `settings` block from suna.json; null when unset. */
-  projectSettings: ProjectSettings | null
-  /** project ?? global ?? default, with the winning level per key. */
-  resolved: SettingsResolution
-  loaded: boolean
-  error: string | null
-  /** Non-fatal: suna.json could not be read/parsed, so project overrides are stale. */
-  projectError: string | null
-  /** Fetch once from the main process; safe to call from several mounts. */
-  load: () => Promise<void>
-  /** Optimistic single-key write of a GLOBAL settings key; rolls back on failure. */
-  update: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => Promise<void>
-  /** Write a resolved key at the GLOBAL level (settings:set). */
-  setGlobal: <K extends ResolvedSettingKey>(
-    key: K,
-    value: ResolvedSettings[K]
-  ) => Promise<void>
-  /** Write a resolved key at the PROJECT level (project:update-settings). */
-  setProject: <K extends ResolvedSettingKey>(
-    key: K,
-    value: ResolvedSettings[K]
-  ) => Promise<void>
-  /** "Reset to global": removes the key from suna.json so it falls back. */
-  clearProject: (key: ResolvedSettingKey) => Promise<void>
-  /** Adopt a manifest's settings block (called on project store changes). */
-  syncProjectSettings: (next: ProjectSettings | null | undefined) => void
-  /** Re-read suna.json from disk and re-resolve (external edits). */
-  refreshProjectSettings: () => Promise<void>
-}
-
-/**
- * In-flight load, so concurrent callers share one read instead of racing.
- * It is NOT a "loaded once" latch: settings.json can change under us (the
- * Settings page, another window, an agent, a reset) and every later call must
- * actually re-read the file.
+ * In-flight load, so concurrent mounts share one read. NOT a "loaded once"
+ * latch: config.yml changes under us and every later call must really re-read.
  */
 let loadInFlight: Promise<void> | null = null
 
-function resolveFrom(
-  raw: Record<string, unknown>,
-  project: ProjectSettings | null
-): SettingsResolution {
-  return resolveSettings(raw, project ?? undefined)
-}
-
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  settings: GLOBAL_SETTINGS_DEFAULTS,
-  raw: {},
-  projectSettings: null,
-  resolved: resolveSettings({}, undefined),
+  settings: SETTINGS_DEFAULTS,
+  sources: DEFAULT_SOURCES,
+  themes: [],
+  path: '',
+  revision: 0,
+  diagnostics: [],
   loaded: false,
   error: null,
-  projectError: null,
 
   load: async () => {
     if (loadInFlight !== null) return loadInFlight
     loadInFlight = (async () => {
       try {
-        const { settings } = await window.suna.invoke('settings:get', {})
-        const coerced = coerceSettings(settings)
-        applyUiScale(coerced['appearance.uiScale'])
-        // Seed the project half from whatever project is already open.
-        const projectSettings = useProjectStore.getState().manifest?.settings ?? null
-        set({
-          settings: coerced,
-          raw: settings,
-          projectSettings,
-          resolved: resolveFrom(settings, projectSettings),
-          loaded: true,
-          error: null
-        })
+        const { config } = await window.suna.invoke('config:get', {})
+        get().adopt(config)
+        set({ loaded: true, error: null })
       } catch (error) {
-        // Defaults still apply; a later call retries (e.g. from the Settings tab).
+        // Defaults still apply; a later call retries (e.g. from Settings).
         set({ loaded: true, error: errorMessage(error) })
       } finally {
         loadInFlight = null
@@ -312,223 +101,199 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     return loadInFlight
   },
 
-  update: async (key, value) => {
-    const prev = get().settings
-    const prevRaw = get().raw
-    const next = { ...prev, [key]: value }
-    const nextRaw = { ...prevRaw, [key]: value }
+  set: async (key, value) => {
+    const previous = { settings: get().settings, sources: get().sources }
+    // Optimistic, so a slider tracks the pointer rather than the disk.
     set({
-      settings: next,
-      raw: nextRaw,
-      resolved: resolveFrom(nextRaw, get().projectSettings),
+      settings: { ...previous.settings, [key]: value },
+      sources: { ...previous.sources, [key]: 'config' },
       error: null
     })
-    if (key === 'appearance.uiScale') applyUiScale(next['appearance.uiScale'])
+    applyChrome({ ...previous.settings, [key]: value })
     try {
-      await window.suna.invoke('settings:set', { patch: { [key]: value } })
+      const { config, error } = await window.suna.invoke('config:set', { key, value })
+      get().adopt(config)
+      if (error !== null) set({ error })
     } catch (error) {
-      set({
-        settings: prev,
-        raw: prevRaw,
-        resolved: resolveFrom(prevRaw, get().projectSettings),
-        error: errorMessage(error)
-      })
-      if (key === 'appearance.uiScale') applyUiScale(prev['appearance.uiScale'])
+      set({ ...previous, error: errorMessage(error) })
+      applyChrome(previous.settings)
     }
   },
 
-  setGlobal: async (key, value) => {
-    const globalKey = SETTING_KEYS[key].globalKeys[0]
-    const prevRaw = get().raw
-    const nextRaw = { ...prevRaw, [globalKey]: value }
+  reset: async (key) => {
+    const previous = { settings: get().settings, sources: get().sources }
+    const fallback = SETTINGS_DEFAULTS[key]
     set({
-      raw: nextRaw,
-      settings: coerceSettings(nextRaw),
-      resolved: resolveFrom(nextRaw, get().projectSettings),
+      settings: { ...previous.settings, [key]: fallback },
+      sources: { ...previous.sources, [key]: 'default' },
       error: null
     })
     try {
-      await window.suna.invoke('settings:set', { patch: { [globalKey]: value } })
+      const { config, error } = await window.suna.invoke('config:set', { key, value: null })
+      get().adopt(config)
+      if (error !== null) set({ error })
     } catch (error) {
-      set({
-        raw: prevRaw,
-        settings: coerceSettings(prevRaw),
-        resolved: resolveFrom(prevRaw, get().projectSettings),
-        error: errorMessage(error)
-      })
+      set({ ...previous, error: errorMessage(error) })
     }
   },
 
-  setProject: async (key, value) => {
-    await writeProjectSetting(set, get, key, value)
-  },
-
-  clearProject: async (key) => {
-    await writeProjectSetting(set, get, key, null)
-  },
-
-  syncProjectSettings: (next) => {
-    const projectSettings = next ?? null
-    set({ projectSettings, resolved: resolveFrom(get().raw, projectSettings) })
-  },
-
-  refreshProjectSettings: async () => {
-    const rootDir = useProjectStore.getState().rootDir
-    if (rootDir === null) {
-      set({ projectSettings: null, projectError: null, resolved: resolveFrom(get().raw, null) })
-      return
-    }
-    if (typeof window === 'undefined' || typeof window.suna === 'undefined') return
-    try {
-      const { content } = await window.suna.invoke('fs:read-text', {
-        path: `${rootDir}/suna.json`
-      })
-      // The read is async: a project switch mid-flight must not write the old
-      // project's manifest over the new one.
-      if (useProjectStore.getState().rootDir !== rootDir) return
-      const { settings, error, manifest } = parseProjectSettings(content)
-      if (error !== null) {
-        // Keep the last good block: a half-typed file must not blank the UI.
-        set({ projectError: error })
-        return
-      }
-      set({
-        projectSettings: settings,
-        projectError: null,
-        resolved: resolveFrom(get().raw, settings)
-      })
-      // Keep the project store's copy of suna.json in step, exactly as
-      // writeProjectSetting does. Without it the two diverge and `load()` —
-      // which every editor mount calls, and which re-seeds the project half
-      // from that manifest — silently reverts an out-of-band edit: hand-edit
-      // suna.json, ⌘S, open any file, and the override is gone again.
-      if (manifest !== null) useProjectStore.setState({ manifest })
-    } catch (error) {
-      set({ projectError: errorMessage(error) })
-    }
+  adopt: (config) => {
+    // Ignore anything older than what we already hold: a `config:set` reply
+    // can arrive after a file-watch push that already superseded it, and
+    // adopting it would roll the UI back over someone's hand edit.
+    if (config.revision <= get().revision) return
+    // The wire shape is an open record (see LoadedConfigSchema); re-resolving
+    // is not needed because main already did it, but a config whose settings
+    // block somehow arrived empty must still produce a full surface.
+    const settings = {
+      ...resolveSettings({}).value,
+      ...(config.settings as Partial<ResolvedSettings>)
+    } as ResolvedSettings
+    set({
+      settings,
+      sources: config.sources as Record<ResolvedSettingKey, SettingSource>,
+      themes: config.themes,
+      path: config.path,
+      revision: config.revision,
+      diagnostics: config.diagnostics
+    })
+    applyThemeCss(config.themesCss)
+    applyChrome(settings)
   }
 }))
 
-type SettingsSet = (partial: Partial<SettingsState>) => void
-type SettingsGet = () => SettingsState
+/* ------------------------------------------------------------------ */
+/* Putting the config on the page                                       */
+/* ------------------------------------------------------------------ */
+
+const THEME_STYLE_ID = 'suna-themes'
 
 /**
- * Optimistic project-level write: merge locally, send the nested patch, adopt
- * whatever main says the file now holds, roll back if the write failed.
+ * Every theme's palette, as one stylesheet in <head>.
+ *
+ * Built-ins and user themes arrive by exactly the same route — main resolves
+ * both from the same registry and emits one sheet — which is what makes a
+ * `~/.suna/themes/nord.yml` indistinguishable from a shipped theme at
+ * runtime. `tokens.css` therefore carries no colours at all; it carries the
+ * metrics and font stacks the themes deliberately do not own.
  */
-async function writeProjectSetting<K extends ResolvedSettingKey>(
-  set: SettingsSet,
-  get: SettingsGet,
-  key: K,
-  value: ResolvedSettings[K] | null
-): Promise<void> {
-  const rootDir = useProjectStore.getState().rootDir
-  if (rootDir === null) {
-    set({ projectError: 'No project is open, so it has no project settings.' })
-    return
+export function applyThemeCss(css: string): void {
+  if (typeof document === 'undefined') return
+  let style = document.getElementById(THEME_STYLE_ID)
+  if (style === null) {
+    style = document.createElement('style')
+    style.id = THEME_STYLE_ID
+    // Prepended, not appended: theme declarations set custom properties that
+    // component stylesheets read, and a later sheet must be able to override
+    // one deliberately (the export preview's forced-light block does).
+    document.head.prepend(style)
   }
-  const patch = projectSettingPatch(key, value)
-  const prev = get().projectSettings
-  const optimistic = mergeProjectSettings(prev ?? {}, patch) ?? null
-  set({
-    projectSettings: optimistic,
-    projectError: null,
-    resolved: resolveFrom(get().raw, optimistic)
-  })
-  try {
-    const { manifest } = await window.suna.invoke('project:update-settings', {
-      dir: rootDir,
-      patch
-    })
-    const settings = manifest.settings ?? null
-    set({ projectSettings: settings, resolved: resolveFrom(get().raw, settings) })
-    // suna.json just changed on disk, so the project store's copy is stale.
-    // load() re-seeds the project half from that manifest — without this the
-    // next load (every EditorTab mount calls one) silently reverts the
-    // override that was just written.
-    const fresh = SunaProjectManifestSchema.safeParse(manifest)
-    if (fresh.success) useProjectStore.setState({ manifest: fresh.data })
-  } catch (error) {
-    set({
-      projectSettings: prev,
-      projectError: errorMessage(error),
-      resolved: resolveFrom(get().raw, prev)
-    })
-  }
+  if (style.textContent !== css) style.textContent = css
 }
 
 /**
+ * The `ui:` block as CSS custom properties for :root, plus the window zoom.
+ *
+ * These are inline properties rather than part of a theme because they are
+ * LAYOUT, shared by every theme: switching from gruvbox to suna-light must not
+ * silently move the status bar. A `null` value means "remove the override", so
+ * tokens.css's shipped value applies again — which is what an empty font stack
+ * in the config means.
+ *
+ * Pure, so the mapping is testable without a DOM (apps/desktop has none).
+ * The type ramp's base sizes are tokens.css's, restated here because scaling
+ * them is arithmetic and CSS cannot multiply a length by a unitless token.
+ */
+export function chromeVars(settings: ResolvedSettings): Record<string, string | null> {
+  const scale = settings['ui.textScale']
+  const size = (px: number): string => `${Math.round(px * scale * 10) / 10}px`
+  const stack = (value: string): string | null => (value.trim() === '' ? null : value)
+  return {
+    // Chromium's non-standard `zoom` scales the whole window uniformly.
+    zoom: String(settings['ui.scale']),
+    '--s-titlebar-h': `${settings['ui.titleBarHeightPx']}px`,
+    '--s-activitybar-w': `${settings['ui.activityBarWidthPx']}px`,
+    '--s-statusbar-h': `${settings['ui.statusBarHeightPx']}px`,
+    '--s-radius': `${settings['ui.radiusPx']}px`,
+    '--s-text-xs': size(11),
+    '--s-text-sm': size(12),
+    '--s-text-md': size(13),
+    '--s-text-lg': size(15),
+    '--s-font-ui': stack(settings['ui.fontUi']),
+    '--s-font-serif': stack(settings['ui.fontSerif']),
+    '--s-font-mono': stack(settings['ui.fontMono'])
+  }
+}
+
+/** Put `chromeVars` on :root. */
+export function applyChrome(settings: ResolvedSettings): void {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  for (const [name, value] of Object.entries(chromeVars(settings))) {
+    if (value === null) root.style.removeProperty(name)
+    else root.style.setProperty(name, value)
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reading a setting                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
  * The resolved value of one key and where it came from — the unit every
- * settings control renders ("from project" / "from global" / "default").
- * Two primitive selectors, so the hook never hands React a fresh snapshot.
+ * settings control renders. Two primitive selectors, so the hook never hands
+ * React a fresh object snapshot.
  */
 export function useResolved<K extends ResolvedSettingKey>(
   key: K
 ): { value: ResolvedSettings[K]; source: SettingSource } {
-  const value = useSettingsStore((s) => s.resolved.value[key])
-  const source = useSettingsStore((s) => s.resolved.sources[key])
+  const value = useSettingsStore((s) => s.settings[key])
+  const source = useSettingsStore((s) => s.sources[key])
   return { value, source }
 }
 
-/** Imperative read for non-React code (CodeMirror extensions, command handlers). */
+/** Imperative read for non-React code (CodeMirror extensions, commands). */
 export function getResolved<K extends ResolvedSettingKey>(
   key: K
 ): { value: ResolvedSettings[K]; source: SettingSource } {
-  const { resolved } = useSettingsStore.getState()
-  return { value: resolved.value[key], source: resolved.sources[key] }
+  const { settings, sources } = useSettingsStore.getState()
+  return { value: settings[key], source: sources[key] }
 }
 
-/**
- * External-edit reactivity (feature-plan-5 §4, "watch suna.json"). Two
- * independent triggers, because a hand-edit can arrive by two very different
- * routes:
- *
- *  - IN-APP: the project store knows a project changed or a file was saved. A
- *    manifest swap re-resolves immediately; a rootDir change or a saveBump
- *    (raised by the editor after every successful write, including a ⌘S on
- *    suna.json itself) re-reads the file from disk.
- *  - OUT-OF-BAND: an agent, the integrated terminal, or another editor writes
- *    suna.json with the app none the wiser — nothing bumps. The MAIN process
- *    watches the project directory and pushes
- *    EVENT_CHANNELS.projectManifestChanged; that is what the second
- *    subscription below is for (main/services/projectWatch.ts).
- */
+/* ------------------------------------------------------------------ */
+/* External edits                                                       */
+/* ------------------------------------------------------------------ */
+
 let watching = false
 
-export function watchProjectSettings(): () => void {
+/**
+ * Adopt config changes pushed by the main process — the user editing
+ * config.yml in SUNA, in vim, or dropping a theme into ~/.suna/themes/.
+ * The push carries the whole reloaded config, so there is no round trip.
+ */
+export function watchUserConfig(): () => void {
   if (watching) return () => undefined
   watching = true
-  const unsubscribeStore = useProjectStore.subscribe((state, prev) => {
-    if (state.manifest !== prev.manifest) {
-      useSettingsStore.getState().syncProjectSettings(state.manifest?.settings)
-    }
-    if (state.rootDir !== prev.rootDir || state.saveBump !== prev.saveBump) {
-      void useSettingsStore.getState().refreshProjectSettings()
-    }
-  })
   // Guarded: unit tests import this module without a preload bridge.
-  const unsubscribePush =
-    typeof window !== 'undefined' && typeof window.suna?.onProjectManifestChanged === 'function'
-      ? window.suna.onProjectManifestChanged(({ dir }) => {
-          // Ignore a push for a project that is no longer the open one.
-          if (useProjectStore.getState().rootDir !== dir) return
-          void useSettingsStore.getState().refreshProjectSettings()
+  const unsubscribe =
+    typeof window !== 'undefined' && typeof window.suna?.onConfigChanged === 'function'
+      ? window.suna.onConfigChanged((config) => {
+          useSettingsStore.getState().adopt(config)
         })
       : () => undefined
   return () => {
-    unsubscribeStore()
-    unsubscribePush()
+    unsubscribe()
     watching = false
   }
 }
 
-watchProjectSettings()
+watchUserConfig()
 
 /**
- * Push 'editor.autosave' down to state/autosave.ts, which the editing
- * surfaces read. They cannot import this module — see the note there — so
- * this subscription is the one-way channel. Fired once now for the shipped
- * default, then on every change.
+ * Push `editor.autosave` down to state/autosave.ts, which the editing surfaces
+ * read. They cannot import this module — see the note there — so this
+ * subscription is the one-way channel. Fired once now for the shipped default,
+ * then on every change.
  */
 mirrorAutosave(useSettingsStore.getState().settings['editor.autosave'])
 useSettingsStore.subscribe((state, prev) => {

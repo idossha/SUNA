@@ -20,6 +20,7 @@ import { moveByDocumentLines } from './vimMotions'
 import { editNearestCaption } from './livePreview'
 import { sunaJsonLinter } from './jsonLint'
 import { bibLanguage, bibLinter } from './bibLang'
+import { getResolved, useSettingsStore } from '../state/settings'
 import { editorTheme } from './themes'
 import { contentKindFor } from './contentKind'
 import { formattingKeymap, type FormattingCallbacks } from './keymap'
@@ -270,6 +271,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   const themeCompartment = new Compartment()
   const liveCompartment = new Compartment()
   const vimCompartment = new Compartment()
+  const gutterCompartment = new Compartment()
 
   // Prose wraps at the content-width measure; code/data scroll horizontally
   // instead so statements and long tokens never soft-break mid-line.
@@ -292,7 +294,11 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
     // vim() must precede every other keymap: it installs its own high-priority
     // input handler and only wins if CM6 sees it first (per its README).
     vimCompartment.of(options.vim === true ? vim() : []),
-    lineNumbers(),
+    // `editor.lineNumbers` in the user's config. Reconfigured from a
+    // subscription below rather than through a setter, because nothing in the
+    // UI toggles it — the config file does, and the config file can change
+    // while an editor is open.
+    gutterCompartment.of(getResolved('editor.lineNumbers').value ? lineNumbers() : []),
     history(),
     drawSelection(),
     highlightActiveLine(),
@@ -383,6 +389,14 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   }
   if (options.vim === true) attachVimMode()
 
+  let lineNumbersOn = getResolved('editor.lineNumbers').value
+  const unsubscribeGutter = useSettingsStore.subscribe((state) => {
+    const next = state.settings['editor.lineNumbers']
+    if (next === lineNumbersOn) return
+    lineNumbersOn = next
+    view.dispatch({ effects: gutterCompartment.reconfigure(next ? lineNumbers() : []) })
+  })
+
   return {
     view,
     setLive: (on) => {
@@ -408,6 +422,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
       view.requestMeasure()
     },
     destroy: () => {
+      unsubscribeGutter()
       detachVimMode?.()
       detachVimMode = null
       options.onVimMode?.(vimOwner, null)

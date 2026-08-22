@@ -22,7 +22,7 @@ export function ResponseSettingsPopover({ onClose }: { onClose: () => void }): J
   const ref = useRef<HTMLDivElement>(null)
   const { value: colorRoles, source: colorSource } = useResolved('response.colorRoles')
   const { value: quickInsert, source: quickSource } = useResolved('response.quickInsert')
-  const setGlobal = useSettingsStore((s) => s.setGlobal)
+  const setSetting = useSettingsStore((s) => s.set)
 
   useEffect(() => {
     const onMouseDown = (event: MouseEvent): void => {
@@ -51,8 +51,7 @@ export function ResponseSettingsPopover({ onClose }: { onClose: () => void }): J
             id="rx-set-color"
             type="checkbox"
             checked={colorRoles}
-            disabled={colorSource === 'project'}
-            onChange={(e) => void setGlobal('response.colorRoles', e.target.checked)}
+            onChange={(e) => void setSetting('response.colorRoles', e.target.checked)}
           />
           Colour the three voices
         </label>
@@ -90,8 +89,7 @@ export function ResponseSettingsPopover({ onClose }: { onClose: () => void }): J
             id="rx-set-quick"
             type="checkbox"
             checked={quickInsert}
-            disabled={quickSource === 'project'}
-            onChange={(e) => void setGlobal('response.quickInsert', e.target.checked)}
+            onChange={(e) => void setSetting('response.quickInsert', e.target.checked)}
           />
           Quick insertions
         </label>
@@ -127,12 +125,6 @@ export function ResponseSettingsPopover({ onClose }: { onClose: () => void }): J
         belong to. They are never removed from the reply — the file stays plain text.
       </p>
 
-      {(colorSource === 'project' || quickSource === 'project') && (
-        <p className="round__settings-note">
-          A setting marked <em>from project</em> is fixed in <code>suna.json</code> — change it in
-          the Settings tab, where the project level is edited.
-        </p>
-      )}
     </div>
   )
 }

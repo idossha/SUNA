@@ -3,12 +3,15 @@ import { EditorView } from '@codemirror/view'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import type { EditorThemeName } from './settings'
+import { useSettingsStore } from '../state/settings'
 
 /**
- * All editor themes share one CM theme spec driven by `--ed-*` CSS
- * variables; the palette itself lives in editor.css, scoped by a
- * `.editor-tab--theme-*` class on the tab container. The only per-theme
- * difference at the CM level is the `dark` base flag.
+ * All editor themes share one CM theme spec driven by `--ed-*` CSS variables.
+ * The palette itself is generated from the theme registry (@suna/core's
+ * theme.ts) and injected as one stylesheet, scoped by a
+ * `.editor-tab--theme-<id>` class on the surface — which is what puts a user's
+ * ~/.suna/themes/*.yml on the same footing as a shipped theme. The only
+ * per-theme difference at the CM level is the `dark` base flag.
  */
 function chrome(dark: boolean): Extension {
   return EditorView.theme(
@@ -85,17 +88,23 @@ export const sunaSyntax = HighlightStyle.define([
 
 const syntax = syntaxHighlighting(sunaSyntax, { fallback: true })
 
-const LIGHT_THEMES = new Set<EditorThemeName>(['suna-light', 'mono-blue-light'])
-
-export function editorTheme(name: EditorThemeName): Extension {
-  return [LIGHT_THEMES.has(name) ? lightChrome : darkChrome, syntax]
+/**
+ * Whether CodeMirror should treat the surface as dark. Read from the loaded
+ * theme list rather than from a hard-coded set, so a user's own light theme
+ * gets light-mode behaviour (CM's own defaults for selection and drop cursor)
+ * without SUNA having to know its name. Unknown ids read as dark, which is
+ * the app's own default.
+ */
+function isDark(name: EditorThemeName): boolean {
+  const theme = useSettingsStore.getState().themes.find((entry) => entry.id === name)
+  return theme?.base !== 'light'
 }
 
-export const EDITOR_THEME_CLASS: Record<EditorThemeName, string> = {
-  'suna-dark': 'editor-tab--theme-suna-dark',
-  'suna-light': 'editor-tab--theme-suna-light',
-  gruvbox: 'editor-tab--theme-gruvbox',
-  jellybeans: 'editor-tab--theme-jellybeans',
-  'mono-blue-dark': 'editor-tab--theme-mono-blue-dark',
-  'mono-blue-light': 'editor-tab--theme-mono-blue-light'
+export function editorTheme(name: EditorThemeName): Extension {
+  return [isDark(name) ? darkChrome : lightChrome, syntax]
+}
+
+/** The class that carries a theme's `--ed-*` palette onto a text surface. */
+export function editorThemeClass(name: EditorThemeName): string {
+  return `editor-tab--theme-${name}`
 }

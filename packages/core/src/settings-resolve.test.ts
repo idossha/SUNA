@@ -1,348 +1,106 @@
 import { describe, expect, it } from 'vitest';
-import { ProjectSettingsSchema, type ProjectSettings } from './project';
 import {
   SETTINGS_DEFAULTS,
   SETTING_KEYS,
   SETTING_KEY_LIST,
-  applySettingsPatch,
-  mergeProjectSettings,
-  projectSettingPatch,
   resolveSetting,
   resolveSettings,
+  settingPath,
 } from './settings-resolve';
 
-const project = (settings: unknown): ProjectSettings => ProjectSettingsSchema.parse(settings);
-
-describe('resolveSettings precedence', () => {
-  it('falls back to the built-in default when neither level sets a key', () => {
-    const { value, sources } = resolveSettings({}, undefined);
-    expect(value).toEqual(SETTINGS_DEFAULTS);
-    for (const key of SETTING_KEY_LIST) expect(sources[key]).toBe('default');
+describe('resolveSetting', () => {
+  it('falls back to the shipped default when the config says nothing', () => {
+    const out = resolveSetting('editor.lineHeight', {});
+    expect(out.value).toBe(1.6);
+    expect(out.source).toBe('default');
   });
 
-  it('takes a global value when only global sets it', () => {
-    const out = resolveSettings({ 'editor.contentWidthCh': 90 }, undefined);
-    expect(out.value['editor.contentWidthCh']).toBe(90);
-    expect(out.sources['editor.contentWidthCh']).toBe('global');
+  it('takes a value the config file sets', () => {
+    const out = resolveSetting('editor.lineHeight', { editor: { lineHeight: 1.8 } });
+    expect(out.value).toBe(1.8);
+    expect(out.source).toBe('config');
   });
 
-  it('takes a project value when only the project sets it', () => {
-    const out = resolveSettings({}, project({ editor: { contentWidthCh: 120 } }));
-    expect(out.value['editor.contentWidthCh']).toBe(120);
-    expect(out.sources['editor.contentWidthCh']).toBe('project');
+  it('treats null as unset, so a hand-written null means "reset to default"', () => {
+    const out = resolveSetting('editor.contentWidthCh', { editor: { contentWidthCh: null } });
+    expect(out.value).toBe(SETTINGS_DEFAULTS['editor.contentWidthCh']);
+    expect(out.source).toBe('default');
   });
 
-  it('prefers the project value when both levels set it', () => {
-    const out = resolveSettings(
-      { 'editor.contentWidthCh': 90 },
-      project({ editor: { contentWidthCh: 120 } }),
-    );
-    expect(out.value['editor.contentWidthCh']).toBe(120);
-    expect(out.sources['editor.contentWidthCh']).toBe('project');
+  it('falls back rather than throwing on an out-of-range number', () => {
+    const out = resolveSetting('editor.fontSizePx', { editor: { fontSizePx: 400 } });
+    expect(out.value).toBe(14);
+    expect(out.source).toBe('default');
   });
 
-  it('treats an explicit project null as "not set" and falls through to global', () => {
-    const out = resolveSettings(
-      { 'editor.contentWidthCh': 90 },
-      project({ editor: { contentWidthCh: null } }),
-    );
-    expect(out.value['editor.contentWidthCh']).toBe(90);
-    expect(out.sources['editor.contentWidthCh']).toBe('global');
+  it('falls back rather than throwing on a misspelled enum', () => {
+    const out = resolveSetting('editor.fontFamily', { editor: { fontFamily: 'cursive' } });
+    expect(out.value).toBe('serif');
+    expect(out.source).toBe('default');
   });
 
-  it('treats an explicit project null with no global as the default', () => {
-    const out = resolveSettings({}, project({ editor: { contentWidthCh: null } }));
-    expect(out.value['editor.contentWidthCh']).toBe(140);
-    expect(out.sources['editor.contentWidthCh']).toBe('default');
+  it('survives a block that is a scalar where a mapping was expected', () => {
+    const out = resolveSetting('ai.model', { ai: 'sonnet' });
+    expect(out.source).toBe('default');
   });
 
-  it('treats a null editor group as "no project editor settings"', () => {
-    const out = resolveSettings({ 'editor.fontSizePx': 18 }, project({ editor: null }));
-    expect(out.value['editor.fontSizePx']).toBe(18);
-    expect(out.sources['editor.fontSizePx']).toBe('global');
+  it('accepts a theme id that is not a built-in, because a user theme names itself', () => {
+    const out = resolveSetting('editor.editorTheme', { editor: { theme: 'nord-night' } });
+    expect(out.value).toBe('nord-night');
+    expect(out.source).toBe('config');
   });
 
-  it('treats a global null as "not set"', () => {
-    const out = resolveSettings({ 'editor.fontSizePx': null }, undefined);
-    expect(out.value['editor.fontSizePx']).toBe(14);
-    expect(out.sources['editor.fontSizePx']).toBe('default');
+  it('rejects a theme id that is not a legal slug', () => {
+    const out = resolveSetting('editor.editorTheme', { editor: { theme: 'Nord Night' } });
+    expect(out.source).toBe('default');
   });
+});
 
-  it('resolves each key independently — one project override does not shadow the rest', () => {
-    const out = resolveSettings(
-      { 'editor.fontSizePx': 18, 'editor.lineHeight': 1.9 },
-      project({ editor: { fontSizePx: 12 } }),
-    );
-    expect(out.value['editor.fontSizePx']).toBe(12);
-    expect(out.sources['editor.fontSizePx']).toBe('project');
+describe('resolveSettings', () => {
+  it('resolves every key and reports where each came from', () => {
+    const out = resolveSettings({ editor: { lineHeight: 1.9 }, ui: { radiusPx: 0 } });
     expect(out.value['editor.lineHeight']).toBe(1.9);
-    expect(out.sources['editor.lineHeight']).toBe('global');
-    expect(out.value['editor.fontFamily']).toBe('serif');
-    expect(out.sources['editor.fontFamily']).toBe('default');
-  });
-});
-
-describe('resolveSettings validation', () => {
-  it('ignores a global value of the wrong type and falls through', () => {
-    const out = resolveSettings({ 'editor.contentWidthCh': 'wide' }, undefined);
-    expect(out.value['editor.contentWidthCh']).toBe(140);
-    expect(out.sources['editor.contentWidthCh']).toBe('default');
+    expect(out.sources['editor.lineHeight']).toBe('config');
+    expect(out.value['ui.radiusPx']).toBe(0);
+    expect(out.sources['ui.radiusPx']).toBe('config');
+    expect(out.sources['ai.model']).toBe('default');
   });
 
-  it('ignores an out-of-range global number but keeps an in-range project value', () => {
-    const out = resolveSettings(
-      { 'editor.fontSizePx': 400 },
-      project({ editor: { fontSizePx: 20 } }),
-    );
-    expect(out.value['editor.fontSizePx']).toBe(20);
-    expect(out.sources['editor.fontSizePx']).toBe('project');
-  });
-
-  it('ignores an unknown enum member at global level', () => {
-    const out = resolveSettings({ 'editor.defaultMode': 'zen' }, undefined);
-    expect(out.value['editor.defaultMode']).toBe('reading');
-    expect(out.sources['editor.defaultMode']).toBe('default');
-  });
-
-  it('reads the legacy global editor.theme key for editor.editorTheme', () => {
-    const out = resolveSettings({ 'editor.theme': 'suna-light' }, undefined);
-    expect(out.value['editor.editorTheme']).toBe('suna-light');
-    expect(out.sources['editor.editorTheme']).toBe('global');
-  });
-
-  it('lets a project editorTheme win over the legacy global key', () => {
-    const out = resolveSettings(
-      { 'editor.theme': 'suna-light' },
-      project({ editor: { editorTheme: 'gruvbox' } }),
-    );
-    expect(out.value['editor.editorTheme']).toBe('gruvbox');
-    expect(out.sources['editor.editorTheme']).toBe('project');
-  });
-
-  it('ignores an unrelated global key entirely', () => {
-    const out = resolveSettings({ 'lit.mailto': 'ada@example.edu' }, undefined);
+  it('defaults everything for an empty config', () => {
+    const out = resolveSettings({});
     expect(out.value).toEqual(SETTINGS_DEFAULTS);
+    expect(out.problems).toEqual([]);
+  });
+
+  it('reports a bad value as a problem instead of dropping it silently', () => {
+    const out = resolveSettings({ editor: { lineHeight: 9 } });
+    expect(out.value['editor.lineHeight']).toBe(1.6);
+    expect(out.problems).toHaveLength(1);
+    expect(out.problems[0]?.path).toBe('editor.lineHeight');
+  });
+
+  it('does not report a key the file never mentions', () => {
+    expect(resolveSettings({ editor: {} }).problems).toEqual([]);
   });
 });
 
-/**
- * The precedence this resolver was wrongly blamed for when vim motions stopped
- * working: an absent project key is "inherit", never "explicit false". The bug
- * was that the manuscript editor never installed the extension at all.
- */
-describe('editor.vimMotions precedence', () => {
-  it('inherits a global true when the project says nothing', () => {
-    expect(resolveSetting('editor.vimMotions', { 'editor.vimMotions': true }, undefined)).toEqual({
-      value: true,
-      source: 'global',
-    });
+describe('the key registry', () => {
+  it('gives every key a unique YAML path', () => {
+    const paths = SETTING_KEY_LIST.map(settingPath);
+    expect(new Set(paths).size).toBe(paths.length);
   });
 
-  it('lets a project false switch vim off against a global true', () => {
-    const out = resolveSetting(
-      'editor.vimMotions',
-      { 'editor.vimMotions': true },
-      project({ editor: { vimMotions: false } }),
-    );
-    expect(out).toEqual({ value: false, source: 'project' });
-  });
-
-  it('is off by default when neither level sets it', () => {
-    expect(resolveSetting('editor.vimMotions', {}, undefined)).toEqual({
-      value: false,
-      source: 'default',
-    });
-  });
-
-  it('ignores a hand-edited non-boolean project value and falls through to global', () => {
-    // suna.json can hold anything; the manifest schema rejects this, but the
-    // resolver must not trust its input either.
-    const settings = { editor: { vimMotions: 'yes' } } as unknown as ProjectSettings;
-    expect(resolveSetting('editor.vimMotions', { 'editor.vimMotions': true }, settings)).toEqual({
-      value: true,
-      source: 'global',
-    });
-  });
-});
-
-describe('resolveSetting (single key)', () => {
-  it('matches the whole-surface resolution for the same inputs', () => {
-    const global = { 'ai.mode': 'api' };
-    const settings = project({ ai: { cliCommand: 'codex' } });
-    expect(resolveSetting('ai.mode', global, settings)).toEqual({ value: 'api', source: 'global' });
-    expect(resolveSetting('ai.cliCommand', global, settings)).toEqual({
-      value: 'codex',
-      source: 'project',
-    });
-    const whole = resolveSettings(global, settings);
-    expect(whole.value['ai.mode']).toBe('api');
-    expect(whole.sources['ai.cliCommand']).toBe('project');
-  });
-
-  it('resolves the top-level previewProfileId from the project', () => {
-    const out = resolveSetting('previewProfileId', {}, project({ previewProfileId: 'science' }));
-    expect(out).toEqual({ value: 'science', source: 'project' });
-  });
-});
-
-describe('shipped defaults', () => {
-  it('ships 14px / 1.6 line-height (feature-plan-5 §2)', () => {
-    expect(SETTINGS_DEFAULTS['editor.fontSizePx']).toBe(14);
-    expect(SETTINGS_DEFAULTS['editor.lineHeight']).toBe(1.6);
-  });
-
-  it('covers every declared key exactly once', () => {
-    expect(SETTING_KEY_LIST.sort()).toEqual(Object.keys(SETTINGS_DEFAULTS).sort());
-  });
-
-  it('validates its own defaults against each key schema (null means "unset")', () => {
+  it("validates its own defaults, except the nullable 'unset' ones", () => {
     for (const key of SETTING_KEY_LIST) {
-      const value = SETTINGS_DEFAULTS[key];
-      if (value === null) continue;
-      expect(SETTING_KEYS[key].schema.safeParse(value).success).toBe(true);
+      const meta = SETTING_KEYS[key];
+      if (meta.default === null) continue;
+      expect(meta.schema.safeParse(meta.default).success, key).toBe(true);
     }
   });
-});
 
-describe('projectSettingPatch', () => {
-  it('builds the nested patch for a grouped key', () => {
-    expect(projectSettingPatch('editor.contentWidthCh', 90)).toEqual({
-      editor: { contentWidthCh: 90 },
-    });
-  });
-
-  it('builds a flat patch for a top-level key', () => {
-    expect(projectSettingPatch('previewProfileId', 'science')).toEqual({
-      previewProfileId: 'science',
-    });
-  });
-
-  it('spells "reset to global" as a null', () => {
-    expect(projectSettingPatch('editor.fontSizePx', null)).toEqual({
-      editor: { fontSizePx: null },
-    });
-  });
-
-  it('refuses an out-of-range value before it reaches IPC', () => {
-    expect(() => projectSettingPatch('editor.fontSizePx', 400)).toThrow();
-  });
-});
-
-describe('mergeProjectSettings', () => {
-  it('adds a key to an empty settings block', () => {
-    expect(mergeProjectSettings(undefined, { editor: { fontSizePx: 18 } })).toEqual({
-      editor: { fontSizePx: 18 },
-    });
-  });
-
-  it('merges into a sibling group without touching it', () => {
-    const merged = mergeProjectSettings(
-      { editor: { fontSizePx: 18 }, python: { envPath: '/env' } },
-      { editor: { lineHeight: 1.8 } },
-    );
-    expect(merged).toEqual({
-      editor: { fontSizePx: 18, lineHeight: 1.8 },
-      python: { envPath: '/env' },
-    });
-  });
-
-  it('replaces a scalar', () => {
-    expect(
-      mergeProjectSettings({ editor: { fontSizePx: 18 } }, { editor: { fontSizePx: 12 } }),
-    ).toEqual({ editor: { fontSizePx: 12 } });
-  });
-
-  it('deletes a key on null and prunes the group it emptied', () => {
-    expect(
-      mergeProjectSettings({ editor: { fontSizePx: 18 } }, { editor: { fontSizePx: null } }),
-    ).toBeUndefined();
-  });
-
-  it('keeps the group when other keys survive the delete', () => {
-    expect(
-      mergeProjectSettings(
-        { editor: { fontSizePx: 18, lineHeight: 1.8 } },
-        { editor: { fontSizePx: null } },
-      ),
-    ).toEqual({ editor: { lineHeight: 1.8 } });
-  });
-
-  it('is a no-op for an empty patch', () => {
-    expect(mergeProjectSettings({ editor: { fontSizePx: 18 } }, {})).toEqual({
-      editor: { fontSizePx: 18 },
-    });
-  });
-
-  it('does not mutate the input', () => {
-    const current = { editor: { fontSizePx: 18 } };
-    mergeProjectSettings(current, { editor: { fontSizePx: 12 } });
-    expect(current).toEqual({ editor: { fontSizePx: 18 } });
-  });
-});
-
-describe('applySettingsPatch', () => {
-  const manifest = {
-    schemaVersion: 1,
-    name: 'my-paper',
-    activeProfileId: 'nature',
-    directories: { manuscript: 'manuscript' },
-    createdAt: '2026-08-13T09:30:00Z',
-  };
-
-  it('adds a settings block without touching any other manifest key', () => {
-    const next = applySettingsPatch(manifest, { editor: { contentWidthCh: 90 } });
-    expect(next).toEqual({ ...manifest, settings: { editor: { contentWidthCh: 90 } } });
-  });
-
-  it('preserves keys this schema version does not know about', () => {
-    const next = applySettingsPatch(
-      { ...manifest, futureKey: { a: 1 } },
-      { editor: { contentWidthCh: 90 } },
-    );
-    expect(next['futureKey']).toEqual({ a: 1 });
-  });
-
-  it('drops the settings block entirely when the last key is cleared', () => {
-    const withSettings = { ...manifest, settings: { editor: { contentWidthCh: 90 } } };
-    const next = applySettingsPatch(withSettings, { editor: { contentWidthCh: null } });
-    expect('settings' in next).toBe(false);
-  });
-
-  it('rejects a suna.json that is not an object', () => {
-    expect(() => applySettingsPatch([1, 2, 3], {})).toThrow(/JSON object/);
-  });
-});
-
-describe("the AI's model tier and effort (ai.model / ai.effort)", () => {
-  it('defaults to Sonnet at low effort', () => {
-    const { value, sources } = resolveSettings({}, undefined);
-    expect(value['ai.model']).toBe('sonnet');
-    expect(value['ai.effort']).toBe('low');
-    expect(sources['ai.model']).toBe('default');
-    expect(sources['ai.effort']).toBe('default');
-  });
-
-  it('lets a project override the global choice, key by key', () => {
-    const global = { 'ai.model': 'haiku', 'ai.effort': 'high' };
-    const { value, sources } = resolveSettings(global, { ai: { model: 'opus' } });
-    expect(value['ai.model']).toBe('opus');
-    expect(sources['ai.model']).toBe('project');
-    expect(value['ai.effort']).toBe('high');
-    expect(sources['ai.effort']).toBe('global');
-  });
-
-  it('falls through a hand-typed value that is not a real tier or level', () => {
-    const { value, sources } = resolveSettings(
-      { 'ai.model': 'gpt-4' },
-      { ai: { effort: 'blazing' } } as never,
-    );
-    expect(value['ai.model']).toBe('sonnet');
-    expect(sources['ai.model']).toBe('default');
-    expect(value['ai.effort']).toBe('low');
-  });
-
-  it('writes the project patch at settings.ai.<key>', () => {
-    expect(projectSettingPatch('ai.model', 'opus')).toEqual({ ai: { model: 'opus' } });
-    expect(projectSettingPatch('ai.effort', 'max')).toEqual({ ai: { effort: 'max' } });
+  it('documents every key, so the seeded config.yml can explain itself', () => {
+    for (const key of SETTING_KEY_LIST) {
+      expect(SETTING_KEYS[key].doc.length, key).toBeGreaterThan(10);
+    }
   });
 });

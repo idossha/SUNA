@@ -8,6 +8,8 @@ export * from './reply-markup';
 export * from './versions';
 export * from './project';
 export * from './settings-resolve';
+export * from './theme';
+export * from './userconfig';
 export * from './authors';
 export * from './manuscript';
 export * from './anchor';

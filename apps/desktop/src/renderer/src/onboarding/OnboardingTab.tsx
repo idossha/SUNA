@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { resolveSettings, type ResponseOf } from '@suna/core'
+import type { ResponseOf } from '@suna/core'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { HOUSE_PROFILE_ID } from '../state/renderProfile'
 import { useProjectStore } from '../state/project'
@@ -10,7 +10,7 @@ import { openFileTab } from '../state/dock'
 import { registerOnboardingProvider } from './devSeam'
 import { stepGate } from './gating'
 import {
-  buildScaffoldSettings,
+  wizardSettingWrites,
   createInitialWizardState,
   INITIAL_CREATE_PROGRESS,
   type CreateProgress,
@@ -76,28 +76,28 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
 
   const update = (patch: Partial<WizardState>): void => setWizard((s) => ({ ...s, ...patch }))
 
-  // The Defaults step seeds from GLOBAL settings only (not any other currently-open
-  // project's overrides) — load once, then seed once when it lands.
+  // The Defaults step seeds from the user's current config — load once, then
+  // seed once when it lands, so the wizard opens showing what SUNA is set to
+  // rather than what it shipped with.
   useEffect(() => {
     void useSettingsStore.getState().load()
   }, [])
-  const rawGlobalSettings = useSettingsStore((s) => s.raw)
-  const globalSettingsLoaded = useSettingsStore((s) => s.loaded)
+  const configuredSettings = useSettingsStore((s) => s.settings)
+  const configLoaded = useSettingsStore((s) => s.loaded)
   useEffect(() => {
-    if (seededDefaults.current || !globalSettingsLoaded) return
+    if (seededDefaults.current || !configLoaded) return
     seededDefaults.current = true
-    const resolved = resolveSettings(rawGlobalSettings, undefined).value
     update({
       defaults: {
-        defaultMode: resolved['editor.defaultMode'],
-        editorTheme: resolved['editor.editorTheme'],
-        fontSizePx: resolved['editor.fontSizePx'],
-        lineHeight: resolved['editor.lineHeight'],
-        contentWidthCh: resolved['editor.contentWidthCh']
+        defaultMode: configuredSettings['editor.defaultMode'],
+        editorTheme: configuredSettings['editor.editorTheme'],
+        fontSizePx: configuredSettings['editor.fontSizePx'],
+        lineHeight: configuredSettings['editor.lineHeight'],
+        contentWidthCh: configuredSettings['editor.contentWidthCh']
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalSettingsLoaded, rawGlobalSettings])
+  }, [configLoaded, configuredSettings])
 
   /**
    * Live theme preview (Defaults step): the picked theme is applied to the whole
@@ -183,7 +183,6 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     update({ creating: true, createError: null, createWarnings: [], progress })
 
     const activeProfileId = HOUSE_PROFILE_ID
-    const settings = buildScaffoldSettings(snapshot)
 
     let scaffoldResult: ResponseOf<'project:scaffold'>
     try {
@@ -192,13 +191,24 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
         name: snapshot.name,
         activeProfileId,
         scaffold: snapshot.scaffold,
-        documentPath: snapshot.scaffold === 'document' ? snapshot.documentPath : null,
-        settings
+        documentPath: snapshot.scaffold === 'document' ? snapshot.documentPath : null
       })
     } catch (error) {
       progress = { ...progress, dirs: 'error', files: 'error' }
       update({ creating: false, createError: errorMessage(error), progress })
       return
+    }
+
+    // The Defaults and AI steps configure SUNA, not this one project: they go
+    // into ~/.suna/config.yml. Sequential rather than concurrent because each
+    // write re-reads and rewrites the same file, and a warning is enough — a
+    // preference that did not stick must not fail a project that now exists.
+    for (const write of wizardSettingWrites(snapshot)) {
+      try {
+        await useSettingsStore.getState().set(write.key, write.value as never)
+      } catch (error) {
+        warnings.push(`could not save ${write.key}: ${errorMessage(error)}`)
+      }
     }
 
     warnings.push(...scaffoldResult.warnings)

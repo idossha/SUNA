@@ -20,11 +20,11 @@ import { LoggedVersionSchema } from './versions';
 import { CompareDocumentSchema, CompareRefSchema, CompareSideSchema } from './compare';
 import { TrashEntrySchema } from './trash';
 import { NoteColorSchema } from './refnotes';
+import { LoadedConfigSchema } from './userconfig';
 import {
   AiEffortSchema,
   AiModelSchema,
   ProjectDirKeySchema,
-  ProjectSettingsSchema,
   RecentProjectSchema,
   SunaProjectManifestSchema,
 } from './project';
@@ -569,19 +569,6 @@ export const CHANNELS = {
     }),
   },
   /**
-   * Read-merge-validate-write on suna.json's `settings` block — the project
-   * half of the settings hierarchy (feature-plan-5 §4). Main re-reads the file
-   * from disk, merges `patch` into `settings` (see mergeProjectSettings: null
-   * DELETES a key, which is how "Reset to global" leaves a clean file),
-   * validates the result with SunaProjectManifestSchema and writes atomically.
-   * Never touches global settings, and never touches any manifest key outside
-   * `settings`. Build the patch with projectSettingPatch(key, value).
-   */
-  'project:update-settings': {
-    request: z.object({ dir: z.string().min(1), patch: ProjectSettingsSchema }),
-    response: z.object({ manifest: SunaProjectManifestSchema }),
-  },
-  /**
    * Recent projects for the welcome screen, most-recent first (feature-plan-5
    * §1). Persisted in GLOBAL settings under 'recentProjects'; `exists` is
    * recomputed on every read (true = the directory still holds a suna.json) so
@@ -646,8 +633,9 @@ export const CHANNELS = {
    * Onboarding wizard step 7 "Create project" (feature-plan-5 §5): the one
    * call that actually writes anything — directories, suna.json, the
    * scaffolded/imported manuscript, and (best-effort) a git init + first
-   * commit. Never called before the review step. `settings` is the step-6
-   * "save to this project" patch (possibly empty). Distinct from
+   * commit. Never called before the review step. Settings the wizard collected
+   * are written to ~/.suna/config.yml with 'config:set', not into the project:
+   * there is no project settings level. Distinct from
    * 'project:create', which always writes the fixed starter manuscript with
    * no profile or scaffold-kind choice.
    */
@@ -659,7 +647,6 @@ export const CHANNELS = {
       scaffold: z.enum(['blank', 'starter', 'document']),
       /** Source .docx/.pdf/.html manuscript for 'document'; ignored otherwise. */
       documentPath: z.string().min(1).nullable().default(null),
-      settings: ProjectSettingsSchema,
     }),
     response: z.object({
       manifest: SunaProjectManifestSchema,
@@ -1541,6 +1528,41 @@ export const CHANNELS = {
       error: z.string().nullable(),
     }),
   },
+  /**
+   * The whole configured state of the app: every resolved setting, where each
+   * came from, the stylesheet for every theme, and anything wrong with the
+   * file. One channel rather than a per-key read because the renderer wants
+   * all of it at once (on boot, and on every external edit) and because the
+   * theme CSS and the settings have to arrive together or the window paints
+   * with one and not the other.
+   *
+   * `settings` is deliberately an open record here: the typed shape lives in
+   * @suna/core's ResolvedSettings, and re-declaring it in the IPC schema would
+   * be two places to add a key.
+   */
+  'config:get': {
+    request: z.object({}),
+    response: z.object({ config: LoadedConfigSchema }),
+  },
+  /**
+   * Write ONE setting into the user's ~/.suna/config.yml, preserving their
+   * comments and key order, and hand back the reloaded config. `value: null`
+   * deletes the key — the GUI's "reset to default".
+   *
+   * `error` is non-null when the file could not be written (today: its YAML is
+   * currently broken, so rewriting it would lose an in-progress edit). The
+   * config still comes back, so the caller can roll its optimistic update back
+   * against real state.
+   */
+  'config:set': {
+    request: z.object({ key: z.string().min(1), value: z.unknown() }),
+    response: z.object({ config: LoadedConfigSchema, error: z.string().nullable() }),
+  },
+  /**
+   * Machine state, not configuration: the recents list and the per-project
+   * python env pick. Kept in userData rather than in config.yml because it is
+   * not something anyone wants to hand-edit or carry between machines.
+   */
   'settings:get': {
     request: z.object({}),
     response: z.object({ settings: z.record(z.string(), z.unknown()) }),
@@ -2299,6 +2321,14 @@ export const EVENT_CHANNELS = {
    * for a project the renderer already closed can be ignored.
    */
   projectManifestChanged: 'project:manifest-changed',
+  /**
+   * ~/.suna/config.yml or a file in ~/.suna/themes/ changed on disk — the user
+   * editing it in any editor, or SUNA's own Settings GUI writing to it.
+   * Payload: the whole reloaded config (LoadedConfigSchema), so the renderer
+   * re-paints from one message instead of a get() round trip. A single global
+   * channel: there is exactly one config, and it applies to every window.
+   */
+  configChanged: 'config:changed',
   /**
    * The python environment selected for a project changed in the MAIN process
    * rather than through the picker — today that means auto-provisioning found

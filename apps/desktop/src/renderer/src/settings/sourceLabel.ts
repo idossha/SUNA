@@ -1,14 +1,13 @@
 import type { SettingSource } from '@suna/core'
 
 /**
- * Exact copy the Settings page shows for a resolved setting's winning level
- * (feature-plan-5 §4's own wording: "from project" / "from global" /
- * "default"). Split out from SettingsTab so the copy — and the fact every
- * SettingSource is covered — is unit-testable without a DOM.
+ * What the Settings page says about where a value came from. Two levels now:
+ * the user's ~/.suna/config.yml, or the value SUNA ships. Split out from
+ * SettingsTab so the copy — and the fact every SettingSource is covered — is
+ * unit-testable without a DOM.
  */
 export const SOURCE_LABELS: Record<SettingSource, string> = {
-  project: 'from project',
-  global: 'from global',
+  config: 'from your config',
   default: 'default'
 }
 

@@ -2,7 +2,9 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join, resolve } from 'node:path'
 import icon from '../../resources/icon.png?asset'
 import { ensureSunaConfig } from '@suna/agent'
+import { EVENT_CHANNELS } from '@suna/core'
 import { registerIpcHandlers } from './ipc'
+import { loadConfig, watchConfig } from './services/userconfig'
 import { appMcpInvocation } from './services/agentLayer'
 import { cancelAllAiAsks } from './services/ai-ask'
 import { disposePreviewWindow } from './services/export-preview'
@@ -33,6 +35,8 @@ const hidden = process.env['SUNA_HIDDEN'] === '1'
 if (hidden && process.platform === 'darwin') {
   app.dock?.hide()
 }
+
+let stopConfigWatch: (() => void) | null = null
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -93,7 +97,22 @@ app.whenReady().then(() => {
   }
 
   registerIpcHandlers()
-  createWindow()
+
+  // Seed ~/.suna/config.yml and read it BEFORE the window exists, so the first
+  // paint is already in the user's configured theme rather than flashing the
+  // default one and correcting itself.
+  void loadConfig().then(() => {
+    createWindow()
+
+    // Live reload: an edit to config.yml or a theme file — in SUNA, in vim, in
+    // anything — repaints every open window. The payload is the whole reloaded
+    // config, so the renderer needs no round trip.
+    stopConfigWatch = watchConfig((config) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send(EVENT_CHANNELS.configChanged, config)
+      }
+    })
+  })
 
   // Sync the machine-level agent context (~/SunaConfig — adr-004) so agents
   // launched outside any project still find current docs. Fire-and-forget:
@@ -108,6 +127,8 @@ app.whenReady().then(() => {
 })
 
 app.on('will-quit', () => {
+  stopConfigWatch?.()
+  stopConfigWatch = null
   disposePreviewWindow()
   killAllTerminals()
   shutdownAllKernels()

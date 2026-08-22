@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { EVENT_CHANNELS } from '@suna/core'
-import type { ChannelName, RequestOf, ResponseOf } from '@suna/core'
+import { EVENT_CHANNELS, LoadedConfigSchema } from '@suna/core'
+import type { ChannelName, LoadedConfigPayload, RequestOf, ResponseOf } from '@suna/core'
 
 // The typed IPC surface. The main process re-validates every request and
 // response against the @suna/core channel contracts.
@@ -64,6 +64,25 @@ const api = {
           ? (payload as { exitCode: number }).exitCode
           : null
       listener({ exitCode })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
+   * Subscribe to "the user's ~/.suna config changed" (EVENT_CHANNELS.
+   * configChanged) — config.yml or a theme file edited in any editor, or
+   * written by SUNA's own Settings GUI. The payload IS the reloaded config, so
+   * the renderer repaints without a round trip. Returns an unsubscribe
+   * function.
+   */
+  onConfigChanged: (listener: (config: LoadedConfigPayload) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.configChanged
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      const parsed = LoadedConfigSchema.safeParse(payload)
+      if (parsed.success) listener(parsed.data)
     }
     ipcRenderer.on(channel, handler)
     return () => {
