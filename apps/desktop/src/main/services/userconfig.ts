@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
   defaultConfigYaml,
+  migrateLegacySettings,
   parseThemeFile,
   parseUserConfig,
   writeSettingToYaml,
@@ -11,11 +12,13 @@ import {
   SETTING_KEYS,
   resolveThemes,
   themesCss,
+  SETTINGS_DEFAULTS,
   type ResolvedSettingKey,
   type ResolvedSettings,
   type ThemeDefinition,
   type UserConfigDiagnostic
 } from '@suna/core'
+import { readSettings } from './settings'
 
 /**
  * The user's config directory — `~/.suna/`, holding the one config file and
@@ -81,9 +84,15 @@ async function ensureConfigFile(): Promise<void> {
   const target = configPath()
   try {
     await readFile(target, 'utf8')
+    return
   } catch {
-    await writeAtomic(target, defaultConfigYaml())
+    // absent — seed it below
   }
+  // Carry an existing installation's settings across, so upgrading to a SUNA
+  // that reads this file is not the same experience as losing every
+  // preference you ever set. Once only: the file exists after this.
+  const { text } = migrateLegacySettings(defaultConfigYaml(), await readSettings())
+  await writeAtomic(target, text)
 }
 
 let writeCounter = 0
@@ -190,12 +199,21 @@ export async function loadConfig(): Promise<LoadedConfig> {
   for (const problem of resolution.problems) {
     diagnostics.push({ path: problem.path, message: problem.message })
   }
+  // A theme id nothing defines — a typo, a renamed file, or an id from an
+  // older SUNA — must fall back to the default THEME, not merely be reported:
+  // no matching stylesheet means no `--s-*` at all, and the app paints as an
+  // unstyled page. Say so, and keep the window readable.
   const themeId = resolution.settings['editor.editorTheme']
   if (!resolvedThemes.some((theme) => theme.id === themeId)) {
     diagnostics.push({
       path: 'editor.theme',
-      message: `no theme named '${themeId}'. Put it in ~/.suna/themes/${themeId}.yml, or pick a built-in.`
+      message: `no theme named '${themeId}' — using ${SETTINGS_DEFAULTS['editor.editorTheme']}. Put it in ~/.suna/themes/${themeId}.yml, or pick a built-in.`
     })
+    resolution.settings = {
+      ...resolution.settings,
+      'editor.editorTheme': SETTINGS_DEFAULTS['editor.editorTheme']
+    }
+    resolution.sources = { ...resolution.sources, 'editor.editorTheme': 'default' }
   }
 
   revision += 1

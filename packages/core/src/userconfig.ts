@@ -253,6 +253,82 @@ function pruneEmptyBlocks(doc: Document, path: readonly string[]): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Migration from the settings.json that came before                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Old global-settings key → the setting it becomes. Only keys whose meaning
+ * is unchanged; anything per-machine (the env picked for a directory, the
+ * recents list) stays in userData, where it belongs.
+ *
+ * `editor.theme` is the one rename that matters: it is the key the Settings
+ * page always wrote, and it becomes `editor.editorTheme`.
+ */
+export const LEGACY_SETTING_KEYS: Readonly<Record<string, ResolvedSettingKey>> = {
+  'editor.defaultMode': 'editor.defaultMode',
+  'editor.contentWidthCh': 'editor.contentWidthCh',
+  'editor.fontSizePx': 'editor.fontSizePx',
+  'editor.lineHeight': 'editor.lineHeight',
+  'editor.fontFamily': 'editor.fontFamily',
+  'editor.theme': 'editor.editorTheme',
+  'editor.editorTheme': 'editor.editorTheme',
+  'editor.vimMotions': 'editor.vimMotions',
+  'editor.autosave': 'editor.autosave',
+  'appearance.uiScale': 'ui.scale',
+  'figures.defaultWidthPreset': 'figures.defaultWidthPreset',
+  'literature.provider': 'literature.provider',
+  'lit.mailto': 'literature.mailto',
+  'lit.cli': 'literature.cli',
+  'terminal.shell': 'terminal.shell',
+  'references.autoOpenPdf': 'references.autoOpenPdf',
+  'review.aiDiffs': 'review.aiDiffs',
+  'response.colorRoles': 'response.colorRoles',
+  'response.quickInsert': 'response.quickInsert',
+  'ai.mode': 'ai.mode',
+  'ai.cliCommand': 'ai.cliCommand',
+  'ai.model': 'ai.model',
+  'ai.effort': 'ai.effort',
+  'trash.maxFileMb': 'trash.maxFileMb',
+  'trash.retentionDays': 'trash.retentionDays',
+};
+
+/**
+ * Carry an existing installation's settings into a freshly seeded config.yml.
+ *
+ * Run ONCE, when config.yml is created. Without it, everyone who has ever
+ * changed a setting silently reverts to the shipped defaults the first time
+ * they open a SUNA that reads this file — which is not a migration, it is
+ * losing their preferences and blaming the release notes.
+ *
+ * A value that no longer validates is dropped rather than written: an old
+ * theme id, or a number outside today's bounds, must not land in the new file
+ * where it would only produce a diagnostic on every launch.
+ */
+export function migrateLegacySettings(
+  seeded: string,
+  legacy: Record<string, unknown>,
+): { text: string; migrated: ResolvedSettingKey[] } {
+  let text = seeded;
+  const migrated: ResolvedSettingKey[] = [];
+  for (const [oldKey, key] of Object.entries(LEGACY_SETTING_KEYS)) {
+    const value = legacy[oldKey];
+    if (value == null) continue;
+    if (migrated.includes(key)) continue;
+    if (!SETTING_KEYS[key].schema.safeParse(value).success) continue;
+    // A theme id from an older SUNA ('mono-blue', before it split into
+    // -dark/-light) is a well-formed slug that resolves to nothing. Migrating
+    // it would leave the user on the default theme AND a diagnostic on every
+    // launch; dropping it leaves them on the default theme, quietly.
+    if (key === 'editor.editorTheme' && !BUILTIN_THEME_IDS.includes(value as string)) continue;
+    const written = writeSettingToYaml(text, key, value);
+    if (!written.written) continue;
+    text = written.text;
+    migrated.push(key);
+  }
+  return { text, migrated };
+}
+
+/* ------------------------------------------------------------------ */
 /* The seeded default file                                             */
 /* ------------------------------------------------------------------ */
 

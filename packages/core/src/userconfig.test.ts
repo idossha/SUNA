@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultConfigYaml,
+  migrateLegacySettings,
   parseThemeFile,
   parseUserConfig,
   writeSettingToYaml,
@@ -180,6 +181,56 @@ describe('the file stays hand-editable', () => {
     expect(cleared).not.toContain('{}');
     expect(parseUserConfig(cleared).values).toEqual({});
     expect(cleared).toContain('# SUNA configuration.');
+  });
+});
+
+describe('migrateLegacySettings', () => {
+  it('carries an existing installation across, renaming editor.theme', () => {
+    const { text, migrated } = migrateLegacySettings(defaultConfigYaml(), {
+      'editor.vimMotions': true,
+      'editor.contentWidthCh': 120,
+      'editor.theme': 'gruvbox',
+      'references.autoOpenPdf': false,
+      'ai.model': 'haiku',
+    });
+    const resolved = resolveSettings(parseUserConfig(text).values);
+    expect(resolved.value['editor.vimMotions']).toBe(true);
+    expect(resolved.value['editor.contentWidthCh']).toBe(120);
+    expect(resolved.value['editor.editorTheme']).toBe('gruvbox');
+    expect(resolved.value['references.autoOpenPdf']).toBe(false);
+    expect(resolved.value['ai.model']).toBe('haiku');
+    expect(migrated).toContain('editor.editorTheme');
+    // and the file is still the documented, commented one
+    expect(text).toContain('# SUNA configuration.');
+  });
+
+  it('drops a value that no longer validates instead of planting a diagnostic', () => {
+    // 'mono-blue' is a well-formed slug that no longer names a theme — it
+    // split into -dark/-light. Migrating it would leave a diagnostic on every
+    // launch for a preference that cannot be honoured anyway.
+    const { text, migrated } = migrateLegacySettings(defaultConfigYaml(), {
+      'editor.theme': 'mono-blue',
+      'editor.contentWidthCh': 9999,
+    });
+    expect(migrated).toEqual([]);
+    const parsed = parseUserConfig(text);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(resolveSettings(parsed.values).problems).toEqual([]);
+  });
+
+  it('ignores machine state, which stays in userData', () => {
+    const { text, migrated } = migrateLegacySettings(defaultConfigYaml(), {
+      recentProjects: [{ path: '/a', name: 'a', lastOpenedAt: '2026-01-01T00:00:00Z' }],
+      'env.selected:/some/project': '/some/project/.venv',
+      'palette.recents./some/project': [],
+    });
+    expect(migrated).toEqual([]);
+    expect(parseUserConfig(text).values).toEqual({});
+  });
+
+  it('does nothing with an empty settings bag', () => {
+    const { migrated } = migrateLegacySettings(defaultConfigYaml(), {});
+    expect(migrated).toEqual([]);
   });
 });
 
