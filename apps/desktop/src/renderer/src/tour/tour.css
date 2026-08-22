@@ -49,8 +49,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 340px;
-  padding: 12px 14px 10px;
+  width: 420px;
+  padding: 16px 18px 14px;
   background: var(--s-bg-raised);
   border: 1px solid var(--s-border-strong);
   border-radius: var(--s-radius);
@@ -67,7 +67,7 @@
 
 .tour-card__count {
   font-variant-numeric: tabular-nums;
-  font-size: var(--s-text-sm);
+  font-size: 14px;
   font-weight: 600;
   color: var(--s-accent);
 }
@@ -79,7 +79,7 @@
 
 .tour-card__eyebrow {
   flex: 1;
-  font-size: var(--s-text-xs);
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--s-ink-faint);
@@ -87,10 +87,10 @@
 
 .tour-card__close {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   line-height: 1;
-  font-size: 15px;
+  font-size: 18px;
   border-radius: 4px;
   color: var(--s-ink-faint);
 }
@@ -101,37 +101,101 @@
 }
 
 .tour-card__title {
-  margin: 6px 0 0;
-  font-size: 15px;
+  margin: 8px 0 0;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.25;
 }
 
 .tour-card__body {
-  margin: 6px 0 0;
-  font-size: var(--s-text-sm);
-  line-height: 1.5;
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
   color: var(--s-ink-muted);
 }
 
-/* The call to action. Accent-tinted so it reads as the thing to do next,
-   rather than as one more sentence of the paragraph above it. */
+/* The call to action. A line of accent text, not a box — a boxed cue read as
+   a button the user was meant to press. The thing to press is out in the app,
+   and the bouncing pointer below points straight at it. */
 .tour-card__cue {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  margin: 10px 0 0;
-  padding: 7px 9px;
-  border-radius: 5px;
-  background: var(--s-bg-active);
-  border: 1px solid rgba(232, 180, 92, 0.28);
-  font-size: var(--s-text-sm);
-  color: var(--s-ink);
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--s-accent);
 }
 
-.tour-card__cue-arrow {
+/* The pointer: an arrow that sits in the gap between card and target and
+   hops towards the target, so "click this" is shown rather than described. */
+.tour-pointer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
   color: var(--s-accent);
-  font-weight: 600;
+  font-size: 26px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(232, 180, 92, 0.55);
+  transition: opacity 120ms ease;
+}
+
+.tour-pointer__glyph {
+  display: block;
+  animation: tour-hop-up 900ms ease-in-out infinite;
+}
+
+.tour-pointer[data-dir='down'] .tour-pointer__glyph {
+  animation-name: tour-hop-down;
+}
+
+.tour-pointer[data-dir='left'] .tour-pointer__glyph {
+  animation-name: tour-hop-left;
+}
+
+.tour-pointer[data-dir='right'] .tour-pointer__glyph {
+  animation-name: tour-hop-right;
+}
+
+@keyframes tour-hop-up {
+  0%,
+  100% {
+    transform: translateY(4px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes tour-hop-down {
+  0%,
+  100% {
+    transform: translateY(-4px);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+@keyframes tour-hop-left {
+  0%,
+  100% {
+    transform: translateX(4px);
+  }
+  50% {
+    transform: translateX(-6px);
+  }
+}
+
+@keyframes tour-hop-right {
+  0%,
+  100% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
 }
 
 .tour-card__progress {
@@ -156,7 +220,7 @@
 }
 
 .tour-card__skip {
-  font-size: var(--s-text-xs);
+  font-size: 13px;
   color: var(--s-ink-faint);
   padding: 4px 0;
 }
@@ -171,10 +235,10 @@
 }
 
 .tour-card__arrow {
-  min-width: 30px;
-  height: 26px;
-  padding: 0 9px;
-  font-size: var(--s-text-sm);
+  min-width: 36px;
+  height: 30px;
+  padding: 0 11px;
+  font-size: 15px;
   line-height: 1;
   border: 1px solid var(--s-border-strong);
   border-radius: 5px;
@@ -214,5 +278,9 @@
   .tour-spot,
   .tour-card__progress-fill {
     transition: none;
+  }
+
+  .tour-pointer__glyph {
+    animation: none;
   }
 }
