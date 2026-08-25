@@ -4,3 +4,7 @@
 ipykernel
 numpy
 matplotlib
+# plotly renders through the notebook mime bundle, which it only emits when
+# nbformat is importable — without it a figure raises instead of drawing.
+plotly
+nbformat
