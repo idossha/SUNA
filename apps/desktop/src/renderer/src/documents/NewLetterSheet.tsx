@@ -126,7 +126,6 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
           letterFile: res.proseFile,
           journalName: profile?.journalName ?? profileId,
           letterKind,
-          requiredAssertions: res.requiredAssertions,
           // The venue's own stated requirements travel INTO the prompt, so the
           // agent argues against what this journal actually asks for rather
           // than a generic idea of a cover letter.
@@ -281,9 +280,9 @@ export function NewLetterSheet({ onClose }: { onClose: () => void }): JSX.Elemen
           )}
 
           <p className="sheet__note">
-            Either way SUNA never fills in an assertion. Those are your factual claims to an
-            editor, made over your signature, so only you answer them — the agent is told to
-            leave every ⟦ unanswered ⟧ marker exactly where it is.
+            Either way the letter is plain prose and yours to finish. The factual claims a venue
+            asks for — not under consideration elsewhere, competing interests, consent — are
+            surfaced on the export page for you to confirm by reading; SUNA never writes them.
           </p>
         </fieldset>
 

@@ -153,6 +153,7 @@ describe('CHANNELS', () => {
       'refnotes:list-all',
       'refnotes:read',
       'refnotes:write',
+      'response:preview',
       'review:analyse',
       'review:check',
       'review:commit',
@@ -933,6 +934,56 @@ describe('CHANNELS', () => {
     expect(CHANNELS['export:docx'].request.parse(legacy).target).toBe('manuscript');
     expect(CHANNELS['export:html'].request.parse(legacy).target).toBe('manuscript');
     expect(CHANNELS['export:pdf'].request.parse(legacy).target).toBe('manuscript');
+  });
+
+  it('accepts an optional versionId on the manuscript exports, and rejects a malformed one', () => {
+    const base = {
+      dir: '/work/my-paper',
+      profileId: 'nature',
+      outputName: 'my-paper',
+      figurePngPaths: {},
+      options: { doubleSpacing: false, lineNumbers: false, pageNumbers: true },
+    };
+    for (const ch of ['export:docx', 'export:html', 'export:pdf'] as const) {
+      // Omitted = the live working copy (additive: old callers still parse).
+      expect('versionId' in CHANNELS[ch].request.parse(base)).toBe(false);
+      expect(CHANNELS[ch].request.parse({ ...base, versionId: 'v1.2' }).versionId).toBe('v1.2');
+      expect(CHANNELS[ch].request.safeParse({ ...base, versionId: 'draft-3' }).success).toBe(false);
+    }
+    const preview = { ...base, format: 'pdf' };
+    expect(CHANNELS['export:preview'].request.parse({ ...preview, versionId: 'v0.4' }).versionId).toBe('v0.4');
+    expect(CHANNELS['export:preview'].request.safeParse({ ...preview, versionId: '1.2' }).success).toBe(false);
+  });
+
+  it('export:letter carries no assertion gate: unconditional, no acknowledgeUnanswered key', () => {
+    const req = {
+      dir: '/work/my-paper',
+      documentId: 'cover-science',
+      format: 'pdf',
+      outputName: 'cover-science',
+    };
+    const parsed = CHANNELS['export:letter'].request.parse(req);
+    expect('acknowledgeUnanswered' in parsed).toBe(false);
+    // A stale caller still sending the removed flag is not rejected outright
+    // (zod strips unknown keys), but the parsed request never carries it.
+    expect(
+      'acknowledgeUnanswered' in CHANNELS['export:letter'].request.parse({ ...req, acknowledgeUnanswered: true }),
+    ).toBe(false);
+  });
+
+  it('response:preview carries no acknowledgment gate and defaults colorRoles on', () => {
+    const req = { dir: '/work/my-paper', roundId: 'r1' };
+    const parsed = CHANNELS['response:preview'].request.parse(req);
+    expect(parsed.colorRoles).toBe(true);
+    expect('acknowledgeUnaddressed' in parsed).toBe(false);
+    expect(
+      CHANNELS['response:preview'].request.parse({ ...req, colorRoles: false }).colorRoles,
+    ).toBe(false);
+    const res = { data: 'JVBERi0=', ms: 12 };
+    expect(CHANNELS['response:preview'].response.parse(res)).toEqual(res);
+    expect(CHANNELS['response:preview'].response.safeParse({ data: 'x', ms: -1 }).success).toBe(
+      false,
+    );
   });
 
   it('round-trips the supplement target and rejects an unknown one', () => {

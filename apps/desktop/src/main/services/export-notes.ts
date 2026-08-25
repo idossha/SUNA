@@ -3,14 +3,12 @@ import {
   AlignmentType,
   Document,
   HeadingLevel,
-  Packer,
   Paragraph,
   TextRun,
   convertMillimetersToTwip
 } from 'docx'
 import type { RequestOf } from '@suna/core'
-import { writeFileAtomic } from './atomic'
-import { htmlDocument, printHtmlToPdf } from './print-html'
+import { escapeHtml, htmlDocument, writeSimpleExport } from './print-html'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -54,13 +52,9 @@ const COLOR_HEX: Record<NotesNote['color'], string> = {
   gray: '#aaaaaa'
 }
 
-export function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+// The shared escaper lives in print-html.ts now; re-exported here so older
+// importers keep working.
+export { escapeHtml } from './print-html'
 
 /** A written note is plain text: blank lines separate paragraphs, and every
  *  other newline is a line break the reader typed on purpose. */
@@ -274,17 +268,13 @@ export const NOTES_OUTPUT_SUBDIR = 'notes'
 export async function exportNotes(req: ExportNotesRequest): Promise<ExportNotesResult> {
   const root = assertInsideAllowedRoot(req.dir)
   const outputDir = join(await projectSubdir(root, 'output'), NOTES_OUTPUT_SUBDIR)
-  // The directory is created by writeFileAtomic on the way past; the PDF path
-  // writes through it too.
-  const target = join(outputDir, `${req.outputName}.${req.format}`)
-
-  if (req.format === 'html') {
-    await writeFileAtomic(target, buildNotesHtml(req))
-  } else if (req.format === 'docx') {
-    await writeFileAtomic(target, await Packer.toBuffer(buildNotesDocx(req)))
-  } else {
-    await printHtmlToPdf(buildNotesHtml(req), target)
-  }
-
-  return { path: target }
+  // The directory is created by writeSimpleExport's atomic write on the way past.
+  const path = await writeSimpleExport({
+    outputDir,
+    name: req.outputName,
+    format: req.format,
+    html: buildNotesHtml(req),
+    docx: () => buildNotesDocx(req)
+  })
+  return { path }
 }

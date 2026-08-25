@@ -207,8 +207,6 @@ export interface LetterDraftPromptInput {
   /** The venue this letter addresses. */
   journalName: string
   letterKind: string
-  /** Assertion ids the venue requires — named so the agent leaves them alone. */
-  requiredAssertions: readonly string[]
   /** The venue's stated requirements, one line each, with its own wording. */
   venueRequirements?: readonly string[]
   /** The exact placeholder comment the draft must replace. */
@@ -223,9 +221,9 @@ export interface LetterDraftPromptInput {
  * **The AI drafts the argument, the human answers the affidavit.** A cover
  * letter asserts that the work is not under consideration elsewhere, that
  * there are no competing interests, that a named colleague read the draft —
- * claims made to an editor over the author's signature. The prompt names
- * every assertion marker and forbids touching them, and no MCP verb exists
- * that could write one anyway.
+ * claims made to an editor over the author's signature. The prompt forbids
+ * inventing any such factual declaration: the argument is the agent's to
+ * draft, the declarations are the author's to write.
  *
  * **A cover letter is an argument, not a summary.** The first version of this
  * prompt said "write two or three paragraphs" and got back a competent
@@ -255,10 +253,7 @@ export function letterDraftPrompt(input: LetterDraftPromptInput): string {
     `- Target venue: ${input.journalName}`,
     ...(input.venueRequirements === undefined || input.venueRequirements.length === 0
       ? [`- No cover-letter requirements have been researched for ${input.journalName}.`]
-      : [`- What ${input.journalName} states about cover letters:`, ...input.venueRequirements.map((r) => `    ${r}`)]),
-    input.requiredAssertions.length === 0
-      ? '- This venue states no required assertions.'
-      : `- Assertion markers already in the letter, which you must NOT touch: ${input.requiredAssertions.join(', ')}.`
+      : [`- What ${input.journalName} states about cover letters:`, ...input.venueRequirements.map((r) => `    ${r}`)])
   ]
 
   const rules = [
@@ -279,12 +274,12 @@ export function letterDraftPrompt(input: LetterDraftPromptInput): string {
     '- Do not repeat the abstract. Several venues ask explicitly that the letter make the case in the authors\' own words; an editor has the abstract already and is looking for the judgement the abstract cannot carry.',
     '',
     'WHAT YOU MAY NOT TOUCH:',
-    '- Do NOT write, fill in, remove or reword any ⟦ unanswered — … ⟧ marker or any ::assert{…} directive. Those are the author\'s factual claims to an editor and only the author may answer them. Leave every one exactly where it is, in place, untouched.',
+    '- Do NOT invent or fill in any factual declaration the author must make personally — not under consideration elsewhere, competing interests, consent, approvals. Those are the author\'s claims to an editor over the author\'s signature; leave them to the author.',
     '- Keep the salutation, the closing line, and the signature block exactly as they are.',
     '- Edit the LETTER, never the manuscript. Use Edit on the absolute path above, or mcp__suna__write_document with the letter\'s documentId.',
     '',
     'FINISH:',
-    `- Run mcp__suna__check_letter with documentId ${input.documentId} when you are done and fix anything it flags that is YOURS to fix — a missing assertion is the author's, but naming the wrong journal in the prose is yours.`,
+    `- Run mcp__suna__check_letter with documentId ${input.documentId} when you are done and fix anything it flags that is YOURS to fix — a missing personal declaration is the author's, but naming the wrong journal in the prose is yours.`,
     `- ${GIT_RULE}`
   ]
 

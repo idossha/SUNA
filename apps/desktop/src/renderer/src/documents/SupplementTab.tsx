@@ -267,7 +267,7 @@ export function SupplementTab({ api, params }: DockPanelProps): JSX.Element {
           <RailToggleButton docPath={contentPath} />
           <button
             className="msdoc__export-btn"
-            onClick={() => !stale && openExportTab(rootDir)}
+            onClick={() => !stale && openExportTab(rootDir, { kind: 'supplement' })}
             disabled={stale}
             title="Export as Word or PDF"
           >

@@ -1,10 +1,9 @@
+import type { BrowserWindow } from 'electron'
 import { join } from 'node:path'
-import { Document, HeadingLevel, Packer, Paragraph, TextRun, convertMillimetersToTwip } from 'docx'
+import { Document, HeadingLevel, Paragraph, TextRun, convertMillimetersToTwip } from 'docx'
 import type { ReplyBlock, ReplyRun, RequestOf, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
 import { RESPONSE_ROLE_COLORS, pointStateFor, replyBlocks, unaddressedPoints } from '@suna/core'
-import { writeFileAtomic } from './atomic'
-import { escapeHtml } from './export-notes'
-import { htmlDocument, printHtmlToPdf } from './print-html'
+import { escapeHtml, htmlDocument, renderHtmlToPdf, writeSimpleExport } from './print-html'
 import { projectSubdir } from './paths'
 import { readReviewerReports, readRound } from './round-new'
 import { assertInsideAllowedRoot } from './roots'
@@ -386,15 +385,65 @@ export function responseSubtitle(round: Round, pointCount: number): string {
   return parts.join(' · ')
 }
 
-export async function exportResponse(req: ExportResponseRequest): Promise<ExportResponseResult> {
-  const root = assertInsideAllowedRoot(req.dir)
-  const round = await readRound(root, req.roundId)
-  const reports = await readReviewerReports(root, req.roundId)
+/** A round resolved into the three things every output format needs. */
+interface ResponseDocument {
+  title: string
+  subtitle: string
+  sections: ResponseSection[]
+  round: Round
+  reports: ReviewerReport[]
+}
+
+/**
+ * Everything between "a round id" and "something to lay out": the immutable
+ * reviewer reports, the author's replies, the derived title line.
+ *
+ * Split out of exportResponse (the buildLetterDocument move) so the export
+ * page's Preview tab can have the same response the export would produce
+ * WITHOUT writing a file — and WITHOUT the acknowledgment gate, which guards
+ * a file leaving the project, not a picture of a draft.
+ */
+async function buildResponseDocument(dir: string, roundId: string): Promise<ResponseDocument> {
+  const root = assertInsideAllowedRoot(dir)
+  const round = await readRound(root, roundId)
+  const reports = await readReviewerReports(root, roundId)
 
   const pointCount = reports.reduce((n, r) => n + r.points.length, 0)
   if (pointCount === 0) {
-    throw new Error(`round "${req.roundId}" has no imported reviewer points to respond to`)
+    throw new Error(`round "${roundId}" has no imported reviewer points to respond to`)
   }
+
+  return {
+    title: `Response to reviewers — ${round.label}`,
+    subtitle: responseSubtitle(round, pointCount),
+    sections: responseSections(round, reports),
+    round,
+    reports
+  }
+}
+
+/**
+ * The response as PDF bytes, for the export page's Preview tab — the same
+ * HTML the export prints, printed the same way, and never written to disk.
+ * No acknowledgment gate: an unaddressed point previews exactly as an
+ * acknowledged export would print it, as a quoted point with no reply.
+ */
+export async function renderResponsePdf(
+  dir: string,
+  roundId: string,
+  colorRoles: boolean,
+  win?: BrowserWindow
+): Promise<Buffer> {
+  const { title, subtitle, sections } = await buildResponseDocument(dir, roundId)
+  return renderHtmlToPdf(buildResponseHtml(title, subtitle, sections, colorRoles), { win })
+}
+
+export async function exportResponse(req: ExportResponseRequest): Promise<ExportResponseResult> {
+  const root = assertInsideAllowedRoot(req.dir)
+  const { title, subtitle, sections, round, reports } = await buildResponseDocument(
+    root,
+    req.roundId
+  )
 
   // Stop once, by name. An author who has read that list and asks again gets
   // the file: a response circulated to co-authors mid-revision is a normal
@@ -407,23 +456,13 @@ export async function exportResponse(req: ExportResponseRequest): Promise<Export
     )
   }
 
-  const sections = responseSections(round, reports)
-  const title = `Response to reviewers — ${round.label}`
-  const subtitle = responseSubtitle(round, pointCount)
-
   const outputDir = join(await projectSubdir(root, 'output'), RESPONSES_OUTPUT_SUBDIR)
-  const target = join(outputDir, `${req.outputName}.${req.format}`)
-
-  if (req.format === 'html') {
-    await writeFileAtomic(target, buildResponseHtml(title, subtitle, sections, req.colorRoles))
-  } else if (req.format === 'docx') {
-    await writeFileAtomic(
-      target,
-      await Packer.toBuffer(buildResponseDocx(title, subtitle, sections, req.colorRoles))
-    )
-  } else {
-    await printHtmlToPdf(buildResponseHtml(title, subtitle, sections, req.colorRoles), target)
-  }
-
-  return { path: target }
+  const path = await writeSimpleExport({
+    outputDir,
+    name: req.outputName,
+    format: req.format,
+    html: buildResponseHtml(title, subtitle, sections, req.colorRoles),
+    docx: () => buildResponseDocx(title, subtitle, sections, req.colorRoles)
+  })
+  return { path }
 }

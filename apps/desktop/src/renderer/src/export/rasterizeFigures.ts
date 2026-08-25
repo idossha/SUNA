@@ -41,6 +41,15 @@ export interface RasterizeOptions {
    * about to embed.
    */
   cache?: boolean
+  /**
+   * PROJECT-ROOT-RELATIVE prefix an archived version's figure SVGs live
+   * under (`manuscript/archive/<versionId>`): a versioned export must
+   * rasterize the figure as it was LOGGED, not as it is now. A figure the
+   * archive does not hold (the version was logged without a figures area,
+   * or before that figure existed) falls back to the live path — same
+   * fallback main's own export takes for the archived prose.
+   */
+  svgBase?: string
 }
 
 /** `<figureId>|<widthMm>|<dpi>|<png|jpg>` -> the SVG it was rasterized from, and where it landed. */
@@ -90,13 +99,26 @@ async function rasterizeOne(
   widthMm: number,
   dpi: number,
   compress: boolean,
-  cache: boolean
+  cache: boolean,
+  svgBase?: string
 ): Promise<string> {
-  const cacheKey = `${figureId}|${widthMm}|${dpi}|${compress ? 'jpg' : 'png'}`
+  const cacheKey = `${figureId}|${widthMm}|${dpi}|${compress ? 'jpg' : 'png'}|${svgBase ?? ''}`
   // The SVG is the figure's whole truth, so its text IS the cache stamp —
   // read first (one cheap IPC), and on a hit nothing else in this function
-  // needs to run at all.
-  const { content: svgText } = await window.suna.invoke('fs:read-text', { path: `${rootDir}/${canvasRef}` })
+  // needs to run at all. A versioned export reads the ARCHIVED SVG when the
+  // archive holds one, and the live SVG otherwise.
+  let svgText: string
+  if (svgBase !== undefined) {
+    try {
+      svgText = (
+        await window.suna.invoke('fs:read-text', { path: `${rootDir}/${svgBase}/${canvasRef}` })
+      ).content
+    } catch {
+      svgText = (await window.suna.invoke('fs:read-text', { path: `${rootDir}/${canvasRef}` })).content
+    }
+  } else {
+    svgText = (await window.suna.invoke('fs:read-text', { path: `${rootDir}/${canvasRef}` })).content
+  }
   if (cache) {
     const hit = rasterCache.get(cacheKey)
     if (hit !== undefined && hit.svg === svgText) return hit.path
@@ -158,7 +180,16 @@ export async function rasterizeManuscriptFigures(
   const out: Record<string, string> = {}
   for (const figure of manuscript.figures) {
     const widthMm = presets.find((p) => p.key === figure.widthPreset)?.widthMm ?? presets[0]?.widthMm ?? 89
-    out[figure.id] = await rasterizeOne(rootDir, figure.id, figure.canvasRef, widthMm, dpi, compress, cache)
+    out[figure.id] = await rasterizeOne(
+      rootDir,
+      figure.id,
+      figure.canvasRef,
+      widthMm,
+      dpi,
+      compress,
+      cache,
+      options.svgBase
+    )
   }
   return out
 }

@@ -34,14 +34,14 @@ import {
   authorMarkers,
   backMatterSections,
   blockImagesOf,
-  buildExportContent,
-  buildSupplementContent,
   collectBlockImages,
+  exportOutputPath,
+  prepareManuscriptExport,
+  resolveExportImagePath,
   collectTableEmbeds,
   collectTables,
   formatReferenceRow,
   isNumericCitationMode,
-  markdownImagePath,
   pngDimensions,
   slugifyHeading,
   splitTexSpans,
@@ -55,15 +55,16 @@ import {
   type TableNode
 } from './export-content'
 import { writeFileAtomic } from './atomic'
-import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 import { texToMath } from './tex-omml'
 import {
+  exportPalette,
   halfPoints,
   lineSpacingTwips,
   mmToTwips,
   ptToTwips,
   resolveDocumentStyle,
+  type ExportPalette,
   type ResolvedDocumentStyle
 } from './export-style'
 
@@ -134,6 +135,13 @@ interface DocxCtx {
   imageAssets: ReadonlyMap<RootChild, FigureAsset>
   /** Typography for this export — see export-style.ts. */
   style: ResolvedDocumentStyle
+  /**
+   * Theme palette when `options.theme` names a known editor theme
+   * (export-style.ts) — colors the page background, body ink, title and
+   * section headings (accent) and hyperlink runs (link). Undefined = the
+   * classic black-and-white print look, byte-identical to before.
+   */
+  palette?: ExportPalette
   /** Mutable registry the list walk fills so the Document can register real Word numbering. */
   lists: {
     /** Ordered-list start values other than 1 that need their own numbering reference. */
@@ -157,6 +165,21 @@ const SUPPLEMENT_FIGURE_WIDTH_MM = 165
 
 /** The cross-reference link color docx-tools writes (Word's theme hyperlink blue-gray). */
 const CROSSREF_COLOR = '2B579A'
+
+/** '#rrggbb' -> 'RRGGBB', the form the docx library wants. */
+function docxHex(color: string): string {
+  return color.replace(/^#/, '').toUpperCase()
+}
+
+/** The link color for this export: the theme's link, or docx-tools' blue-gray. */
+function linkColor(ctx: DocxCtx): string {
+  return ctx.palette !== undefined ? docxHex(ctx.palette.link) : CROSSREF_COLOR
+}
+
+/** Heading/title ink: the theme's accent, or classic black. */
+function headingColor(ctx: DocxCtx): string {
+  return ctx.palette !== undefined ? docxHex(ctx.palette.accent) : '000000'
+}
 
 /** twips-per-96dpi-pixel conversion docx's ImageRun transformation expects (EMU math handled internally by the lib at 9525 EMU/px). */
 function px96(mm: number): number {
@@ -194,7 +217,7 @@ function texRuns(text: string, style: RunStyle = {}): TextRun[] {
   )
 }
 
-function bibRunsToDocx(runs: readonly BibRun[], style: RunStyle = {}): DocxInline[] {
+function bibRunsToDocx(runs: readonly BibRun[], style: RunStyle = {}, hyperlinkColor?: string): DocxInline[] {
   return runs.map((r) => {
     const runStyle: RunStyle = {
       ...style,
@@ -202,7 +225,10 @@ function bibRunsToDocx(runs: readonly BibRun[], style: RunStyle = {}): DocxInlin
       italics: style.italics || r.style === 'italic'
     }
     if (r.link !== undefined && 'url' in r.link) {
-      return new ExternalHyperlink({ children: [textRun(r.text, runStyle)], link: r.link.url })
+      // A themed export paints its hyperlinks in the palette's link color;
+      // the classic export leaves them as plain runs (docx-tools' shape).
+      const linked = hyperlinkColor !== undefined ? { ...runStyle, color: hyperlinkColor } : runStyle
+      return new ExternalHyperlink({ children: [textRun(r.text, linked)], link: r.link.url })
     }
     return textRun(r.text, runStyle)
   })
@@ -301,7 +327,7 @@ function inlineChildren(nodes: readonly RootChild[], ctx: DocxCtx, style: RunSty
           out.push(
             new InternalHyperlink({
               anchor,
-              children: [new TextRun({ text, ...style, color: CROSSREF_COLOR, underline: {} })]
+              children: [new TextRun({ text, ...style, color: linkColor(ctx), underline: {} })]
             })
           )
         }
@@ -855,7 +881,7 @@ function headingParagraph(
       keepNext: true,
       pageBreakBefore: breakBefore,
       spacing: { before: ptToTwips(8), after: ptToTwips(4) },
-      children: wrap(textRun(text, { bold: true, italics: true, size, color: '000000' }))
+      children: wrap(textRun(text, { bold: true, italics: true, size, color: headingColor(ctx) }))
     })
   }
   return new Paragraph({
@@ -863,7 +889,7 @@ function headingParagraph(
     keepNext: true,
     pageBreakBefore: breakBefore,
     spacing: { before: ptToTwips(isTop ? 12 : 8), after: ptToTwips(4) },
-    children: wrap(textRun(text, { bold: true, size, color: '000000' }))
+    children: wrap(textRun(text, { bold: true, size, color: headingColor(ctx) }))
   })
 }
 
@@ -942,7 +968,7 @@ function titlePageParagraphs(ctx: DocxCtx): Paragraph[] {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: ptToTwips(4) },
-      children: texRuns(m.title, { bold: true, size: sizeOf(ctx, 'title') })
+      children: texRuns(m.title, { bold: true, size: sizeOf(ctx, 'title'), color: headingColor(ctx) })
     })
   )
 
@@ -1147,7 +1173,7 @@ function referencesParagraphs(ctx: DocxCtx, title = 'References'): Paragraph[] {
       pageBreakBefore: ctx.style.referencesStartNewPage,
       keepNext: true,
       spacing: { before: ptToTwips(12), after: ptToTwips(4) },
-      children: [textRun(title, { bold: true, size: sizeOf(ctx, 'heading1'), color: '000000' })]
+      children: [textRun(title, { bold: true, size: sizeOf(ctx, 'heading1'), color: headingColor(ctx) })]
     })
   ]
   const hanging = mmToTwips(ctx.style.referenceHangingMm)
@@ -1163,7 +1189,7 @@ function referencesParagraphs(ctx: DocxCtx, title = 'References'): Paragraph[] {
         })
       )
     } else {
-      children.push(...bibRunsToDocx(runs, style))
+      children.push(...bibRunsToDocx(runs, style, ctx.palette !== undefined ? linkColor(ctx) : undefined))
     }
     out.push(
       new Paragraph({
@@ -1201,7 +1227,7 @@ async function buildMarkdownImageAssets(content: ExportContent): Promise<Map<Roo
   for (const section of content.sections) {
     if (section.root === null) continue
     for (const node of collectBlockImages(section.root.children)) {
-      const path = markdownImagePath(node.url, content.manuscriptDir)
+      const path = resolveExportImagePath(node.url, content)
       if (path === null || extname(path).toLowerCase() !== '.png') {
         console.warn(`export:docx — "${node.url}" is not an embeddable PNG; writing its alt text instead`)
         continue
@@ -1222,12 +1248,14 @@ export async function buildDocxDocument(content: ExportContent, options: ExportO
   const figureAssets = await buildFigureAssets(content)
   const imageAssets = await buildMarkdownImageAssets(content)
   const style = resolveDocumentStyle(content.profile)
+  const palette = exportPalette(options.theme)
   const ctx: DocxCtx = {
     content,
     doubleSpacing: options.doubleSpacing,
     figureAssets,
     imageAssets,
     style,
+    palette,
     lists: { orderedStarts: new Set(), nextInstance: 1 }
   }
 
@@ -1293,10 +1321,20 @@ export async function buildDocxDocument(content: ExportContent, options: ExportO
     creator: 'SUNA',
     lastModifiedBy: 'SUNA',
     description: '',
+    // A theme colors the whole page: docx's Document background paints the
+    // page, and the default run color sets the body ink — runs that state no
+    // color (nearly all of them) inherit it, so no per-run change is needed.
+    ...(palette !== undefined ? { background: { color: docxHex(palette.bg) } } : {}),
     numbering: { config: numberingConfig(ctx) },
     styles: {
       default: {
-        document: { run: { font: style.fonts.body, size: halfPoints(style.sizesPt.body) } }
+        document: {
+          run: {
+            font: style.fonts.body,
+            size: halfPoints(style.sizesPt.body),
+            ...(palette !== undefined ? { color: docxHex(palette.ink) } : {})
+          }
+        }
       }
     },
     sections: [
@@ -1367,7 +1405,7 @@ function supplementContentsParagraphs(ctx: DocxCtx, anchors: readonly Supplement
               new TextRun({
                 text: entry.heading,
                 size: sizeOf(ctx, 'body'),
-                color: CROSSREF_COLOR,
+                color: linkColor(ctx),
                 underline: {}
               })
             ]
@@ -1409,12 +1447,14 @@ export async function buildSupplementDocx(content: ExportContent, options: Expor
     figurePlacement: 'inline',
     tablePlacement: 'inline'
   }
+  const palette = exportPalette(options.theme)
   const ctx: DocxCtx = {
     content,
     doubleSpacing: options.doubleSpacing,
     figureAssets,
     imageAssets,
     style,
+    palette,
     lists: { orderedStarts: new Set(), nextInstance: 1 },
     supplement: { nextTableNumber: 1 }
   }
@@ -1424,7 +1464,7 @@ export async function buildSupplementDocx(content: ExportContent, options: Expor
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: ptToTwips(4) },
-      children: texRuns(title, { bold: true, size: sizeOf(ctx, 'title') })
+      children: texRuns(title, { bold: true, size: sizeOf(ctx, 'title'), color: headingColor(ctx) })
     }),
     ...bylineParagraphs(ctx)
   ]
@@ -1486,10 +1526,17 @@ export async function buildSupplementDocx(content: ExportContent, options: Expor
     creator: 'SUNA',
     lastModifiedBy: 'SUNA',
     description: '',
+    ...(palette !== undefined ? { background: { color: docxHex(palette.bg) } } : {}),
     numbering: { config: numberingConfig(ctx) },
     styles: {
       default: {
-        document: { run: { font: style.fonts.body, size: halfPoints(style.sizesPt.body) } }
+        document: {
+          run: {
+            font: style.fonts.body,
+            size: halfPoints(style.sizesPt.body),
+            ...(palette !== undefined ? { color: docxHex(palette.ink) } : {})
+          }
+        }
       }
     },
     sections: [
@@ -1508,6 +1555,8 @@ export interface ExportDocxRequest {
   outputName: string
   figurePngPaths: Readonly<Record<string, string>>
   options: ExportOptions
+  /** Export this LOGGED version instead of the working copy. */
+  versionId?: string
   /** 'manuscript' (default) or the Supplementary Information document. */
   target?: 'manuscript' | 'supplement'
 }
@@ -1517,14 +1566,8 @@ export interface ExportDocxResult {
 }
 
 export async function exportDocx(req: ExportDocxRequest): Promise<ExportDocxResult> {
-  const root = assertInsideAllowedRoot(req.dir)
-  const supplement = req.target === 'supplement'
-  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
-  // buildSupplementContent throws a clear error naming the expected
-  // manuscript/supplementary.md path when the project has none.
-  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
-  const outputDir = await projectSubdir(root, 'output')
-  const target = join(outputDir, `${req.outputName}.docx`)
+  const { root, supplement, content } = await prepareManuscriptExport(req)
+  const target = await exportOutputPath(root, req.outputName, 'docx')
 
   const doc = supplement
     ? await buildSupplementDocx(content, req.options)

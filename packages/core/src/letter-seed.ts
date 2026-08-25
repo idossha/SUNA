@@ -17,9 +17,10 @@ import type { LetterAssertionId, LetterKind } from './letters';
  * reads like boilerplate is worse than a blank space that reads like a
  * prompt.
  *
- * It also never writes an assertion's text. Every required assertion appears
- * as an unanswered marker, which is what the checker reports and what the
- * Assertions panel lists.
+ * It seeds PLAIN PROSE only. It never writes `::assert{}` directives or
+ * ⟦ unanswered ⟧ markers — assertions are no longer an export gate, and the
+ * venue's letter requirements are advisory (surfaced by the letter checker),
+ * so a new letter carries no assertion machinery at all.
  */
 
 /**
@@ -50,12 +51,14 @@ export interface LetterSeedInput {
   salutation?: string | null;
 }
 
-/** The unanswered-assertion marker. Visible in the editor, blocks export. */
+/** LEGACY: the unanswered-assertion marker older letters were seeded with.
+ *  New letters never carry it; exports strip it. Kept so existing files on
+ *  disk still parse. */
 export function unansweredMarker(id: LetterAssertionId): string {
   return `⟦ unanswered — ${id} ⟧`;
 }
 
-/** Every unanswered marker present in a letter's prose. */
+/** Every legacy unanswered marker present in a letter's prose. */
 export function unansweredIn(letterText: string): LetterAssertionId[] {
   const out: LetterAssertionId[] = [];
   for (const m of letterText.matchAll(/⟦ unanswered — ([a-zA-Z]+) ⟧/g)) {
@@ -87,7 +90,7 @@ const KIND_OPENING: Record<LetterKind, (journal: string) => string> = {
  * paraphrased, summarised or invented.
  */
 export function buildLetterSkeleton(input: LetterSeedInput): string {
-  const { journalName, manuscript, authors, requiredAssertions, letterKind } = input;
+  const { journalName, manuscript, authors, letterKind } = input;
   const corresponding = correspondingAuthor(authors);
   const salutation = input.salutation ?? 'Dear Editor,';
   const title = manuscript.title.trim();
@@ -112,16 +115,6 @@ export function buildLetterSkeleton(input: LetterSeedInput): string {
     '     comment on this paragraph rather than pasted in. -->',
     '',
   );
-
-  if (requiredAssertions.length > 0) {
-    lines.push('');
-    for (const id of requiredAssertions) {
-      // The directive marks WHERE the assertion belongs; the marker says it
-      // has no answer yet. Both survive into the rendered letter, and the
-      // marker is what blocks export.
-      lines.push(`${unansweredMarker(id)} ::assert{${id}}`, '');
-    }
-  }
 
   lines.push('Thank you for considering our submission.', '');
   lines.push('Sincerely,', '');

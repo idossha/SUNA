@@ -1,4 +1,5 @@
 import type {
+  Author,
   Manuscript,
   PublisherProfile,
   RequiredSection,
@@ -33,6 +34,14 @@ export interface ManuscriptCheckInput {
    */
   sectionTexts: Record<string, string>;
   referenceCount: number;
+  /**
+   * authors.json's author list (the byline moved out of manuscript.json —
+   * see AuthorsFileSchema in @suna/core). When provided, author- and
+   * affiliation-flavoured required sections are satisfied by the structured
+   * data itself; when undefined the check falls back to heading matching
+   * only, so existing callers lose nothing.
+   */
+  authors?: readonly Author[];
 }
 
 /**
@@ -85,51 +94,186 @@ function normalizeHeading(s: string): string {
   return s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
+/* ------------------------------------------------------------------ */
+/* Required-section matching                                           */
+/* ------------------------------------------------------------------ */
+
+/** "Affiliations (plus present addresses)" → "Affiliations ". */
+function stripParentheticals(s: string): string {
+  return s.replace(/\([^)]*\)/g, ' ');
+}
+
 /**
- * Section headings are DERIVED from the prose now (feature-plan-7 §1):
- * `manuscript.json` no longer carries a `body` array, so the required-section
- * check reads the Markdown headings out of the same `sectionTexts` the word
- * and figure-reference checks already scan. `outlineFromMarkdown` is the one
- * outline implementation in the repo, so a `#` inside a fenced code block is
- * code here exactly as it is in the editor's outline.
+ * Leading enumeration on a heading: "1. Methods", "2 Results", "2.1 Data",
+ * "III. Discussion", "iv) Methods". Roman numerals must carry a "." or ")"
+ * so a heading legitimately starting with the word "I" is left alone.
  */
-function collectHeadings(sectionTexts: Record<string, string>): Set<string> {
-  const headings = new Set<string>();
+const ENUMERATION_RE = /^\s*(?:\d+(?:\.\d+)*[.)]?|[IVXLCDM]+[.)])\s+/i;
+
+function stripEnumeration(s: string): string {
+  return s.replace(ENUMERATION_RE, '');
+}
+
+/**
+ * Conservative synonym table, applied to the WHOLE normalized phrase (never
+ * to individual tokens). Each entry is defensible as two titles journals use
+ * interchangeably for the same section — nothing looser belongs here
+ * (introduction/background are deliberately NOT equated: some journals mean
+ * different sections by them).
+ */
+const PHRASE_SYNONYMS: Readonly<Record<string, string>> = {
+  // "Materials and Methods" and "Methods" title the same experimental section.
+  'materials and methods': 'methods',
+  'material and methods': 'methods',
+  // British/American spellings and singular/plural of the same word.
+  acknowledgement: 'acknowledgments',
+  acknowledgements: 'acknowledgments',
+  acknowledgment: 'acknowledgments',
+  // A bibliography IS the reference list.
+  bibliography: 'references',
+  // "Key words" is a typographic variant, not a different section.
+  'key words': 'keywords',
+};
+
+/** Full normalization for one phrase: parentheticals and enumeration off, punctuation folded, synonyms applied. */
+function normalizePhrase(s: string): string {
+  const n = normalizeHeading(stripEnumeration(stripParentheticals(s)));
+  return PHRASE_SYNONYMS[n] ?? n;
+}
+
+/**
+ * Split a raw phrase on the connector words that join compound headings —
+ * "Authors and Affiliations", "Results & Discussion", "Results/Discussion" —
+ * BEFORE punctuation folding (normalizeHeading would erase "/" and "&").
+ * Returns the normalized non-empty parts.
+ */
+function phraseParts(raw: string): string[] {
+  return stripParentheticals(raw)
+    .split(/\s*(?:\/|&|\band\b)\s*/i)
+    .map(normalizePhrase)
+    .filter((p) => p !== '');
+}
+
+/**
+ * Token equality with mild singular/plural tolerance: a trailing "s" is
+ * optional ("conclusion" matches "conclusions"). Only tokens of 4+ letters
+ * get the tolerance, so short function words never blur into each other —
+ * and it is strictly a trailing-s rule, so "authorship" never matches
+ * "authors" (stems "authorship" vs "author" differ).
+ */
+function tokenEq(a: string, b: string): boolean {
+  if (a === b) return true;
+  const stem = (t: string): string => (t.length >= 4 && t.endsWith('s') ? t.slice(0, -1) : t);
+  return stem(a) === stem(b);
+}
+
+function phraseEq(a: string, b: string): boolean {
+  const ta = a.split(' ');
+  const tb = b.split(' ');
+  if (ta.length !== tb.length) return false;
+  return ta.every((t, i) => tokenEq(t, tb[i] ?? ''));
+}
+
+/**
+ * Section headings are DERIVED from the prose (feature-plan-7 §1): the
+ * required-section check reads the Markdown headings out of the same
+ * `sectionTexts` the word and figure-reference checks already scan.
+ * `outlineFromMarkdown` is the one outline implementation in the repo, so a
+ * `#` inside a fenced code block is code here exactly as it is in the
+ * editor's outline. The index keeps each heading's whole normalized phrase
+ * AND its connector-split parts, so "Authors and Affiliations" can satisfy
+ * both an `authors` and an `affiliations` requirement.
+ */
+function collectHeadings(sectionTexts: Record<string, string>): string[] {
+  const phrases: string[] = [];
   for (const text of Object.values(sectionTexts)) {
     for (const section of outlineFromMarkdown(text)) {
-      if (section.title !== '') headings.add(normalizeHeading(section.title));
+      if (section.title === '') continue;
+      const whole = normalizePhrase(section.title);
+      if (whole !== '') phrases.push(whole);
+      const parts = phraseParts(section.title);
+      if (parts.length > 1) phrases.push(...parts);
     }
   }
-  return headings;
+  return phrases;
+}
+
+function headingHas(headings: readonly string[], phrase: string): boolean {
+  return phrase !== '' && headings.some((h) => phraseEq(h, phrase));
+}
+
+/**
+ * Is one requirement phrase (already normalized) satisfied by the structured
+ * manuscript/authors data rather than a prose heading? Conservative by
+ * doctrine: an unknown phrase returns false and the caller falls back to
+ * heading matching; author/affiliation phrases return false when the caller
+ * supplied no `authors` array at all.
+ */
+function structurallySatisfied(
+  phrase: string,
+  manuscript: Manuscript,
+  authors: readonly Author[] | undefined,
+): boolean {
+  if (phraseEq(phrase, 'abstract')) return manuscript.abstract.content.trim() !== '';
+  if (phraseEq(phrase, 'acknowledgments')) {
+    const ack = manuscript.backMatter.acknowledgements;
+    return ack !== null && ack.trim() !== '';
+  }
+  if (phraseEq(phrase, 'references')) return manuscript.bibliography.trim() !== '';
+  if (phraseEq(phrase, 'title')) return manuscript.title.trim() !== '';
+  if (phraseEq(phrase, 'keywords')) return (manuscript.keywords ?? []).length > 0;
+  if (phraseEq(phrase, 'authors') || phraseEq(phrase, 'author list')) {
+    return authors !== undefined && authors.length > 0;
+  }
+  if (phraseEq(phrase, 'affiliations')) {
+    return authors !== undefined && authors.some((a) => a.affiliationRefs.length > 0);
+  }
+  return false;
+}
+
+/**
+ * One requirement string (an id or a label) is satisfied when its whole
+ * normalized phrase matches a heading or the structured data, or — for a
+ * compound like "Authors and Affiliations" — when EVERY connector-split part
+ * is satisfied that way.
+ */
+function requirementTextSatisfied(
+  raw: string,
+  manuscript: Manuscript,
+  authors: readonly Author[] | undefined,
+  headings: readonly string[],
+): boolean {
+  const whole = normalizePhrase(raw);
+  if (headingHas(headings, whole) || structurallySatisfied(whole, manuscript, authors)) {
+    return true;
+  }
+  const parts = phraseParts(raw);
+  return (
+    parts.length > 1 &&
+    parts.every(
+      (p) => headingHas(headings, p) || structurallySatisfied(p, manuscript, authors),
+    )
+  );
 }
 
 /**
  * A required section is satisfied by a matching body heading or by the
- * standard back-matter field it names: abstract is always a dedicated
- * manuscript field, acknowledgments maps to backMatter.acknowledgements,
- * references to the bibliography.
+ * structured field it names: abstract/title/keywords are dedicated manuscript
+ * fields, acknowledgments maps to backMatter.acknowledgements, references to
+ * the bibliography, and authors/affiliations to the authors.json byline when
+ * the caller supplies it. Either evidence counts — an "Acknowledgements"
+ * prose heading satisfies the requirement even when backMatter is empty.
  */
 function sectionPresent(
   rs: RequiredSection,
   manuscript: Manuscript,
-  headings: ReadonlySet<string>,
+  authors: readonly Author[] | undefined,
+  headings: readonly string[],
 ): boolean {
-  switch (rs.id) {
-    case 'abstract':
-      return manuscript.abstract.content.trim() !== '';
-    case 'acknowledgments':
-    case 'acknowledgements': {
-      const ack = manuscript.backMatter.acknowledgements;
-      return ack !== null && ack.trim() !== '';
-    }
-    case 'references':
-    case 'bibliography':
-      return manuscript.bibliography.trim() !== '';
-    default:
-      return (
-        headings.has(normalizeHeading(rs.id)) || headings.has(normalizeHeading(rs.label))
-      );
-  }
+  return (
+    requirementTextSatisfied(rs.id, manuscript, authors, headings) ||
+    requirementTextSatisfied(rs.label, manuscript, authors, headings)
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -325,7 +469,7 @@ export function checkManuscript(
       `unknown article type "${articleTypeId}" in profile "${profile.id}"`,
     );
   }
-  const { manuscript, sectionTexts, referenceCount } = input;
+  const { manuscript, sectionTexts, referenceCount, authors } = input;
   const src = sourceSuffix(rules.sources);
   const out: Diagnostic[] = [];
 
@@ -399,7 +543,7 @@ export function checkManuscript(
   const headings = collectHeadings(sectionTexts);
   for (const rs of rules.requiredSections) {
     if (!rs.required) continue;
-    if (sectionPresent(rs, manuscript, headings)) continue;
+    if (sectionPresent(rs, manuscript, authors, headings)) continue;
     out.push({
       id: 'ms.section-missing',
       severity: 'error',

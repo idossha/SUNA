@@ -5,11 +5,9 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import type { ExportOptions, OversizedBlock } from '@suna/core'
 import { writeFileAtomic } from './atomic'
-import { buildExportContent, buildSupplementContent, type ExportContent } from './export-content'
+import { exportOutputPath, prepareManuscriptExport, type ExportContent } from './export-content'
 import { buildManuscriptHtml, buildSupplementHtml } from './export-html'
 import { exportPalette, resolveDocumentStyle } from './export-style'
-import { projectSubdir } from './paths'
-import { assertInsideAllowedRoot } from './roots'
 
 /**
  * PDF export (feature-plan-6 §4): the same profile-styled content model as
@@ -190,6 +188,8 @@ export interface ExportPdfRequest {
   outputName: string
   figurePngPaths: Readonly<Record<string, string>>
   options: ExportOptions
+  /** Export this LOGGED version instead of the working copy. */
+  versionId?: string
   /** 'manuscript' (default) or the Supplementary Information document. */
   target?: 'manuscript' | 'supplement'
 }
@@ -310,16 +310,10 @@ export async function renderContentPdf(content: ExportContent, opts: RenderPdfOp
 }
 
 export async function exportPdf(req: ExportPdfRequest): Promise<ExportPdfResult> {
-  const root = assertInsideAllowedRoot(req.dir)
-  const supplement = req.target === 'supplement'
-  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
-  // buildSupplementContent throws a clear error naming the expected
-  // manuscript/supplementary.md path when the project has none.
-  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+  const { root, supplement, content } = await prepareManuscriptExport(req)
   const { pdf, oversized } = await renderContentPdf(content, { options: req.options, supplement })
 
-  const outputDir = await projectSubdir(root, 'output')
-  const target = join(outputDir, `${req.outputName}.pdf`)
+  const target = await exportOutputPath(root, req.outputName, 'pdf')
   await writeFileAtomic(target, pdf)
 
   return { path: target, oversized }

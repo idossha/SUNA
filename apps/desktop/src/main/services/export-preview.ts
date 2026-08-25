@@ -1,9 +1,8 @@
 import { BrowserWindow } from 'electron'
 import type { ExportOptions, OversizedBlock } from '@suna/core'
-import { buildExportContent, buildSupplementContent } from './export-content'
+import { prepareManuscriptExport } from './export-content'
 import { buildStandaloneHtml } from './export-html'
 import { renderContentPdf } from './export-pdf'
-import { assertInsideAllowedRoot } from './roots'
 
 /**
  * Live export preview ('export:preview'): the SAME build the real exporters
@@ -106,6 +105,8 @@ export interface ExportPreviewRequest {
   format: 'docx' | 'pdf' | 'html'
   figurePngPaths: Readonly<Record<string, string>>
   options: ExportOptions
+  /** Preview this LOGGED version instead of the working copy. */
+  versionId?: string
   target?: 'manuscript' | 'supplement'
 }
 
@@ -119,10 +120,7 @@ export interface ExportPreviewResult {
 
 export async function exportPreview(req: ExportPreviewRequest): Promise<ExportPreviewResult> {
   const started = Date.now()
-  const root = assertInsideAllowedRoot(req.dir)
-  const supplement = req.target === 'supplement'
-  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
-  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+  const { supplement, content } = await prepareManuscriptExport(req)
 
   if (req.format === 'html') {
     const html = await buildStandaloneHtml(content, supplement, req.options.theme)

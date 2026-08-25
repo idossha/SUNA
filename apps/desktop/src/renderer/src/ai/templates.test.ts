@@ -236,8 +236,7 @@ describe('letterDraftPrompt', () => {
     letterFile: 'letters/cover-science.md',
     documentId: 'cover-science',
     journalName: 'Science',
-    letterKind: 'submission',
-    requiredAssertions: ['journalFit', 'competingInterests']
+    letterKind: 'submission'
   }
 
   it('names the venue, the letter file and the registry id', () => {
@@ -248,13 +247,10 @@ describe('letterDraftPrompt', () => {
     expect(p).toContain('cover-science')
   })
 
-  it('forbids touching the assertion markers, and names them', () => {
+  it('forbids inventing the author\'s personal declarations', () => {
     const p = letterDraftPrompt(base)
-    expect(p).toContain('journalFit, competingInterests')
-    expect(p).toMatch(/must NOT touch/)
-    expect(p).toMatch(/only the author may answer them/)
-    expect(p).toContain('⟦ unanswered')
-    expect(p).toContain('::assert{')
+    expect(p).toMatch(/Do NOT invent or fill in any factual declaration/)
+    expect(p).toMatch(/leave them to the author/)
   })
 
   it('makes it read the paper before writing, in a named order', () => {
@@ -311,11 +307,6 @@ describe('letterDraftPrompt', () => {
     const p = letterDraftPrompt(base)
     expect(p).toMatch(/Do not repeat the abstract/)
     expect(p).toMatch(/signature block exactly as they are/)
-  })
-
-  it('handles a venue that states no required assertions', () => {
-    const p = letterDraftPrompt({ ...base, requiredAssertions: [] })
-    expect(p).toContain('states no required assertions')
   })
 
   it('never tells the agent to commit', () => {

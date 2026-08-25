@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { CoverLetterMeta } from '@suna/core'
-import { buildLetterHtml, letterBlocks, resolveAssertions, unansweredForExport } from './export-letter'
+import { buildLetterHtml, letterBlocks, stripLetterDirectives } from './export-letter'
 
 /** Same reason as export-notes.test: no BrowserWindow, no printed PDF. */
 vi.mock('electron', () => ({
@@ -18,10 +18,10 @@ function meta(overrides: Partial<CoverLetterMeta> = {}): CoverLetterMeta {
   } as CoverLetterMeta
 }
 
-describe('resolveAssertions', () => {
+describe('stripLetterDirectives', () => {
   it('puts the author’s own sentence where the directive is', () => {
     const text = 'Before.\n\n::assert{competingInterests}\n\nAfter.'
-    const out = resolveAssertions(
+    const out = stripLetterDirectives(
       text,
       meta({
         assertions: [
@@ -39,7 +39,7 @@ describe('resolveAssertions', () => {
   })
 
   it('drops an assertion the author routed to the submission form', () => {
-    const out = resolveAssertions(
+    const out = stripLetterDirectives(
       '::assert{competingInterests}',
       meta({
         assertions: [
@@ -56,7 +56,7 @@ describe('resolveAssertions', () => {
   })
 
   it('leaves nothing behind for an assertion with no answer at all', () => {
-    expect(resolveAssertions('::assert{competingInterests}', meta()).trim()).toBe('')
+    expect(stripLetterDirectives('::assert{competingInterests}', meta()).trim()).toBe('')
   })
 })
 
@@ -83,37 +83,9 @@ describe('buildLetterHtml', () => {
   })
 })
 
-describe('unansweredForExport', () => {
-  const seeded = '⟦ unanswered — competingInterests ⟧ ::assert{competingInterests}'
-
-  it('reads the sidecar, not the seeded marker in the prose', () => {
-    // The marker is written once at seed time and never removed; answering
-    // happens in the sidecar. Trusting the marker refused every letter.
-    expect(
-      unansweredForExport(
-        seeded,
-        meta({
-          assertions: [
-            {
-              id: 'competingInterests',
-              placement: 'directive',
-              text: 'The authors declare no competing interests.',
-              reason: null
-            }
-          ]
-        })
-      )
-    ).toEqual([])
-  })
-
-  it('still refuses an assertion the sidecar has no answer for', () => {
-    expect(unansweredForExport(seeded, meta())).toEqual(['competingInterests'])
-  })
-})
-
-describe('resolveAssertions with a stale marker', () => {
+describe('stripLetterDirectives with a stale marker', () => {
   it('clears the marker for an answered assertion', () => {
-    const out = resolveAssertions(
+    const out = stripLetterDirectives(
       '⟦ unanswered — competingInterests ⟧ ::assert{competingInterests}',
       meta({
         assertions: [
@@ -126,11 +98,11 @@ describe('resolveAssertions with a stale marker', () => {
   })
 })
 
-describe('resolveAssertions with nothing answered', () => {
-  it('leaves no marker and no directive behind when the export is acknowledged', () => {
-    // The acknowledged export writes the author's letter WITHOUT the missing
-    // sentences — never a marker, and never an invented sentence.
-    const out = resolveAssertions(
+describe('stripLetterDirectives with nothing answered', () => {
+  it('leaves no marker and no directive behind', () => {
+    // The export writes the author's letter WITHOUT the missing sentences —
+    // never a marker, and never an invented sentence. There is no gate.
+    const out = stripLetterDirectives(
       'Dear Editor,\n\n⟦ unanswered — competingInterests ⟧ ::assert{competingInterests}\n\nSincerely,',
       meta()
     )

@@ -14,9 +14,10 @@ import { renderCluster, type Run } from '@suna/bib'
 import type { ExportOptions, HeadingLevel } from '@suna/core'
 import {
   backMatterSections,
-  buildExportContent,
-  buildSupplementContent,
   collectMarkdownImages,
+  exportOutputPath,
+  prepareManuscriptExport,
+  resolveExportImagePath,
   collectTableEmbeds,
   collectTables,
   formatReferenceRow,
@@ -30,7 +31,6 @@ import {
   type TableNode
 } from './export-content'
 import { writeFileAtomic } from './atomic'
-import { projectSubdir } from './paths'
 import { exportPalette, resolveDocumentStyle, type ExportPalette, type ResolvedDocumentStyle } from './export-style'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -125,7 +125,7 @@ async function markdownImages(content: ExportContent): Promise<Map<string, strin
     if (section.root === null) continue
     for (const { url } of collectMarkdownImages(section.root)) {
       if (map.has(url)) continue
-      const path = markdownImagePath(url, content.manuscriptDir)
+      const path = resolveExportImagePath(url, content)
       if (path === null) {
         map.set(url, null)
         continue
@@ -1189,6 +1189,8 @@ export interface ExportHtmlRequest {
   profileId: string
   outputName: string
   figurePngPaths: Readonly<Record<string, string>>
+  /** Export this LOGGED version instead of the working copy. */
+  versionId?: string
   /** Accepted for a uniform export surface; print-only options do not apply to a web page. */
   options: ExportOptions
   /** 'manuscript' (default) or the Supplementary Information document. */
@@ -1223,13 +1225,9 @@ export async function buildStandaloneHtml(
 }
 
 export async function exportHtml(req: ExportHtmlRequest): Promise<ExportHtmlResult> {
-  const root = assertInsideAllowedRoot(req.dir)
-  const supplement = req.target === 'supplement'
-  const buildOpts = { dir: root, profileId: req.profileId, figurePngPaths: req.figurePngPaths }
-  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+  const { supplement, content, root } = await prepareManuscriptExport(req)
   const html = await buildStandaloneHtml(content, supplement, req.options.theme)
-  const outputDir = await projectSubdir(root, 'output')
-  const target = join(outputDir, `${req.outputName}.html`)
+  const target = await exportOutputPath(root, req.outputName, 'html')
   await writeFileAtomic(target, html)
   return { path: target }
 }

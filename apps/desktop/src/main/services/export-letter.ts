@@ -1,29 +1,32 @@
 import type { BrowserWindow } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { Document, HeadingLevel, Packer, Paragraph, TextRun, convertMillimetersToTwip } from 'docx'
+import { Document, Paragraph, TextRun, HeadingLevel, convertMillimetersToTwip } from 'docx'
 import type { CoverLetterMeta, RequestOf } from '@suna/core'
-import { assertionAnswered, assertionFor, unansweredIn } from '@suna/core'
+import { assertionAnswered, assertionFor } from '@suna/core'
 import type { LetterAssertionId } from '@suna/core'
 import { getBundledProfile } from '@suna/formatter'
-import { writeFileAtomic } from './atomic'
 import { readLetterMeta } from './letter-new'
 import { documentFile, projectDocument, projectSubdir } from './paths'
-import { escapeHtml } from './export-notes'
-import { htmlDocument, printHtmlToPdf, renderHtmlToPdf } from './print-html'
+import {
+  HEADING_LEVELS,
+  escapeHtml,
+  htmlDocument,
+  renderHtmlToPdf,
+  writeSimpleExport
+} from './print-html'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
  * Cover-letter export (the "simple and constrained" sibling of the manuscript
  * pipeline, like export-notes).
  *
- * A letter is prose plus assertions. The prose is rendered as it is written —
- * paragraphs, headings, nothing else, because that is all a letter has. The
- * assertions are the part that needs work: `::assert{id}` marks WHERE the
- * author's sentence belongs, and the sentence itself lives in the sidecar.
- * This is where the two are put back together, and where a letter that still
- * carries an unanswered assertion is refused rather than sent to an editor
- * with ⟦ unanswered — competingInterests ⟧ in it.
+ * A letter is prose. It exports UNCONDITIONALLY: whether it satisfies the
+ * venue's letter requirements is advisory — the letter checker reports it in
+ * the export page — never an export gate. Letters written before assertions
+ * were retired may still carry `::assert{id}` directives and ⟦ unanswered ⟧
+ * markers; those are legacy markup, cleaned by `stripLetterDirectives` so an
+ * authored sidecar answer still lands where its directive stood.
  */
 
 export type ExportLetterRequest = RequestOf<'export:letter'>
@@ -41,27 +44,21 @@ interface LetterBlock {
 }
 
 /**
- * Substitute every `::assert{id}` with what the author actually said, and
- * clear the ⟦ unanswered — id ⟧ markers.
+ * LEGACY-content cleaner. Assertions are no longer a gate — this exists only
+ * so a letter file written under the old seeding does not leak SUNA's
+ * bookkeeping into an exported document:
  *
- * The marker is written into the prose once, when the letter is created, and
- * nothing ever takes it back out: answering an assertion writes the SIDECAR
- * (letter:write), not the Markdown. So the marker says only "this had no
- * answer at the moment the file was seeded", and the sidecar is the only
- * thing that knows whether it has one now.
+ * - every `⟦ unanswered — id ⟧` marker is stripped (it was an editing aid, a
+ *   note to the author about their own file);
+ * - every `::assert{id}` directive is substituted with the author's sidecar
+ *   answer when one exists — existing letters on disk must not lose authored
+ *   answers — and stripped otherwise. An answer the author routed to the
+ *   submission form, or marked not-applicable, contributes nothing: the
+ *   letter is not where it lives.
  *
- * Placement decides what "answered" contributes. A directive or inline-prose
- * assertion contributes its text; one the author routed to the submission
- * form, or marked not-applicable, contributes nothing — the letter is not
- * where it lives, so it must not appear in the exported letter either.
+ * New letters are seeded as plain prose and never hit either branch.
  */
-export function resolveAssertions(text: string, meta: CoverLetterMeta): string {
-  // Every marker goes, answered or not. It is an editing aid — a note to the
-  // author about their own file — and an editor reading the exported letter
-  // should never meet SUNA's internal bookkeeping. Whether an unanswered
-  // assertion is allowed to reach this point at all is the export gate's
-  // decision (`unansweredForExport` + the caller's acknowledgement), not this
-  // function's.
+export function stripLetterDirectives(text: string, meta: CoverLetterMeta): string {
   const withoutMarkers = text.replace(/⟦ unanswered — [a-zA-Z]+ ⟧\s*/g, '')
   return withoutMarkers.replace(/::assert\{([a-zA-Z]+)\}/g, (_match, id: string) => {
     const answer = assertionFor(meta, id as LetterAssertionId)
@@ -69,28 +66,6 @@ export function resolveAssertions(text: string, meta: CoverLetterMeta): string {
     if (answer.placement === 'submission-form' || answer.placement === 'not-applicable') return ''
     return answer.text ?? ''
   })
-}
-
-/**
- * The assertions this letter still cannot answer — the ones the export is
- * refused over.
- *
- * Read from the sidecar, for every id the letter mentions (a marker or an
- * `::assert{}` directive). Reading the markers alone was the bug this
- * replaces: every letter is seeded with one marker per required assertion,
- * so a letter whose assertions were all answered in the panel — the sidecar
- * full, the panel showing ✓ — was still refused, because the stale text in
- * the file said otherwise.
- */
-export function unansweredForExport(
-  markdown: string,
-  meta: CoverLetterMeta
-): LetterAssertionId[] {
-  const mentioned = new Set<LetterAssertionId>(unansweredIn(markdown))
-  for (const m of markdown.matchAll(/::assert\{([a-zA-Z]+)\}/g)) {
-    if (m[1] !== undefined) mentioned.add(m[1] as LetterAssertionId)
-  }
-  return [...mentioned].filter((id) => !assertionAnswered(assertionFor(meta, id)))
 }
 
 /**
@@ -113,15 +88,6 @@ export function letterBlocks(markdown: string): LetterBlock[] {
   }
   return blocks
 }
-
-const HEADING_LEVELS = [
-  HeadingLevel.HEADING_1,
-  HeadingLevel.HEADING_2,
-  HeadingLevel.HEADING_3,
-  HeadingLevel.HEADING_4,
-  HeadingLevel.HEADING_5,
-  HeadingLevel.HEADING_6
-] as const
 
 export function buildLetterHtml(title: string, subtitle: string, blocks: readonly LetterBlock[]): string {
   const out: string[] = []
@@ -214,21 +180,16 @@ interface LetterDocument {
   title: string
   subtitle: string
   blocks: LetterBlock[]
-  /** Assertion ids still unanswered — the export gate's business, not the preview's. */
-  unanswered: LetterAssertionId[]
 }
 
 /**
  * Everything between "a document id" and "something to lay out": read the
- * prose, put the author's answers back where the `::assert{id}` markers are,
- * and derive the subtitle.
+ * prose, clean any legacy assertion markup (substituting the author's sidecar
+ * answers), and derive the subtitle.
  *
  * Split out of exportLetter (feature-plan-13 §B5) so the page view can have
- * the same letter the export would produce WITHOUT writing a file. It does
- * not decide whether an unanswered assertion is allowed through — it reports
- * them and lets the caller decide, because a preview and an export answer
- * that question differently: a draft you are still writing should be
- * previewable, and a draft you are sending should not be silently shipped.
+ * the same letter the export would produce WITHOUT writing a file. Preview
+ * and export now see the identical document: there is no gate on either.
  */
 async function buildLetterDocument(dir: string, documentId: string): Promise<LetterDocument> {
   const root = assertInsideAllowedRoot(dir)
@@ -248,20 +209,13 @@ async function buildLetterDocument(dir: string, documentId: string): Promise<Let
   return {
     title: doc.title,
     subtitle: `${meta.letterKind} · addressed to ${journalName}`,
-    blocks: letterBlocks(resolveAssertions(markdown, meta)),
-    unanswered: unansweredForExport(markdown, meta)
+    blocks: letterBlocks(stripLetterDirectives(markdown, meta))
   }
 }
 
 /**
  * The letter as PDF bytes, for the page view — the same HTML the export
  * prints, printed the same way, and never written to disk.
- *
- * Deliberately does NOT apply the unanswered-assertion gate: a page view is
- * for a letter you are still writing, and refusing to show it until every
- * assertion is answered would make the mode useless exactly when it is most
- * wanted. An unanswered directive contributes nothing to the text, here as in
- * the export, so what you see is what you would get if you sent it today.
  */
 export async function renderLetterPdf(
   dir: string,
@@ -274,30 +228,15 @@ export async function renderLetterPdf(
 
 export async function exportLetter(req: ExportLetterRequest): Promise<ExportLetterResult> {
   const root = assertInsideAllowedRoot(req.dir)
-  const { title, subtitle, blocks, unanswered } = await buildLetterDocument(root, req.documentId)
-
-  // Stop once, by name. An author who has read that list and asks again gets
-  // the file: an unanswered assertion may well belong in the submission
-  // portal, or this may be a draft going to a co-author, and neither is
-  // SUNA's call to make. What it will not do is invent the missing sentence —
-  // the directive simply contributes nothing.
-  if (unanswered.length > 0 && !req.acknowledgeUnanswered) {
-    throw new Error(
-      `this letter still has unanswered assertions (${unanswered.join(', ')}). ` +
-        `Answer them in the Assertions panel — nobody else can write them for you.`
-    )
-  }
+  const { title, subtitle, blocks } = await buildLetterDocument(root, req.documentId)
 
   const outputDir = join(await projectSubdir(root, 'output'), LETTERS_OUTPUT_SUBDIR)
-  const target = join(outputDir, `${req.outputName}.${req.format}`)
-
-  if (req.format === 'html') {
-    await writeFileAtomic(target, buildLetterHtml(title, subtitle, blocks))
-  } else if (req.format === 'docx') {
-    await writeFileAtomic(target, await Packer.toBuffer(buildLetterDocx(title, subtitle, blocks)))
-  } else {
-    await printHtmlToPdf(buildLetterHtml(title, subtitle, blocks), target)
-  }
-
-  return { path: target }
+  const path = await writeSimpleExport({
+    outputDir,
+    name: req.outputName,
+    format: req.format,
+    html: buildLetterHtml(title, subtitle, blocks),
+    docx: () => buildLetterDocx(title, subtitle, blocks)
+  })
+  return { path }
 }

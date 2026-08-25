@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import {
   AuthorsFileSchema,
@@ -26,6 +27,7 @@ import {
   type Run
 } from '@suna/bib'
 import { readManuscript } from './manuscript'
+import { readVersionArchive } from './version-log'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 import { resolveDocumentStyle } from './export-style'
@@ -490,6 +492,23 @@ export function markdownImagePath(url: string, manuscriptDir: string): string | 
 }
 
 /**
+ * The path an export should actually read a markdown image from: the url
+ * resolved against the content dir (which, for a versioned export, is the
+ * archived manuscript dir — so `../figures/x.png` lands inside the archive
+ * when the figures area was archived), falling back to the LIVE manuscript
+ * dir when the archived file does not exist. Null for a non-local url.
+ */
+export function resolveExportImagePath(url: string, content: ExportContent): string | null {
+  const primary = markdownImagePath(url, content.manuscriptDir)
+  if (primary === null) return null
+  if (content.imageFallbackDir !== null && !existsSync(primary)) {
+    const fallback = markdownImagePath(url, content.imageFallbackDir)
+    if (fallback !== null && existsSync(fallback)) return fallback
+  }
+  return primary
+}
+
+/**
  * Pixel dimensions straight from a PNG's IHDR chunk (bytes 16-23: width,
  * height as big-endian uint32) — the docx renderer needs the source pixel
  * aspect to size its `ImageRun` transformation; the HTML/PDF renderer just
@@ -521,6 +540,64 @@ export function headingLevelForDepth(depth: number): HeadingLevel {
   if (depth <= 1) return 'A'
   if (depth === 2) return 'B'
   return 'C-runin'
+}
+
+/* ------------------------------------------------------------------ */
+/* Export source: the working copy, or one logged version               */
+/* ------------------------------------------------------------------ */
+
+/** Where an export's manuscript files come from (see resolveExportSource). */
+export interface ExportSource {
+  /**
+   * Directory every manuscript file is read from — manuscript.md,
+   * manuscript.json, authors.json, references.bib, supplementary.md, table
+   * files. The live `manuscript/` dir, or the version's archived copy.
+   */
+  contentDir: string
+  /**
+   * Base a PROJECT-RELATIVE ref (a figure's `canvasRef` like `figures/...`)
+   * resolves against when the version archived the figures area; null means
+   * "the live project root" (no version, or a version without figures).
+   */
+  figureBase: string | null
+  /**
+   * The live manuscript dir, kept as a fallback for a markdown image the
+   * archived version does not carry (a version logged before that image
+   * existed under an archived area). Equal to contentDir for a live export.
+   */
+  liveManuscriptDir: string
+}
+
+/**
+ * Resolve where an export reads from: the working copy when `versionId` is
+ * omitted, else the ARCHIVED copy under `<manuscript dir>/archive/<id>/`
+ * (version-log.ts). Archive layouts differ by LoggedVersion.schemaVersion:
+ * v2 records areas (`archive/<id>/manuscript/...`, `archive/<id>/figures/...`),
+ * v1 records manuscript files version-relative (`archive/<id>/manuscript.md`).
+ * The index record decides; a version missing from the index is sniffed by
+ * layout so a hand-copied archive folder still exports. Throws, naming the
+ * version, when the archive directory does not exist.
+ */
+export async function resolveExportSource(root: string, versionId?: string): Promise<ExportSource> {
+  const live = await projectSubdir(assertInsideAllowedRoot(root), 'manuscript')
+  if (versionId === undefined) {
+    return { contentDir: live, figureBase: null, liveManuscriptDir: live }
+  }
+  const versionRoot = join(live, 'archive', versionId)
+  const info = await stat(versionRoot).catch(() => null)
+  if (info === null || !info.isDirectory()) {
+    throw new Error(
+      `logged version "${versionId}" has no archive — expected ${versionRoot}. ` +
+        `Log the version before exporting it, or export the working copy instead.`
+    )
+  }
+  const record = (await readVersionArchive(root)).versions.find((v) => v.id === versionId)
+  const areaLayout =
+    record !== undefined ? record.schemaVersion === 2 : existsSync(join(versionRoot, 'manuscript'))
+  const contentDir = areaLayout ? join(versionRoot, 'manuscript') : versionRoot
+  const hasFigures =
+    record !== undefined ? record.areas.includes('figures') : existsSync(join(versionRoot, 'figures'))
+  return { contentDir, figureBase: hasFigures ? versionRoot : null, liveManuscriptDir: live }
 }
 
 /* ------------------------------------------------------------------ */
@@ -572,6 +649,12 @@ export interface ExportContent {
   tables: ExportTableContent[]
   /** Total resolvable reference count (for the compliance checker / footers), i.e. referenceRows.length. */
   referenceCount: number
+  /**
+   * Live manuscript dir to fall back to for a markdown image an archived
+   * version does not carry — null for a live (non-versioned) export, where
+   * `manuscriptDir` IS the live dir. See resolveExportImagePath.
+   */
+  imageFallbackDir: string | null
 }
 
 /** One rendered back-matter section: an H1 title plus its body paragraphs. */
@@ -621,6 +704,8 @@ export interface BuildExportContentOptions {
   profileId: string
   /** figureId -> absolute path to an already-rasterized PNG. */
   figurePngPaths: Readonly<Record<string, string>>
+  /** Export this LOGGED version instead of the working copy (resolveExportSource). */
+  versionId?: string
 }
 
 /** manuscript/authors.json, tolerant of a project that has none yet (a brand-new project mid-scaffold). */
@@ -641,8 +726,15 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
     throw new Error(`unknown publisher profile "${opts.profileId}"`)
   }
 
-  const manuscript = ManuscriptSchema.parse(await readManuscript(root))
-  const manuscriptDir = await projectSubdir(root, 'manuscript')
+  const source = await resolveExportSource(root, opts.versionId)
+  const manuscriptDir = source.contentDir
+  const manuscript = ManuscriptSchema.parse(
+    opts.versionId === undefined
+      ? await readManuscript(root)
+      : (JSON.parse(
+          await readFile(assertInsideAllowedRoot(join(manuscriptDir, 'manuscript.json')), 'utf8')
+        ) as unknown)
+  )
   const authors = await readAuthorsFile(manuscriptDir)
 
   const prosePath = assertInsideAllowedRoot(join(manuscriptDir, manuscript.manuscriptFile))
@@ -722,7 +814,8 @@ export async function buildExportContent(opts: BuildExportContentOptions): Promi
     labels,
     figures,
     tables,
-    referenceCount: referenceRows.length
+    referenceCount: referenceRows.length,
+    imageFallbackDir: opts.versionId === undefined ? null : source.liveManuscriptDir
   }
 }
 
@@ -817,8 +910,15 @@ export async function buildSupplementContent(opts: BuildExportContentOptions): P
     throw new Error(`unknown publisher profile "${opts.profileId}"`)
   }
 
-  const manuscript = ManuscriptSchema.parse(await readManuscript(root))
-  const manuscriptDir = await projectSubdir(root, 'manuscript')
+  const source = await resolveExportSource(root, opts.versionId)
+  const manuscriptDir = source.contentDir
+  const manuscript = ManuscriptSchema.parse(
+    opts.versionId === undefined
+      ? await readManuscript(root)
+      : (JSON.parse(
+          await readFile(assertInsideAllowedRoot(join(manuscriptDir, 'manuscript.json')), 'utf8')
+        ) as unknown)
+  )
   const authors = await readAuthorsFile(manuscriptDir)
 
   const suppPath = join(manuscriptDir, SUPPLEMENT_FILE)
@@ -913,6 +1013,55 @@ export async function buildSupplementContent(opts: BuildExportContentOptions): P
     labels,
     figures,
     tables: [],
-    referenceCount: referenceRows.length
+    referenceCount: referenceRows.length,
+    imageFallbackDir: opts.versionId === undefined ? null : source.liveManuscriptDir
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The shared manuscript-export prologue                                */
+/* ------------------------------------------------------------------ */
+
+/** The request fields every manuscript-export channel shares (docx/html/pdf/preview). */
+export interface ManuscriptExportBaseRequest {
+  dir: string
+  profileId: string
+  figurePngPaths: Readonly<Record<string, string>>
+  /** Export a LOGGED version instead of the working copy. */
+  versionId?: string
+  /** 'manuscript' (default) or the Supplementary Information document. */
+  target?: 'manuscript' | 'supplement'
+}
+
+export interface PreparedManuscriptExport {
+  root: string
+  supplement: boolean
+  content: ExportContent
+}
+
+/**
+ * The identical prologue of exportDocx/exportPdf/exportHtml/exportPreview,
+ * once: root check, supplement flag, version-aware content build.
+ * buildSupplementContent throws a clear error naming the expected
+ * manuscript/supplementary.md path when the project has none;
+ * resolveExportSource throws naming the version when its archive is missing.
+ */
+export async function prepareManuscriptExport(
+  req: ManuscriptExportBaseRequest
+): Promise<PreparedManuscriptExport> {
+  const root = assertInsideAllowedRoot(req.dir)
+  const supplement = req.target === 'supplement'
+  const buildOpts: BuildExportContentOptions = {
+    dir: root,
+    profileId: req.profileId,
+    figurePngPaths: req.figurePngPaths,
+    versionId: req.versionId
+  }
+  const content = supplement ? await buildSupplementContent(buildOpts) : await buildExportContent(buildOpts)
+  return { root, supplement, content }
+}
+
+/** `<root>/output/<name>.<ext>` — where every manuscript export lands. */
+export async function exportOutputPath(root: string, outputName: string, ext: string): Promise<string> {
+  return join(await projectSubdir(root, 'output'), `${outputName}.${ext}`)
 }

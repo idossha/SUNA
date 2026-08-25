@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   CoverLetterMetaSchema,
-  emptyCoverLetterMeta,
   type Author,
   type CoverLetterMeta,
   type LetterRules,
   type PublisherProfile,
 } from '@suna/core';
 import { getBundledProfile } from '../bundled';
-import { checkLetter } from './letter';
+import { checkLetter, letterRequirements } from './letter';
 
 /**
- * feature-plan-12 §2d. The acceptance criteria are named in the plan; each
- * one has a test here, including the two that came out of defects in real
- * submitted documents (the wrong journal named in the prose, and a data
- * availability sentence standing in for a named repository).
+ * feature-plan-12 §2d, reworked without the assertion sidecar: the letter is
+ * plain prose, so venue-required claims surface as unverifiable warnings and
+ * only the structural checks (journal names, authors.json, data locations,
+ * the abbreviated summary) remain findings SUNA stands behind. The two
+ * defects from real submitted documents (the wrong journal named in the
+ * prose, an availability sentence standing in for a named repository) keep
+ * their tests.
  */
 
 const authorsWithCorresponding: Author[] = [
@@ -96,66 +98,63 @@ describe('a profile with no researched letter rules', () => {
     });
     expect(diags).toEqual([]);
   });
+
+  it('letterRequirements returns [] for it', () => {
+    expect(letterRequirements(profileWith(undefined))).toEqual([]);
+  });
 });
 
-describe('letter.assertion-missing', () => {
-  it('fires as an error for every required assertion the sidecar does not answer', () => {
+describe('letter.requirement-unverified', () => {
+  it('fires as a warning for every venue-required claim SUNA cannot read from prose', () => {
     const diags = checkLetter({
-      meta: meta(),
       letterText: 'Dear Editor,',
       profile: profileWith(
         rules([requirement('journalFit', 'required'), requirement('competingInterests', 'required')]),
       ),
       authors: authorsWithCorresponding,
     });
-    expect(diags.filter((d) => d.id === 'letter.assertion-missing')).toHaveLength(2);
-    expect(diags.every((d) => d.severity === 'error')).toBe(true);
-    expect(diags[0]?.surface).toBe('letter');
-    expect(diags[0]?.target?.assertionId).toBe('journalFit');
+    const hits = diags.filter((d) => d.id === 'letter.requirement-unverified');
+    expect(hits).toHaveLength(2);
+    expect(hits.every((d) => d.severity === 'warning')).toBe(true);
+    expect(hits[0]?.surface).toBe('letter');
+    expect(hits[0]?.target?.assertionId).toBe('journalFit');
+    expect(hits[0]?.message).toContain('cannot verify');
   });
 
-  it('does not fire for an optional assertion', () => {
+  it('does not fire for optional, discouraged, or elsewhere entries', () => {
+    const diags = checkLetter({
+      letterText: '',
+      profile: profileWith(
+        rules([
+          requirement('suggestedReviewers', 'optional'),
+          requirement('background', 'discouraged'),
+          requirement('excludedReviewers', 'elsewhere', { vehicle: 'submission-form' }),
+        ]),
+      ),
+      authors: authorsWithCorresponding,
+    });
+    expect(diags).toEqual([]);
+  });
+
+  it('does not duplicate the structural checks for dataLocation and correspondingContact', () => {
     const diags = checkLetter({
       meta: meta(),
       letterText: '',
-      profile: profileWith(rules([requirement('suggestedReviewers', 'optional')])),
-      authors: authorsWithCorresponding,
+      profile: profileWith(
+        rules([
+          requirement('dataLocation', 'required'),
+          requirement('correspondingContact', 'required'),
+        ]),
+      ),
+      authors: authorsWithoutCorresponding,
     });
-    expect(diags).toEqual([]);
-  });
-
-  it('stops asking once the author says they wrote it in their own words', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [{ id: 'journalFit', placement: 'inline-prose', text: null, reason: null }],
-      }),
-      letterText: 'This work suits your readership because…',
-      profile: profileWith(rules([requirement('journalFit', 'required')])),
-      authors: authorsWithCorresponding,
-    });
-    expect(diags).toEqual([]);
-  });
-
-  it('accepts not-applicable only with a reason', () => {
-    expect(() =>
-      meta({ assertions: [{ id: 'animalCare', placement: 'not-applicable', text: null, reason: null }] }),
-    ).toThrow();
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'animalCare', placement: 'not-applicable', text: null, reason: 'no animal work' },
-        ],
-      }),
-      letterText: '',
-      profile: profileWith(rules([requirement('animalCare', 'required')])),
-      authors: authorsWithCorresponding,
-    });
-    expect(diags).toEqual([]);
+    expect(diags.filter((d) => d.id === 'letter.requirement-unverified')).toEqual([]);
+    expect(diags.map((d) => d.id)).toContain('letter.data-location-unspecified');
+    expect(diags.map((d) => d.id)).toContain('letter.corresponding-contact-missing');
   });
 
   it('quotes the venue and cites its URL when the profile carries them', () => {
     const diags = checkLetter({
-      meta: meta(),
       letterText: '',
       profile: profileWith(
         rules([
@@ -173,49 +172,34 @@ describe('letter.assertion-missing', () => {
   });
 });
 
-describe('letter.assertion-misplaced and -not-rendered', () => {
-  it('warns when the venue wants it on the submission form', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'suggestedReviewers', placement: 'directive', text: 'Dr A, Dr B', reason: null },
-        ],
-      }),
-      letterText: '::assert{suggestedReviewers}',
-      profile: profileWith(
-        rules([requirement('suggestedReviewers', 'elsewhere', { vehicle: 'submission-form' })]),
-      ),
-      authors: authorsWithCorresponding,
-    });
-    expect(diags.map((d) => d.id)).toContain('letter.assertion-misplaced');
-  });
-
-  it('warns when an answered directive never appears in the prose', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'competingInterests', placement: 'directive', text: 'We declare none.', reason: null },
-        ],
-      }),
-      letterText: 'Dear Editor, please find attached.',
-      profile: profileWith(rules([requirement('competingInterests', 'required')])),
-      authors: authorsWithCorresponding,
-    });
-    expect(diags.map((d) => d.id)).toContain('letter.assertion-not-rendered');
-  });
-
-  it('is satisfied by the ::assert directive naming that id', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'competingInterests', placement: 'directive', text: 'We declare none.', reason: null },
-        ],
-      }),
-      letterText: 'We have nothing to declare. ::assert{competingInterests}',
-      profile: profileWith(rules([requirement('competingInterests', 'required')])),
-      authors: authorsWithCorresponding,
-    });
-    expect(diags.map((d) => d.id)).not.toContain('letter.assertion-not-rendered');
+describe('letterRequirements', () => {
+  it('returns every entry with its label, stance and provenance', () => {
+    const profile = profileWith(
+      rules([
+        requirement('journalFit', 'required', {
+          quote: 'Why us?',
+          basis: 'documented',
+          source: 'https://example.org/g',
+        }),
+        requirement('background', 'discouraged'),
+      ]),
+    );
+    expect(letterRequirements(profile)).toEqual([
+      {
+        id: 'journalFit',
+        label: 'why this work suits this journal',
+        stance: 'required',
+        quote: 'Why us?',
+        source: 'https://example.org/g',
+      },
+      {
+        id: 'background',
+        label: 'background for a non-specialist editor',
+        stance: 'discouraged',
+        quote: null,
+        source: 'https://example.org/guide',
+      },
+    ]);
   });
 });
 
@@ -234,6 +218,16 @@ describe('letter.journal-name-mismatch — the defect from a real submitted lett
     const hit = diags.find((d) => d.id === 'letter.journal-name-mismatch');
     expect(hit?.severity).toBe('error');
     expect(hit?.message).toContain('Science Advances');
+  });
+
+  it('works without any meta at all', () => {
+    const diags = checkLetter({
+      letterText: text,
+      profile: profileWith(rules([]), 'Science'),
+      authors: authorsWithCorresponding,
+      knownJournalNames: ['Science', 'Science Advances', 'Nature'],
+    });
+    expect(diags.map((d) => d.id)).toContain('letter.journal-name-mismatch');
   });
 
   it('is cleared by recording that journal in the prior-submission history', () => {
@@ -268,12 +262,8 @@ describe('letter.data-location-unspecified — never reads the prose', () => {
 
   it('fires even when the letter promises availability in words', () => {
     const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'dataLocation', placement: 'directive', text: 'Data and analysis code will be made available upon publication.', reason: null },
-        ],
-      }),
-      letterText: 'Data and analysis code will be made available upon publication. ::assert{dataLocation}',
+      meta: meta(),
+      letterText: 'Data and analysis code will be made available upon publication.',
       profile: profileWith(dataRules),
       authors: authorsWithCorresponding,
     });
@@ -281,15 +271,23 @@ describe('letter.data-location-unspecified — never reads the prose', () => {
     expect(hit?.severity).toBe('error');
   });
 
+  it('fires when no meta is supplied at all', () => {
+    const diags = checkLetter({
+      letterText: 'Data at Zenodo.',
+      profile: profileWith(dataRules),
+      authors: authorsWithCorresponding,
+    });
+    expect(diags.map((d) => d.id)).toContain('letter.data-location-unspecified');
+  });
+
   it('clears once a repository is actually named', () => {
     const diags = checkLetter({
       meta: meta({
-        assertions: [{ id: 'dataLocation', placement: 'directive', text: 'See Zenodo.', reason: null }],
         dataLocations: [
           { repository: 'Zenodo', accession: '10.5281/zenodo.1', restrictions: null, availableAt: 'on-publication' },
         ],
       }),
-      letterText: '::assert{dataLocation}',
+      letterText: '',
       profile: profileWith(dataRules),
       authors: authorsWithCorresponding,
     });
@@ -309,11 +307,8 @@ describe('letter.summary-over-limit — counted including spaces', () => {
     const over = 'x'.repeat(324);
     const run = (s: string): string[] =>
       checkLetter({
-        meta: meta({
-          abbreviatedSummary: s,
-          assertions: [{ id: 'abbreviatedSummary', placement: 'directive', text: s, reason: null }],
-        }),
-        letterText: `::assert{abbreviatedSummary}`,
+        meta: meta({ abbreviatedSummary: s }),
+        letterText: '',
         profile: profileWith(capped),
         authors: authorsWithCorresponding,
       }).map((d) => d.id);
@@ -322,7 +317,7 @@ describe('letter.summary-over-limit — counted including spaces', () => {
   });
 
   it('counts spaces', () => {
-    // 322 characters of text plus two spaces = 324.
+    // 322 characters of text plus two spaces = 324 with the trailing z.
     const s = `${'x'.repeat(160)} ${'y'.repeat(161)} `;
     expect(s.length).toBe(323);
     const diags = checkLetter({
@@ -340,9 +335,6 @@ describe('letter.corresponding-contact-missing', () => {
 
   it('fires when no author is corresponding with an e-mail', () => {
     const diags = checkLetter({
-      meta: meta({
-        assertions: [{ id: 'correspondingContact', placement: 'inline-prose', text: null, reason: null }],
-      }),
       letterText: '',
       profile: profileWith(contactRules),
       authors: authorsWithoutCorresponding,
@@ -353,9 +345,6 @@ describe('letter.corresponding-contact-missing', () => {
 
   it('clears when one is', () => {
     const diags = checkLetter({
-      meta: meta({
-        assertions: [{ id: 'correspondingContact', placement: 'inline-prose', text: null, reason: null }],
-      }),
       letterText: '',
       profile: profileWith(contactRules),
       authors: authorsWithCorresponding,
@@ -364,95 +353,36 @@ describe('letter.corresponding-contact-missing', () => {
   });
 });
 
-describe('letter.contradicts-manuscript', () => {
-  const ciRules = rules([requirement('competingInterests', 'required')]);
-
-  it('warns when the letter declares none and the manuscript declares some', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'competingInterests', placement: 'directive', text: 'We declare no competing interests.', reason: null },
-        ],
-      }),
-      letterText: '::assert{competingInterests}',
-      profile: profileWith(ciRules),
-      authors: authorsWithCorresponding,
-      manuscriptCompetingInterests: 'A.H. holds equity in Example Therapeutics.',
-    });
-    expect(diags.map((d) => d.id)).toContain('letter.contradicts-manuscript');
-  });
-
-  it('stays quiet when both declare none', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'competingInterests', placement: 'directive', text: 'We declare no competing interests.', reason: null },
-        ],
-      }),
-      letterText: '::assert{competingInterests}',
-      profile: profileWith(ciRules),
-      authors: authorsWithCorresponding,
-      manuscriptCompetingInterests: 'The authors declare no competing interests.',
-    });
-    expect(diags.map((d) => d.id)).not.toContain('letter.contradicts-manuscript');
-  });
-
-  it('stays quiet when the manuscript says nothing', () => {
-    const diags = checkLetter({
-      meta: meta({
-        assertions: [
-          { id: 'competingInterests', placement: 'directive', text: 'We declare none.', reason: null },
-        ],
-      }),
-      letterText: '::assert{competingInterests}',
-      profile: profileWith(ciRules),
-      authors: authorsWithCorresponding,
-      manuscriptCompetingInterests: null,
-    });
-    expect(diags.map((d) => d.id)).not.toContain('letter.contradicts-manuscript');
-  });
-});
-
-describe('the seeded skeleton against a real bundled profile', () => {
-  it('a PNAS letter produces no assertion-missing, because PNAS does not request one', () => {
+describe('against the real bundled profiles', () => {
+  it('a PNAS letter produces no requirement warnings, because PNAS does not request one', () => {
     const pnas = getBundledProfile('pnas');
     expect(pnas).not.toBeNull();
     expect(pnas?.letters?.stance.submission).toBe('not-requested');
     const diags = checkLetter({
-      meta: meta({ targetProfileId: 'pnas' }),
       letterText: 'Dear Editor,',
       profile: pnas!,
       authors: authorsWithCorresponding,
     });
-    expect(diags.filter((d) => d.id === 'letter.assertion-missing')).toEqual([]);
+    expect(diags.filter((d) => d.id === 'letter.requirement-unverified')).toEqual([]);
   });
 
-  it('a Science letter with an untouched skeleton flags every required item', () => {
+  it('a Science letter surfaces every required, non-structural item as an unverified warning', () => {
     const science = getBundledProfile('science');
-    const required = (science?.letters?.assertions ?? []).filter((a) => a.stance === 'required');
+    const required = (science?.letters?.assertions ?? []).filter(
+      (a) =>
+        a.stance === 'required' &&
+        a.id !== 'dataLocation' &&
+        a.id !== 'correspondingContact',
+    );
     expect(required.length).toBeGreaterThan(0);
     const diags = checkLetter({
-      meta: meta({ targetProfileId: 'science' }),
       letterText: 'Dear Editor,',
       profile: science!,
       authors: authorsWithoutCorresponding,
     });
-    expect(diags.filter((d) => d.id === 'letter.assertion-missing')).toHaveLength(required.length);
-  });
-
-  it('emptyCoverLetterMeta pre-populates the required set, all unanswered', () => {
-    const science = getBundledProfile('science');
-    const required = (science?.letters?.assertions ?? [])
-      .filter((a) => a.stance === 'required')
-      .map((a) => a.id);
-    const seeded = emptyCoverLetterMeta({
-      letterKind: 'submission',
-      targetProfileId: 'science',
-      requiredAssertions: required,
-      covers: [],
-    });
-    expect(seeded.assertions.map((a) => a.id)).toEqual(required);
-    expect(seeded.assertions.every((a) => a.text === null)).toBe(true);
+    expect(diags.filter((d) => d.id === 'letter.requirement-unverified')).toHaveLength(
+      required.length,
+    );
   });
 });
 

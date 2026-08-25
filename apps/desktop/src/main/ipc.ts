@@ -71,7 +71,7 @@ import { exportDocx } from './services/export-docx'
 import { exportHtml } from './services/export-html'
 import { exportNotes } from './services/export-notes'
 import { exportLetter, renderLetterPdf } from './services/export-letter'
-import { exportResponse } from './services/export-response'
+import { exportResponse, renderResponsePdf } from './services/export-response'
 import { exportPdf } from './services/export-pdf'
 import { exportPreview, withPreviewWindow } from './services/export-preview'
 import { createFigure } from './services/figure-create'
@@ -872,6 +872,15 @@ export function registerIpcHandlers(): void {
     return { data: pdf.toString('base64'), ms: Date.now() - started }
   })
   handle('export:response', (req) => exportResponse(req))
+  handle('response:preview', async (req) => {
+    const started = Date.now()
+    // Prints in the shared hidden window the manuscript preview uses, so a
+    // page view never costs a second BrowserWindow.
+    const pdf = await withPreviewWindow((win) =>
+      renderResponsePdf(req.dir, req.roundId, req.colorRoles, win)
+    )
+    return { data: pdf.toString('base64'), ms: Date.now() - started }
+  })
   handle('export:docx', (req) => exportDocx(req))
   handle('export:html', (req) => exportHtml(req))
   handle('export:pdf', (req) => exportPdf(req))

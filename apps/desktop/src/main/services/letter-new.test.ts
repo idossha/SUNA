@@ -141,9 +141,11 @@ describe('createLetter', () => {
     expect(meta.assertions.map((a) => a.id)).toEqual(res.requiredAssertions)
     // SUNA never writes the author's claims.
     expect(meta.assertions.every((a) => a.text === null)).toBe(true)
-    // …and the prose shows every one of them as an open question.
+    // …and the prose is PLAIN: no assertion machinery is seeded any more —
+    // requirements are advisory (the letter checker), never markup or a gate.
     const prose = await read('manuscript/letters/cover-science.md')
-    expect(unansweredIn(prose).sort()).toEqual([...res.requiredAssertions].sort())
+    expect(unansweredIn(prose)).toEqual([])
+    expect(prose).not.toContain('::assert')
   })
 
   it('delivers the abstract as a comment, never as prose', async () => {

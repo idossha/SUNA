@@ -15,6 +15,7 @@ import {
   headingLevelForDepth,
   markdownImagePath,
   numberAffiliations,
+  resolveExportSource,
   orderByEmbedAppearance,
   pngDimensions,
   splitTexSpans,
@@ -22,6 +23,7 @@ import {
   withoutTables,
   type ExportContent
 } from './export-content'
+import { logVersion } from './version-log'
 import { writeFixtureProject } from './export-fixture'
 import { allowRoot } from './roots'
 
@@ -277,6 +279,44 @@ describe('buildExportContent', () => {
       figurePngPaths
     })
     expect(abbreviated.labels.figures.get('fig-a')).toBe('Fig. 1')
+  })
+})
+
+describe('resolveExportSource / versioned builds', () => {
+  it('resolves the live working copy when no versionId is given', async () => {
+    await writeFixtureProject(dir)
+    const source = await resolveExportSource(dir)
+    expect(source.contentDir).toBe(join(resolve(dir), 'manuscript'))
+    expect(source.figureBase).toBeNull()
+  })
+
+  it('throws, naming the version, when its archive directory does not exist', async () => {
+    await writeFixtureProject(dir)
+    await expect(resolveExportSource(dir, 'v9.9')).rejects.toThrow(/v9\.9/)
+  })
+
+  it('resolves a logged version to its archived manuscript area', async () => {
+    await writeFixtureProject(dir)
+    const version = await logVersion({ rootDir: dir })
+    const source = await resolveExportSource(dir, version.id)
+    expect(source.contentDir).toBe(join(resolve(dir), 'manuscript', 'archive', version.id, 'manuscript'))
+    expect(source.liveManuscriptDir).toBe(join(resolve(dir), 'manuscript'))
+  })
+
+  it('builds export content from the ARCHIVED prose, not the working copy', async () => {
+    const { figurePngPaths } = await writeFixtureProject(dir)
+    const version = await logVersion({ rootDir: dir })
+    // Mutate the working copy AFTER logging; the versioned build must not see it.
+    const { writeFile } = await import('node:fs/promises')
+    await writeFile(join(dir, 'manuscript', 'manuscript.md'), '# Rewritten\n\nAll new text.\n', 'utf8')
+
+    const versioned = await buildExportContent({ dir, profileId: 'nature', figurePngPaths, versionId: version.id })
+    expect(versioned.sections.map((s) => s.heading)).toEqual(['Introduction', 'Results'])
+    expect(versioned.imageFallbackDir).toBe(join(resolve(dir), 'manuscript'))
+
+    const live = await buildExportContent({ dir, profileId: 'nature', figurePngPaths })
+    expect(live.sections.map((s) => s.heading)).toEqual(['Rewritten'])
+    expect(live.imageFallbackDir).toBeNull()
   })
 })
 

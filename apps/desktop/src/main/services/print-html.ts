@@ -22,6 +22,7 @@
 import { BrowserWindow, app } from 'electron'
 import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
+import { HeadingLevel, Packer, type Document } from 'docx'
 import { writeFileAtomic } from './atomic'
 
 
@@ -43,7 +44,7 @@ export function htmlDocument({ title, css, body }: { title: string; css: string;
   return [
     '<!doctype html>',
     '<html lang="en"><head><meta charset="utf-8">',
-    `<title>${escapeHtmlText(title)}</title>`,
+    `<title>${escapeHtml(title)}</title>`,
     `<style>${css}</style>`,
     '</head><body>',
     body,
@@ -52,11 +53,11 @@ export function htmlDocument({ title, css, body }: { title: string; css: string;
 }
 
 /**
- * Escapes text for the document title. The body builders bring their own
- * escaping (export-notes.ts's `escapeHtml`, which they all share); this
- * exists so the shell is never the thing that lets a stray `<` through.
+ * The one HTML escaper of the simple pipeline, shared by every body builder
+ * (notes, letters, responses) and by the shell's own title. Re-exported from
+ * export-notes.ts for older importers.
  */
-function escapeHtmlText(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -129,4 +130,43 @@ export async function renderHtmlToPdf(html: string, options: PrintHtmlOptions = 
 /** Print `html` straight to a file. */
 export async function printHtmlToPdf(html: string, target: string, options: PrintHtmlOptions = {}): Promise<void> {
   await writeFileAtomic(target, await renderHtmlToPdf(html, options))
+}
+
+/** Markdown heading depth (1-6) -> docx HeadingLevel, shared by the simple-pipeline DOCX builders. */
+export const HEADING_LEVELS = [
+  HeadingLevel.HEADING_1,
+  HeadingLevel.HEADING_2,
+  HeadingLevel.HEADING_3,
+  HeadingLevel.HEADING_4,
+  HeadingLevel.HEADING_5,
+  HeadingLevel.HEADING_6
+] as const
+
+export interface SimpleExportInput {
+  /** Absolute directory the file lands in (output/notes, output/letters, output/responses). */
+  outputDir: string
+  /** File name without extension. */
+  name: string
+  format: 'pdf' | 'docx' | 'html'
+  /** The self-contained page — written as-is for 'html', printed for 'pdf'. */
+  html: string
+  /** Built only when format === 'docx', so the other formats never pay for it. */
+  docx: () => Document | Promise<Document>
+}
+
+/**
+ * The one format dispatch of the simple pipeline (letters, responses, notes):
+ * html -> the page itself, docx -> the packed Document, pdf -> the page
+ * printed. Returns the absolute path written.
+ */
+export async function writeSimpleExport(input: SimpleExportInput): Promise<string> {
+  const target = join(input.outputDir, `${input.name}.${input.format}`)
+  if (input.format === 'html') {
+    await writeFileAtomic(target, input.html)
+  } else if (input.format === 'docx') {
+    await writeFileAtomic(target, await Packer.toBuffer(await input.docx()))
+  } else {
+    await printHtmlToPdf(input.html, target)
+  }
+  return target
 }

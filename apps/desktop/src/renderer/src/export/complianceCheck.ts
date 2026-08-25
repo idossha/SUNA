@@ -1,4 +1,4 @@
-import type { Manuscript, PublisherProfile } from '@suna/core'
+import type { Author, Manuscript, PublisherProfile } from '@suna/core'
 import { assignNumbers } from '@suna/bib'
 import { checkManuscript, type Diagnostic } from '@suna/formatter'
 import { collectClusters } from '../manuscript/citations'
@@ -21,13 +21,24 @@ import { collectClusters } from '../manuscript/citations'
  * `articleTypeId` is the user's explicit pick from the export page's
  * article-type selector; null/unknown falls back to the profile's first
  * declared type (its primary research-article type).
+ *
+ * `manuscriptDir` is where the prose to check LIVES, project-root-relative —
+ * the manifest's manuscript directory for the working copy, or an archived
+ * version's content directory (`manuscript/archive/<id>[/manuscript]`) when
+ * the export page is pointed at a logged version.
+ *
+ * `authors` (authors.json's list, from useManuscriptStore) feeds the
+ * checker's metadata-based authors-and-affiliations detection; omitted when
+ * the byline could not be loaded — the check runs without it rather than
+ * failing.
  */
 export async function runComplianceCheck(
   rootDir: string,
   manuscriptDir: string,
   manuscript: Manuscript,
   profile: PublisherProfile,
-  articleTypeId?: string | null
+  articleTypeId?: string | null,
+  authors?: readonly Author[]
 ): Promise<Diagnostic[]> {
   let prose = ''
   try {
@@ -54,5 +65,14 @@ export async function runComplianceCheck(
       : profile.manuscript.articleTypes[0]?.id
   if (picked === undefined) return []
 
-  return checkManuscript({ manuscript, sectionTexts, referenceCount: numbers.size }, profile, picked)
+  return checkManuscript(
+    {
+      manuscript,
+      sectionTexts,
+      referenceCount: numbers.size,
+      ...(authors === undefined ? {} : { authors })
+    },
+    profile,
+    picked
+  )
 }

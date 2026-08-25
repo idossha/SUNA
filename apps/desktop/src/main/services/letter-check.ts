@@ -43,25 +43,14 @@ export async function checkLetterDocument(
   }
 
   return checkLetter({
+    // Only the meta's STRUCTURED fields are read (prior submissions, data
+    // locations); the assertion sidecar is retired and never consulted.
     meta,
     letterText,
     profile,
     authors,
-    manuscriptCompetingInterests: await competingInterests(rootDir),
     knownJournalNames: knownJournalNames()
   })
-}
-
-async function competingInterests(rootDir: string): Promise<string | null> {
-  try {
-    const manuscriptDir = await projectSubdir(rootDir, 'manuscript')
-    const raw = await readFile(join(manuscriptDir, 'manuscript.json'), 'utf8')
-    const parsed = JSON.parse(raw) as { backMatter?: { competingInterests?: unknown } }
-    const value = parsed.backMatter?.competingInterests
-    return typeof value === 'string' && value.trim() !== '' ? value : null
-  } catch {
-    return null
-  }
 }
 
 /**

@@ -31,6 +31,84 @@ import { rasterizeManuscriptFigures } from './rasterizeFigures'
 /** How long a styling change waits before it costs a render. */
 const DEBOUNCE_MS = 250
 
+/**
+ * The live preview for the two SIMPLE document kinds — cover letters and
+ * response-to-reviewers rounds. Same promise as ExportPreview, kept by the
+ * same construction: every pixel comes from a channel ('letter:preview',
+ * 'response:preview') that runs the very HTML builders the real export runs
+ * and hands the PDF bytes back instead of writing them. There is no profile,
+ * no figures and no submission options here, which is exactly why these
+ * kinds have their own channels (see the contracts' comments) — and neither
+ * channel gates on the export's confirmations, because a preview is a
+ * picture of a draft.
+ *
+ * Props are primitives, for the reason ExportPreview's are: a fresh object
+ * literal from the parent would re-trigger the render effect every render.
+ */
+export function SimpleExportPreview({
+  rootDir,
+  kind,
+  docId,
+  colorRoles = true
+}: {
+  rootDir: string
+  kind: 'letter' | 'response'
+  /** The letter's documentId, or the round's id. */
+  docId: string
+  /** Response only: paint the three voices, as the export checkbox says. */
+  colorRoles?: boolean
+}): JSX.Element {
+  const [pdfData, setPdfData] = useState<string | null>(null)
+  const [ms, setMs] = useState<number | null>(null)
+  const [rendering, setRendering] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const run = useCallback(async (): Promise<void> => {
+    setRendering(true)
+    setError(null)
+    try {
+      const res =
+        kind === 'letter'
+          ? await window.suna.invoke('letter:preview', { dir: rootDir, documentId: docId })
+          : await window.suna.invoke('response:preview', { dir: rootDir, roundId: docId, colorRoles })
+      setPdfData(res.data)
+      setMs(res.ms)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setRendering(false)
+    }
+  }, [rootDir, kind, docId, colorRoles])
+
+  // Debounced: a burst of control changes costs one render, not five.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void run()
+    }, DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [run])
+
+  const status = (
+    <>
+      {error !== null ? 'Preview failed' : rendering ? 'Rendering…' : 'Preview'}
+      {ms !== null && !rendering && error === null && <span className="paged-doc__ms">{ms} ms</span>}
+    </>
+  )
+
+  return (
+    <div className="export-preview">
+      <PagedDocument
+        data={pdfData}
+        rendering={rendering}
+        error={error}
+        status={status}
+        banner={null}
+        emptyLabel="Rendering the first preview…"
+      />
+    </div>
+  )
+}
+
 export function ExportPreview({
   rootDir,
   manuscript,
@@ -41,7 +119,9 @@ export function ExportPreview({
   doubleSpacing,
   lineNumbers,
   pageNumbers,
-  theme
+  theme,
+  versionId,
+  svgBase
 }: {
   rootDir: string
   manuscript: Manuscript
@@ -56,6 +136,10 @@ export function ExportPreview({
   lineNumbers: boolean
   pageNumbers: boolean
   theme?: string
+  /** Preview an archived logged version instead of the working copy. */
+  versionId?: string
+  /** Where that version's figure SVGs live, for rasterizeFigures (svgBase). */
+  svgBase?: string
 }): JSX.Element {
   const [pdfData, setPdfData] = useState<string | null>(null)
   const [html, setHtml] = useState<string | null>(null)
@@ -72,7 +156,8 @@ export function ExportPreview({
       // rasters are the real export's business, not a preview's.
       const figurePngPaths = await rasterizeManuscriptFigures(rootDir, manuscript, profile, {
         compress: true,
-        cache: true
+        cache: true,
+        ...(svgBase === undefined ? {} : { svgBase })
       })
       const res = await window.suna.invoke('export:preview', {
         dir: rootDir,
@@ -80,7 +165,8 @@ export function ExportPreview({
         format,
         figurePngPaths,
         options: { doubleSpacing, lineNumbers, pageNumbers, theme },
-        target
+        target,
+        ...(versionId === undefined ? {} : { versionId })
       })
       setOversized(res.oversized)
       setMs(res.ms)
@@ -96,7 +182,7 @@ export function ExportPreview({
     } finally {
       setRendering(false)
     }
-  }, [rootDir, manuscript, profile, profileId, format, target, doubleSpacing, lineNumbers, pageNumbers, theme])
+  }, [rootDir, manuscript, profile, profileId, format, target, doubleSpacing, lineNumbers, pageNumbers, theme, versionId, svgBase])
 
   // Debounced: a burst of checkbox clicks costs one render, not five.
   useEffect(() => {

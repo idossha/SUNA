@@ -1,9 +1,41 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { EVENT_CHANNELS, LoadedConfigSchema } from '@suna/core'
+import { EVENT_CHANNELS } from '@suna/core'
 import type { ChannelName, LoadedConfigPayload, RequestOf, ResponseOf } from '@suna/core'
 
 // The typed IPC surface. The main process re-validates every request and
 // response against the @suna/core channel contracts.
+/**
+ * Shape-check a pushed config BY HAND.
+ *
+ * Deliberately not zod, even though @suna/core has a schema for it: zod
+ * compiles its parsers with `new Function`, and this context disallows code
+ * generation from strings — `safeParse` throws `EvalError` rather than
+ * returning a result. It fails on the very first push and, because a throwing
+ * ipcRenderer listener is swallowed, it fails SILENTLY: live config reload
+ * simply never happens and nothing anywhere says why. Every other subscription
+ * in this file hand-checks its payload for the same reason.
+ *
+ * Only the shape the renderer relies on is checked; the values inside
+ * `settings` are already validated in the main process, which is where the
+ * schema can actually run.
+ */
+function isConfigPayload(payload: unknown): payload is LoadedConfigPayload {
+  if (typeof payload !== 'object' || payload === null) return false
+  const value = payload as Record<string, unknown>
+  return (
+    typeof value['revision'] === 'number' &&
+    typeof value['path'] === 'string' &&
+    typeof value['text'] === 'string' &&
+    typeof value['themesCss'] === 'string' &&
+    typeof value['settings'] === 'object' &&
+    value['settings'] !== null &&
+    typeof value['sources'] === 'object' &&
+    value['sources'] !== null &&
+    Array.isArray(value['themes']) &&
+    Array.isArray(value['diagnostics'])
+  )
+}
+
 const api = {
   platform: process.platform,
   versions: {
@@ -81,8 +113,7 @@ const api = {
   onConfigChanged: (listener: (config: LoadedConfigPayload) => void): (() => void) => {
     const channel = EVENT_CHANNELS.configChanged
     const handler = (_event: IpcRendererEvent, payload: unknown): void => {
-      const parsed = LoadedConfigSchema.safeParse(payload)
-      if (parsed.success) listener(parsed.data)
+      if (isConfigPayload(payload)) listener(payload)
     }
     ipcRenderer.on(channel, handler)
     return () => {

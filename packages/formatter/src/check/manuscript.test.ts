@@ -184,6 +184,214 @@ describe('checkManuscript — required sections', () => {
     expect(missing[0]?.message).toContain('Methods');
   });
 
+  it('a "Title" requirement is satisfied by the manuscript.title field with no heading', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({ id: 'title', label: 'Title', required: true });
+    expect(byId(checkManuscript(makeInput(), profile, 'apj-article'), 'ms.section-missing')).toEqual(
+      [],
+    );
+
+    const input = makeInput();
+    input.manuscript.title = '   ';
+    const missing = byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing');
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.message).toContain('Title');
+  });
+
+  it('an empty title is still satisfied by a "# Title" heading in the prose', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({ id: 'title', label: 'Title', required: true });
+    const input = makeInput({ sectionTexts: { 'manuscript.md': '# Title\n\nStars.' } });
+    input.manuscript.title = '';
+    expect(byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+
+  it('a keywords requirement is satisfied by manuscript.keywords or a heading', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({ id: 'keywords', label: 'Keywords', required: true });
+    expect(
+      byId(checkManuscript(makeInput(), profile, 'apj-article'), 'ms.section-missing'),
+    ).toHaveLength(1);
+
+    const withField = makeInput();
+    withField.manuscript.keywords = ['galaxies'];
+    expect(byId(checkManuscript(withField, profile, 'apj-article'), 'ms.section-missing')).toEqual(
+      [],
+    );
+
+    const withHeading = makeInput({
+      sectionTexts: { 'manuscript.md': '# Key words\n\ngalaxies' },
+    });
+    expect(byId(checkManuscript(withHeading, profile, 'apj-article'), 'ms.section-missing')).toEqual(
+      [],
+    );
+  });
+
+  it('an acknowledgements PROSE heading satisfies the requirement even with empty backMatter', () => {
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Acknowledgements\n\nWe thank the referee.' },
+    });
+    input.manuscript.backMatter.acknowledgements = null;
+    expect(byId(checkManuscript(input, apjProfile(), 'apj-article'), 'ms.section-missing')).toEqual(
+      [],
+    );
+  });
+
+  it('strips leading enumeration from headings ("1. Methods", "2 Results", "III. Discussion")', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push(
+      { id: 'methods', label: 'Methods', required: true },
+      { id: 'results', label: 'Results', required: true },
+      { id: 'discussion', label: 'Discussion', required: true },
+    );
+    const input = makeInput({
+      sectionTexts: {
+        'manuscript.md': '# 1. Methods\n\nm\n\n# 2 Results\n\nr\n\n# III. Discussion\n\nd',
+      },
+    });
+    expect(byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+
+  it('strips parenthetical clauses from requirement labels', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({
+      id: 'affiliations',
+      label: 'Affiliations (plus present addresses)',
+      required: true,
+    });
+    const input = makeInput({ sectionTexts: { 'manuscript.md': '# Affiliations\n\nUW–Madison' } });
+    expect(byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+
+  it('tolerates a trailing plural s ("Conclusion" satisfies "conclusions")', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({
+      id: 'conclusions',
+      label: 'Conclusions',
+      required: true,
+    });
+    const input = makeInput({ sectionTexts: { 'manuscript.md': '# Conclusion\n\ndone' } });
+    expect(byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+
+  it('treats "Materials and Methods" and "Methods" as the same section, both ways', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({
+      id: 'materials-and-methods',
+      label: 'Materials and Methods',
+      required: true,
+    });
+    // The fixture prose has only "# Methods".
+    expect(byId(checkManuscript(makeInput(), profile, 'apj-article'), 'ms.section-missing')).toEqual(
+      [],
+    );
+
+    const profile2 = apjProfile();
+    profile2.manuscript.requiredSections.push({ id: 'methods', label: 'Methods', required: true });
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Materials and Methods\n\nwe did things' },
+    });
+    expect(byId(checkManuscript(input, profile2, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+});
+
+describe('checkManuscript — author and affiliation sections', () => {
+  const author = (affiliationRefs: string[]) => ({
+    id: 'a1',
+    given: 'Ada',
+    family: 'Lovelace',
+    nativeScript: null,
+    orcid: null,
+    affiliationRefs,
+    corresponding: true,
+    email: 'ada@example.edu',
+    equalContribution: false,
+    deceased: false,
+  });
+
+  function authorsProfile() {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push(
+      { id: 'authors', label: 'Authors', required: true },
+      { id: 'affiliations', label: 'Affiliations (plus present addresses)', required: true },
+    );
+    return profile;
+  }
+
+  it('a non-empty authors array satisfies both authors and affiliations requirements', () => {
+    const input = makeInput({ authors: [author(['1'])] });
+    expect(
+      byId(checkManuscript(input, authorsProfile(), 'apj-article'), 'ms.section-missing'),
+    ).toEqual([]);
+  });
+
+  it('an author without affiliations satisfies authors but not affiliations', () => {
+    const input = makeInput({ authors: [author([])] });
+    const missing = byId(
+      checkManuscript(input, authorsProfile(), 'apj-article'),
+      'ms.section-missing',
+    );
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.message).toContain('Affiliations');
+  });
+
+  it('with no authors supplied, only headings count', () => {
+    const missing = byId(
+      checkManuscript(makeInput(), authorsProfile(), 'apj-article'),
+      'ms.section-missing',
+    );
+    expect(missing).toHaveLength(2);
+
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Authors\n\nA. Lovelace\n\n# Affiliations\n\nUW' },
+    });
+    expect(
+      byId(checkManuscript(input, authorsProfile(), 'apj-article'), 'ms.section-missing'),
+    ).toEqual([]);
+  });
+
+  it('one combined "Authors and Affiliations" heading satisfies both separate requirements', () => {
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Authors and Affiliations\n\nA. Lovelace, UW' },
+    });
+    expect(
+      byId(checkManuscript(input, authorsProfile(), 'apj-article'), 'ms.section-missing'),
+    ).toEqual([]);
+  });
+
+  it('a compound requirement "Authors and Affiliations" is satisfied by two separate headings', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({
+      id: 'authors-affiliations',
+      label: 'Authors and Affiliations',
+      required: true,
+    });
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Authors\n\nA. Lovelace\n\n# Affiliations\n\nUW' },
+    });
+    expect(byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing')).toEqual([]);
+  });
+
+  it('"Authorship contributions" does NOT satisfy an authors requirement', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({ id: 'authors', label: 'Authors', required: true });
+    const input = makeInput({
+      sectionTexts: { 'manuscript.md': '# Authorship contributions\n\nA.L. did everything' },
+    });
+    const missing = byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing');
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.message).toContain('Authors');
+  });
+
+  it('an EMPTY authors array does not satisfy the requirement', () => {
+    const profile = apjProfile();
+    profile.manuscript.requiredSections.push({ id: 'authors', label: 'Authors', required: true });
+    const input = makeInput({ authors: [] });
+    expect(
+      byId(checkManuscript(input, profile, 'apj-article'), 'ms.section-missing'),
+    ).toHaveLength(1);
+  });
+
   it('ignores sections the profile lists as not required', () => {
     const profile = apjProfile();
     profile.manuscript.requiredSections.push({ id: 'appendix', label: 'Appendix', required: false });

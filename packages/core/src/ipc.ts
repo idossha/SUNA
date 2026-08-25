@@ -16,7 +16,7 @@ import {
   RoundKindSchema,
   RoundSchema,
 } from './rounds';
-import { LoggedVersionSchema } from './versions';
+import { LoggedVersionSchema, VERSION_ID_RE } from './versions';
 import { CompareDocumentSchema, CompareRefSchema, CompareSideSchema } from './compare';
 import { TrashEntrySchema } from './trash';
 import { NoteColorSchema } from './refnotes';
@@ -2059,6 +2059,14 @@ export const CHANNELS = {
       profileId: z.string().min(1),
       outputName: z.string().min(1),
       figurePngPaths: z.record(z.string(), z.string()),
+      /**
+       * Export a LOGGED version instead of the working copy: the manuscript
+       * prose/meta/authors/references are read from
+       * `<manuscript dir>/archive/<versionId>/` (see versions.ts). Omitted =
+       * the live working copy. The renderer still rasterizes figures and
+       * passes `figurePngPaths`, wherever those pixels came from.
+       */
+      versionId: z.string().regex(VERSION_ID_RE).optional(),
       options: ExportOptionsSchema,
       target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
@@ -2083,6 +2091,14 @@ export const CHANNELS = {
       profileId: z.string().min(1),
       outputName: z.string().min(1),
       figurePngPaths: z.record(z.string(), z.string()),
+      /**
+       * Export a LOGGED version instead of the working copy: the manuscript
+       * prose/meta/authors/references are read from
+       * `<manuscript dir>/archive/<versionId>/` (see versions.ts). Omitted =
+       * the live working copy. The renderer still rasterizes figures and
+       * passes `figurePngPaths`, wherever those pixels came from.
+       */
+      versionId: z.string().regex(VERSION_ID_RE).optional(),
       options: ExportOptionsSchema,
       target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
@@ -2101,6 +2117,14 @@ export const CHANNELS = {
       profileId: z.string().min(1),
       outputName: z.string().min(1),
       figurePngPaths: z.record(z.string(), z.string()),
+      /**
+       * Export a LOGGED version instead of the working copy: the manuscript
+       * prose/meta/authors/references are read from
+       * `<manuscript dir>/archive/<versionId>/` (see versions.ts). Omitted =
+       * the live working copy. The renderer still rasterizes figures and
+       * passes `figurePngPaths`, wherever those pixels came from.
+       */
+      versionId: z.string().regex(VERSION_ID_RE).optional(),
       options: ExportOptionsSchema,
       target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
@@ -2133,6 +2157,14 @@ export const CHANNELS = {
       profileId: z.string().min(1),
       format: z.enum(['docx', 'pdf', 'html']),
       figurePngPaths: z.record(z.string(), z.string()),
+      /**
+       * Export a LOGGED version instead of the working copy: the manuscript
+       * prose/meta/authors/references are read from
+       * `<manuscript dir>/archive/<versionId>/` (see versions.ts). Omitted =
+       * the live working copy. The renderer still rasterizes figures and
+       * passes `figurePngPaths`, wherever those pixels came from.
+       */
+      versionId: z.string().regex(VERSION_ID_RE).optional(),
       options: ExportOptionsSchema,
       target: z.enum(['manuscript', 'supplement']).default('manuscript'),
     }),
@@ -2170,6 +2202,35 @@ export const CHANNELS = {
     }),
     response: z.object({
       /** Base64 PDF bytes — the same print the letter's PDF export performs. */
+      data: z.string(),
+      /** Server-side render time in ms, for the same reason 'export:preview' reports it. */
+      ms: z.number().int().nonnegative(),
+    }),
+  },
+  /**
+   * A response round's pages, rendered in memory for the export page's
+   * Preview tab.
+   *
+   * Deliberately its own channel rather than a `target` on 'export:preview',
+   * for the same reason 'letter:preview' is: a response goes through the
+   * simpler export-response.ts pipeline, which has no profile to resolve, no
+   * figures to rasterize and no submission options — every field that
+   * contract requires would be a field with no meaning here.
+   *
+   * Unlike 'export:response' this does NOT refuse a round with unaddressed
+   * points. A preview is for a response still being written; an unanswered
+   * point contributes no reply text, exactly as it would on an acknowledged
+   * export, so the pages show what exporting it today would produce.
+   */
+  'response:preview': {
+    request: z.object({
+      dir: z.string().min(1),
+      roundId: z.string().min(1),
+      /** Paint the three voices — same contract as 'export:response'. */
+      colorRoles: z.boolean().default(true),
+    }),
+    response: z.object({
+      /** Base64 PDF bytes — the same print the response's PDF export performs. */
       data: z.string(),
       /** Server-side render time in ms, for the same reason 'export:preview' reports it. */
       ms: z.number().int().nonnegative(),
@@ -2229,17 +2290,13 @@ export const CHANNELS = {
    * 'export:notes' is not: a letter has no figures to rasterize, no
    * cross-references to number and no submission format to satisfy — the
    * questions that pipeline asks ("double spaced? line numbers? which
-   * article type?") have no answer for a letter. What it does carry, and the
-   * manuscript does not, is the assertions: `::assert{id}` directives are
-   * replaced by the author's own words from the sidecar.
+   * article type?") have no answer for a letter.
    *
-   * An unanswered assertion stops the export ONCE, by name, and
-   * `acknowledgeUnanswered` is the author saying they know and want the file
-   * anyway — a draft to circulate, a letter whose declarations go in the
-   * submission portal instead. The unanswered directive contributes nothing
-   * to the exported document either way: SUNA does not write those sentences,
-   * so the choice is between an export without them and no export at all,
-   * never between a true letter and a fabricated one.
+   * Letters export UNCONDITIONALLY: compliance with the venue's letter
+   * requirements is advisory and lives in the export page (the letter
+   * checker), never as an export gate. Legacy `::assert{id}` directives in a
+   * letter written before assertions were retired are replaced by the
+   * author's sidecar answer when one exists, and stripped otherwise.
    * Writes to `<dir>/output/letters/<outputName>.<format>`.
    */
   'export:letter': {
@@ -2248,8 +2305,6 @@ export const CHANNELS = {
       documentId: z.string().min(1),
       format: z.enum(['pdf', 'docx', 'html']),
       outputName: z.string().min(1),
-      /** The author has seen the unanswered list and wants the file regardless. */
-      acknowledgeUnanswered: z.boolean().default(false),
     }),
     response: z.object({ path: z.string().min(1) }),
   },

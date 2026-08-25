@@ -561,12 +561,36 @@ export function retargetPanels(from: string, to: string): number {
   return rewritten
 }
 
-/** Open (or focus) the DOCX/PDF export dialog for a project (feature-plan-6 §3/§4). */
-export function openExportTab(rootDir: string): void {
+/** What the export page opens ON: which document kind, and which one of several. */
+export interface ExportPreselect {
+  kind: 'manuscript' | 'supplement' | 'letter' | 'response'
+  /** documentId for a letter, roundId for a response; undefined for the rest. */
+  id?: string
+}
+
+/**
+ * Open (or focus) the unified export page for a project (feature-plan-6
+ * §3/§4). Every export in the app funnels here — manuscript, supplement,
+ * cover letters and reviewer responses — so a tab's own Export button passes
+ * a `preselect` naming what it wants exported. When the panel already exists
+ * the preselect is delivered through dockview's parameter channel
+ * (`api.updateParameters`; the dialog subscribes to onDidParametersChange)
+ * rather than by tearing the panel down.
+ */
+export function openExportTab(rootDir: string, preselect?: ExportPreselect): void {
   if (!dockApi) return
   const id = `export:${rootDir}`
+  const params: Record<string, unknown> = { rootDir }
+  if (preselect !== undefined) {
+    params['kind'] = preselect.kind
+    if (preselect.id !== undefined) params['id'] = preselect.id
+    // A nonce so re-exporting the SAME document still re-applies the
+    // preselect (dockview only fires onDidParametersChange on a change).
+    params['preselectNonce'] = Date.now()
+  }
   const existing = dockApi.getPanel(id)
   if (existing) {
+    if (preselect !== undefined) existing.api.updateParameters(params)
     existing.api.setActive()
     return
   }
@@ -574,7 +598,7 @@ export function openExportTab(rootDir: string): void {
     id,
     component: 'export',
     title: 'Export',
-    params: { rootDir }
+    params
   })
 }
 

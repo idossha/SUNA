@@ -577,3 +577,39 @@
 .req-panel__sources a {
   color: var(--s-ink-muted);
 }
+
+/* -- letter requirements (letter mode's right panel) -------------------- */
+
+.export-dialog__letter-req {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.export-dialog__letter-req .req-panel__badge {
+  margin-left: 8px;
+}
+
+.export-dialog__letter-quote {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* -- the response acknowledgement (unaddressed points, in-page) --------- */
+
+.export-dialog__ack {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  background: var(--s-bg-raised, rgba(255, 255, 255, 0.04));
+}
+
+.export-dialog__ack-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
