@@ -11,8 +11,13 @@ import { disposePreviewWindow } from './services/export-preview'
 import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
 import { shutdownAllKernels } from './services/kernel'
+import { handleOutputFrameScheme, registerOutputFrameScheme } from './services/output-frame'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
+
+// Must happen before the app is ready — Electron ignores a privileged scheme
+// registered any later. Serves the sandboxed frame notebook outputs render in.
+registerOutputFrameScheme()
 
 // Opt-in CDP endpoint for screenshot checks and e2e drivers; never on by default.
 const debugPort = process.env['SUNA_DEBUG_PORT']
@@ -97,6 +102,7 @@ app.whenReady().then(() => {
   }
 
   registerIpcHandlers()
+  handleOutputFrameScheme()
 
   // Seed ~/.suna/config.yml and read it BEFORE the window exists, so the first
   // paint is already in the user's configured theme rather than flashing the
