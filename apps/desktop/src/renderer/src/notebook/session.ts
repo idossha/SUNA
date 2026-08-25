@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import {
+  convertCell,
+  newCell,
   parseNotebook,
   serializeNotebook,
   type Cell,
+  type CellType,
   type CodeCell,
   type Notebook,
   type Output
@@ -84,6 +87,16 @@ function bump(path: string, changes: Partial<NotebookMeta> = {}): void {
 const cellKeys = new WeakMap<object, string>()
 let keySeq = 0
 
+/**
+ * Forget a cell's key so it remounts. Used when a cell changes type: the
+ * editor inside it is built for one language and cannot be re-pointed.
+ */
+export function retireCellKey(cell: Cell): void {
+  // A fresh key, not a deletion: cells carrying an nbformat id would be
+  // handed the SAME `id:…` key again and React would keep the old editor.
+  cellKeys.set(cell, `k${++keySeq}`)
+}
+
 export function cellKey(cell: Cell): string {
   const existing = cellKeys.get(cell)
   if (existing !== undefined) return existing
@@ -115,6 +128,8 @@ class Session {
   /** reqId → the cell that asked for it. */
   private inflight = new Map<string, CodeCell>()
   private reqSeq = 0
+  /** The last deleted cell and where it was; one slot, like Jupyter's. */
+  private deleted: { cell: Cell; index: number } | null = null
 
   constructor(path: string) {
     this.path = path
@@ -284,6 +299,122 @@ class Session {
     for (const cell of this.nb.cells) {
       if (cell.cell_type === 'code') await this.runCell(cell as CodeCell)
     }
+  }
+
+  // ---- editing the cell list --------------------------------------------
+  //
+  // Every one of these mutates `nb.cells` in place and bumps the version, the
+  // same contract the kernel events above follow: the array being edited IS
+  // the array that gets serialized, so what the author sees and what the file
+  // will say cannot drift.
+
+  indexOfKey(key: string): number {
+    if (this.nb === null) return -1
+    return this.nb.cells.findIndex((cell) => cellKey(cell) === key)
+  }
+
+  cellAt(index: number): Cell | null {
+    return this.nb?.cells[index] ?? null
+  }
+
+  /** Insert an empty cell at `index` and return its key, for selection. */
+  insertCell(index: number, cellType: CellType): string | null {
+    if (this.nb === null) return null
+    const at = Math.max(0, Math.min(index, this.nb.cells.length))
+    const cell = newCell(cellType, this.nb)
+    this.nb.cells.splice(at, 0, cell)
+    bump(this.path, { dirty: true })
+    return cellKey(cell)
+  }
+
+  /**
+   * Delete a cell, keeping it (and its position) so `undoDelete` can put it
+   * back — Jupyter's `dd` / `z`, and the reason `dd` is safe to have on a
+   * bare keystroke at all. Returns the key to select next.
+   */
+  deleteCell(index: number): string | null {
+    if (this.nb === null) return null
+    const cell = this.nb.cells[index]
+    if (cell === undefined) return null
+    this.nb.cells.splice(index, 1)
+    this.deleted = { cell, index }
+    // A notebook with no cells has nowhere to type; Jupyter refills it too.
+    if (this.nb.cells.length === 0) this.nb.cells.push(newCell('code', this.nb))
+    const next = this.nb.cells[Math.min(index, this.nb.cells.length - 1)]
+    bump(this.path, { dirty: true })
+    return next === undefined ? null : cellKey(next)
+  }
+
+  undoDelete(): string | null {
+    if (this.nb === null || this.deleted === null) return null
+    const { cell, index } = this.deleted
+    this.deleted = null
+    this.nb.cells.splice(Math.min(index, this.nb.cells.length), 0, cell)
+    bump(this.path, { dirty: true })
+    return cellKey(cell)
+  }
+
+  /** Move one cell by `delta` places. Returns true when it actually moved. */
+  moveCell(index: number, delta: number): boolean {
+    if (this.nb === null) return false
+    const to = index + delta
+    if (index < 0 || to < 0 || index >= this.nb.cells.length || to >= this.nb.cells.length) {
+      return false
+    }
+    const [cell] = this.nb.cells.splice(index, 1)
+    this.nb.cells.splice(to, 0, cell as Cell)
+    bump(this.path, { dirty: true })
+    return true
+  }
+
+  duplicateCell(index: number): string | null {
+    if (this.nb === null) return null
+    const cell = this.nb.cells[index]
+    if (cell === undefined) return null
+    const copy = JSON.parse(JSON.stringify(cell)) as Cell
+    // The copy is a NEW cell: it may not carry the original's id, and a
+    // duplicated code cell has not been run.
+    delete copy['id']
+    if (this.nb.nbformat > 4 || this.nb.nbformat_minor >= 5) {
+      const minted = newCell(cell.cell_type, this.nb)
+      copy.id = minted.id
+    }
+    if (copy.cell_type === 'code') {
+      copy.outputs = []
+      copy.execution_count = null
+    }
+    this.nb.cells.splice(index + 1, 0, copy)
+    bump(this.path, { dirty: true })
+    return cellKey(copy)
+  }
+
+  setCellType(index: number, cellType: CellType): void {
+    if (this.nb === null) return
+    const cell = this.nb.cells[index]
+    if (cell === undefined || cell.cell_type === cellType) return
+    // The converted cell is the same object, so its React key survives — but
+    // its editor must not: a code editor cannot become a markdown one in
+    // place, so the key is retired and the cell remounts under a new one.
+    convertCell(cell, cellType)
+    retireCellKey(cell)
+    bump(this.path, { dirty: true })
+  }
+
+  clearOutputs(cell: CodeCell): void {
+    cell.outputs.length = 0
+    cell.execution_count = null
+    bump(this.path, { dirty: true })
+  }
+
+  clearAllOutputs(): void {
+    if (this.nb === null) return
+    for (const cell of this.nb.cells) {
+      if (cell.cell_type === 'code') {
+        cell.outputs.length = 0
+        cell.execution_count = null
+      }
+    }
+    bump(this.path, { dirty: true })
   }
 
   async interrupt(): Promise<void> {
