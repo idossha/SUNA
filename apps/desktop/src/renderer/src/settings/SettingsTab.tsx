@@ -905,22 +905,92 @@ function ConfigThemeRow(): JSX.Element {
   )
 }
 
-/**
- * The settings that live in ~/.suna/config.yml and have a row here. Every one
- * writes that file directly, which is the same file a hand-edit writes.
- */
-function ConfigSettingsSection(): JSX.Element {
-  const configPath = useSettingsStore((s) => s.path)
+/* --------------------------------------------------------------------------
+   Category panes. The page shows ONE of these at a time behind a left rail,
+   so a setting is found by picking its category rather than by scrolling the
+   whole file. Every row still writes ~/.suna/config.yml — the split is
+   navigation, not a second store.
+   -------------------------------------------------------------------------- */
+
+function AppearancePane(): JSX.Element {
+  const settings = useSettingsStore((s) => s.settings)
+  const setSetting = useSettingsStore((s) => s.set)
 
   return (
-    <section className="settings__scope" data-scope="config">
-      <h2 className="settings-tab__scope-title">
-        Appearance and defaults <span>· ~/.suna/config.yml</span>
-      </h2>
+    <>
+      <h3 className="settings-tab__section">Interface</h3>
+      <div className="settings-tab__row">
+        <label htmlFor="set-ui-scale">
+          Interface scale
+          <span className="settings-tab__hint">Zoom applied to the whole window.</span>
+        </label>
+        <select
+          id="set-ui-scale"
+          value={String(settings['ui.scale'])}
+          onChange={(e) => void setSetting('ui.scale', Number(e.target.value))}
+        >
+          {UI_SCALE_CHOICES.map((scale) => (
+            <option key={scale} value={String(scale)}>
+              {Math.round(scale * 100)}%
+            </option>
+          ))}
+        </select>
+      </div>
+      <ConfigNumberRow
+        settingKey="ui.textScale"
+        id="set-ui-text-scale"
+        label="Interface text"
+        hint="Multiplies the chrome type scale — labels, tabs, the status bar. Unlike Interface scale this leaves geometry alone."
+        min={UI_LIMITS.textScale.min}
+        max={UI_LIMITS.textScale.max}
+        step={0.05}
+      />
+      <ConfigThemeRow />
 
-      <h3 className="settings-tab__section">Preview</h3>
-      <PreviewProfileRow />
+      <h3 className="settings-tab__section">Window chrome</h3>
+      <ConfigNumberRow
+        settingKey="ui.radiusPx"
+        id="set-ui-radius"
+        label="Corner radius"
+        hint="Rounding on buttons, inputs and popovers, in px. 0 for square corners."
+        min={UI_LIMITS.radiusPx.min}
+        max={UI_LIMITS.radiusPx.max}
+        step={1}
+      />
+      <ConfigNumberRow
+        settingKey="ui.titleBarHeightPx"
+        id="set-ui-titlebar"
+        label="Title bar height"
+        hint="In px."
+        min={UI_LIMITS.titleBarHeightPx.min}
+        max={UI_LIMITS.titleBarHeightPx.max}
+        step={1}
+      />
+      <ConfigNumberRow
+        settingKey="ui.activityBarWidthPx"
+        id="set-ui-activitybar"
+        label="Activity bar width"
+        hint="In px. 0 hides the icon rail's width entirely."
+        min={UI_LIMITS.activityBarWidthPx.min}
+        max={UI_LIMITS.activityBarWidthPx.max}
+        step={1}
+      />
+      <ConfigNumberRow
+        settingKey="ui.statusBarHeightPx"
+        id="set-ui-statusbar"
+        label="Status bar height"
+        hint="In px."
+        min={UI_LIMITS.statusBarHeightPx.min}
+        max={UI_LIMITS.statusBarHeightPx.max}
+        step={1}
+      />
+    </>
+  )
+}
 
+function EditorPane(): JSX.Element {
+  return (
+    <>
       <h3 className="settings-tab__section">Editor</h3>
       <ConfigSelectRow
         settingKey="editor.defaultMode"
@@ -965,7 +1035,8 @@ function ConfigSettingsSection(): JSX.Element {
         options={EDITOR_FONT_FAMILIES}
         labelFor={(family) => FONT_FAMILY_LABELS[family]}
       />
-      <ConfigThemeRow />
+
+      <h3 className="settings-tab__section">Behaviour</h3>
       <ConfigSelectRow
         settingKey="review.aiDiffs"
         id="cfg-ai-diffs"
@@ -992,6 +1063,15 @@ function ConfigSettingsSection(): JSX.Element {
         label="Autosave"
         hint="Save editors and the figure canvas a second after you stop editing. ⌘S still works."
       />
+    </>
+  )
+}
+
+function FiguresPane(): JSX.Element {
+  return (
+    <>
+      <h3 className="settings-tab__section">Preview</h3>
+      <PreviewProfileRow />
 
       <h3 className="settings-tab__section">Figures</h3>
       <ConfigSelectRow
@@ -1002,13 +1082,39 @@ function ConfigSettingsSection(): JSX.Element {
         options={FIGURE_WIDTH_PRESETS}
         labelFor={(preset) => FIGURE_WIDTH_LABELS[preset]}
       />
+    </>
+  )
+}
 
-      <h3 className="settings-tab__section">Python</h3>
-      <ConfigPythonEnvRow />
+function ExportPane(): JSX.Element {
+  return (
+    <>
+      <h3 className="settings-tab__section">Export</h3>
+      <ConfigToggleRow
+        settingKey="export.doubleSpacing"
+        id="set-export-double"
+        label="Double-space manuscripts"
+        hint="The default for a new export. A journal profile that states its own requirement still overrides it in the export dialog."
+      />
+      <ConfigToggleRow
+        settingKey="export.lineNumbers"
+        id="set-export-lines"
+        label="Line numbers"
+        hint="Continuous line numbers down the exported manuscript's margin."
+      />
+      <ConfigToggleRow
+        settingKey="export.pageNumbers"
+        id="set-export-pages"
+        label="Page numbers"
+        hint="Page numbers in the exported manuscript."
+      />
+    </>
+  )
+}
 
-      <h3 className="settings-tab__section">Literature</h3>
-      <ConfigLiteratureProviderRow />
-
+function AiPane(): JSX.Element {
+  return (
+    <>
       <h3 className="settings-tab__section">AI</h3>
       <ConfigSelectRow
         settingKey="ai.mode"
@@ -1034,25 +1140,214 @@ function ConfigSettingsSection(): JSX.Element {
         options={AI_EFFORTS}
         labelFor={(effort) => AI_EFFORT_LABELS[effort]}
       />
-
-      <div className="settings__footer">
-        <p className="settings__footer-note">
-          Every setting here lives in <code>{configPath}</code>, fully commented. Editing it by
-          hand and using these controls are the same thing — the file is watched, and the
-          controls write into it without disturbing your comments.
-        </p>
-        <button
-          type="button"
-          className="btn"
-          disabled={configPath === ''}
-          onClick={() => openFileTab(configPath)}
-        >
-          Open config.yml
-        </button>
-      </div>
-    </section>
+      <AiCliSection />
+    </>
   )
 }
+
+function ReferencesPane(): JSX.Element {
+  const settings = useSettingsStore((s) => s.settings)
+  const setSetting = useSettingsStore((s) => s.set)
+  const [mailtoDraft, setMailtoDraft] = useState(settings['literature.mailto'])
+
+  useEffect(() => {
+    setMailtoDraft(settings['literature.mailto'])
+  }, [settings])
+
+  const commitMailto = (): void => {
+    const value = mailtoDraft.trim()
+    if (value !== settings['literature.mailto']) void setSetting('literature.mailto', value)
+  }
+
+  return (
+    <>
+      <h3 className="settings-tab__section">References</h3>
+      <ConfigToggleRow
+        settingKey="references.autoOpenPdf"
+        id="set-refs-auto-open"
+        label="Auto-open reference PDF"
+        hint="Selecting a reference with a PDF opens it beside the list. Off leaves selection silent — use the PDF badge or “Attach PDF…” to open it by hand."
+      />
+
+      <h3 className="settings-tab__section">Literature providers</h3>
+      <ConfigLiteratureProviderRow />
+      <div className="settings-tab__row">
+        <label htmlFor="set-lit-mailto">
+          Contact email
+          <span className="settings-tab__hint">
+            Sent to Crossref/OpenAlex as a polite-pool contact (their preferred practice, not a
+            login). Falls back to none if empty.
+          </span>
+        </label>
+        <input
+          id="set-lit-mailto"
+          type="text"
+          spellCheck={false}
+          placeholder="you@university.edu"
+          value={mailtoDraft}
+          onChange={(e) => setMailtoDraft(e.target.value)}
+          onBlur={commitMailto}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitMailto()
+          }}
+        />
+      </div>
+      <LitProvidersSection />
+
+      <h3 className="settings-tab__section">Reference library</h3>
+      <ReferenceLibrarySection />
+    </>
+  )
+}
+
+function ToolsPane(): JSX.Element {
+  const settings = useSettingsStore((s) => s.settings)
+  const setSetting = useSettingsStore((s) => s.set)
+  const [shellDraft, setShellDraft] = useState(settings['terminal.shell'])
+
+  useEffect(() => {
+    setShellDraft(settings['terminal.shell'])
+  }, [settings])
+
+  const commitShell = (): void => {
+    const value = shellDraft.trim()
+    if (value !== settings['terminal.shell']) void setSetting('terminal.shell', value)
+  }
+
+  return (
+    <>
+      <h3 className="settings-tab__section">Terminal</h3>
+      <div className="settings-tab__row">
+        <label htmlFor="set-shell">
+          Shell
+          <span className="settings-tab__hint">
+            Absolute path (e.g. /bin/zsh). Empty uses the system default. Applies to new terminals.
+          </span>
+        </label>
+        <input
+          id="set-shell"
+          type="text"
+          spellCheck={false}
+          placeholder="System default ($SHELL)"
+          value={shellDraft}
+          onChange={(e) => setShellDraft(e.target.value)}
+          onBlur={commitShell}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitShell()
+          }}
+        />
+      </div>
+
+      <h3 className="settings-tab__section">Python</h3>
+      <ConfigPythonEnvRow />
+    </>
+  )
+}
+
+function VersionControlPane(): JSX.Element {
+  return (
+    <>
+      <h3 className="settings-tab__section">Version control</h3>
+      <VersionControlSection />
+    </>
+  )
+}
+
+function TrashPane(): JSX.Element {
+  return (
+    <>
+      <h3 className="settings-tab__section">Trash</h3>
+      <TrashSection />
+    </>
+  )
+}
+
+function AboutPane(): JSX.Element {
+  const rootDir = useProjectStore((s) => s.rootDir)
+
+  return (
+    <>
+      <h3 className="settings-tab__section">About</h3>
+      <div className="settings-tab__info">
+        <div>
+          <span>SUNA</span> 0.1.0
+        </div>
+        <div>
+          <span>Electron</span> {window.suna.versions.electron}
+        </div>
+        <div>
+          <span>Chrome</span> {window.suna.versions.chrome}
+        </div>
+        <div>
+          <span>Platform</span> {window.suna.platform}
+        </div>
+        <div>
+          <span>Project</span> {rootDir ?? 'no project open'}
+        </div>
+      </div>
+    </>
+  )
+}
+
+interface SettingsCategory {
+  id: string
+  label: string
+  blurb: string
+  Pane: () => JSX.Element
+}
+
+const SETTINGS_CATEGORIES: readonly [SettingsCategory, ...SettingsCategory[]] = [
+  {
+    id: 'appearance',
+    label: 'Appearance',
+    blurb: 'Theme, scale and the shape of the window chrome.',
+    Pane: AppearancePane
+  },
+  {
+    id: 'editor',
+    label: 'Editor',
+    blurb: 'How Markdown opens, reads and saves.',
+    Pane: EditorPane
+  },
+  {
+    id: 'figures',
+    label: 'Figures & preview',
+    blurb: 'The profile previews render as, and how new figures are sized.',
+    Pane: FiguresPane
+  },
+  {
+    id: 'export',
+    label: 'Export',
+    blurb: 'Defaults a new export starts from; a journal profile still wins.',
+    Pane: ExportPane
+  },
+  { id: 'ai', label: 'AI', blurb: 'Which agent answers, and how hard it thinks.', Pane: AiPane },
+  {
+    id: 'references',
+    label: 'References',
+    blurb: 'Literature providers, contact email, and where PDFs may be found.',
+    Pane: ReferencesPane
+  },
+  {
+    id: 'tools',
+    label: 'Terminal & Python',
+    blurb: 'The shell terminals open, and the environment scripts run in.',
+    Pane: ToolsPane
+  },
+  {
+    id: 'version-control',
+    label: 'Version control',
+    blurb: 'GitHub sign-in, the commit identity git will record, and SSH keys.',
+    Pane: VersionControlPane
+  },
+  {
+    id: 'trash',
+    label: 'Trash',
+    blurb: 'Which deletions stay restorable, and for how long.',
+    Pane: TrashPane
+  },
+  { id: 'about', label: 'About', blurb: 'This build.', Pane: AboutPane }
+]
 
 /* --------------------------------------------------------------------------
    "Global (all projects)" — a couple of new typography rows live through the
@@ -1312,220 +1607,68 @@ function TrashSection(): JSX.Element {
 
 /** Global Settings dock tab, persisted app-wide via settings:get / settings:set. */
 export function SettingsTab(): JSX.Element {
-  const settings = useSettingsStore((s) => s.settings)
   const loaded = useSettingsStore((s) => s.loaded)
   const error = useSettingsStore((s) => s.error)
   const load = useSettingsStore((s) => s.load)
-  const setSetting = useSettingsStore((s) => s.set)
-  const rootDir = useProjectStore((s) => s.rootDir)
-
-  const [shellDraft, setShellDraft] = useState(settings['terminal.shell'])
-  const [mailtoDraft, setMailtoDraft] = useState(settings['literature.mailto'])
+  const configPath = useSettingsStore((s) => s.path)
+  const [activeId, setActiveId] = useState(SETTINGS_CATEGORIES[0].id)
 
   useEffect(() => {
     void load()
   }, [load])
 
-  // adopt the persisted value once it arrives (or after another writer changes it)
-  useEffect(() => {
-    setShellDraft(settings['terminal.shell'])
-    setMailtoDraft(settings['literature.mailto'])
-  }, [settings])
-
-  const commitShell = (): void => {
-    const value = shellDraft.trim()
-    if (value !== settings['terminal.shell']) void setSetting('terminal.shell', value)
-  }
-
-  const commitMailto = (): void => {
-    const value = mailtoDraft.trim()
-    if (value !== settings['literature.mailto']) void setSetting('literature.mailto', value)
-  }
+  const active = SETTINGS_CATEGORIES.find((c) => c.id === activeId) ?? SETTINGS_CATEGORIES[0]
+  const Pane = active.Pane
 
   return (
     <div className="settings-tab">
-      <div className="settings-tab__page">
-        <h1 className="settings-tab__title">Settings</h1>
-        <p className="settings-tab__sub">
-          Everything here is stored in your <code>~/.suna/config.yml</code> — hand-edit it or use
-          these controls; they are the same file
-          {!loaded && ' — loading…'}
-        </p>
-        {error !== null && <div className="settings-tab__error">{error}</div>}
+      <nav className="settings-tab__nav" aria-label="Settings categories">
+        <div className="settings-tab__nav-title">Settings</div>
+        {SETTINGS_CATEGORIES.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            data-category={category.id}
+            className={
+              category.id === active.id
+                ? 'settings-tab__nav-item settings-tab__nav-item--active'
+                : 'settings-tab__nav-item'
+            }
+            aria-current={category.id === active.id}
+            onClick={() => setActiveId(category.id)}
+          >
+            {category.label}
+          </button>
+        ))}
+      </nav>
 
-        <section className="settings__scope" data-scope="global">
-          <h2 className="settings-tab__scope-title">
-            Workspace <span>· tools and integrations</span>
-          </h2>
+      <div className="settings-tab__panel">
+        <div className="settings-tab__page">
+          <h1 className="settings-tab__title">{active.label}</h1>
+          <p className="settings-tab__sub">
+            {active.blurb} Everything here is stored in <code>~/.suna/config.yml</code>
+            {!loaded && ' — loading…'}
+          </p>
+          {error !== null && <div className="settings-tab__error">{error}</div>}
 
-          <h3 className="settings-tab__section">Appearance</h3>
-          <div className="settings-tab__row">
-            <label htmlFor="set-ui-scale">
-              Interface scale
-              <span className="settings-tab__hint">Zoom applied to the whole window.</span>
-            </label>
-            <select
-              id="set-ui-scale"
-              value={String(settings['ui.scale'])}
-              onChange={(e) => void setSetting('ui.scale', Number(e.target.value))}
+          <section className="settings__scope" data-scope={active.id}>
+            <Pane />
+          </section>
+
+          <div className="settings__footer">
+            <p className="settings__footer-note">
+              Every setting here lives in <code>{configPath}</code>, fully commented. Editing it by
+              hand and using these controls are the same thing — the file is watched, and the
+              controls write into it without disturbing your comments.
+            </p>
+            <button
+              type="button"
+              className="btn"
+              disabled={configPath === ''}
+              onClick={() => openFileTab(configPath)}
             >
-              {UI_SCALE_CHOICES.map((scale) => (
-                <option key={scale} value={String(scale)}>
-                  {Math.round(scale * 100)}%
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <ConfigNumberRow
-            settingKey="ui.textScale"
-            id="set-ui-text-scale"
-            label="Interface text"
-            hint="Multiplies the chrome type scale — labels, tabs, the status bar. Unlike Interface scale this leaves geometry alone."
-            min={UI_LIMITS.textScale.min}
-            max={UI_LIMITS.textScale.max}
-            step={0.05}
-          />
-          <ConfigNumberRow
-            settingKey="ui.radiusPx"
-            id="set-ui-radius"
-            label="Corner radius"
-            hint="Rounding on buttons, inputs and popovers, in px. 0 for square corners."
-            min={UI_LIMITS.radiusPx.min}
-            max={UI_LIMITS.radiusPx.max}
-            step={1}
-          />
-          <ConfigNumberRow
-            settingKey="ui.titleBarHeightPx"
-            id="set-ui-titlebar"
-            label="Title bar height"
-            hint="In px."
-            min={UI_LIMITS.titleBarHeightPx.min}
-            max={UI_LIMITS.titleBarHeightPx.max}
-            step={1}
-          />
-          <ConfigNumberRow
-            settingKey="ui.activityBarWidthPx"
-            id="set-ui-activitybar"
-            label="Activity bar width"
-            hint="In px. 0 hides the icon rail's width entirely."
-            min={UI_LIMITS.activityBarWidthPx.min}
-            max={UI_LIMITS.activityBarWidthPx.max}
-            step={1}
-          />
-          <ConfigNumberRow
-            settingKey="ui.statusBarHeightPx"
-            id="set-ui-statusbar"
-            label="Status bar height"
-            hint="In px."
-            min={UI_LIMITS.statusBarHeightPx.min}
-            max={UI_LIMITS.statusBarHeightPx.max}
-            step={1}
-          />
-
-          <h3 className="settings-tab__section">Export</h3>
-          <ConfigToggleRow
-            settingKey="export.doubleSpacing"
-            id="set-export-double"
-            label="Double-space manuscripts"
-            hint="The default for a new export. A journal profile that states its own requirement still overrides it in the export dialog."
-          />
-          <ConfigToggleRow
-            settingKey="export.lineNumbers"
-            id="set-export-lines"
-            label="Line numbers"
-            hint="Continuous line numbers down the exported manuscript's margin."
-          />
-          <ConfigToggleRow
-            settingKey="export.pageNumbers"
-            id="set-export-pages"
-            label="Page numbers"
-            hint="Page numbers in the exported manuscript."
-          />
-
-          <h3 className="settings-tab__section">Terminal</h3>
-          <div className="settings-tab__row">
-            <label htmlFor="set-shell">
-              Shell
-              <span className="settings-tab__hint">
-                Absolute path (e.g. /bin/zsh). Empty uses the system default. Applies to new terminals.
-              </span>
-            </label>
-            <input
-              id="set-shell"
-              type="text"
-              spellCheck={false}
-              placeholder="System default ($SHELL)"
-              value={shellDraft}
-              onChange={(e) => setShellDraft(e.target.value)}
-              onBlur={commitShell}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitShell()
-              }}
-            />
-          </div>
-
-          <h3 className="settings-tab__section">Version control</h3>
-          <VersionControlSection />
-
-          <h3 className="settings-tab__section">References</h3>
-          <ConfigToggleRow
-            settingKey="references.autoOpenPdf"
-            id="set-refs-auto-open"
-            label="Auto-open reference PDF"
-            hint="Selecting a reference with a PDF opens it beside the list. Off leaves selection silent — use the PDF badge or “Attach PDF…” to open it by hand."
-          />
-
-          <h3 className="settings-tab__section">Trash</h3>
-          <TrashSection />
-
-          <h3 className="settings-tab__section">Literature providers</h3>
-          <div className="settings-tab__row">
-            <label htmlFor="set-lit-mailto">
-              Contact email
-              <span className="settings-tab__hint">
-                Sent to Crossref/OpenAlex as a polite-pool contact (their preferred practice, not a
-                login). Falls back to none if empty.
-              </span>
-            </label>
-            <input
-              id="set-lit-mailto"
-              type="text"
-              spellCheck={false}
-              placeholder="you@university.edu"
-              value={mailtoDraft}
-              onChange={(e) => setMailtoDraft(e.target.value)}
-              onBlur={commitMailto}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitMailto()
-              }}
-            />
-          </div>
-          <AiCliSection />
-          <LitProvidersSection />
-
-          <h3 className="settings-tab__section">Reference library</h3>
-          <ReferenceLibrarySection />
-        </section>
-
-        <ConfigSettingsSection />
-
-        <h2 className="settings-tab__section">About</h2>
-        <div className="settings-tab__info">
-          <div>
-            <span>SUNA</span> 0.1.0
-          </div>
-          <div>
-            <span>Electron</span> {window.suna.versions.electron}
-          </div>
-          <div>
-            <span>Chrome</span> {window.suna.versions.chrome}
-          </div>
-          <div>
-            <span>Platform</span> {window.suna.platform}
-          </div>
-          <div>
-            <span>Project</span> {rootDir ?? 'no project open'}
+              Open config.yml
+            </button>
           </div>
         </div>
       </div>

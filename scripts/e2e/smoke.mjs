@@ -2342,6 +2342,11 @@ try {
   await step('settings-version-control', async () => {
     await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
     await sleep(1200)
+    // Settings is category-paned: pick the rail entry before looking for rows.
+    await evalJs(
+      `document.querySelector('.settings-tab__nav-item[data-category="version-control"]').click()`
+    )
+    await sleep(400)
 
     const sections = await evalJs(
       `[...document.querySelectorAll('.settings-tab__section')].map((e) => e.textContent)`
@@ -2599,10 +2604,16 @@ try {
       btn.click();
     })()`)
     await sleep(900)
-    const sections = await evalJs(
-      `[...document.querySelectorAll('.settings__section-title, .view__section-title')].map((e) => e.textContent.trim())`
+    const categories = await evalJs(
+      `[...document.querySelectorAll('.settings-tab__nav-item')].map((e) => e.textContent.trim())`
     )
-    assert(sections.length > 0, 'settings tab rendered no sections')
+    assert(categories.length > 0, 'settings tab rendered no categories')
+    assert(
+      categories.includes('Editor') && categories.includes('About'),
+      `settings rail is missing categories: ${categories.join(', ')}`
+    )
+    const rows = await evalJs(`document.querySelectorAll('.settings-tab__row').length`)
+    assert(rows > 0, 'the opening settings category rendered no rows')
     // round-trip a real setting through the main process
     const roundTrip = await evalJs(`(async () => {
       await window.suna.invoke('settings:set', { patch: { 'smoke.probe': 'yes' } });
@@ -5756,6 +5767,11 @@ try {
 
     await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
     await sleep(1200)
+    // Content width lives in the Editor category of the paned settings page.
+    await evalJs(
+      `document.querySelector('.settings-tab__nav-item[data-category="editor"]').click()`
+    )
+    await sleep(400)
 
     const before = await evalJs(`(() => {
       const input = document.querySelector('#cfg-content-width');
@@ -5809,6 +5825,10 @@ try {
     })()`)
     await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
     await sleep(900)
+    await evalJs(
+      `document.querySelector('.settings-tab__nav-item[data-category="editor"]').click()`
+    )
+    await sleep(400)
     assert(
       surface.cssVar === '97ch' && surface.store === 97,
       `the configured width never reached the editor: ${JSON.stringify(surface)}`

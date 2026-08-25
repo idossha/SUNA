@@ -3,9 +3,60 @@
    --------------------------------------------------------------------------- */
 
 .settings-tab {
+  display: flex;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   background: var(--s-bg-editor);
+}
+
+/* Left rail: one category at a time, so the page never becomes a scroll. */
+.settings-tab__nav {
+  flex: 0 0 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 16px 8px;
+  overflow: auto;
+  border-right: 1px solid var(--s-border);
+  background: var(--s-bg-raised);
+}
+
+.settings-tab__nav-title {
+  padding: 0 10px 10px;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-ink-faint);
+}
+
+.settings-tab__nav-item {
+  padding: 6px 10px;
+  text-align: left;
+  font: inherit;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-muted);
+  background: none;
+  border: none;
+  border-radius: var(--s-radius);
+  cursor: pointer;
+}
+
+.settings-tab__nav-item:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-editor);
+}
+
+.settings-tab__nav-item--active {
+  color: var(--s-accent);
+  background: var(--s-bg-editor);
+  font-weight: 600;
+}
+
+.settings-tab__panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
 }
 
 .settings-tab__page {
@@ -39,7 +90,7 @@
 }
 
 .settings-tab__section {
-  margin: 28px 0 10px;
+  margin: 24px 0 10px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--s-border);
   font-size: var(--s-text-xs);
