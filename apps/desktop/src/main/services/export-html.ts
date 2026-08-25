@@ -970,7 +970,11 @@ function readerCss(palette?: ExportPalette): string {
   thead th { border-top: 1px solid var(--r-ink); border-bottom: 1px solid var(--r-ink); font-weight: 650; }
   tbody tr:last-child td { border-bottom: 1px solid var(--r-ink); }
   code { font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 0.85em; }
-  pre { overflow-x: auto; padding: 0.8em 1em; border: 1px solid var(--r-border); border-radius: 4px; }
+  pre { padding: 0.8em 1em; border: 1px solid var(--r-border); border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* Print (the PDF export prints this same page): a scrollbar cannot be
+     printed, so a code line that overflowed would simply be cut off the
+     right edge of the paper. Wrapping is what keeps the code readable. */
+  pre code { white-space: inherit; }
   blockquote { margin: 1em 0; padding-left: 1em; border-left: 2px solid var(--r-border); color: var(--r-ink-muted); }
   .ms-backmatter p { font-size: 0.95em; }
   .ms-references { user-select: text; }
