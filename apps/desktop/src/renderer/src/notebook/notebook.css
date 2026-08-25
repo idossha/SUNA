@@ -132,6 +132,7 @@
 /* ---- cells --------------------------------------------------------------- */
 
 .nb-cell {
+  position: relative;
   display: flex;
   gap: 6px;
   padding: 3px 10px 3px 0;
@@ -307,4 +308,68 @@
 .ansi-white,
 .ansi-bright-white {
   color: var(--s-ink);
+}
+
+/* the scroller takes focus in command mode; the selected cell already says
+   where you are, so the browser's focus ring would only be noise */
+.nb__cells:focus,
+.nb__cells:focus-visible {
+  outline: none;
+}
+
+/* ---- per-cell actions ---------------------------------------------------- */
+
+.nb-cell__actions {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  display: none;
+  gap: 2px;
+  z-index: 1;
+}
+
+.nb-cell:hover .nb-cell__actions,
+.nb-cell--selected .nb-cell__actions {
+  display: flex;
+}
+
+.nb-cell__action {
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-raised);
+  color: var(--s-ink-faint);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nb-cell__action:hover {
+  color: var(--s-ink);
+  border-color: var(--s-border-strong);
+}
+
+.nb-cell__action--delete:hover {
+  color: var(--s-danger, #c0554d);
+}
+
+.nb-toolbar__divider {
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
+  background: var(--s-border);
+}
+
+/* ---- interactive output frame -------------------------------------------
+   A plot that is still a plot. The frame is cross-origin on purpose (see
+   main/services/output-frame.ts), so its height cannot be measured from
+   here — it reports its own, and this only has to not clip it. */
+
+.nb-output__frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
 }

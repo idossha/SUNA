@@ -1,24 +1,41 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useRef, type JSX } from 'react'
 import { parseSciMark, renderHtml } from '@suna/markdown'
 import type { Cell, CodeCell } from '@suna/notebook'
 import { createEditor, type EditorHandle } from '../editor/codemirror'
 import { useEditorSettings } from '../editor/settings'
+import { cellKeymap, type CellCommands } from './commands'
 import { OutputList } from './Outputs'
 import type { NotebookSession } from './session'
 
 /**
  * One cell. Code cells get a real CodeMirror — the same editor the rest of
  * the app uses, so highlighting, the theme and the keymap are the ones the
- * author already knows — with the notebook convention layered on top:
- * Shift-Enter runs, Ctrl-Enter runs in place.
+ * author already knows.
+ *
+ * Selection and the modal edit/command distinction belong to the notebook,
+ * not to a cell: every keystroke that acts on the cell LIST (insert, delete,
+ * move, change type) has to be able to see its neighbours. So a cell is told
+ * whether it is selected and whether it is being edited, and reports back
+ * gestures — it decides neither.
  */
 
-interface CellProps {
+export interface CellProps {
   cell: Cell
   session: NotebookSession
   running: boolean
   selected: boolean
+  /** Selected AND in edit mode: the editor is live and holds focus. */
+  editing: boolean
   onSelect: () => void
+  onEdit: () => void
+  /**
+   * The notebook-level commands, read at keystroke time rather than passed
+   * by value: the editor is built once per cell and would otherwise close
+   * over the first render's callbacks forever.
+   */
+  commands: () => CellCommands
+  onMove: (delta: number) => void
+  onDelete: () => void
 }
 
 /** `[ ]` while never run, `[*]` while running, `[7]` once it has. */
@@ -27,7 +44,30 @@ function executionLabel(cell: CodeCell, running: boolean): string {
   return cell.execution_count === null ? '[ ]' : `[${cell.execution_count}]`
 }
 
-function CodeCellView({ cell, session, running, selected, onSelect }: CellProps): JSX.Element {
+/** The per-cell controls: the mouse path to what the keyboard also does. */
+function CellActions({ onMove, onDelete }: Pick<CellProps, 'onMove' | 'onDelete'>): JSX.Element {
+  return (
+    <div className="nb-cell__actions">
+      <button className="nb-cell__action" title="Move up (⌘⇧↑)" onClick={() => onMove(-1)}>
+        ↑
+      </button>
+      <button className="nb-cell__action" title="Move down (⌘⇧↓)" onClick={() => onMove(1)}>
+        ↓
+      </button>
+      <button
+        className="nb-cell__action nb-cell__action--delete"
+        title="Delete this cell (dd)"
+        onClick={onDelete}
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
+function CodeCellView(props: CellProps): JSX.Element {
+  const { cell, session, running, selected, editing, onSelect, onEdit, onMove, onDelete, commands } =
+    props
   const code = cell as CodeCell
   const hostRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<EditorHandle | null>(null)
@@ -44,6 +84,7 @@ function CodeCellView({ cell, session, running, selected, onSelect }: CellProps)
       fileName: 'cell.py',
       theme: editorTheme,
       live: false,
+      extraKeys: cellKeymap(commands),
       onDocChanged: () => {
         code.source = handle.view.state.doc.toString()
         session.markDirty()
@@ -64,23 +105,28 @@ function CodeCellView({ cell, session, running, selected, onSelect }: CellProps)
     handleRef.current?.setTheme(editorTheme)
   }, [editorTheme])
 
-  const onKeyDown = (event: React.KeyboardEvent): void => {
-    if (event.key !== 'Enter' || !(event.shiftKey || event.ctrlKey || event.metaKey)) return
-    event.preventDefault()
-    event.stopPropagation()
-    void session.runCell(code)
-  }
+  // Edit mode IS "the editor has focus": Escape leaves it, Enter comes back.
+  useEffect(() => {
+    const handle = handleRef.current
+    if (handle === null) return
+    if (editing) {
+      if (!handle.view.hasFocus) handle.view.focus()
+    } else if (handle.view.hasFocus) {
+      handle.view.contentDOM.blur()
+    }
+  }, [editing])
 
   return (
     <div
       className={`nb-cell nb-cell--code${selected ? ' nb-cell--selected' : ''}`}
-      onFocus={onSelect}
-      onKeyDown={onKeyDown}
+      data-cell-body="1"
+      onMouseDown={onSelect}
+      onFocus={onEdit}
     >
       <div className="nb-cell__gutter">
         <button
           className="nb-cell__run"
-          title="Run this cell (Shift-Enter)"
+          title="Run this cell (⇧↵)"
           aria-label="Run this cell"
           onClick={() => void session.runCell(code)}
         >
@@ -96,12 +142,13 @@ function CodeCellView({ cell, session, running, selected, onSelect }: CellProps)
         <div ref={hostRef} className="nb-cell__editor" />
         <OutputList outputs={code.outputs} />
       </div>
+      <CellActions onMove={onMove} onDelete={onDelete} />
     </div>
   )
 }
 
-function MarkdownCellView({ cell, session, selected, onSelect }: CellProps): JSX.Element {
-  const [editing, setEditing] = useState(false)
+function MarkdownCellView(props: CellProps): JSX.Element {
+  const { cell, session, selected, editing, onSelect, onEdit, onMove, onDelete, commands } = props
   const hostRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<EditorHandle | null>(null)
   const editorTheme = useEditorSettings().editorTheme
@@ -112,10 +159,11 @@ function MarkdownCellView({ cell, session, selected, onSelect }: CellProps): JSX
     if (!editing || host === null) return
     const handle = createEditor({
       parent: host,
-      doc: source,
+      doc: typeof cell.source === 'string' ? cell.source : cell.source.join(''),
       fileName: 'cell.md',
       theme: editorTheme,
       live: false,
+      extraKeys: cellKeymap(commands),
       onDocChanged: () => {
         cell.source = handle.view.state.doc.toString()
         session.markDirty()
@@ -135,17 +183,14 @@ function MarkdownCellView({ cell, session, selected, onSelect }: CellProps): JSX
     return (
       <div
         className={`nb-cell nb-cell--markdown nb-cell--editing${selected ? ' nb-cell--selected' : ''}`}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && (event.shiftKey || event.ctrlKey || event.metaKey)) {
-            event.preventDefault()
-            setEditing(false)
-          }
-        }}
+        data-cell-body="1"
+        onMouseDown={onSelect}
       >
         <div className="nb-cell__gutter" />
         <div className="nb-cell__body">
           <div ref={hostRef} className="nb-cell__editor" />
         </div>
+        <CellActions onMove={onMove} onDelete={onDelete} />
       </div>
     )
   }
@@ -153,10 +198,11 @@ function MarkdownCellView({ cell, session, selected, onSelect }: CellProps): JSX
   return (
     <div
       className={`nb-cell nb-cell--markdown${selected ? ' nb-cell--selected' : ''}`}
-      onClick={onSelect}
+      data-cell-body="1"
+      onMouseDown={onSelect}
       // Double-click to edit, Shift-Enter to render again: Jupyter's gesture,
       // because that is the one every notebook author already has.
-      onDoubleClick={() => setEditing(true)}
+      onDoubleClick={onEdit}
     >
       <div className="nb-cell__gutter" />
       <div className="nb-cell__body">
@@ -169,6 +215,7 @@ function MarkdownCellView({ cell, session, selected, onSelect }: CellProps): JSX
           />
         )}
       </div>
+      <CellActions onMove={onMove} onDelete={onDelete} />
     </div>
   )
 }
@@ -176,13 +223,19 @@ function MarkdownCellView({ cell, session, selected, onSelect }: CellProps): JSX
 export function CellView(props: CellProps): JSX.Element {
   if (props.cell.cell_type === 'code') return <CodeCellView {...props} />
   if (props.cell.cell_type === 'markdown') return <MarkdownCellView {...props} />
-  const source = typeof props.cell.source === 'string' ? props.cell.source : props.cell.source.join('')
+  const source =
+    typeof props.cell.source === 'string' ? props.cell.source : props.cell.source.join('')
   return (
-    <div className="nb-cell nb-cell--raw">
+    <div
+      className={`nb-cell nb-cell--raw${props.selected ? ' nb-cell--selected' : ''}`}
+      data-cell-body="1"
+      onMouseDown={props.onSelect}
+    >
       <div className="nb-cell__gutter" />
       <div className="nb-cell__body">
         <pre className="nb-output__text">{source}</pre>
       </div>
+      <CellActions onMove={props.onMove} onDelete={props.onDelete} />
     </div>
   )
 }

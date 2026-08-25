@@ -1,7 +1,8 @@
-import { Compartment, EditorState, type Extension } from '@codemirror/state'
+import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state'
 import {
   EditorView,
   keymap,
+  type KeyBinding,
   lineNumbers,
   highlightActiveLine,
   drawSelection
@@ -189,6 +190,16 @@ export interface CreateEditorOptions {
   onDocChanged: () => void
   onSave: () => void | Promise<void>
   /**
+   * Bindings the HOST owns, installed above every other keymap.
+   *
+   * The notebook needs this and nothing else does: ⇧↵ is `insertNewline` in
+   * CodeMirror's default keymap, so a cell that only listened for it on the
+   * way up would run AND leave a stray newline in the source. A binding here
+   * wins outright, and the surrounding editor keeps every key it does not
+   * name.
+   */
+  extraKeys?: readonly KeyBinding[]
+  /**
    * What vim's `:q` closes. `force` is `:q!`; return false to REFUSE (an
    * unsaved buffer), which surfaces vim's own "no write since last change"
    * instead of discarding the work. Omitted by hosts that own their own
@@ -291,6 +302,10 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
   }
 
   const extensions: Extension[] = [
+    // Host bindings first and at the highest precedence — see `extraKeys`.
+    ...(options.extraKeys === undefined
+      ? []
+      : [Prec.highest(keymap.of([...options.extraKeys]))]),
     // vim() must precede every other keymap: it installs its own high-priority
     // input handler and only wins if CM6 sees it first (per its README).
     vimCompartment.of(options.vim === true ? vim() : []),
