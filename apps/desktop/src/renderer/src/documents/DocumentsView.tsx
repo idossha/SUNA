@@ -4,7 +4,13 @@ import { stageLabel, versionsNewestFirst } from '@suna/core'
 import { useProjectStore } from '../state/project'
 import { useDocumentsStore, refreshDocuments, secondaryDocuments } from '../state/documents'
 import { useManuscriptDocStore } from '../state/manuscriptDoc'
-import { openCompareTab, openDocumentTab, openManuscriptTab, openVersionTab } from '../state/dock'
+import {
+  openCompareTab,
+  openDocumentTab,
+  openManuscriptTab,
+  openRoundTab,
+  openVersionTab
+} from '../state/dock'
 import { ManuscriptView } from '../views/ManuscriptView'
 import { DocumentOutline } from './DocumentOutline'
 import { LetterList } from './LetterList'
@@ -146,6 +152,16 @@ export function DocumentsView(): JSX.Element {
               onClick={() => {
                 setReviewRoundId(false)
                 setLettersPicked(true)
+                // Picking the group opens a letter straight away rather than
+                // making the author pick again: with one letter there is
+                // nothing to choose, and with several the list stays below so
+                // switching is one more click.
+                if (!activeIsLetter) {
+                  const first = letters.find((d) => !missing.includes(d.id)) ?? null
+                  if (first !== null && rootDir !== null) {
+                    openDocumentTab(rootDir, first.id, first.kind, first.file, first.title)
+                  }
+                }
               }}
               title="Letters"
             >
@@ -181,7 +197,14 @@ export function DocumentsView(): JSX.Element {
               data-tour="doc-peer-review"
               onClick={() => {
                 setLettersPicked(false)
-                setReviewRoundId((cur) => (cur === false ? null : cur))
+                if (showReview) return
+                // Same rule as Letters: open the newest round's workspace
+                // immediately. Its outline replaces the round list when it is
+                // the only round; with several, the list stays up so the
+                // author can move between them.
+                const latest = rounds[rounds.length - 1] ?? null
+                if (latest !== null && rootDir !== null) openRoundTab(rootDir, latest.id)
+                setReviewRoundId(latest !== null && rounds.length === 1 ? latest.id : null)
               }}
               title="Peer review"
             >
