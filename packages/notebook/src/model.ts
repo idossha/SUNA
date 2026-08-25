@@ -253,3 +253,46 @@ export function parseNotebook(text: string): Notebook {
 export function serializeNotebook(nb: Notebook): string {
   return `${JSON.stringify(sortKeysDeep(splitLinesDeep(nb)), null, 1)}\n`
 }
+
+/**
+ * A new, empty cell.
+ *
+ * The `id` is minted only when the notebook says it speaks nbformat 4.5 or
+ * later — the same restraint as `cellKey` in the renderer: a v4.4 file that
+ * gains ids on save is a file every other tool then re-diffs.
+ */
+export function newCell(cellType: CellType, nb?: Notebook): Cell {
+  const base: BaseCell = { cell_type: cellType, source: '', metadata: {} }
+  if (nb === undefined || nb.nbformat > 4 || nb.nbformat_minor >= 5) base.id = mintCellId()
+  if (cellType !== 'code') return base as MarkdownCell | RawCell
+  return { ...base, cell_type: 'code', execution_count: null, outputs: [] } as CodeCell
+}
+
+/** nbformat's own cell id shape: 1–64 chars of [a-zA-Z0-9-_]. */
+function mintCellId(): string {
+  const uuid =
+    typeof globalThis.crypto?.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID()
+      : `${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`
+  return uuid.replace(/-/g, '').slice(0, 8)
+}
+
+/**
+ * Change a cell's type in place, keeping its source and everything unknown.
+ *
+ * Only the keys nbformat ties to a type move: a markdown cell may not carry
+ * `outputs` or `execution_count`, and a code cell must carry both.
+ */
+export function convertCell(cell: Cell, cellType: CellType): Cell {
+  if (cell.cell_type === cellType) return cell
+  const next = cell as BaseCell
+  next.cell_type = cellType
+  if (cellType === 'code') {
+    if (!Array.isArray(next['outputs'])) next['outputs'] = []
+    if (typeof next['execution_count'] !== 'number') next['execution_count'] = null
+  } else {
+    delete next['outputs']
+    delete next['execution_count']
+  }
+  return next as Cell
+}

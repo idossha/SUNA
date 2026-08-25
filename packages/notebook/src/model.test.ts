@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   NotebookParseError,
+  convertCell,
+  newCell,
   joinLines,
   parseNotebook,
   serializeNotebook,
@@ -155,5 +157,55 @@ describe('serializeNotebook', () => {
     const nb = parseNotebook(SAMPLE)
     ;(nb.cells[1] as CodeCell).source = 'a = 1\nb = 2\n'
     expect(JSON.parse(serializeNotebook(nb)).cells[1].source).toEqual(['a = 1\n', 'b = 2\n'])
+  })
+})
+
+describe('newCell', () => {
+  it('mints an id only when the notebook speaks nbformat 4.5', () => {
+    const modern = parseNotebook(
+      JSON.stringify({ cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 })
+    )
+    const old = parseNotebook(
+      JSON.stringify({ cells: [], metadata: {}, nbformat: 4, nbformat_minor: 4 })
+    )
+    expect(typeof newCell('code', modern).id).toBe('string')
+    expect(newCell('code', old).id).toBeUndefined()
+  })
+
+  it('gives a code cell the keys nbformat requires and a markdown cell neither', () => {
+    const code = newCell('code')
+    expect(code).toMatchObject({ cell_type: 'code', source: '', execution_count: null, outputs: [] })
+    expect(newCell('markdown')).not.toHaveProperty('outputs')
+  })
+
+  it('round-trips through the serializer', () => {
+    const nb = parseNotebook(
+      JSON.stringify({ cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 })
+    )
+    nb.cells.push(newCell('markdown', nb))
+    expect(() => parseNotebook(serializeNotebook(nb))).not.toThrow()
+  })
+})
+
+describe('convertCell', () => {
+  it('drops outputs and execution_count when a code cell becomes markdown', () => {
+    const code = newCell('code') as CodeCell
+    code.source = '1 + 1'
+    code.execution_count = 3
+    code.outputs.push({ output_type: 'stream', name: 'stdout', text: '2\n' })
+    const markdown = convertCell(code, 'markdown')
+    expect(markdown.cell_type).toBe('markdown')
+    expect(markdown.source).toBe('1 + 1')
+    expect(markdown).not.toHaveProperty('outputs')
+    expect(markdown).not.toHaveProperty('execution_count')
+  })
+
+  it('adds them back — and keeps unknown metadata — going the other way', () => {
+    const markdown = newCell('markdown')
+    markdown.metadata['some-extension'] = { kept: true }
+    const code = convertCell(markdown, 'code') as CodeCell
+    expect(code.outputs).toEqual([])
+    expect(code.execution_count).toBeNull()
+    expect(code.metadata['some-extension']).toEqual({ kept: true })
   })
 })
