@@ -949,3 +949,40 @@ describe('document metadata', () => {
     expect(core).not.toMatch(/docx(?!-)/i)
   })
 })
+
+describe('fenced code blocks', () => {
+  const FENCE = ['```python', 'import suna_mpl', '', 'fig = plot(x, y)', '```'].join('\n')
+
+  beforeEach(async () => {
+    await writeFixtureProject(dir)
+    await appendProse(FENCE)
+  })
+
+  /** The paragraphs whose only run is in the mono face. */
+  function codeParagraphs(xml: string): string[] {
+    return [...xml.matchAll(/<w:p>[\s\S]*?<\/w:p>/g)]
+      .map((m) => m[0] ?? '')
+      .filter((p) => p.includes('Courier New'))
+  }
+
+  it('writes one paragraph per source line, so Word does not collapse the block', async () => {
+    const paragraphs = codeParagraphs(await documentXmlFor('suna'))
+    expect(paragraphs.map((p) => visibleText(p).trim())).toEqual([
+      'import suna_mpl',
+      '',
+      'fig = plot(x, y)'
+    ])
+  })
+
+  it('left-aligns every code line, never justified across the column', async () => {
+    for (const p of codeParagraphs(await documentXmlFor('suna'))) {
+      expect(p).toContain('<w:jc w:val="left"/>')
+    }
+  })
+
+  it('single-spaces the block even when the body is double spaced', async () => {
+    for (const p of codeParagraphs(await documentXmlFor('suna', { ...OPTIONS, doubleSpacing: true }))) {
+      expect(p).not.toContain('w:line="480"')
+    }
+  })
+})

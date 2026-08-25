@@ -720,6 +720,30 @@ function markdownImageBlock(node: ImageNode, ctx: DocxCtx): Paragraph[] {
   ]
 }
 
+/**
+ * A fenced code block.
+ *
+ * Word does not turn a run's newlines into line breaks, so a block written as
+ * one run collapses into a single justified paragraph of runaway prose —
+ * which is exactly what an exported .docx used to show. Each source line is
+ * therefore its own paragraph: left-aligned (never justified, which would
+ * stretch code across the column), single-spaced whatever the body spacing
+ * is, and indented as one visual block. Trailing blank lines are dropped;
+ * interior ones are kept, because they are part of the code.
+ */
+function codeParagraphs(value: string, ctx: DocxCtx): Paragraph[] {
+  const lines = value.replace(/\n+$/, '').split('\n')
+  return lines.map((line, i) => {
+    const last = i === lines.length - 1
+    return new Paragraph({
+      alignment: AlignmentType.LEFT,
+      indent: { left: ptToTwips(12) },
+      spacing: { before: i === 0 ? ptToTwips(6) : 0, after: last ? ptToTwips(6) : 0 },
+      children: [new TextRun({ text: line === '' ? ' ' : line, font: ctx.style.fonts.mono, size: 18 })]
+    })
+  })
+}
+
 function blockNode(node: RootChild, ctx: DocxCtx): (Paragraph | Table)[] {
   switch (node.type) {
     case 'paragraph': {
@@ -770,12 +794,7 @@ function blockNode(node: RootChild, ctx: DocxCtx): (Paragraph | Table)[] {
     case 'blockquote':
       return node.children.flatMap((c) => blockNode(c, ctx))
     case 'code':
-      return [
-        new Paragraph({
-          spacing: bodySpacing(ctx, { after: 120 }),
-          children: [new TextRun({ text: node.value, font: ctx.style.fonts.mono, size: 20 })]
-        })
-      ]
+      return codeParagraphs(node.value, ctx)
     case 'thematicBreak':
       return [
         new Paragraph({
