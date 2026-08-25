@@ -115,7 +115,9 @@ app.whenReady().then(() => {
     // config, so the renderer needs no round trip.
     stopConfigWatch = watchConfig((config) => {
       for (const window of BrowserWindow.getAllWindows()) {
-        window.webContents.send(EVENT_CHANNELS.configChanged, config)
+        if (!window.webContents.isDestroyed()) {
+          window.webContents.send(EVENT_CHANNELS.configChanged, config)
+        }
       }
     })
   })
