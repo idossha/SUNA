@@ -3,7 +3,13 @@ import { join } from 'node:path'
 import { Document, HeadingLevel, Paragraph, TextRun, convertMillimetersToTwip } from 'docx'
 import type { ReplyBlock, ReplyRun, RequestOf, ReviewPointRecord, ReviewerReport, Round } from '@suna/core'
 import { RESPONSE_ROLE_COLORS, pointStateFor, replyBlocks, unaddressedPoints } from '@suna/core'
-import { escapeHtml, htmlDocument, renderHtmlToPdf, writeSimpleExport } from './print-html'
+import {
+  escapeHtml,
+  htmlDocument,
+  renderHtmlToPdf,
+  simpleDocStyles,
+  writeSimpleExport
+} from './print-html'
 import { projectSubdir } from './paths'
 import { readReviewerReports, readRound } from './round-new'
 import { assertInsideAllowedRoot } from './roots'
@@ -354,11 +360,15 @@ function buildResponseDocx(
   return new Document({
     creator: 'SUNA',
     title,
-    styles: {
-      default: {
-        document: { run: { font: 'Georgia', size: 22 }, paragraph: { spacing: { line: 300 } } }
-      }
-    },
+    // RESPONSE_CSS, restated: 18pt near-black title, 13pt reviewer heading
+    // (.rx-rev), a SMALL muted-grey point heading (.rx-point — deliberately
+    // quieter than the reviewer line), and reply headings (3-6) at body size,
+    // the helper's fallback. Never Word-theme blue.
+    styles: simpleDocStyles({
+      bodySizePt: 11,
+      title: { sizePt: 18 },
+      headings: { 1: { sizePt: 13 }, 2: { sizePt: 10, color: '6A6F76' } }
+    }),
     sections: [
       {
         properties: {

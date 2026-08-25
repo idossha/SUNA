@@ -8,7 +8,7 @@ import {
   convertMillimetersToTwip
 } from 'docx'
 import type { RequestOf } from '@suna/core'
-import { escapeHtml, htmlDocument, writeSimpleExport } from './print-html'
+import { escapeHtml, htmlDocument, simpleDocStyles, writeSimpleExport } from './print-html'
 import { projectSubdir } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
@@ -237,11 +237,13 @@ function buildNotesDocx(req: ExportNotesRequest): Document {
   return new Document({
     creator: 'SUNA',
     title: req.title,
-    styles: {
-      default: {
-        document: { run: { font: 'Georgia', size: 22 }, paragraph: { spacing: { line: 300 } } }
-      }
-    },
+    // NOTES_CSS, restated: 20pt near-black title, 13pt paper heading
+    // (.nx-paperhead). Never Word-theme blue.
+    styles: simpleDocStyles({
+      bodySizePt: 11,
+      title: { sizePt: 20 },
+      headings: { 1: { sizePt: 13 } }
+    }),
     sections: [
       {
         properties: {

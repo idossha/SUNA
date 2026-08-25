@@ -22,7 +22,7 @@
 import { BrowserWindow, app } from 'electron'
 import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import { HeadingLevel, Packer, type Document } from 'docx'
+import { HeadingLevel, Packer, type Document, type IStylesOptions } from 'docx'
 import { writeFileAtomic } from './atomic'
 
 
@@ -141,6 +141,92 @@ export const HEADING_LEVELS = [
   HeadingLevel.HEADING_5,
   HeadingLevel.HEADING_6
 ] as const
+
+/**
+ * The simple-pipeline typography, as a docx styles block.
+ *
+ * Each simple export (letter, response, notes) already states its design once
+ * — in its page CSS — and the Word file must be the same document, not that
+ * document reskinned by Word's default theme (blue Calibri headings). So the
+ * builders hand this helper the same numbers their CSS states — pt sizes,
+ * hex colours — and it patches the built-in Title / Heading1..6 styles
+ * through docx's `styles.default` hooks. Patching the built-ins (rather than
+ * dropping `heading:`) keeps Word's outline pane and navigation working.
+ *
+ * `styles.default.headingN`, NOT `paragraphStyles: [{ id: 'HeadingN' }]`:
+ * the docx library always writes its own Heading1..6 (in Word's theme blue,
+ * `2E74B5`) and a `paragraphStyles` entry with the same id is appended as a
+ * DUPLICATE, which Word resolves by keeping the first — the blue one. The
+ * default hook replaces the built-in entry itself, so styles.xml carries one
+ * definition per id and it is ours.
+ *
+ * Sizes are CSS points; docx wants half-points, so the ×2 lives here, once.
+ * Colours are `RRGGBB` (no `#`), the way docx takes them. Headings default
+ * to bold near-black in the shared serif — a spec entry states only what
+ * differs.
+ */
+export const SIMPLE_DOC_FONT = 'Georgia'
+/** The simple pages' body ink — #17181a in every simple-pipeline stylesheet. */
+export const SIMPLE_DOC_COLOR = '17181A'
+
+export interface SimpleHeadingSpec {
+  /** Font size in CSS points (the number the page CSS states). */
+  sizePt: number
+  /** `RRGGBB`; defaults to the shared near-black. */
+  color?: string
+  /** Headings are bold unless a spec opts out. */
+  bold?: boolean
+  italics?: boolean
+}
+
+type SimpleParagraphStyle = NonNullable<NonNullable<IStylesOptions['default']>['title']>
+
+function headingStyleOf(spec: SimpleHeadingSpec): SimpleParagraphStyle {
+  return {
+    basedOn: 'Normal',
+    next: 'Normal',
+    quickFormat: true,
+    run: {
+      font: SIMPLE_DOC_FONT,
+      size: Math.round(spec.sizePt * 2),
+      bold: spec.bold ?? true,
+      italics: spec.italics ?? false,
+      color: spec.color ?? SIMPLE_DOC_COLOR
+    }
+  }
+}
+
+export function simpleDocStyles(spec: {
+  /** Body size in CSS points (11 everywhere today). */
+  bodySizePt: number
+  title: SimpleHeadingSpec
+  /** Markdown-ish depth (1-6) -> that heading level's look. A level left
+   *  out is still patched — to a bold body-size line in the body ink — so no
+   *  level of any simple export ever falls through to Word's blue. */
+  headings: Partial<Record<1 | 2 | 3 | 4 | 5 | 6, SimpleHeadingSpec>>
+}): IStylesOptions {
+  const headings = { ...spec.headings }
+  for (const level of [1, 2, 3, 4, 5, 6] as const) headings[level] ??= { sizePt: spec.bodySizePt }
+  return {
+    default: {
+      document: {
+        run: {
+          font: SIMPLE_DOC_FONT,
+          size: Math.round(spec.bodySizePt * 2),
+          color: SIMPLE_DOC_COLOR
+        },
+        paragraph: { spacing: { line: 300 } }
+      },
+      title: headingStyleOf(spec.title),
+      heading1: headingStyleOf(headings[1]!),
+      heading2: headingStyleOf(headings[2]!),
+      heading3: headingStyleOf(headings[3]!),
+      heading4: headingStyleOf(headings[4]!),
+      heading5: headingStyleOf(headings[5]!),
+      heading6: headingStyleOf(headings[6]!)
+    }
+  }
+}
 
 export interface SimpleExportInput {
   /** Absolute directory the file lands in (output/notes, output/letters, output/responses). */

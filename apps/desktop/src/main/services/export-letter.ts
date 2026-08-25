@@ -13,6 +13,7 @@ import {
   escapeHtml,
   htmlDocument,
   renderHtmlToPdf,
+  simpleDocStyles,
   writeSimpleExport
 } from './print-html'
 import { assertInsideAllowedRoot } from './roots'
@@ -152,11 +153,10 @@ function buildLetterDocx(title: string, subtitle: string, blocks: readonly Lette
   return new Document({
     creator: 'SUNA',
     title,
-    styles: {
-      default: {
-        document: { run: { font: 'Georgia', size: 22 }, paragraph: { spacing: { line: 300 } } }
-      }
-    },
+    // LETTER_CSS, restated: an 18pt near-black title, and every heading level
+    // at body size (the helper's fallback) — a letter's headings are bold
+    // lines of prose, not display type, and never Word-theme blue.
+    styles: simpleDocStyles({ bodySizePt: 11, title: { sizePt: 18 }, headings: {} }),
     sections: [
       {
         properties: {
