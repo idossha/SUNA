@@ -2,7 +2,9 @@ import type { JSX } from 'react'
 import { parseSciMark, renderHtml } from '@suna/markdown'
 import type { DisplayOutput, ErrorOutput, Output, StreamOutput } from '@suna/notebook'
 import { ansiToSpans } from './ansi'
-import { dataUri, pickRepresentation } from './mime'
+import { InteractiveOutput } from './Interactive'
+import { interactiveHtml } from './interactiveHtml'
+import { INTERACTIVE_MIMES, dataUri, pickRepresentation } from './mime'
 
 /**
  * Rendering the outputs a kernel produced.
@@ -49,9 +51,28 @@ function ErrorView({ output }: { output: ErrorOutput }): JSX.Element {
   )
 }
 
+/** The bundle minus its interactive types: what to draw when none renders. */
+function staticFallback(data: Record<string, unknown>): Record<string, unknown> {
+  const rest: Record<string, unknown> = {}
+  for (const [mime, value] of Object.entries(data)) {
+    if (!INTERACTIVE_MIMES.has(mime)) rest[mime] = value
+  }
+  return rest
+}
+
 function DisplayView({ output }: { output: DisplayOutput }): JSX.Element | null {
-  const rep = pickRepresentation(output.data)
+  const picked = pickRepresentation(output.data)
+  // A live plot nothing here can draw is not a dead output: the kernel sends
+  // a static png beside it, and that is what a reader gets.
+  const rep =
+    picked.kind === 'interactive' && interactiveHtml(picked.mime, picked.value) === null
+      ? pickRepresentation(staticFallback(output.data))
+      : picked
   switch (rep.kind) {
+    case 'interactive':
+      return <InteractiveOutput html={interactiveHtml(rep.mime, rep.value) as string} />
+    case 'script-html':
+      return <InteractiveOutput html={rep.html} />
     case 'image':
       return <img className="nb-output__image" src={dataUri(rep.mime, rep.data)} alt="" />
     case 'svg':
@@ -79,7 +100,9 @@ function DisplayView({ output }: { output: DisplayOutput }): JSX.Element | null 
     case 'none':
       return (
         <div className="nb-output__unsupported">
-          Nothing here can render {Object.keys(output.data).join(', ') || 'this output'}.
+          {'application/vnd.jupyter.widget-view+json' in output.data
+            ? 'This output is an ipywidget. SUNA runs the kernel but not the widget front end yet — for an interactive plot, use plotly, altair/vega or bokeh.'
+            : `Nothing here can render ${Object.keys(output.data).join(', ') || 'this output'}.`}
         </div>
       )
   }

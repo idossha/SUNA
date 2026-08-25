@@ -9,6 +9,10 @@
  */
 
 export type Representation =
+  /** A live plot: its own library, its own scripts, in a sandboxed frame. */
+  | { kind: 'interactive'; mime: string; value: unknown }
+  /** HTML that only means something once its scripts run — same frame. */
+  | { kind: 'script-html'; html: string }
   | { kind: 'image'; mime: string; data: string }
   | { kind: 'svg'; svg: string }
   | { kind: 'html'; html: string }
@@ -22,6 +26,18 @@ export type Representation =
  * every kernel always includes, so anything above it is a deliberate upgrade.
  */
 export const MIME_PRIORITY = [
+  // Interactive plots first. A kernel that sends one ALSO sends a static
+  // png and a text repr as fallbacks, and preferring the fallback would
+  // silently turn every plotly figure in the notebook into a picture.
+  'application/vnd.plotly.v1+json',
+  'application/vnd.vegalite.v6+json',
+  'application/vnd.vegalite.v5+json',
+  'application/vnd.vegalite.v4+json',
+  'application/vnd.vegalite.v3+json',
+  'application/vnd.vega.v6+json',
+  'application/vnd.vega.v5+json',
+  'application/vnd.vega.v4+json',
+  'application/vnd.vega.v3+json',
   'image/svg+xml',
   'image/png',
   'image/jpeg',
@@ -32,6 +48,11 @@ export const MIME_PRIORITY = [
   'application/json',
   'text/plain'
 ] as const
+
+/** The mime types rendered by loading a plotting library in the frame. */
+export const INTERACTIVE_MIMES: ReadonlySet<string> = new Set<string>(
+  MIME_PRIORITY.filter((mime) => mime.startsWith('application/vnd.'))
+)
 
 function asText(value: unknown): string | null {
   if (typeof value === 'string') return value
@@ -47,6 +68,7 @@ export function pickRepresentation(data: Record<string, unknown>): Representatio
     if (!(mime in data)) continue
     const value = data[mime]
 
+    if (INTERACTIVE_MIMES.has(mime)) return { kind: 'interactive', mime, value }
     if (mime === 'application/json') return { kind: 'json', value }
 
     const text = asText(value)
@@ -54,7 +76,13 @@ export function pickRepresentation(data: Record<string, unknown>): Representatio
 
     if (mime === 'image/svg+xml') return { kind: 'svg', svg: text }
     if (mime.startsWith('image/')) return { kind: 'image', mime, data: text }
-    if (mime === 'text/html') return { kind: 'html', html: text }
+    // Scripts never run in the app document (innerHTML does not execute
+    // them, and the CSP forbids it anyway); HTML that carries any goes to
+    // the sandboxed frame instead, which is what makes bokeh and a
+    // `to_html()` plotly figure actually work.
+    if (mime === 'text/html') {
+      return /<script[\s>]/i.test(text) ? { kind: 'script-html', html: text } : { kind: 'html', html: text }
+    }
     if (mime === 'text/markdown') return { kind: 'markdown', text }
     return { kind: 'text', text }
   }
