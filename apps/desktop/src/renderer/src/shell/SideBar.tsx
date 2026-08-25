@@ -109,7 +109,12 @@ export function SideBar(): JSX.Element {
   const ViewBody = VIEW_COMPONENTS[activeView]
 
   return (
-    <aside ref={asideRef} className="sidebar" style={{ width: sidebarWidth }}>
+    <aside
+      ref={asideRef}
+      className="sidebar"
+      style={{ width: sidebarWidth }}
+      data-vim-region="sidebar"
+    >
       <div className="sidebar__header">
         <span>{SIDEBAR_VIEW_LABELS[activeView]}</span>
         {activeView === 'manuscript' && rootDir !== null && (

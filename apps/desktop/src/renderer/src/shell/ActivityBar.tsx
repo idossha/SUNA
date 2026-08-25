@@ -10,7 +10,7 @@ export function ActivityBar(): JSX.Element {
   const setActiveView = useUiStore((s) => s.setActiveView)
 
   return (
-    <nav className="activitybar" aria-label="Views">
+    <nav className="activitybar" aria-label="Views" data-vim-region="rail">
       {SIDEBAR_VIEWS.map((view) => {
         const IconComponent = VIEW_ICONS[view]
         return (

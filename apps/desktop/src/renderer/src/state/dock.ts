@@ -615,6 +615,19 @@ function sideGroup(): DockviewGroupPanel | null {
   return groups[1] ?? null
 }
 
+/**
+ * Put keyboard focus back on the active dock panel — the return leg of the
+ * Ctrl-h/j/k/l region hop (shell/useVimNav.ts). Optional-chained through:
+ * tests attach partial fakes, and a panel with nothing focusable is a no-op
+ * rather than a thrown hop.
+ */
+export function focusActivePanel(): boolean {
+  const panel = dockApi?.activePanel
+  if (!panel) return false
+  panel.focus?.()
+  return true
+}
+
 /** Id of the existing side group, or null when the dock has only one group. */
 export function sideGroupId(): string | null {
   return sideGroup()?.id ?? null

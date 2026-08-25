@@ -37,6 +37,7 @@ import { CompareTab } from './documents/CompareTab'
 import { ReviewImportTab } from './documents/ReviewImportTab'
 import { useUiStore } from './state/ui'
 import { useEditorSettings } from './editor/settings'
+import { useVimNav } from './shell/useVimNav'
 import { setDockApi } from './state/dock'
 // Registers the app's built-in commands as an import side effect (state/commands.ts).
 import './state/commands'
@@ -74,6 +75,9 @@ export function App(): JSX.Element {
   // this attribute (state/settings.ts's applyThemeCss), which is what puts a
   // user's own ~/.suna/themes/*.yml on exactly the same footing as a built-in.
   const editorTheme = useEditorSettings((s) => s.editorTheme)
+
+  // Ctrl-h / Ctrl-l between the regions marked with data-vim-region below.
+  useVimNav()
 
   // Mirrored onto <body> for body-portalled chrome (ProjectMenu) and the body
   // background itself, both of which sit outside the .app subtree.
@@ -116,7 +120,7 @@ export function App(): JSX.Element {
       <div className={workbenchClass}>
         {(railVisible || sidebarVisible) && <ActivityBar />}
         {sidebarVisible && <SideBar />}
-        <div className="dock-stage">
+        <div className="dock-stage" data-vim-region="dock">
           <DockHost components={DOCK_COMPONENTS} onReady={handleDockReady} />
           <TerminalPanel />
         </div>

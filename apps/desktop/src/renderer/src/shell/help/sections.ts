@@ -68,7 +68,10 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
       [':q / :q!', 'Close the tab / close it discarding unsaved changes'],
       [':wq', 'Write, then close (refuses to close if the write did not land)'],
       [':help / :h', 'This help'],
-      ['?', "vim's search-backward here, not this dialog — use :help"]
+      ['?', "vim's search-backward here, not this dialog — use :help"],
+      ['⌃h', 'Editor → file tree → view rail'],
+      ['⌃l', 'Back the other way, to where the caret was'],
+      ['h j k l', 'Once there: move within the rail or the file tree']
     ]
   }
 ]
