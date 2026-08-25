@@ -259,6 +259,47 @@ button {
   --dv-tabs-container-scrollbar-color: var(--s-border-strong);
   --dv-border-radius: 0px;
   --dv-tab-border-radius: 0px;
+  /* dockview only defines this on .dv-resize-container, so the tab-overflow
+     popover wrapper resolved it to `auto` and painted underneath the dock. */
+  --dv-overlay-z-index: 900;
+}
+
+/* ---- tab-strip overflow dropdown ---------------------------------------- */
+
+/* The "⌄ N" handle at the end of a crowded tab strip; dockview opens its list
+   into `.dv-popover-anchor`, which is the FIRST child of the shell — without a
+   stacking context of its own the list loses to every later sibling. */
+.dockview-theme-suna .dv-popover-anchor {
+  z-index: var(--dv-overlay-z-index);
+}
+
+.dv-tabs-overflow-dropdown-default {
+  color: var(--s-ink-muted);
+  border-radius: var(--s-radius);
+}
+
+.dv-tabs-overflow-dropdown-default:hover {
+  color: var(--s-ink);
+  background: var(--s-bg-hover);
+}
+
+.dv-tabs-overflow-container {
+  min-width: 200px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  background: var(--s-bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px 0;
+}
+
+.dv-tabs-overflow-container .dv-tab {
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.dv-tabs-overflow-container .dv-tab:hover {
+  background: var(--s-bg-hover);
+  color: var(--s-ink);
 }
 
 /* ---- welcome tab (manuscript title page) --------------------------------- */
