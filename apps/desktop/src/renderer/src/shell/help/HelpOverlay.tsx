@@ -1,5 +1,8 @@
 /**
- * "?" keyboard-shortcut overlay (feature-plan-8 §1). One dialog over
+ * "?" keyboard-shortcut overlay (feature-plan-8 §1) — one centred dialog for
+ * the WHOLE app: a surface with its own shortcuts adds a section here rather
+ * than a panel of its own, so there is one place to look and one key to
+ * press. One dialog over
  * everything, palette-convention backdrop (z-index 200, backdrop mousedown
  * closes, inner stopPropagation), tabs per surface section from sections.ts.
  *
@@ -53,7 +56,11 @@ export function HelpOverlay(): JSX.Element | null {
       if (event.metaKey || event.ctrlKey || event.altKey) return
       if (isTyping(event.target)) return
       event.preventDefault()
-      useUiStore.getState().setHelpOpen(true)
+      // `?` toggles: the dialog is focused when open and is not a typing
+      // surface, so the same key that opened it is the fastest way out —
+      // Esc and a backdrop click stay as they were.
+      const ui = useUiStore.getState()
+      ui.setHelpOpen(!ui.helpOpen)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)

@@ -165,6 +165,43 @@ export const SECTIONS: readonly HelpSection[] = [
     ]
   },
   {
+    id: 'notebook',
+    label: 'Notebook',
+    groups: [
+      {
+        title: 'Running',
+        items: [
+          ['⇧⏎', 'Run the cell, select the next (adds one at the end)'],
+          ['⌘⏎ / ⌃⏎', 'Run the cell, stay on it'],
+          ['⌥⏎', 'Run the cell, insert one below'],
+          ['⌘S', 'Save the notebook']
+        ]
+      },
+      // The modal pair. Command mode is where the single letters below are
+      // safe to be single letters at all, so it leads the group.
+      {
+        title: 'Selecting',
+        items: [
+          ['Esc', 'Leave the editor — command mode'],
+          ['⏎', 'Edit the selected cell'],
+          ['↑ / ↓ · k / j', 'Select up / down (command mode)'],
+          ['Double-click', 'Edit a rendered markdown cell']
+        ]
+      },
+      {
+        title: 'Cells (command mode)',
+        items: [
+          ['a / b', 'Insert a cell above / below'],
+          ['m / y / r', 'Make it markdown / code / raw'],
+          ['d d', 'Delete the cell'],
+          ['z', 'Undo that delete'],
+          ['⇧D', 'Duplicate the cell'],
+          ['⌘⇧↑ / ⌘⇧↓', 'Move the cell up / down (works while editing too)']
+        ]
+      }
+    ]
+  },
+  {
     id: 'explorer',
     label: 'Explorer',
     groups: [
@@ -251,6 +288,8 @@ export function sectionForSurface(surface: string | null, explorerFocused: boole
       return 'manuscript'
     case 'editor':
       return 'editor'
+    case 'notebook':
+      return 'notebook'
     case 'pdf':
     case 'image':
     case 'dataview':
