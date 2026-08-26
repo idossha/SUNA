@@ -24,14 +24,70 @@ import { parseRasterExportError } from '../canvas/units'
  * the PDF and web-page exports offer it and the DOCX one does not.
  */
 
-/** Resolution of the compressed pass — well above screen, well below print. */
-export const COMPRESSED_DPI = 150
-/** JPEG quality of the compressed pass: no visible artefacts on line plots. */
-export const COMPRESSED_JPEG_QUALITY = 0.72
+/**
+ * How hard the compressed pass squeezes. One level per intent, not a raw
+ * dpi/quality pair: the author picks "small enough to email" or "still looks
+ * like the submission", and the numbers follow. 'balanced' is the historical
+ * behaviour and stays the default.
+ */
+export type CompressionLevel = 'extra-light' | 'light' | 'balanced' | 'strong'
+
+export interface CompressionPreset {
+  readonly level: CompressionLevel
+  readonly label: string
+  readonly dpi: number
+  /** canvas.toBlob JPEG quality. */
+  readonly quality: number
+  readonly hint: string
+}
+
+export const COMPRESSION_PRESETS: readonly CompressionPreset[] = [
+  {
+    level: 'extra-light',
+    label: 'Extra light',
+    dpi: 300,
+    quality: 0.92,
+    hint: 'Full print resolution, JPEG instead of PNG — a smaller file that still meets a 300 dpi requirement.'
+  },
+  {
+    level: 'light',
+    label: 'Light',
+    dpi: 220,
+    quality: 0.85,
+    hint: 'Close to print resolution — a smaller file that still reads like the submission copy.'
+  },
+  {
+    level: 'balanced',
+    label: 'Balanced',
+    dpi: 150,
+    quality: 0.72,
+    hint: 'Well above screen, well below print — no visible artefacts on line plots.'
+  },
+  {
+    level: 'strong',
+    label: 'Strong',
+    dpi: 96,
+    quality: 0.55,
+    hint: 'Screen resolution — the smallest file, for emailing a draft around.'
+  }
+]
+
+export const DEFAULT_COMPRESSION_LEVEL: CompressionLevel = 'balanced'
+
+export function compressionPreset(level: CompressionLevel = DEFAULT_COMPRESSION_LEVEL): CompressionPreset {
+  return COMPRESSION_PRESETS.find((p) => p.level === level) ?? COMPRESSION_PRESETS[2]!
+}
+
+/** Resolution of the default compressed pass — kept for callers that want one number. */
+export const COMPRESSED_DPI = compressionPreset().dpi
+/** JPEG quality of the default compressed pass. */
+export const COMPRESSED_JPEG_QUALITY = compressionPreset().quality
 
 export interface RasterizeOptions {
-  /** Re-encode at COMPRESSED_DPI as JPEG rather than at the profile dpi as PNG. */
+  /** Re-encode at the chosen level's dpi as JPEG rather than at the profile dpi as PNG. */
   compress?: boolean
+  /** How hard to squeeze when `compress` is set. Defaults to 'balanced'. */
+  compressionLevel?: CompressionLevel
   /**
    * Skip the encode when this figure's SVG has not changed since the last
    * pass at the same width/dpi/encoding. Only the live preview sets this:
@@ -99,10 +155,11 @@ async function rasterizeOne(
   widthMm: number,
   dpi: number,
   compress: boolean,
+  quality: number,
   cache: boolean,
   svgBase?: string
 ): Promise<string> {
-  const cacheKey = `${figureId}|${widthMm}|${dpi}|${compress ? 'jpg' : 'png'}|${svgBase ?? ''}`
+  const cacheKey = `${figureId}|${widthMm}|${dpi}|${compress ? `jpg${quality}` : 'png'}|${svgBase ?? ''}`
   // The SVG is the figure's whole truth, so its text IS the cache stamp —
   // read first (one cheap IPC), and on a hit nothing else in this function
   // needs to run at all. A versioned export reads the ARCHIVED SVG when the
@@ -156,7 +213,7 @@ async function rasterizeOne(
     ctx.fillRect(0, 0, widthPx, heightPx)
     ctx.drawImage(img, 0, 0, widthPx, heightPx)
     const encoded = compress
-      ? await canvasToBlob(canvas, 'image/jpeg', COMPRESSED_JPEG_QUALITY)
+      ? await canvasToBlob(canvas, 'image/jpeg', quality)
       : await canvasToBlob(canvas, 'image/png')
     const base64 = await blobToBase64(encoded)
     await window.suna.invoke('figure:write-binary', { path, base64 })
@@ -175,8 +232,9 @@ export async function rasterizeManuscriptFigures(
 ): Promise<Record<string, string>> {
   const compress = options.compress ?? false
   const cache = options.cache ?? false
+  const preset = compressionPreset(options.compressionLevel)
   const presets = widthPresetsFor(profile)
-  const dpi = compress ? Math.min(defaultDpi(profile), COMPRESSED_DPI) : defaultDpi(profile)
+  const dpi = compress ? Math.min(defaultDpi(profile), preset.dpi) : defaultDpi(profile)
   const out: Record<string, string> = {}
   for (const figure of manuscript.figures) {
     const widthMm = presets.find((p) => p.key === figure.widthPreset)?.widthMm ?? presets[0]?.widthMm ?? 89
@@ -187,6 +245,7 @@ export async function rasterizeManuscriptFigures(
       widthMm,
       dpi,
       compress,
+      preset.quality,
       cache,
       options.svgBase
     )

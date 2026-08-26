@@ -24,7 +24,13 @@ import { refreshDocuments, useDocumentsStore } from '../state/documents'
 import { HOUSE_PROFILE_ID, resolvePreviewProfileId } from '../state/renderProfile'
 import { useEditorSettings } from '../editor/settings'
 import { getResolved, useResolved } from '../state/settings'
-import { COMPRESSED_DPI, rasterizeManuscriptFigures } from './rasterizeFigures'
+import {
+  COMPRESSION_PRESETS,
+  DEFAULT_COMPRESSION_LEVEL,
+  compressionPreset,
+  rasterizeManuscriptFigures,
+  type CompressionLevel
+} from './rasterizeFigures'
 import { runComplianceCheck } from './complianceCheck'
 import { splitDiagnosticSources } from './diagSources'
 import { ExportPreview, SimpleExportPreview } from './ExportPreview'
@@ -143,6 +149,8 @@ export function ExportDialog({ api, params }: DockPanelProps): JSX.Element {
   const [lineNumbers, setLineNumbers] = useState(() => getResolved('export.lineNumbers').value)
   const [pageNumbers, setPageNumbers] = useState(() => getResolved('export.pageNumbers').value)
   const [compressFigures, setCompressFigures] = useState(false)
+  /** How hard the compressed pass squeezes — only meaningful while compression is on. */
+  const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>(DEFAULT_COMPRESSION_LEVEL)
   /**
    * Rendering: the classic black-and-white document, or the editor's colour
    * theme carried into the file. Seeded per format (html opens themed, the
@@ -519,12 +527,13 @@ export function ExportDialog({ api, params }: DockPanelProps): JSX.Element {
 
   /**
    * One manuscript/supplement export pass. `compress` re-embeds the figures
-   * at COMPRESSED_DPI as JPEG instead of at the profile's minimum dpi as PNG.
+   * at the chosen level's dpi as JPEG instead of at the profile's minimum dpi as PNG.
    */
   const exportOnce = async (compress: boolean): Promise<{ path: string; detail?: string }> => {
     if (effManuscript === null || profile === null) throw new Error('nothing to export')
     const figurePngPaths = await rasterizeManuscriptFigures(rootDir, effManuscript, profile, {
       compress,
+      compressionLevel,
       ...(versioned?.svgBase === undefined ? {} : { svgBase: versioned.svgBase })
     })
     const request = {
@@ -645,6 +654,7 @@ export function ExportDialog({ api, params }: DockPanelProps): JSX.Element {
     }
   }
 
+  const activePreset = compressionPreset(compressionLevel)
   const compressionApplies =
     manuscriptMode && format !== 'docx' && (effManuscript?.figures.length ?? 0) > 0
   const canCompressResult = compressionApplies && result !== null && !resultCompressed
@@ -864,11 +874,26 @@ export function ExportDialog({ api, params }: DockPanelProps): JSX.Element {
                           onChange={(e) => setCompressFigures(e.target.checked)}
                         />
                         Compress embedded figures
-                        <span className="export-dialog__stance">{COMPRESSED_DPI} dpi JPEG</span>
+                        <span className="export-dialog__stance">{activePreset.dpi} dpi JPEG</span>
                       </label>
+                      {compressFigures && (
+                        <label className="export-dialog__field export-dialog__field--wide">
+                          <span>Compression</span>
+                          <select
+                            value={compressionLevel}
+                            onChange={(e) => setCompressionLevel(e.target.value as CompressionLevel)}
+                          >
+                            {COMPRESSION_PRESETS.map((preset) => (
+                              <option key={preset.level} value={preset.level}>
+                                {preset.label} — {preset.dpi} dpi
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                       <p className="export-dialog__hint">
                         {compressFigures
-                          ? `Figures go in at ${COMPRESSED_DPI} dpi as JPEG — a much smaller file for sharing and review. Turn this off for a submission that must meet ${profile?.figures.formats.minDpi ?? 300} dpi.`
+                          ? `${activePreset.hint} Figures go in at ${activePreset.dpi} dpi as JPEG. Turn this off for a submission that must meet ${profile?.figures.formats.minDpi ?? 300} dpi.`
                           : `Figures go in at full resolution (${profile?.figures.formats.minDpi ?? 300} dpi PNG) — what a submission needs, and what makes the file large.`}
                       </p>
                     </>
@@ -971,8 +996,8 @@ export function ExportDialog({ api, params }: DockPanelProps): JSX.Element {
                   {resultCompressed && (
                     <span className="export-dialog__compressed-note">
                       {compressedFrom !== null && resultBytes !== null
-                        ? `Compressed ${fileSizeLabel(compressedFrom)} → ${fileSizeLabel(resultBytes)} — figures re-embedded at ${COMPRESSED_DPI} dpi JPEG.`
-                        : `Figures embedded at ${COMPRESSED_DPI} dpi JPEG.`}
+                        ? `Compressed ${fileSizeLabel(compressedFrom)} → ${fileSizeLabel(resultBytes)} — figures re-embedded at ${activePreset.dpi} dpi JPEG.`
+                        : `Figures embedded at ${activePreset.dpi} dpi JPEG.`}
                     </span>
                   )}
                 </p>
@@ -987,7 +1012,7 @@ export function ExportDialog({ api, params }: DockPanelProps): JSX.Element {
                     {compressing ? 'Compressing…' : 'Compress figures'}
                   </button>
                   <span className="export-dialog__hint">
-                    Rewrites this {FORMAT_LABEL[format]} with its figures at {COMPRESSED_DPI} dpi JPEG. The
+                    Rewrites this {FORMAT_LABEL[format]} with its figures at {activePreset.dpi} dpi JPEG ({activePreset.label.toLowerCase()} compression). The
                     full-resolution file is one Export click away.
                   </span>
                 </div>
