@@ -68,4 +68,13 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "SUNA $TAG" --generate-notes
-          gh release upload "$TAG" artifacts/* --clobber
+          # One file at a time with retries: a single flaky 400 from the
+          # uploads endpoint must not cost the whole release.
+          for f in artifacts/*; do
+            for attempt in 1 2 3; do
+              gh release upload "$TAG" "$f" --clobber && break
+              echo "retrying $(basename "$f") (attempt $attempt)"
+              sleep 15
+            done
+          done
+          gh release view "$TAG" --json assets -q '.assets[].name'
