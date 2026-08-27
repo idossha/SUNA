@@ -58,6 +58,12 @@ nsis:
   perMachine: false
 
 linux:
+  # The package name is @suna/desktop; AppImage rejects the scoped name as an
+  # executable, and desktop environments need an explicit .desktop id to
+  # associate running windows with the launcher.
+  executableName: suna
+  desktopName: suna.desktop
+  synopsis: Academic writing platform for manuscripts, figures and references
   target:
     - target: AppImage
       arch: [x64, arm64]
