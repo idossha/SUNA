@@ -53,7 +53,11 @@ export default defineConfig({
     outline: { level: [2, 3], label: 'On this page' },
 
     nav: [
-      { text: 'Guide', link: '/guide/what-is-suna', activeMatch: '^/(guide|writing|figures|publishing|ai)/' },
+      {
+        text: 'Guide',
+        link: '/guide/what-is-suna',
+        activeMatch: '^/(guide|writing|figures|documents|publishing|ai)/'
+      },
       { text: 'Reference', link: '/reference/shortcuts', activeMatch: '^/reference/' }
     ],
 
@@ -85,7 +89,16 @@ export default defineConfig({
           { text: 'SciMark syntax', link: '/writing/scimark' },
           { text: 'The editor', link: '/writing/editor' },
           { text: 'References and citations', link: '/writing/references' },
-          { text: 'Review comments', link: '/writing/comments' }
+          { text: 'Review comments', link: '/writing/comments' },
+          { text: 'Notebooks and code', link: '/writing/notebooks' }
+        ]
+      },
+      {
+        text: 'Letters and review',
+        collapsed: false,
+        items: [
+          { text: 'Cover letters', link: '/documents/letters' },
+          { text: 'Peer review', link: '/documents/review' }
         ]
       },
       {
@@ -112,7 +125,8 @@ export default defineConfig({
           { text: 'How SUNA works with agents', link: '/ai/overview' },
           { text: 'Context files', link: '/ai/context' },
           { text: 'MCP reference', link: '/ai/mcp' },
-          { text: 'AI inside the app', link: '/ai/in-app' }
+          { text: 'AI inside the app', link: '/ai/in-app' },
+          { text: 'Directed AI actions', link: '/ai/directed' }
         ]
       },
       {

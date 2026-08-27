@@ -58,7 +58,9 @@ export default async (ctx) => {
   }
 
   const dev = (expr) => ctx.evalJs(`window.__sunaDev.${expr}`)
-  const setTheme = (t) => dev(`settingsStore.getState().setGlobal('editor.editorTheme', ${JSON.stringify(t)})`)
+  // The settings store is the one user-owned config (~/.suna/config.yml):
+  // `set(key, value)` writes it, `settings[key]` reads it back.
+  const setTheme = (t) => dev(`settingsStore.getState().set('editor.editorTheme', ${JSON.stringify(t)})`)
   const setView = (v) => dev(`uiStore.getState().setActiveView(${JSON.stringify(v)})`)
   const open = (p) => dev(`dock.openFileTab(${JSON.stringify(p)})`)
   const f = (rel) => join(rootDir, rel)
@@ -92,6 +94,11 @@ export default async (ctx) => {
   /** Reset to a known chrome state so one shot never leaks into the next. */
   async function reset() {
     await dev(`dock.clearDock()`)
+    await dev(`terminal.panelStore.getState().setOpen(false)`)
+    if (await ctx.evalJs(`!!document.querySelector('.repair-picker')`)) {
+      await ctx.key('Escape', 'Escape')
+      await ctx.sleep(200)
+    }
     await dev(`uiStore.getState().setHelpOpen(false)`)
     await dev(`uiStore.getState().setCommentsRailVisible(false)`)
     await dev(`uiStore.getState().setSidebarVisible(true)`)
@@ -189,7 +196,7 @@ export default async (ctx) => {
       {
         quote: lines[0],
         body: 'Can we quantify "a few hundred million years" here? A number with an error bar reads stronger than a range.',
-        reply: 'Agreed — the fit in results/spectrum_fit.json gives 240 ± 60 Myr. Rewriting to cite it.'
+        reply: 'Agreed — the fit in results/happiness_fit.json gives 0.42 ± 0.06. Rewriting to cite it.'
       },
       {
         quote: lines[2] ?? lines[1],
@@ -242,7 +249,14 @@ export default async (ctx) => {
   }
 
   console.log(`capturing docs shots → ${OUT}`)
-  await applyTheme('suna-dark')
+  // The theme is a GLOBAL setting in ~/.suna/config.yml, shared with the
+  // developer's own app — remember it and put it back at the end.
+  const themeBefore = await dev(
+    `settingsStore.getState().settings['editor.editorTheme'] ?? 'suna-dark'`
+  )
+  // The site ships light shots by default: they stay legible scaled down on
+  // a light page, and the dark theme gets its own two captures at the end.
+  await applyTheme('suna-light')
 
   // ---------------------------------------------------------------- welcome
   await shot('welcome', {
@@ -301,16 +315,16 @@ export default async (ctx) => {
   await shot('canvas', {
     setup: async () => {
       await setView('figures')
-      await open(f('figures/fig-spectrum/figure.svg'))
+      await open(f('figures/timesheet/figure.svg'))
     },
     waitFor: `!!document.querySelector('.canvas-world svg')`,
     settle: 1400
   })
 
-  await shot('canvas-velocity', {
+  await shot('canvas-hello', {
     setup: async () => {
       await setView('figures')
-      await open(f('figures/fig-velocity-map/figure.svg'))
+      await open(f('figures/hello/figure.svg'))
     },
     waitFor: `!!document.querySelector('.canvas-world svg')`,
     settle: 1400
@@ -371,7 +385,7 @@ export default async (ctx) => {
   await shot('data-grid', {
     setup: async () => {
       await setView('explorer')
-      await open(f('data/spectrum.csv'))
+      await open(f('data/happiness.csv'))
     },
     waitFor: `document.querySelectorAll('.dataview__table tbody tr').length > 3`,
     settle: 1200
@@ -383,7 +397,7 @@ export default async (ctx) => {
   // reader's fresh install is not in.
   await shot('settings', {
     setup: async () => {
-      await dev(`settingsStore.getState().setGlobal('editor.vimMotions', false)`)
+      await dev(`settingsStore.getState().set('editor.vimMotions', false)`)
       await ctx.sleep(300)
       await dev(`dock.openSettingsTab()`)
     },
@@ -438,10 +452,127 @@ export default async (ctx) => {
     settle: 700
   })
 
-  // ------------------------------------------------------------- light theme
-  await applyTheme('suna-light')
+  // -------------------------------------------------------------- notebook
+  // The .ipynb the example project ships. No kernel is started: a shot of a
+  // notebook waiting for one is the honest picture of opening it, and
+  // starting a kernel here would need ipykernel on the runner's python.
+  await shot('notebook', {
+    setup: async () => {
+      await setView('explorer')
+      await open(f('analysis/explore_happiness.ipynb'))
+    },
+    waitFor: `!!document.querySelector('.nb-toolbar')`,
+    settle: 1200
+  })
 
-  await shot('manuscript-reading-light', {
+  // ------------------------------------------------------------- run a file
+  // The Run button sends the file to the integrated terminal under the
+  // project's selected interpreter. Open the script and the terminal panel
+  // together — that pairing IS the feature.
+  await shot('run-terminal', {
+    setup: async () => {
+      await setView('explorer')
+      await open(f('code/happiness_model.py'))
+      await ctx.sleep(500)
+      // Close every terminal tab first: a run leaves its own tab behind, and
+      // the shot must not inherit another tab's scrollback — or type into it.
+      await ctx.evalJs(
+        `(() => { const t = window.__sunaDev.terminal; for (const tab of [...t.tabsStore.getState().tabs]) t.closeTerminalTab(tab.id) })()`
+      )
+      await ctx.sleep(400)
+      await dev(`terminal.panelStore.getState().setOpen(true)`)
+      await dev(`terminal.createTerminalTab({ title: 'bash' })`)
+      await ctx.waitFor(`!!document.querySelector('.termpanel .xterm')`, {
+        timeoutMs: 15000,
+        desc: 'terminal ready'
+      })
+      await ctx.sleep(1200)
+      // Focus the terminal with a real click. Calling .focus() on the hidden
+      // helper textarea does NOT move focus here, and the Enter that follows
+      // then lands on whatever the editor left focused — the Run button, which
+      // spawns a run tab per keystroke and steals the shot.
+      const termBox = await ctx.evalJs(
+        `(() => { const el = document.querySelector('.termpanel .xterm-screen'); if (!el) return null; const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) } })()`
+      )
+      if (termBox) await ctx.click(termBox.x, termBox.y)
+      await ctx.sleep(300)
+      // Everything is typed as CHAR events, one character at a time.
+      // Input.insertText writes into the focused element and xterm's helper
+      // textarea is torn down and rebuilt between renders, so only the first
+      // line ever arrived; a keyDown/keyUp pair carries no text at all and
+      // xterm writes nothing to the pty for it.
+      const type = async (line) => {
+        for (const ch of line) {
+          await ctx.send('Input.dispatchKeyEvent', { type: 'char', text: ch })
+        }
+        await ctx.send('Input.dispatchKeyEvent', { type: 'char', text: '\r' })
+        await ctx.sleep(1200)
+      }
+      // The pty inherits the developer's shell, whose prompt carries a
+      // username and hostname this screenshot would publish. Replace it with
+      // a bare `$` and clear the scrollback before anything is captured.
+      await type("PS1='$ '")
+      await type('clear')
+      // Typed rather than issued through 'run.file': the Run button opens a
+      // second tab with a second fresh shell, and the anonymised prompt would
+      // not follow it. This is the command that button sends.
+      await type('python code/happiness_model.py')
+      await ctx.sleep(2500)
+    },
+    waitFor: `!!document.querySelector('.termpanel .xterm')`,
+    settle: 1500
+  })
+
+  // ---------------------------------------------------------------- letters
+  await shot('letter', {
+    setup: async () => {
+      // The Documents list lives in the 'manuscript' view — labelled
+      // "Writing" in the activity bar.
+      await setView('manuscript')
+      await dev(`uiStore.getState().setSidebarWidth(360)`)
+      await dev(
+        `dock.openDocumentTab(${JSON.stringify(rootDir)}, 'cover', 'cover-letter', 'letters/cover.md', 'Cover letter')`
+      )
+    },
+    waitFor: `!!document.querySelector('.mstab, .letter')`,
+    settle: 1400
+  })
+
+  // ------------------------------------------------------------ review round
+  await shot('round', {
+    setup: async () => {
+      await setView('manuscript')
+      await dev(`uiStore.getState().setSidebarWidth(360)`)
+      await dev(`dock.openRoundTab(${JSON.stringify(rootDir)}, 'round-1')`)
+    },
+    waitFor: `!!document.querySelector('.round__head')`,
+    settle: 1600
+  })
+
+  // ------------------------------------------------------- element analysis
+  // "Repair this UI": pick any element on screen, and what the agent gets is
+  // that element's DOM path, a screenshot and the report. The picker layer is
+  // what the shot is of, so hover something with a recognisable shape first.
+  await shot('repair-picker', {
+    setup: async () => {
+      await setView('explorer')
+      await open(f('manuscript/manuscript.md'))
+      await ctx.sleep(600)
+      await dev(`commands.runCommand('ai.repairUi')`)
+      await ctx.sleep(400)
+      const box = await ctx.evalJs(
+        `(() => { const el = document.querySelector('.cm-content'); if (!el) return null; const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + 80) } })()`
+      )
+      if (box) await ctx.mouse('mouseMoved', box.x, box.y)
+    },
+    waitFor: `!!document.querySelector('.repair-picker')`,
+    settle: 800
+  })
+
+  // -------------------------------------------------------------- dark theme
+  await applyTheme('suna-dark')
+
+  await shot('manuscript-reading-dark', {
     setup: async () => {
       await setView('manuscript')
       await openManuscript()
@@ -450,10 +581,10 @@ export default async (ctx) => {
     settle: 1200
   })
 
-  await shot('canvas-light', {
+  await shot('canvas-dark', {
     setup: async () => {
       await setView('figures')
-      await open(f('figures/fig-spectrum/figure.svg'))
+      await open(f('figures/timesheet/figure.svg'))
     },
     waitFor: `!!document.querySelector('.canvas-world svg')`,
     settle: 1400
@@ -482,7 +613,7 @@ export default async (ctx) => {
   })
 
   // leave the app — and the example project — the way we found them
-  await applyTheme('suna-dark')
+  await applyTheme(themeBefore)
   for (const id of seeded) {
     await ctx.evalJs(`window.__sunaDev.commentsStore.getState().remove(${JSON.stringify(id)})`)
   }

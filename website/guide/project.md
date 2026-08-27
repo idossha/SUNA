@@ -25,7 +25,14 @@ my-paper/
 │   ├── authors.json               byline and affiliations
 │   ├── references.bib             BibTeX
 │   ├── comments.json              appears on the first review comment
-│   └── supplementary.md           optional; the source for a Supplementary Information export
+│   ├── supplementary.md           optional; the source for a Supplementary Information export
+│   ├── letters/                   cover letters: <id>.md prose + <id>.json sidecar
+│   └── archive/                   read-only copies of logged versions (vX.Y)
+├── rounds/
+│   ├── index.json                 which rounds exist
+│   └── round-1/
+│       ├── round.json             kind, state, decision, per-point reply states
+│       └── reviewers/*.json       the referees' words, verbatim and immutable
 ├── figures/
 │   ├── fig-spectrum/
 │   │   ├── figure.json            id, caption, panels, provenance
@@ -61,11 +68,14 @@ A freshly scaffolded project is smaller than this. The wizard writes the seven d
 | `manuscript/references.bib` | You, via SUNA | BibTeX. See [references](/writing/references). |
 | `manuscript/comments.json` | SUNA | Review comments. Created on the first comment write; reading before that returns an empty file and creates nothing. See [review comments](/writing/comments). |
 | `manuscript/supplementary.md` | You | Optional. Without it, exporting Supplementary Information fails with `no supplementary manuscript found`. |
+| `manuscript/letters/<id>.md` and `<id>.json` | You, via SUNA | A cover letter's prose and its sidecar. Under `manuscript/` so it inherits the comment gutter, version history and merge handling. See [cover letters](/documents/letters). |
+| `manuscript/archive/vX.Y/` | SUNA | A read-only copy of the whole manuscript at a logged version. There is no write counterpart — that is what makes it an archive. |
+| `rounds/index.json`, `rounds/<id>/` | SUNA | The review ledger: one directory per circulation, holding the round's state, its per-point reply states, and the reviewers' verbatim text. **Nothing here is a file you type into.** See [peer review](/documents/review). |
 | `figures/<id>/figure.json` | SUNA | `id`, `namespace`, `widthPreset`, `caption` (`title`, `body`), `panels`, `provenance` (`generator`, `overlay`). |
 | `figures/<id>/figure.svg` | SUNA's canvas | The figure itself. Do not hand-edit it. |
 | `figures/<id>/figure.svg.suna.json` | `suna_mpl` | Sidecar manifest: `schemaVersion`, `svgSha256`, `widthMm`, `heightMm`, and per-axis anchors mapping data coordinates to SVG coordinates. |
 | `figures/<id>/source/plot.py` | You | The script that generates the figure. See [figures from code](/figures/from-code). |
-| `code/`, `data/`, `analysis/`, `results/` | You | Your analysis material. SUNA never writes into them. |
+| `code/`, `data/`, `analysis/`, `results/` | You | Your analysis material — scripts, notebooks, inputs, computed results. SUNA never writes into them; it runs them. See [notebooks and code](/writing/notebooks). |
 | `output/` | SUNA | DOCX, PDF, HTML and exported figure rasters. Derived — never edit it by hand, and it is gitignored because it is reproducible. |
 
 ::: warning Do not hand-edit figure.svg

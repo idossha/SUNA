@@ -27,6 +27,10 @@ features:
     details: Profiles built from published author guidelines. SUNA tells you the abstract is 40 words long and links the rule it came from. It never silently reformats your work.
   - title: Review in the margin
     details: Comments live in a sidecar file and anchor to a quote, so your prose is never marked up. Threads, replies, resolve — and only a human ever resolves one.
+  - title: The analysis is in the project
+    details: Open a notebook against a real Jupyter kernel, or send any script to the integrated terminal with ⌃⏎. Same folder, same interpreter, same git history as the paper quoting its numbers.
+  - title: Referees, answered in one place
+    details: Import a review, answer it point by point beside the reviewer's own words, diff the paper against the version they read, and export the response — derived from the record, never retyped.
   - title: Built for agents
     details: A typed 23-verb MCP interface over the same files you edit. Your agent reads the manuscript, checks compliance and leaves comments — as a collaborator, not a copy-paste target.
 ---
@@ -75,9 +79,27 @@ Select a sentence, press <kbd>⌘⇧M</kbd>, and the comment anchors to that quo
   <figcaption>Anchored review threads in the rail. Resolving is always a human's move.</figcaption>
 </figure>
 
+## Code beside the paper
+
+The numbers in the Results come from a file in `results/`, written by a script in `analysis/`, checked by a notebook in the same repository. SUNA runs both: `.ipynb` against a real Jupyter kernel — byte-compatible with `nbformat`, so an untouched save is an empty diff — and any script through <kbd>⌃⏎</kbd> into a terminal you can read and re-run.
+
+<figure class="shot">
+  <img src="/shots/notebook.webp" alt="A notebook open in SUNA with rendered markdown cells between numbered code cells, a toolbar offering Run all, Interrupt, Restart and Clear outputs, and a kernel status at the right." />
+  <figcaption>A notebook in the project, not in another window. <a href="/writing/notebooks">Notebooks and code</a>.</figcaption>
+</figure>
+
+## Answering the referees
+
+A review round holds the reviewers' words verbatim — in `rounds/`, where nothing is a file you type into — and your reply beside each point. The response document is derived from that record at export, so it cannot drift from the work you actually did.
+
+<figure class="shot">
+  <img src="/shots/round.webp" alt="A review round in SUNA: filter chips for All, Unaddressed, Drafted and Done, a Focus and Continuous toggle, a Compare button and a points-addressed count, above a reviewer's verbatim point with the author's reply below it." />
+  <figcaption>One round, eleven points, three answered. <a href="/documents/review">Peer review</a>.</figcaption>
+</figure>
+
 ## Where to start
 
 - New to SUNA? Read [what it is](/guide/what-is-suna), then [install and run it](/guide/install).
 - Want to see it working? The [quickstart](/guide/quickstart) opens the example project and walks one loop end to end.
 - Coming from Overleaf or Word? [A typical workflow](/guide/workflow) is the page to read.
-- Wiring up an agent? Start at [how SUNA works with agents](/ai/overview).
+- Wiring up an agent? Start at [how SUNA works with agents](/ai/overview), or [directed AI actions](/ai/directed) for the point-at-it-and-ask surfaces.

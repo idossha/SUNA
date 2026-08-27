@@ -25,7 +25,7 @@ The activity rail has exactly six views, always in this order.
 | View | What it holds |
 | --- | --- |
 | Explorer | The project's file tree |
-| Manuscript | Title, counts and the section outline |
+| Writing | Every document in the project, plus the manuscript's outline |
 | Figures | One card per figure, with thumbnails |
 | References | `references.bib` as a browsable library, plus search |
 | Source Control | Branch, changes, commit box, history |
@@ -53,14 +53,16 @@ Right-click gives **New File…**, **New Folder…**, **Rename…**, **Reveal in
 There is no filter box in the Explorer and no project-wide search view. To find a file by name, use the command palette (<kbd>⌘K</kbd>), which matches against the project-relative path.
 :::
 
-### Manuscript
+### Writing
 
 <figure class="shot">
-  <img src="/shots/outline.webp" alt="The Manuscript sidebar showing the paper's title, author and abstract counts, and an Outline list of sections each with a chip and a word count, next to the manuscript open in the editor." />
-  <figcaption>The Manuscript view. Clicking an outline row opens the combined Manuscript tab and scrolls to that section.</figcaption>
+  <img src="/shots/outline.webp" alt="The Writing sidebar listing Manuscript, Supplementary Information, Letters and Peer review, then the manuscript's version chip and a Log version button, author and abstract counts, and an Outline of sections each with a word count, beside the manuscript open in reading mode." />
+  <figcaption>The Writing view. Clicking an outline row opens the combined Manuscript tab and scrolls to that section.</figcaption>
 </figure>
 
-The view shows the manuscript title (with `$…$` math rendered), an author count and an abstract word count, then an **Outline** list where each row carries a section chip and a word count, then figure and table counts at the bottom. If `manuscript/manuscript.json` is missing, the view says so instead.
+The paper is not the only document a submission needs, so this view lists them all — **Manuscript**, **Supplementary Information**, **Letters** and **Peer review**, with a count beside the last two — and the **+** at the top adds one. See [cover letters](/documents/letters) and [peer review](/documents/review).
+
+Below the list, the manuscript's own summary: its current logged version with a **Log version** button, the title (with `$…$` math rendered), an author count and an abstract word count, then an **Outline** where each row carries a section chip and a word count, and figure and table counts at the bottom. If `manuscript/manuscript.json` is missing, the view says so instead.
 
 Activating this view — when it was not already the active one, and only with a project open — also opens or focuses the combined **Manuscript** tab in the dock. See [the manuscript](/writing/manuscript).
 
@@ -115,6 +117,7 @@ The centre is a tab area. A tab's identity is the file path and its title is the
 | --- | --- |
 | `.svg` | The figure canvas |
 | `.csv`, `.tsv` | The data grid |
+| `.ipynb` | The notebook, with a Jupyter kernel |
 | `.pdf` | The PDF viewer |
 | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` | The image viewer |
 | anything else | The text editor |
@@ -138,6 +141,8 @@ Opening a reference PDF or an image in that side group replaces whatever PDF or 
 </figure>
 
 The data-grid toolbar shows a count ("1,234 rows · 8 columns") and a single toggle reading **Text** or **Grid**. It renders at most 5,000 rows and tells you when it has truncated: "Showing first 5,000 of N rows."
+
+A `.ipynb` opens as a notebook against a real Jupyter kernel, and any script runs into the terminal with <kbd>⌃⏎</kbd> — see [notebooks and code](/writing/notebooks).
 
 The PDF viewer toolbar has the filename, a page-jump box with "of N", zoom out (<kbd>⌘-</kbd>), a percentage button that resets to actual size (<kbd>⌘0</kbd>), zoom in (<kbd>⌘+</kbd>) and a **Fit width** toggle. The image viewer has the filename, the pixel dimensions, the same zoom trio and a **Fit** toggle, and you can drag the image to pan. The <kbd>⌘</kbd> zoom keys work only while the viewer pane has focus.
 

@@ -67,12 +67,12 @@ SUNA ships four themes, and the choice covers the whole window — the editor su
 Pick one under **Global · General → Editor theme**, from the gear popover on the editor toolbar, or per project under **This project → Editor theme**.
 
 <figure class="shot">
-  <img src="/shots/manuscript-reading-light.webp" alt="The combined Manuscript tab in the SUNA Light theme: cream background, a serif title page with authors and affiliations, an abstract, and the outline sidebar on the left." />
-  <figcaption>SUNA Light. The theme reaches the sidebar and status bar, not just the text column.</figcaption>
+  <img src="/shots/manuscript-reading-dark.webp" alt="The combined Manuscript tab in the SUNA Dark theme: near-black background, a serif title page with authors and affiliations, an abstract, and the outline sidebar on the left." />
+  <figcaption>SUNA Dark. The theme reaches the sidebar and status bar, not just the text column — every other screenshot on this site is SUNA Light.</figcaption>
 </figure>
 
 <figure class="shot">
-  <img src="/shots/canvas-light.webp" alt="The figure canvas in the SUNA Light theme: cream chrome around the tool rail, layers tree and properties panel, with the figure's own white artboard unchanged in the middle." />
+  <img src="/shots/canvas-dark.webp" alt="The figure canvas in the SUNA Dark theme: dark chrome around the tool rail, layers tree and properties panel, with the figure's own white artboard unchanged in the middle." />
   <figcaption>The same theme on the canvas. The chrome follows the theme; the figure does not — its artboard renders exactly as it will export.</figcaption>
 </figure>
 

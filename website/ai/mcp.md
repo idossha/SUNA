@@ -81,6 +81,34 @@ The manuscript is one flat file, which is why the two `_section` verbs are alias
 
 `edit_manuscript` is deliberately strict, and its errors are instructions. Zero matches returns "re-read the manuscript and copy the text exactly" — or, when the text matches ignoring whitespace, says so and asks for the exact whitespace. More than one match lists up to five match positions with a line of context each so the agent can extend `find` until it is unique. Overlapping occurrences count as ambiguous.
 
+### Documents and letters
+
+A project holds more than the manuscript, and an agent can reach all of it by registry id.
+
+| Verb | Input | What it does |
+| --- | --- | --- |
+| `list_documents` | `{}` | Every document the project holds — manuscript, cover letters, responses, reports — with its kind, prose file and target profile. |
+| `read_document` | `{documentId}` | Any document's prose by registry id. `read_manuscript` is the special case for the manuscript. |
+| `write_document` | `{documentId, content}` | Overwrites one document's prose. |
+| `read_letter` | `{documentId}` | A cover letter's sidecar: which venue it addresses and what it covers. |
+| `check_letter` | `{documentId}` | Checks a letter against the target journal's stated letter requirements — the wrong journal named in the prose, an unnamed data repository, a contact the venue requires. Advisory, like every other checker here. |
+
+See [cover letters](/documents/letters).
+
+### Review rounds
+
+The reviewers' words have **no write path at all**. An agent can read a round and record the authors' own bookkeeping beside it; it cannot touch what a referee said.
+
+| Verb | Input | What it does |
+| --- | --- | --- |
+| `list_rounds` | `{}` | Every round — internal circulations and external review rounds — with state, decision, and how many points are addressed. |
+| `read_round` | `{roundId}` | One round: state, decision, freeze, and per-reviewer progress. |
+| `list_review_points` | `{roundId, status?, assignee?}` | The reviewer points verbatim, each with its status and assignee. Filterable by either. |
+| `set_point_status` | `{roundId, pointId, status, assignee?}` | Sets the author's state on one point — `unaddressed`, `drafted`, `done` or `rebutted` — and optionally who owns it. |
+| `check_response` | `{roundId, forExport?}` | Completeness: every unaddressed point by name, replies that name no point, and points marked answered whose reply never appears. |
+
+See [peer review](/documents/review).
+
 ### Comments
 
 | Verb | Input | What it does |
@@ -115,6 +143,7 @@ Both compliance verbs answer `no active publisher profile: nothing to check agai
 | `search_literature` | `{query, provider?, limit?}` | Searches one provider. Default `crossref`; `limit` defaults to 10, maximum 100. Returns a header line then rows of `source:id — Title (Authors, Year) doi:… [OA: url]`. |
 | `lookup_doi` | `{doi, provider?}` | One formatted work by DOI, or `<provider>: no record for DOI <doi>`. |
 | `add_reference` | `{doi, provider?}` | Looks the DOI up and appends the entry to `references.bib` using the same writer as the app's **Add to references.bib** button, echoing `added <key> to references.bib: <title>`. Creates `references.bib` if missing; writes nothing when the lookup fails. |
+| `list_reference_notes` | `{citekey?, colors?, tags?, withBodyOnly?}` | Your highlights and notes on the reference PDFs, each anchored to the paper's own bibliography facts so a note is never floating. Filter to one paper, to highlight colours, to tags, or to notes you actually wrote something on. |
 
 The four provider ids are `crossref`, `openalex`, `biorxiv` and `arxiv`. All are keyless. Crossref, bioRxiv/medRxiv and arXiv work normally from a standalone server; OpenAlex runs metered and returns HTTP 429 without budget.
 

@@ -168,8 +168,8 @@ Rulers run along the top and left, ticked at 1 mm with a labelled major tick eve
 Geometry fields are X, Y, W, H and ∠, with a live `W × H mm` readout beneath. Stroke width and font size are entered in points (1 pt = 0.3528 mm). Font size shows a warning when it falls outside your profile's range: `Profile wants <min>–<max> pt`.
 
 <figure class="shot">
-  <img src="/shots/canvas-velocity.webp" alt="A single-column velocity map zoomed to 283 percent on an 88 by 70 mm artboard, with millimetre rulers along the top and left edges and the Figure section of the properties rail reading W mm 88.006 and H mm 70.004." />
-  <figcaption>Zoomed to 283%, but the rulers still read millimetres and the Figure section still reports the artboard's real print size.</figcaption>
+  <img src="/shots/canvas-hello.webp" alt="A two-panel figure on the canvas at 140 percent zoom, with millimetre rulers along the top and left edges, a layers tree naming panel-a, axes-a, curve-suna and bars-before, and the Figure section of the properties rail reading W mm 178.023 and H mm 89.149." />
+  <figcaption>Zoomed to 140%, but the rulers still read millimetres and the Figure section still reports the artboard's real print size.</figcaption>
 </figure>
 
 Scroll to pan in both axes; <kbd>⌘</kbd>-scroll (or <kbd>⌃</kbd>-scroll) to zoom, anchored at the pointer, clamped between 0.05× and 12×. The toolbar shows the current zoom as a percentage. On open, the figure is fitted to 86% of the viewport, capped at 4×, and centred.
