@@ -61,11 +61,12 @@
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
+    "js-yaml": "^5.4.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
-  "description": "SUNA \u2014 academic co-writing platform for manuscripts, figures and references",
+  "description": "SUNA — academic co-writing platform for manuscripts, figures and references",
   "author": {
     "name": "A. Author",
     "email": "author@example.edu"
