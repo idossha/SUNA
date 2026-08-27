@@ -43,6 +43,7 @@ mac:
   identity: '-'
   gatekeeperAssess: false
   hardenedRuntime: true
+  type: distribution
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

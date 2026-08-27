@@ -78,29 +78,34 @@ xattr -dr com.apple.quarantine /Applications/SUNA.app
 ```
 
 **A Developer ID certificate plus notarization is the only thing that makes a
-double-clicked download work.** It needs a paid Apple Developer account.
+double-clicked download work.**
 
-`apps/desktop/electron-builder.config.cjs` already switches on the
-environment: it loads `electron-builder.base.yml`, then ad-hoc signs when no certificate
-is present and signs + notarizes when one is. Nothing in the config needs
-editing — add these repository secrets and the next tagged build is notarized:
+The setup mirrors TI-Toolbox (`idossha/TI-Toolbox`, `package/build/notarize.js`),
+which is notarized and passes Gatekeeper: electron-builder signs with the
+Developer ID, an `afterSign` hook (`apps/desktop/build/notarize.cjs`) submits
+the app to Apple's notary service, and the DMG built afterwards carries the
+stapled ticket. The hook no-ops when credentials are absent, so local builds
+are unaffected.
+
+Both repositories use the **same four secret names**, so one certificate
+serves both — copy the values from TI-Toolbox:
 
 | Secret | What it is |
 | --- | --- |
-| `MAC_CERT_P12` | base64 of the exported *Developer ID Application* certificate (`base64 -i cert.p12 \| pbcopy`) |
-| `MAC_CERT_PASSWORD` | the password set when exporting that .p12 |
+| `CSC_LINK` | base64 of the exported *Developer ID Application* .p12 |
+| `CSC_KEY_PASSWORD` | the password set when exporting that .p12 |
 | `APPLE_ID` | the Apple ID that owns the developer account |
-| `APPLE_APP_SPECIFIC_PASSWORD` | an app-specific password from appleid.apple.com (not the account password) |
-| `APPLE_TEAM_ID` | the 10-character team id from the developer portal |
+| `APPLE_APP_SPECIFIC_PASSWORD` | an app-specific password from appleid.apple.com |
 
-Getting the certificate: in the Apple Developer portal create a *Developer ID
-Application* certificate, download and install it, then export it from
-Keychain Access as a `.p12` with a password. Notarization adds a few minutes
-to the mac job while Apple's service scans the build.
+The team id (`3BMY24SA43`) is not a secret and is set directly in the
+workflow, as TI-Toolbox does.
 
-Once notarized, drop `com.apple.security.cs.disable-library-validation` from
-`build/entitlements.mac.plist` — it exists only because ad-hoc signing needs
-it — and the install script becomes a convenience rather than a requirement.
+The mac job then verifies its own output — `codesign --verify`, `spctl -a -t
+install`, `xcrun stapler validate` — so a build that signs but fails to
+notarize shows up in CI rather than in a user's "damaged" dialog.
+
+Once notarized, `scripts/install-macos.sh` becomes a convenience rather than
+a requirement, and the README's quarantine instructions can go.
 
 ## Releases
 

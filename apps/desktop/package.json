@@ -52,6 +52,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@electron/rebuild": "^4.2.0",
     "@types/node": "^26.2.0",
     "@types/papaparse": "^5.5.2",
@@ -66,7 +67,7 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
-  "description": "SUNA \u2014 academic co-writing platform for manuscripts, figures and references",
+  "description": "SUNA — academic co-writing platform for manuscripts, figures and references",
   "author": {
     "name": "SUNA",
     "email": "noreply@suna.app"

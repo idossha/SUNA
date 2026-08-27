@@ -33,14 +33,29 @@ jobs:
       - run: pnpm stage:resources
       - run: pnpm --filter @suna/desktop exec electron-builder --config electron-builder.config.cjs ${{ matrix.args }} --publish never
         env:
-          # Present only once a Developer ID is configured; without them the
-          # mac build ad-hoc signs and skips notarization (see
-          # apps/desktop/electron-builder.config.cjs).
-          CSC_LINK: ${{ secrets.MAC_CERT_P12 }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          # Same secret names as TI-Toolbox, so one Developer ID serves both
+          # repositories. Absent, the mac build ad-hoc signs and skips
+          # notarization (see apps/desktop/electron-builder.config.cjs).
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_TEAM_ID: 3BMY24SA43
+
+      # Prove the claim rather than assume it: an unsigned or un-stapled build
+      # should be visible here, not in a user's "damaged" dialog.
+      - name: Verify signature and notarization
+        if: matrix.os == 'macos-latest'
+        run: |
+          APP=$(find release -maxdepth 2 -name "*.app" -type d | head -1)
+          [ -n "$APP" ] || { echo "no .app found"; exit 1; }
+          echo "=== codesign ==="
+          codesign -dv --verbose=4 "$APP" 2>&1 || true
+          codesign --verify --deep --strict "$APP" && echo "signature verifies"
+          echo "=== gatekeeper ==="
+          spctl -a -vvv -t install "$APP" 2>&1 || true
+          echo "=== staple ==="
+          xcrun stapler validate "$APP" 2>&1 || true
       - uses: actions/upload-artifact@v4
         with:
           name: suna-${{ matrix.os }}

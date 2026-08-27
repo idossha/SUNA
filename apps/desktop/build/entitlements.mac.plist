@@ -2,21 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Electron's renderer needs a JIT and writable executable pages. -->
+  <!-- Required for an Electron app under the hardened runtime. Same set as
+       TI-Toolbox, which is notarized and passes Gatekeeper. -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
   <true/>
-  <!-- Ad-hoc signing plus the hardened runtime means library validation
-       rejects our own helpers and node-pty; without this the app refuses to
-       launch. Drop this entitlement once builds are signed with a real
-       Developer ID. -->
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
-  <!-- The app spawns user tooling (python, git, agent CLIs) from a terminal. -->
   <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-  <true/>
-  <key>com.apple.security.inherit</key>
   <true/>
 </dict>
 </plist>

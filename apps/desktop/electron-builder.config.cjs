@@ -36,14 +36,16 @@ for (const key of [
 const hasCert = Boolean(process.env.CSC_LINK || process.env.CSC_NAME)
 config.mac.identity = hasCert ? process.env.CSC_NAME || null : '-'
 
-// Notarization needs all three credentials; asking for it without them fails
-// the build, so it stays off until they are present.
+// Notarization runs from the afterSign hook (build/notarize.cjs), the same
+// way TI-Toolbox does it, rather than through electron-builder's own
+// `notarize` option — the hook no-ops when credentials are absent, so one
+// code path covers signed CI builds and unsigned local ones.
+config.afterSign = 'build/notarize.cjs'
 const notarizable =
   hasCert &&
   process.env.APPLE_ID &&
   process.env.APPLE_APP_SPECIFIC_PASSWORD &&
   process.env.APPLE_TEAM_ID
-config.mac.notarize = notarizable ? { teamId: process.env.APPLE_TEAM_ID } : false
 
 if (process.platform === 'darwin') {
   console.log(
