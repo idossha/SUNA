@@ -86,7 +86,7 @@ Two profiles also need care: `neuron` and `sleep-advances` are thin. Cell Press 
 
 ## Where to go next
 
-[Install SUNA](/guide/install) — the from-source setup, in a few minutes.
+[Install SUNA](/guide/install) — download an installer, or run from a source checkout.
 
 [Quickstart](/guide/quickstart) — create a project, write a paragraph, cite a paper, place a figure, export a Word file.
 

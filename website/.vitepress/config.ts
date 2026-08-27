@@ -27,6 +27,11 @@ export default defineConfig({
   // README.md documents how to build the site; it is not a page of it.
   srcExclude: ['README.md'],
 
+  // There is no marketing landing page: the site's root IS the first page of
+  // the guide, so a visitor arrives in the documentation rather than one
+  // click away from it.
+  rewrites: { 'guide/what-is-suna.md': 'index.md' },
+
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#16161c' }],
@@ -55,7 +60,7 @@ export default defineConfig({
     nav: [
       {
         text: 'Guide',
-        link: '/guide/what-is-suna',
+        link: '/',
         activeMatch: '^/(guide|writing|figures|documents|publishing|ai)/'
       },
       { text: 'Reference', link: '/reference/shortcuts', activeMatch: '^/reference/' }
@@ -66,7 +71,7 @@ export default defineConfig({
         text: 'Getting started',
         collapsed: false,
         items: [
-          { text: 'What SUNA is', link: '/guide/what-is-suna' },
+          { text: 'What SUNA is', link: '/' },
           { text: 'Install and run', link: '/guide/install' },
           { text: 'Quickstart', link: '/guide/quickstart' },
           { text: 'A typical workflow', link: '/guide/workflow' }

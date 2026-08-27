@@ -172,9 +172,6 @@
   --vp-shadow-1: 0 1px 2px var(--s-shadow);
   --vp-shadow-2: 0 3px 12px var(--s-shadow);
   --vp-shadow-3: 0 12px 32px var(--s-shadow);
-
-  --vp-home-hero-name-color: var(--s-ink);
-  --vp-home-hero-image-filter: none;
 }
 
 /* --------------------------------------------------------------- app chrome
@@ -386,102 +383,6 @@
   color: var(--s-ink-faint);
 }
 
-/* --------------------------------------------------------------------- home
-   The hero carries no image, and VitePress's default caps the text column at
-   roughly a third of the page — which leaves two thirds of the fold empty.
-   Centre it on a reading measure instead: the screenshots below do the visual
-   work, so the hero only has to say what this is. */
-.VPHero .container {
-  max-width: 780px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.VPHero .main,
-.VPHero .name,
-.VPHero .text,
-.VPHero .tagline {
-  max-width: none;
-}
-
-.VPHero .tagline {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 60ch;
-}
-
-.VPHero .actions {
-  justify-content: center;
-}
-
-.VPHero .name {
-  font-family: var(--s-font-ui);
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  font-size: 3.1rem;
-}
-
-.VPHero .text {
-  font-family: var(--s-font-serif);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--s-ink);
-}
-
-.VPHero .tagline {
-  color: var(--s-ink-muted);
-  line-height: 1.6;
-}
-
-.VPFeature {
-  background: var(--s-bg-panel);
-  border: 1px solid var(--s-border);
-  transition:
-    border-color 0.2s,
-    background 0.2s;
-}
-
-.VPFeature:hover {
-  border-color: var(--s-border-strong);
-  background: var(--s-bg-raised);
-}
-
-.VPFeature .title {
-  font-family: var(--s-font-ui);
-  font-weight: 600;
-}
-
-.VPFeature .details {
-  color: var(--s-ink-muted);
-  line-height: 1.6;
-}
-
-/* ----------------------------------------------------------- doctrine strip
-   A quiet, full-width statement block for the format doctrine and other
-   one-line claims that carry the project's position. */
-.doctrine {
-  margin: 2.6rem 0;
-  padding: 1.4rem 1.6rem;
-  border-left: 2px solid var(--s-accent);
-  background: var(--s-bg-panel);
-  border-radius: 0 5px 5px 0;
-}
-
-.doctrine p {
-  margin: 0;
-  font-family: var(--s-font-serif);
-  font-size: 1.14rem;
-  line-height: 1.6;
-  color: var(--s-ink);
-}
-
-.doctrine p + p {
-  margin-top: 0.7rem;
-  font-family: var(--s-font-ui);
-  font-size: 0.92rem;
-  color: var(--s-ink-muted);
-}
-
 /* --------------------------------------------------------- status callouts
    Documentation that promises unshipped features is worse than none, so the
    site has a first-class way to say "this part is not built yet". */
@@ -548,10 +449,5 @@
 @media (max-width: 640px) {
   .vp-doc h1 {
     font-size: 1.9rem;
-  }
-
-  .VPHero .name {
-    font-size: 2.1rem;
-    letter-spacing: 0.22em;
   }
 }

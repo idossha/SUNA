@@ -100,7 +100,7 @@ Compliance diagnostics are surfaced only in this Export tab. There is no in-manu
 
 | If you want to | Read |
 | --- | --- |
-| Understand the design behind all this | [What is SUNA](/guide/what-is-suna) |
+| Understand the design behind all this | [What is SUNA](/) |
 | Start a project of your own, with the wizard | [Projects](/guide/project) |
 | Learn the whole editing surface | [Tour](/guide/tour) and [Shortcuts](/reference/shortcuts) |
 | Write the markup properly | [SciMark](/writing/scimark) |
