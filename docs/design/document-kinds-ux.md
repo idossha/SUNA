@@ -218,7 +218,7 @@ flows — they are two ways to produce one string. One sheet does both:
   ┌───────────────────────────────────────────────────┐
   │ Reviewer #1 (Comments for the Author):            │
   │                                                   │
-  │ reply-a et al., performed continuous cortico-…    │
+  │ Example A et al., performed continuous cortico-…    │
   └───────────────────────────────────────────────────┘
 
                                   [ Cancel ]  [ Analyse ]

@@ -290,7 +290,7 @@ describe('buildDocxDocument + Packer', () => {
 })
 
 /**
- * The bug this guards: /Users/example/Desktop/P077/output/p077.docx has ZERO
+ * The bug this guards: an exported .docx from a real project had ZERO
  * word/media entries and ZERO <w:drawing> elements — every markdown image in
  * the manuscript was replaced by its alt text as a literal run.
  */

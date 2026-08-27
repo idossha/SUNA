@@ -125,7 +125,7 @@ describe('replyBlocks', () => {
       'RE: We agree, and have said so in the Discussion:',
       '',
       '::quote',
-      '[sentence redacted]',
+      'However, the outer-disc population can quench independently of the cluster core.',
       '+++The results presented here show that this is indeed the case.+++',
       '::',
     ].join('\n');
@@ -140,7 +140,7 @@ describe('replyBlocks', () => {
         level: 0,
         runs: [
           {
-            text: '[sentence redacted]\n',
+            text: 'However, the outer-disc population can quench independently of the cluster core.\n',
             role: 'quote',
           },
           {

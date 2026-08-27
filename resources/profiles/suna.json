@@ -39,7 +39,7 @@
       {
         "claim": "mode: author-year with an APA-7-shaped reference template — docx-tools' default citation_style is \"apa\" (src/docx_tools/build.py, DEFAULT_CITATION_STYLE) and its APA renderer emits \"Author, A. A., & Author, B. B. (Year). Title. Journal, volume(issue), pages. https://doi.org/…\" (src/docx_tools/bib.py).",
         "basis": "documented",
-        "source": "file:///Users/example/00_development/docx-tools/src/docx_tools/bib.py"
+        "source": "file:docx-tools/src/docx_tools/bib.py"
       }
     ]
   },
@@ -100,17 +100,17 @@
       {
         "claim": "widthPresetsMm.single = 127 mm — docx-tools inserts figures at a default width of 5.0 inches (src/docx_tools/build.py: default_w = 3.0 if float_side else 5), which is 127 mm.",
         "basis": "documented",
-        "source": "file:///Users/example/00_development/docx-tools/src/docx_tools/build.py"
+        "source": "file:docx-tools/src/docx_tools/build.py"
       },
       {
         "claim": "minDpi = 600 is OUR OWN requirement, not a journal's: SUNA figures are authored as vector SVG, so a raster pass is only ever a rendering of something sharper, and we would rather an internal PDF read cleanly on a high-DPI screen and in print than match the 300 dpi floor journals set for supplied artwork.",
         "basis": "inferred",
-        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+        "source": "file:docs/design/adr-002-guideline-scope.md"
       },
       {
         "claim": "palette/panelLabel values are SUNA house defaults, not a journal requirement: this is a drafting style, so it recommends the colourblind-safe Wong ramp rather than mandating anything.",
         "basis": "inferred",
-        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+        "source": "file:docs/design/adr-002-guideline-scope.md"
       }
     ]
   },
@@ -165,17 +165,17 @@
       {
         "claim": "Single-spaced, no line numbers, page numbers on: SUNA style is read on a screen or printed for ourselves, not marked up by reviewers — double spacing and line numbers exist to leave room for a reviewer's pen and to let one cite \"page 4, line 12\", and neither buys anything internally. Page numbers stay because a printed internal report gets dropped on a desk.",
         "basis": "inferred",
-        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+        "source": "file:docs/design/adr-002-guideline-scope.md"
       },
       {
         "claim": "acceptedFileTypes docx/pdf/html are exactly the three formats SUNA itself exports — for a house style this field describes what we hand each other, not what a submission portal will take.",
         "basis": "inferred",
-        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+        "source": "file:docs/design/adr-002-guideline-scope.md"
       },
       {
         "claim": "No required sections and no limits of any kind: this is a house drafting style, not a journal, so it must never flag a manuscript for a rule nobody stated. Limits arrive when the author switches to a journal profile.",
         "basis": "inferred",
-        "source": "file:///Users/example/00_development/SUNA/docs/design/adr-002-guideline-scope.md"
+        "source": "file:docs/design/adr-002-guideline-scope.md"
       }
     ]
   },

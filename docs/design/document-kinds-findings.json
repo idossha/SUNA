@@ -1341,7 +1341,7 @@
       {
         "id": "rev.example.assignment-highlight",
         "rule": "EMPIRICAL — co-author assignment is encoded as a <w:highlight> colour bound to initials, and is cleared before submission",
-        "value": "\"AJ\" = <w:highlight w:val=\"magenta\"/>, \"AT\" = <w:highlight w:val=\"green\"/>; 10 magenta-highlighted reply markers ([RE4:], [RE70:], [RE81:]) and 6 green ([RE8:], [RE44:]). The FINISHED reply-a reply retains only 11 highlight runs, all of which contain no text — the attention layer was cleared before submission.",
+        "value": "Two co-author initials are used as assignment codes, one bound to <w:highlight w:val=\"magenta\"/> and one to <w:highlight w:val=\"green\"/>; 10 magenta-highlighted reply markers and 6 green. The FINISHED reply-a reply retains only 11 highlight runs, all of which contain no text — the attention layer was cleared before submission.",
         "source": "private-examples/peer-review/reply-b.docx; private-examples/peer-review/reply-a.docx",
         "provenance": "counted-empirically"
       },
@@ -1355,7 +1355,7 @@
       {
         "id": "rev.example.stale-quotes",
         "rule": "EMPIRICAL — pasted manuscript quotes go stale inside the response",
-        "value": "reply-b quotes one sentence twice with different citation numbering — \"…stimulation regime (54--56)… critical (57,58).\" vs \"…stimulation regime [8], [9], [10]… critical [11], [12].\" reply-a quotes one Results sentence twice — \"[quote redacted]\" (matches the revision) vs \"[quote redacted]\" (matches nothing in the revision).",
+        "value": "reply-b quotes one sentence twice with different citation numbering (author-year style in one copy, bracketed numeric in the other). reply-a quotes one Results sentence twice in two different wordings: one matches the revision, the other matches nothing in it — a stale quote the authors never reconciled.",
         "source": "private-examples/peer-review/reply-b.docx; private-examples/peer-review/reply-a.docx; private-examples/peer-review/revision-a.docx",
         "provenance": "counted-empirically"
       },
@@ -1411,14 +1411,14 @@
       {
         "id": "rev.example.section-not-line",
         "rule": "EMPIRICAL — authors point at where a change landed by SECTION NAME, never by line in the current version",
-        "value": "\"We now present these results in the Section \\\"[section title redacted]\\\".\", \"Discussion subsection \\\"[section title redacted]\\\"\", \"added the following statement to the methods section 2.6.4\". Line numbers appear ONLY against the superseded version.",
+        "value": "Replies locate a change by naming the section or subsection it landed in (\"we now present these results in the section <title>\", \"discussion subsection <title>\", \"added the following statement to methods section 2.6.4\") rather than by line number. Line numbers appear ONLY against the superseded version.",
         "source": "private-examples/peer-review/reply-a.docx; private-examples/peer-review/reply-b.docx",
         "provenance": "counted-empirically"
       },
       {
         "id": "rev.example.response-only-items",
         "rule": "EMPIRICAL — response documents carry display items the manuscript never sees, unnumbered and in their own namespace",
-        "value": "reply-a has two uncaptioned/unnumbered response-only figures (\"Regression to the mean\"; \"[figure title redacted]\", the latter explicitly framed as reviewer-only) beside reproductions of numbered manuscript figures. reply-b has a response-only results table with 4 cells at <w:shd w:fill=\"FFFF00\"/>.",
+        "value": "reply-a has two uncaptioned/unnumbered response-only figures, one of them explicitly framed as reviewer-only, beside reproductions of numbered manuscript figures. reply-b has a response-only results table with 4 cells at <w:shd w:fill=\"FFFF00\"/>.",
         "source": "private-examples/peer-review/reply-a.docx; private-examples/peer-review/reply-b.docx",
         "provenance": "counted-empirically"
       }

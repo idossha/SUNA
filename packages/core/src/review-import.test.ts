@@ -11,13 +11,14 @@ import {
  * The fixtures below reproduce the structural grammar of two real reviewer
  * documents — including the artifacts a .docx → text conversion leaves behind
  * (`**bold**` headings, pandoc's `2\.` escaping, trailing hard-break
- * backslashes, `[…]{.mark}` spans). The documents themselves are private and
- * are not committed, so the grammar is reproduced here rather than the text.
+ * backslashes, `[…]{.mark}` spans). The documents are private and their prose
+ * belongs to their reviewers, so only the grammar is reproduced here; every
+ * sentence below is invented.
  * Both real documents were segmented correctly when this was written: five
  * reviewer blocks in one, three in the other, every verbatim contiguous.
  */
 
-const FIVE_REVIEWERS = `Response to Reviewers - reply-b Manuscript
+const FIVE_REVIEWERS = `Response to Reviewers - Ram-Pressure Stripping Manuscript
 
 Dear Editor and Reviewers,
 
@@ -25,12 +26,12 @@ We thank you for the thorough evaluation of our manuscript.
 
 **Reviewer #1**:
 
-The authors present reply-b, an open-source containerized pipeline.
+The authors present a pipeline for measuring stripped-gas tail lengths.
 
 Major comments\\
-Fixing per-pair current at 1 mA while optimizing only electrode positions is inappropriate for TI, where current allocation is a primary control knob.
+Fixing the inclination prior at a single value while fitting only the tail position angle is inappropriate here, where inclination is a primary control knob.
 
-The manuscript relies primarily on a genetic algorithm and discusses the exhaustive strategy only briefly in the Supplementary Information.
+The manuscript relies primarily on the MCMC fit and discusses the grid-search cross-check only briefly in the Supplementary Information.
 
 Minor comments\\
 Please define all acronyms at first use in the main text and figures.
@@ -59,15 +60,15 @@ const NUMBERED_WITH_SECTIONS = `Reviewers' Comments: \\
 
 **Reviewer #1 (Comments for the Author):\\**
 
-reply-a et al. [sentence redacted].
+The authors report continuous multi-band monitoring of the cluster over two observing seasons.
 
 **Main issues\\**
-1. Is the main claim here that the thalamocortical and hippocampal system have different sleep states? Or more precisely, are the traditional brain states dissociable between the two systems?
+1. Is the main claim here that the inner and outer disc populations have different quenching histories? Or more precisely, are the two populations separable at all by this diagnostic?
 
-2\\. A major source of the confusion is mixing sleep states and SPW states throughout the analysis.
+2\\. A major source of the confusion is mixing environmental density and stellar mass throughout the analysis.
 
 **Minor issues/questions**\\
-3\\. The methods do not state how many animals contributed to each panel.
+3\\. The methods do not state how many galaxies contributed to each panel.
 
 **Reviewer #2 (Comments for the Author):**
 
@@ -126,7 +127,7 @@ describe('sections and points', () => {
     const r = segmentReviewerReport(NUMBERED_WITH_SECTIONS);
     const r1 = r.reviewers[0]!;
     expect(r1.points.length).toBeGreaterThanOrEqual(3);
-    expect(r1.points.some((p) => p.verbatim.includes('mixing sleep states'))).toBe(true);
+    expect(r1.points.some((p) => p.verbatim.includes('mixing environmental density'))).toBe(true);
   });
 
   it('records the section a point sat under', () => {
