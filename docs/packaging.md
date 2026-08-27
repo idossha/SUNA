@@ -61,17 +61,27 @@ rejects it as *"SUNA is damaged and can't be opened"* — a dead end for the
 user, since there is no "open anyway". `scripts/e2e/packaged.mjs` asserts the
 signature verifies so this cannot regress silently.
 
-Ad-hoc signing still is not notarization, so a downloaded build carries the
-quarantine attribute and macOS refuses the first launch. Users must right-click
-→ Open, or run:
+Ad-hoc signing is not notarization, and on current macOS that distinction is
+absolute: an app carrying the quarantine flag that Apple cannot check is
+reported as **"damaged"**, and neither right-click → Open nor the Gatekeeper
+override in System Settings is offered. Signing correctly did not change the
+dialog the user sees — it only means the bundle is no longer *also* broken.
+
+The flag is attached by the downloading browser, not by the file, so the
+supported install path is `scripts/install-macos.sh`, which fetches the DMG
+with `curl` (no quarantine attached), installs to `/Applications` and clears
+the attribute if one is present. Users who already downloaded through a
+browser can run:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/SUNA.app
 ```
 
-Adding a Developer ID certificate plus notarization credentials to the release
-workflow removes that step; swap `identity`, drop the library-validation
-entitlement, and nothing else in the config needs to change.
+**A Developer ID certificate plus notarization is the only thing that makes a
+double-clicked download work.** It needs a paid Apple Developer account; then
+swap `identity`, drop the library-validation entitlement, add the notarization
+credentials to the release workflow, and the install script becomes a
+convenience rather than a requirement.
 
 ## Releases
 

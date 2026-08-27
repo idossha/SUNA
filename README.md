@@ -11,19 +11,36 @@ sources of truth. PDF/DOCX are produced at export time only.
 ## Download
 
 Installers for macOS, Windows and Linux are attached to every
-[release](https://github.com/idossha/SUNA/releases). Grab the DMG matching
-your Mac (`arm64` for Apple silicon, `x64` for Intel), the `.exe` on Windows,
-or the AppImage/deb on Linux.
+[release](https://github.com/idossha/SUNA/releases).
 
-Builds are not notarized with an Apple Developer certificate yet, so macOS
-blocks the first launch. Drag SUNA to Applications, then run:
+### macOS
+
+SUNA is not notarized yet (no Apple Developer certificate), and macOS refuses
+to open any app it cannot check with Apple — reporting it as **"damaged"**,
+with no way to override from the dialog. A browser is what attaches the flag
+that triggers this; `curl` does not. So install from a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/idossha/SUNA/main/scripts/install-macos.sh | bash
+```
+
+That picks the right build for your Mac, installs it to `/Applications` and
+opens cleanly. (Read
+[the script](scripts/install-macos.sh) first if you would rather not pipe to
+a shell.)
+
+If you already downloaded the DMG in a browser, drag SUNA to Applications and
+then run:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/SUNA.app
 ```
 
-Right-click the app → **Open** works too. If macOS says the app is *damaged*,
-you have a build older than 1.0.3 — download the latest release instead.
+### Windows and Linux
+
+Take the `.exe` matching your architecture, or the AppImage/`.deb`. Windows
+SmartScreen will warn about an unknown publisher — choose *More info* → *Run
+anyway*.
 
 ## Run from source
 
