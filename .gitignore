@@ -9,6 +9,9 @@ out/
 
 # electron
 apps/desktop/release/
+/release/
+# staged before electron-builder copies it into Contents/Resources
+apps/desktop/build/resources/
 
 # python
 __pycache__/

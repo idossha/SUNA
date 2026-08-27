@@ -1,7 +1,7 @@
 {
   "name": "suna",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "SUNA \u2014 academic co-writing platform: manuscripts, figures, references, and publisher-ready output",
   "type": "module",
   "engines": {
@@ -27,7 +27,10 @@
     "docs:dev": "pnpm --filter @suna/website dev",
     "docs:build": "pnpm --filter @suna/website build",
     "docs:preview": "pnpm --filter @suna/website preview",
-    "docs:shots": "node website/scripts/shots.mjs"
+    "docs:shots": "node website/scripts/shots.mjs",
+    "stage:resources": "node scripts/packaging/stage-resources.mjs",
+    "package": "pnpm build && pnpm stage:resources && pnpm --filter @suna/desktop package",
+    "package:mac": "pnpm build && pnpm stage:resources && pnpm --filter @suna/desktop package:mac"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

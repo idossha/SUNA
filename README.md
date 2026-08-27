@@ -8,7 +8,21 @@ publisher-aware output formatting, reference management, and git built in.
 **Format doctrine:** JSON, Markdown, BibTeX, SVG, and LaTeX are the only
 sources of truth. PDF/DOCX are produced at export time only.
 
-## Run
+## Download
+
+Installers for macOS, Windows and Linux are attached to every
+[release](https://github.com/idossha/SUNA/releases). Grab the DMG matching
+your Mac (`arm64` for Apple silicon, `x64` for Intel), the `.exe` on Windows,
+or the AppImage/deb on Linux.
+
+Builds are not signed with an Apple Developer certificate yet, so macOS blocks
+the first launch. Right-click the app → **Open**, or run:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/SUNA.app
+```
+
+## Run from source
 
 ```bash
 pnpm install
@@ -38,6 +52,7 @@ pnpm typecheck    # strict TS across the workspace
 pnpm test         # vitest across the workspace
 pnpm smoke        # end-to-end app smoke test (drives the UI over CDP)
 cd python/suna_mpl && uv run pytest   # python companion tests
+pnpm package:mac  # build downloadable DMGs into release/ (see docs/packaging.md)
 ```
 
 `pnpm smoke` walkthrough details and the human testing script live in

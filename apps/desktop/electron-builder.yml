@@ -1,0 +1,73 @@
+# Packaging for the downloadable SUNA app.
+#
+# `build/resources/` is produced by scripts/packaging/stage-resources.mjs and
+# lands at Contents/Resources — the main process resolves examples/, mcp/ and
+# python/ from there via process.resourcesPath when packaged.
+appId: dev.suna.app
+productName: SUNA
+copyright: Copyright © 2026 SUNA
+directories:
+  buildResources: build
+  output: ../../release
+
+files:
+  - out/**
+  - package.json
+  # Workspace packages are bundled into out/ by electron-vite; shipping their
+  # raw TypeScript sources again would only bloat the app.
+  - '!node_modules/@suna/**'
+  - '!**/*.map'
+  - '!**/{test,tests,__tests__,example,examples,docs}/**'
+
+extraResources:
+  - from: build/resources
+    to: .
+
+# node-pty is a native module: it must stay outside the asar to be loadable.
+asarUnpack:
+  - '**/node-pty/**'
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  icon: build/icon.icns
+  darkModeSupport: true
+  # No Apple Developer identity is configured, so builds are ad-hoc signed.
+  # See docs/packaging.md for what users must do on first launch.
+  identity: null
+  gatekeeperAssess: false
+  extendInfo:
+    NSMicrophoneUsageDescription: SUNA does not use the microphone.
+    NSCameraUsageDescription: SUNA does not use the camera.
+
+dmg:
+  artifactName: SUNA-${version}-mac-${arch}.dmg
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+  icon: build/icon.ico
+  artifactName: SUNA-${version}-win-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64]
+  category: Office
+  icon: build/icon.png
+  artifactName: SUNA-${version}-linux-${arch}.${ext}
+
+publish:
+  provider: github
+  owner: idossha
+  repo: SUNA

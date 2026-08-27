@@ -1,6 +1,6 @@
 {
   "name": "@suna/desktop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
@@ -9,7 +9,10 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "package": "electron-builder",
+    "package:mac": "electron-builder --mac",
+    "package:dir": "electron-builder --dir"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -56,9 +59,16 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
-  }
+  },
+  "description": "SUNA \u2014 academic co-writing platform for manuscripts, figures and references",
+  "author": {
+    "name": "A. Author",
+    "email": "author@example.edu"
+  },
+  "homepage": "https://github.com/idossha/SUNA"
 }
