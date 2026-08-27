@@ -1,10 +1,38 @@
 # Install and run
 
-How to get SUNA running today: clone the repo, install with pnpm, launch with `pnpm dev`. There is no installer — this is a run-from-source setup.
+Download an installer, or run from a source checkout. Most people want the installer.
 
-::: warning No packaged app yet
-SUNA ships no `.app`, `.dmg`, or installer. There is no release workflow, no signed build, and no download link. A signed macOS build is a roadmap item that has not been done. The only way to run SUNA is from a source checkout.
-:::
+## Download
+
+Every [release](https://github.com/idossha/SUNA/releases) carries builds for macOS, Windows and Linux.
+
+### macOS
+
+SUNA is not notarized by Apple yet, and macOS refuses to open an app it cannot check — reporting it as **"damaged"**, with no override in the dialog. The quarantine flag that triggers this is attached by the *browser*, not by the file, so install from a terminal instead:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/idossha/SUNA/main/scripts/install-macos.sh | bash
+```
+
+That picks the right build for your Mac (Apple silicon or Intel), installs it to `/Applications`, and opens cleanly. Read [the script](https://github.com/idossha/SUNA/blob/main/scripts/install-macos.sh) first if you would rather not pipe to a shell.
+
+Already downloaded the DMG in a browser? Drag SUNA to Applications, then:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/SUNA.app
+```
+
+### Windows
+
+Take the `.exe` matching your architecture. SmartScreen warns about an unknown publisher — choose *More info* → *Run anyway*.
+
+### Linux
+
+Take the AppImage for your architecture (`chmod +x` it and run), or the `.deb` on Debian and Ubuntu.
+
+## Run from source
+
+You need a source checkout to develop SUNA, or to run an unreleased revision.
 
 ## What you need
 
@@ -21,7 +49,7 @@ Electron is not a separate install. It comes down as a devDependency of the desk
 
 You do **not** need LaTeX or Tectonic. PDF export goes through a hidden Electron window's `printToPDF`, with no external binary involved — the package table in the repo's own `README.md` is stale on this point.
 
-## Install and run
+## Clone and run
 
 ```bash
 git clone git@github.com:idossha/SUNA.git
