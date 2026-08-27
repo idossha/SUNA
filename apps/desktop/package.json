@@ -1,6 +1,6 @@
 {
   "name": "@suna/desktop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
@@ -10,9 +10,9 @@
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
     "test": "vitest run --passWithNoTests",
-    "package": "electron-builder",
-    "package:mac": "electron-builder --mac",
-    "package:dir": "electron-builder --dir"
+    "package": "electron-builder --config electron-builder.config.cjs",
+    "package:mac": "electron-builder --config electron-builder.config.cjs --mac",
+    "package:dir": "electron-builder --config electron-builder.config.cjs --dir"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

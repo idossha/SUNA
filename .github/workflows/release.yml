@@ -31,7 +31,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm stage:resources
-      - run: pnpm --filter @suna/desktop exec electron-builder ${{ matrix.args }} --publish never
+      - run: pnpm --filter @suna/desktop exec electron-builder --config electron-builder.config.cjs ${{ matrix.args }} --publish never
         env:
           # Present only once a Developer ID is configured; without them the
           # mac build ad-hoc signs and skips notarization (see

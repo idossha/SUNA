@@ -1,7 +1,7 @@
 # Packaging and releases
 
 SUNA ships as a downloadable desktop app built with `electron-builder`.
-Configuration lives in `apps/desktop/electron-builder.yml`; artifacts land in
+Configuration lives in `apps/desktop/electron-builder.config.cjs`, which loads the static `electron-builder.base.yml` and decides signing from the environment; artifacts land in
 `release/` at the repo root (git-ignored).
 
 ## Building locally
@@ -34,7 +34,7 @@ versions of the same dependency (jsdom's tree does, for `whatwg-url`) the
 second copy is nested under its dependent, exactly as Node resolution expects.
 
 `node-pty` is a native module and is unpacked from the asar
-(`asarUnpack` in the builder config) so it can be loaded at runtime.
+(`asarUnpack` in the base config) so it can be loaded at runtime.
 
 ## Verifying a build
 
@@ -81,7 +81,7 @@ xattr -dr com.apple.quarantine /Applications/SUNA.app
 double-clicked download work.** It needs a paid Apple Developer account.
 
 `apps/desktop/electron-builder.config.cjs` already switches on the
-environment: it loads the static YAML, then ad-hoc signs when no certificate
+environment: it loads `electron-builder.base.yml`, then ad-hoc signs when no certificate
 is present and signs + notarizes when one is. Nothing in the config needs
 editing — add these repository secrets and the next tagged build is notarized:
 
