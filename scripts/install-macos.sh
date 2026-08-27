@@ -26,9 +26,8 @@ case "$(uname -m)" in
 esac
 
 echo "Finding the latest SUNA release..."
-URL=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" \
-  | grep -o "https://[^\"]*-mac-$ARCH\.dmg" | head -1)
-[[ -n "$URL" ]] || { echo "No macOS $ARCH build found in the latest release."; exit 1; }
+URL=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
+  | grep -o "https://[^\"]*-mac-$ARCH\.dmg" | head -1) || true
 
 TMP=$(mktemp -d)
 MNT="$TMP/mnt"
@@ -38,8 +37,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Downloading $(basename "$URL")..."
-curl -fL --progress-bar "$URL" -o "$TMP/suna.dmg"
+if [[ -n "$URL" ]]; then
+  echo "Downloading $(basename "$URL")..."
+  curl -fL --progress-bar "$URL" -o "$TMP/suna.dmg"
+elif command -v gh >/dev/null 2>&1; then
+  # The releases API answers 404 for a private repo without credentials; the
+  # GitHub CLI already holds the user's, so use it rather than failing.
+  echo "Public download unavailable; fetching with the GitHub CLI..."
+  gh release download --repo "$REPO" -p "*-mac-$ARCH.dmg" -D "$TMP" --clobber
+  mv "$TMP"/*-mac-"$ARCH".dmg "$TMP/suna.dmg"
+else
+  echo "Could not find a macOS $ARCH build. If $REPO is private, install the"
+  echo "GitHub CLI (brew install gh), run 'gh auth login', and try again."
+  exit 1
+fi
 
 echo "Installing to $APP..."
 mkdir -p "$MNT"
