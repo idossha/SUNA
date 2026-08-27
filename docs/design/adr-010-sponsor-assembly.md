@@ -388,7 +388,7 @@ its page count and its filename.**
   manifest records them as `source: 'form'` so the completeness checklist is
   honest about what SUNA did and did not produce.
 - **The institutional routing layer.** The real assembled file ends with two
-  pages of a Example University Proposal Summary that NIH never receives —
+  pages of a institutional Proposal Summary that NIH never receives —
   and which carries the only copy of the deadline
   (`nih.example.institutional-pages`). Useful metadata, wrong schema. The
   package may carry a `dueAt` so `effectiveFrom` is evaluable; SUNA does not

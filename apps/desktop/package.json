@@ -66,10 +66,10 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
-  "description": "SUNA — academic co-writing platform for manuscripts, figures and references",
+  "description": "SUNA \u2014 academic co-writing platform for manuscripts, figures and references",
   "author": {
-    "name": "A. Author",
-    "email": "author@example.edu"
+    "name": "SUNA",
+    "email": "noreply@suna.app"
   },
   "homepage": "https://github.com/idossha/SUNA",
   "desktopName": "suna.desktop"

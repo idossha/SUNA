@@ -2217,7 +2217,7 @@
       {
         "id": "nih.example.institutional-pages",
         "rule": "EMPIRICAL — the PDF a PI supplies may be the INSTITUTION's assembly, carrying pages the sponsor never receives",
-        "value": "the assembled file ends with a two-page Example University \"Proposal Summary\" internal routing form containing Proposal Status, Sponsor Deadline, Export Control questions and award placeholders — none of it part of the NIH submission, but carrying the only copy of the deadline date that governs the DMS-format question",
+        "value": "the assembled file ends with a two-page institutional \"Proposal Summary\" internal routing form containing Proposal Status, Sponsor Deadline, Export Control questions and award placeholders — none of it part of the NIH submission, but carrying the only copy of the deadline date that governs the DMS-format question",
         "source": "derived/assembled.txt",
         "provenance": "counted-empirically"
       },
