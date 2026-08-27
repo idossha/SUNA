@@ -1,6 +1,6 @@
 {
   "name": "@suna/desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
@@ -70,5 +70,6 @@
     "name": "A. Author",
     "email": "author@example.edu"
   },
-  "homepage": "https://github.com/idossha/SUNA"
+  "homepage": "https://github.com/idossha/SUNA",
+  "desktopName": "suna.desktop"
 }

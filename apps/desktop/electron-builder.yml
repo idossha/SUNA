@@ -62,7 +62,7 @@ linux:
   # executable, and desktop environments need an explicit .desktop id to
   # associate running windows with the launcher.
   executableName: suna
-  desktopName: suna.desktop
+  syncDesktopName: true
   synopsis: Academic writing platform for manuscripts, figures and references
   target:
     - target: AppImage
