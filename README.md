@@ -26,9 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/idossha/SUNA/main/scripts/install-m
 
 That picks the right build for your Mac, installs it to `/Applications` and
 opens cleanly. (Read [the script](scripts/install-macos.sh) first if you would
-rather not pipe to a shell.) While this repository is private, the script needs
-the [GitHub CLI](https://cli.github.com) — `brew install gh && gh auth login` —
-since anonymous downloads are not available.
+rather not pipe to a shell.)
 
 If you already downloaded the DMG in a browser, drag SUNA to Applications and
 then run:
