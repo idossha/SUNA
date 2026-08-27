@@ -10,7 +10,7 @@
  *
  *   node scripts/e2e/packaged.mjs [--app /path/to/SUNA.app]
  */
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, openSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -40,6 +40,25 @@ check('resources/mcp/node_modules/jsdom shipped', existsSync(join(res, 'mcp', 'n
 check('resources/mcp/node_modules/zod shipped', existsSync(join(res, 'mcp', 'node_modules', 'zod')))
 check('resources/examples/hello-suna shipped', existsSync(join(res, 'examples', 'hello-suna', 'suna.json')))
 check('resources/python kernel bridge shipped', existsSync(join(res, 'python', 'suna_kernel', 'bridge.py')))
+// An invalid signature is not a cosmetic problem on macOS: arm64 refuses the
+// app outright with "SUNA is damaged and can't be opened". electron-builder
+// with `identity: null` produced exactly that, so assert the bundle really is
+// signed (ad-hoc is fine) and that the seal verifies.
+if (process.platform === 'darwin') {
+  let sigOk = false
+  let sigDetail = ''
+  try {
+    // codesign reports on stderr, so ask for the description and the
+    // verification in one pass and keep whichever it printed.
+    sigDetail = execFileSync('sh', ['-c', `codesign -dv "$0" 2>&1 | sed -n '2p;4p' | tr '\\n' ' '`, APP], { encoding: 'utf8' }).trim()
+    execFileSync('codesign', ['--verify', '--deep', '--strict', APP], { stdio: 'pipe' })
+    sigOk = true
+  } catch (err) {
+    sigDetail ||= String(err.stderr ?? err.message).trim().split('\n')[0]
+  }
+  check('code signature verifies', sigOk, sigDetail)
+}
+
 check('node-pty unpacked from asar', existsSync(join(res, 'app.asar.unpacked', 'node_modules', 'node-pty')))
 
 const userData = mkdtempSync(join(tmpdir(), 'suna-packaged-'))

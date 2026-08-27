@@ -34,10 +34,16 @@ mac:
       arch: [arm64, x64]
   icon: build/icon.icns
   darkModeSupport: true
-  # No Apple Developer identity is configured, so builds are ad-hoc signed.
-  # See docs/packaging.md for what users must do on first launch.
-  identity: null
+  # No Apple Developer identity is configured. `identity: null` skips signing
+  # entirely, which leaves the bundle carrying only Electron's inherited
+  # linker signature — arm64 macs then refuse it outright as "damaged".
+  # Ad-hoc signing the whole bundle produces an app that launches after the
+  # user clears quarantine. See docs/packaging.md.
+  identity: '-'
   gatekeeperAssess: false
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     NSMicrophoneUsageDescription: SUNA does not use the microphone.
     NSCameraUsageDescription: SUNA does not use the camera.

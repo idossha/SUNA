@@ -15,12 +15,15 @@ Installers for macOS, Windows and Linux are attached to every
 your Mac (`arm64` for Apple silicon, `x64` for Intel), the `.exe` on Windows,
 or the AppImage/deb on Linux.
 
-Builds are not signed with an Apple Developer certificate yet, so macOS blocks
-the first launch. Right-click the app → **Open**, or run:
+Builds are not notarized with an Apple Developer certificate yet, so macOS
+blocks the first launch. Drag SUNA to Applications, then run:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/SUNA.app
 ```
+
+Right-click the app → **Open** works too. If macOS says the app is *damaged*,
+you have a build older than 1.0.3 — download the latest release instead.
 
 ## Run from source
 

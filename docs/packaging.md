@@ -51,15 +51,27 @@ catch these regressions — the packaged layout only exists after a build.
 ## Signing
 
 There is no Apple Developer identity configured, so macOS builds are ad-hoc
-signed (`identity: null`) and Windows builds are unsigned. On first launch
-macOS will refuse the app; users must right-click → Open, or run:
+signed (`identity: '-'`) under the hardened runtime, with
+`build/entitlements.mac.plist` granting the library-validation exemption
+ad-hoc signing requires. Windows builds are unsigned.
+
+`identity: null` is NOT the same thing: it skips signing entirely, leaving the
+bundle with only Electron's inherited linker signature, and Apple silicon then
+rejects it as *"SUNA is damaged and can't be opened"* — a dead end for the
+user, since there is no "open anyway". `scripts/e2e/packaged.mjs` asserts the
+signature verifies so this cannot regress silently.
+
+Ad-hoc signing still is not notarization, so a downloaded build carries the
+quarantine attribute and macOS refuses the first launch. Users must right-click
+→ Open, or run:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/SUNA.app
 ```
 
 Adding a Developer ID certificate plus notarization credentials to the release
-workflow removes that step; nothing else in the config needs to change.
+workflow removes that step; swap `identity`, drop the library-validation
+entitlement, and nothing else in the config needs to change.
 
 ## Releases
 
