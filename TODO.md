@@ -125,9 +125,6 @@ than a pty id — stable across everything, unlike the id.
 - **Signing.** A second Mach-O inside the bundle must be signed and notarized
   with the app or hardened runtime rejects it. Solved problem, but it fails
   on other people's machines rather than on ours.
-- **Windows gets nothing.** tmux does not exist there; `terminal.ts` already
-  branches to COMSPEC/powershell. Persistence would be macOS/Linux only, and
-  the UI must not imply otherwise.
 - **Licensing.** tmux ISC, libevent BSD-3, ncurses MIT-ish — all
   redistributable, all needing attribution in an about/licenses screen.
 - **Orphan reaping is the real design work.** Surviving a crash means the

@@ -25,9 +25,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 function pythonPath(envPath: string): string {
-  return process.platform === 'win32'
-    ? join(envPath, 'Scripts', 'python.exe')
-    : join(envPath, 'bin', 'python')
+  return join(envPath, 'bin', 'python')
 }
 
 async function resolvePython(envPath: string): Promise<string | null> {

@@ -36,9 +36,8 @@ afterEach(() => {
 })
 
 describe('osActionLabels', () => {
-  it('names the actual file manager per platform', () => {
+  it('names the actual file manager on macOS', () => {
     expect(osActionLabels('darwin').reveal).toBe('Reveal in Finder')
-    expect(osActionLabels('win32').reveal).toBe('Show in Explorer')
   })
 
   it('falls back to neutral wording rather than guessing at a Linux file manager', () => {
@@ -48,7 +47,7 @@ describe('osActionLabels', () => {
   })
 
   it('keeps the open label platform-neutral — it names what the OS does', () => {
-    for (const platform of ['darwin', 'win32', 'linux']) {
+    for (const platform of ['darwin', 'linux']) {
       expect(osActionLabels(platform).open).toBe('Open with Default App')
     }
   })
@@ -71,10 +70,7 @@ describe('osActionFailureNote', () => {
     )
   })
 
-  it('handles a Windows path and a trailing separator', () => {
-    expect(osActionFailureNote('open', 'C:\\Users\\me\\project\\run.bat', 'nope')).toBe(
-      'Could not open run.bat: nope'
-    )
+  it('handles a trailing separator', () => {
     expect(osActionFailureNote('reveal', '/a/b/data/', 'nope')).toBe('Could not reveal data: nope')
   })
 

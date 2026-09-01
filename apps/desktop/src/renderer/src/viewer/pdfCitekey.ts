@@ -20,7 +20,12 @@ export type PdfCitekeyMatch =
   | { kind: 'ambiguous'; citekeys: string[] }
   | { kind: 'none' }
 
-/** Last path segment, for both POSIX and Windows separators. */
+/**
+ * Last path segment, splitting on either separator. Not a platform concern —
+ * SUNA runs on macOS and Linux — but a bibliography is portable data: a `file`
+ * field in a .bib a collaborator sends can carry a `C:\…` path, and this must
+ * still find the name in it.
+ */
 function basename(path: string): string {
   const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
   return cut === -1 ? path : path.slice(cut + 1)

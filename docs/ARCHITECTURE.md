@@ -3,7 +3,7 @@
 > An Electron academic-writing platform: a workspace for human–AI co-writing of research
 > papers, with live Markdown rendering, an SVG figure canvas, publisher-aware compliance
 > checking, reference management, peer-review bookkeeping and git built in.
-> macOS · Windows · Linux.
+> macOS · Linux.
 
 This file is the **contract**. It states what the system *is*, not what it will be. Changing
 something this file names requires editing this file in the same commit. **Section numbers are
@@ -1723,7 +1723,7 @@ else: a first-paint ground before the generated sheet lands.
   `--only` / `--from` / `--until` / `--list`. Step names are the feature inventory.
 * `scripts/e2e/probes/` holds focused drivers for areas the main suite does not cover.
 * Python: `cd python/suna_mpl && uv run pytest`.
-* CI runs typecheck and tests on Linux, macOS and Windows for every PR, and additionally packages
+* CI runs typecheck and tests on Linux and macOS for every PR, and additionally packages
   on macOS and launches the real bundle — **the packaged layout is the one thing `pnpm dev` can
   never exercise.**
 

@@ -208,7 +208,12 @@ describe('findLocalPdf — the bounded walk', () => {
     expect(found.matches.map((m) => m.path)).toEqual([path])
     expect(found.rootsSearched).toEqual([root])
     expect(found.rootsMissing).toEqual([gone])
-    expect(found.notes.join('\n')).toContain(gone)
+    // Quoted, because that is what the note carries: every path in a note goes
+    // through `quoteExternalPath` (ARCHITECTURE D12). `toContain(gone)` passed
+    // on a quoted path and on an unquoted one alike, so it gated nothing; the
+    // `JSON.stringify` form is the same construction the Spotlight note's
+    // assertion below already uses.
+    expect(found.notes.join('\n')).toContain(JSON.stringify(gone))
     expect(found.notes.join('\n')).toContain('no such directory')
   })
 
@@ -547,11 +552,11 @@ describe('findLocalPdf — Spotlight', () => {
     const root = join(dir, 'lib')
     await mkdir(root, { recursive: true })
     const found = await findLocalPdf(GUNN, config([root], { useSpotlight: true }), {
-      platform: 'win32',
+      platform: 'linux',
       spotlight: neverCalled
     })
     expect(found.notes.join('\n')).toContain('macOS-only')
-    expect(found.notes.join('\n')).toContain('win32')
+    expect(found.notes.join('\n')).toContain('linux')
   })
 })
 
@@ -702,7 +707,7 @@ describe('findLocalPdf — the read boundary', () => {
    * FIFO returned as a match, instead of hanging the suite on the open it is
    * here to prevent.
    */
-  it.skipIf(process.platform === 'win32')(
+  it(
     'never sizes a FIFO into a match on the strength of its name',
     async () => {
       const root = join(dir, 'lib')
@@ -821,7 +826,7 @@ describe('importPdfIntoProject', () => {
     expect(await treeOf(dir)).toEqual(before)
   })
 
-  it('refuses a Windows-separated escape and a blank citekey too', async () => {
+  it('refuses a backslash-separated escape and a blank citekey too', async () => {
     const backslash = await importPdfIntoProject(source, project, '..\\..\\evil')
     expect(backslash.error).toContain('path separator')
     expect(backslash.acquisition).toBeNull()

@@ -12,7 +12,6 @@
  * Writes:
  *   apps/desktop/resources/icon.png   512, loaded at runtime for the dock
  *   apps/desktop/build/icon.icns      macOS bundle icon
- *   apps/desktop/build/icon.ico       Windows
  *   apps/desktop/build/icon.png       1024, Linux
  *
  * `build/` is where electron-builder looks for these by name with no config
@@ -23,7 +22,7 @@
  * which ships with macOS. On other platforms the .icns step is skipped.
  */
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -65,38 +64,6 @@ function png(size, out) {
   return out
 }
 
-/**
- * Pack PNGs into an .ico. The container is trivial — a 6-byte header, one
- * 16-byte directory entry per image, then the payloads — and every Windows
- * since Vista reads PNG payloads, so no BMP encoding is needed and no
- * dependency either.
- */
-function ico(sizes, files, out) {
-  const blobs = files.map((f) => readFileSync(f))
-  const header = Buffer.alloc(6)
-  header.writeUInt16LE(0, 0) // reserved
-  header.writeUInt16LE(1, 2) // 1 = icon
-  header.writeUInt16LE(sizes.length, 4)
-
-  const dir = Buffer.alloc(16 * sizes.length)
-  let offset = header.length + dir.length
-  sizes.forEach((size, i) => {
-    const at = i * 16
-    // 256 is written as 0: the field is one byte wide.
-    dir.writeUInt8(size >= 256 ? 0 : size, at)
-    dir.writeUInt8(size >= 256 ? 0 : size, at + 1)
-    dir.writeUInt8(0, at + 2) // palette size, 0 for truecolour
-    dir.writeUInt8(0, at + 3) // reserved
-    dir.writeUInt16LE(1, at + 4) // colour planes
-    dir.writeUInt16LE(32, at + 6) // bits per pixel
-    dir.writeUInt32LE(blobs[i].length, at + 8)
-    dir.writeUInt32LE(offset, at + 12)
-    offset += blobs[i].length
-  })
-
-  writeFileSync(out, Buffer.concat([header, dir, ...blobs]))
-}
-
 rmSync(work, { recursive: true, force: true })
 mkdirSync(work, { recursive: true })
 
@@ -131,13 +98,5 @@ if (process.platform === 'darwin' && have('iconutil')) {
   console.warn('make-icons: not macOS (or no iconutil) — skipped icon.icns')
 }
 
-// --- .ico -----------------------------------------------------------------
-const icoSizes = [16, 32, 48, 64, 128, 256]
-ico(
-  icoSizes,
-  icoSizes.map((s) => png(s, join(work, `ico-${s}.png`))),
-  join(buildDir, 'icon.ico')
-)
-
 rmSync(work, { recursive: true, force: true })
-console.log('make-icons: wrote icon.png, icon.icns and icon.ico')
+console.log('make-icons: wrote icon.png and icon.icns')

@@ -22,18 +22,13 @@ export interface OsActionLabels {
 
 /**
  * Menu wording for `platform` — a `process.platform` value, i.e.
- * `window.suna.platform`. Anything that is neither macOS nor Windows gets the
- * neutral phrasing rather than a guess between Nautilus, Dolphin and Thunar.
- * "Open with Default App" is platform-neutral already: it names what the OS
- * does, not which OS is doing it.
+ * `window.suna.platform`. SUNA supports macOS and Linux; anything that is not
+ * macOS gets the neutral phrasing rather than a guess between Nautilus,
+ * Dolphin and Thunar. "Open with Default App" is platform-neutral already: it
+ * names what the OS does, not which OS is doing it.
  */
 export function osActionLabels(platform: string): OsActionLabels {
-  const reveal =
-    platform === 'darwin'
-      ? 'Reveal in Finder'
-      : platform === 'win32'
-        ? 'Show in Explorer'
-        : 'Show in File Manager'
+  const reveal = platform === 'darwin' ? 'Reveal in Finder' : 'Show in File Manager'
   return { reveal, open: 'Open with Default App' }
 }
 
@@ -48,12 +43,13 @@ export const OS_ACTION_SHORTCUTS: Readonly<Record<OsAction, string>> = {
 }
 
 /**
- * Last path segment, tolerating either separator: these messages are the one
- * place a Windows path can reach the renderer's own formatting, and splitting
- * on '/' alone would print the whole `C:\…` line back at the user.
+ * Last path segment. These paths come from the main process on the machine
+ * SUNA is running on — macOS or Linux — so '/' is the only separator, and a
+ * backslash is an ordinary (if unusual) character in a file name rather than
+ * something to split on.
  */
 function baseName(path: string): string {
-  const segments = path.split(/[/\\]/).filter((segment) => segment !== '')
+  const segments = path.split('/').filter((segment) => segment !== '')
   return segments[segments.length - 1] ?? path
 }
 

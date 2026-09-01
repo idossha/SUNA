@@ -328,9 +328,7 @@ From inside the app, the Agent view's **Open Claude Code here** / **Open Codex
 CLI here** buttons (`apps/desktop/src/renderer/src/views/AgentView.tsx`) call
 `agent:write-mcp-config` to repair the wiring, then open the CLI in a terminal
 tab at the project root. On POSIX the command is prefixed
-`SUNA_AGENT_NAME='Claude Code' claude` so comments carry a real author name;
-on Windows it launches bare and accepts the generic `"Agent"`, because the
-`VAR=value` prefix is POSIX shell syntax.
+`SUNA_AGENT_NAME='Claude Code' claude` so comments carry a real author name.
 
 ### 2.7 The probe
 
@@ -701,7 +699,7 @@ against a `mkdtemp` userData and checks:
 
 Exit `0` when every check passed; the log path is printed either way.
 
-CI runs typecheck and tests on Linux, macOS and Windows for every PR, and
+CI runs typecheck and tests on Linux and macOS for every PR, and
 additionally packages on macOS and launches the real bundle.
 
 ---

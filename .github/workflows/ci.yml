@@ -2,10 +2,12 @@
 #
 # Two jobs, deliberately separate:
 #
-#   test     typecheck + vitest on Linux, macOS and Windows. The workspace is
-#            TypeScript strict and the main process branches on platform, so a
-#            path-separator or a `process.platform` mistake is caught by the
-#            runner it actually breaks on rather than by a user.
+#   test     typecheck + vitest on Linux and macOS — the two platforms SUNA
+#            supports. Windows was dropped (DECISIONS 2026-09-01): an unsigned
+#            leg nobody boots is a claim of support the project cannot honour.
+#            Both remaining runners are platforms a user actually runs, so a
+#            path-separator or `process.platform` mistake is still caught by the
+#            runner it breaks on rather than by a user.
 #   package  macOS only: build the app, package it, and LAUNCH THE REAL BUNDLE.
 #            This is the only check that sees the packaged layout — asar
 #            contents, extraResources, the MCP bundle beside its node_modules —
@@ -40,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

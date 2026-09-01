@@ -73,12 +73,13 @@ electron-builder, and the four secrets. The short version:
   silicon then rejects the app as *"SUNA is damaged and can't be opened"* with
   no override offered. `scripts/e2e/packaged.mjs` asserts the signature
   verifies so this cannot regress silently.
-- Windows builds are unsigned; SmartScreen warns about an unknown publisher.
 
 ## Releases
 
+SUNA supports macOS and Linux. Windows is not supported.
+
 Pushing a `v*` tag runs `.github/workflows/release.yml`: it creates a draft
-Release, builds macOS, Linux and Windows in parallel with each leg attaching its
+Release, builds macOS and Linux in parallel with each leg attaching its
 own assets, and a final `verify` job publishes the Release once every required
 asset is actually attached. There is no manual publish step, and an incomplete
 release never becomes public. `docs/RELEASING.md` is the operator's manual.

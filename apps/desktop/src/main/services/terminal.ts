@@ -29,9 +29,6 @@ const sessions = new Map<string, Session>()
 let seq = 0
 
 function loginShell(): { file: string; args: string[] } {
-  if (process.platform === 'win32') {
-    return { file: process.env['COMSPEC'] ?? 'powershell.exe', args: [] }
-  }
   const shell = process.env['SHELL'] ?? '/bin/zsh'
   // login shell so the user's profile (PATH, conda hooks) is sourced
   return { file: shell, args: ['-l'] }
@@ -53,7 +50,7 @@ function ptyEnv(envPath: string | null): Record<string, string> {
   base['TERM'] = 'xterm-256color'
 
   if (envPath !== null) {
-    const bin = process.platform === 'win32' ? join(envPath, 'Scripts') : join(envPath, 'bin')
+    const bin = join(envPath, 'bin')
     base['PATH'] = `${bin}:${base['PATH'] ?? ''}`
     // conda envs carry a conda-meta directory; venv/uv envs carry pyvenv.cfg
     base['VIRTUAL_ENV'] = envPath

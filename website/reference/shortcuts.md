@@ -12,7 +12,7 @@ The overlay opens on the tab that matches the surface you were in — keyboard f
 </figure>
 
 ::: info Glyphs on every platform
-SUNA prints macOS glyphs in tooltips and in the overlay whatever machine you are on. Matching treats <kbd>⌘</kbd> as Command *or* Control, so a row that reads <kbd>⌘⇧B</kbd> is <kbd>Ctrl+Shift+B</kbd> on Windows and Linux.
+SUNA prints macOS glyphs in tooltips and in the overlay whatever machine you are on. Matching treats <kbd>⌘</kbd> as Command *or* Control, so a row that reads <kbd>⌘⇧B</kbd> is <kbd>Ctrl+Shift+B</kbd> on Linux.
 :::
 
 ## Global
@@ -147,7 +147,7 @@ The bindings below are the ones the overlay lists for [the figure canvas](/figur
 | <kbd>⌘⌥O</kbd> | Open with the default app (focused row) |
 | Right-click | Context menu |
 
-<kbd>⌘⌥R</kbd> and <kbd>⌘⌥O</kbd> act on the focused row only, never on a multi-selection. In the context menu the reveal item follows the platform: **Reveal in Finder** on macOS, **Show in Explorer** on Windows, **Show in File Manager** elsewhere.
+<kbd>⌘⌥R</kbd> and <kbd>⌘⌥O</kbd> act on the focused row only, never on a multi-selection. In the context menu the reveal item follows the platform: **Reveal in Finder** on macOS, **Show in File Manager** elsewhere.
 
 ### Mouse
 

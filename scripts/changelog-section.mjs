@@ -49,7 +49,6 @@ console.log(`
 | --- | --- |
 | macOS, Apple silicon | \`SUNA-${version}-mac-arm64.dmg\` |
 | macOS, Intel | \`SUNA-${version}-mac-x64.dmg\` |
-| Windows | \`SUNA-${version}-win-x64.exe\` |
 | Debian / Ubuntu | \`SUNA-${version}-linux-amd64.deb\` |
 | Other Linux | \`SUNA-${version}-linux-x86_64.AppImage\` |
 

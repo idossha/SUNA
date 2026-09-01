@@ -10,7 +10,9 @@ sources of truth. PDF/DOCX are produced at export time only.
 
 ## Download
 
-Installers for macOS, Windows and Linux are attached to every
+SUNA supports macOS and Linux. Windows is not supported.
+
+Installers for macOS and Linux are attached to every
 [release](https://github.com/idossha/SUNA/releases). Take the file for your
 machine:
 
@@ -18,17 +20,12 @@ machine:
 |---|---|
 | Mac, Apple silicon | `SUNA-<version>-mac-arm64.dmg` |
 | Mac, Intel | `SUNA-<version>-mac-x64.dmg` |
-| Windows | `SUNA-<version>-win-x64.exe` |
 | Debian / Ubuntu | `SUNA-<version>-linux-amd64.deb` |
 | Other Linux | `SUNA-<version>-linux-x86_64.AppImage` |
 
 **macOS** — open the `.dmg`, drag SUNA to Applications, double-click it. The
 macOS builds are signed with an Apple Developer ID and notarized by Apple, so
 there is no `xattr` step and no right-click → Open.
-
-**Windows** — run the `.exe`. SmartScreen warns about an unknown publisher
-(there is no Windows code-signing certificate); choose *More info* → *Run
-anyway*.
 
 **Linux** — `sudo apt install ./SUNA-<version>-linux-amd64.deb`, or `chmod +x`
 the AppImage and run it.
@@ -69,7 +66,7 @@ cd python/suna_mpl && uv run pytest   # python companion tests
 pnpm package:mac  # build downloadable DMGs into release/
 ```
 
-CI runs the typecheck and tests on Linux, macOS and Windows for every pull
+CI runs the typecheck and tests on Linux and macOS for every pull
 request, and additionally packages the app on macOS and launches the real
 bundle — the packaged layout is the one thing `pnpm dev` can never exercise.
 

@@ -12,7 +12,15 @@ them, not for the commit log, which GitHub appends underneath on its own.
 
 ## [Unreleased]
 
-Nothing yet.
+### Removed
+
+- Windows support. SUNA is a macOS and Linux application: there is no longer a
+  Windows installer in a release, no Windows leg in CI, and no Windows
+  branching in the code. Nothing changes for macOS or Linux users. This is a
+  scope decision rather than a reaction to a bug — Windows was built and
+  shipped as a best-effort extra that no machine ever exercised, and carrying
+  a platform nobody runs cost more in code paths and CI minutes than it
+  returned.
 
 ## [1.1.0] - 2026-09-01
 

@@ -86,7 +86,12 @@ describe('loadLibraryConfig', () => {
     const outcome = await loadLibraryConfig(env)
     expect(outcome.source).toBe('defaults')
     expect(outcome.config.roots).toEqual([...DEFAULT_LIBRARY_ROOTS])
-    expect(outcome.error).toContain(configPath())
+    // The QUOTED spelling, not the raw one. `toContain(configPath())` passes
+    // either way — a quoted path contains the raw path as a substring — so it
+    // never actually gated the escaping D12 requires. Asserting
+    // `JSON.stringify` of the path, derived through the same escaping the
+    // product applies, fails the moment the quoting is dropped.
+    expect(outcome.error).toContain(JSON.stringify(configPath()))
     expect(outcome.error).toContain('not valid JSON')
   })
 

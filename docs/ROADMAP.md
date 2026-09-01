@@ -54,9 +54,9 @@ plus a self-contained HTML page. DOCX import creates a new project after a revie
 directed AI actions from the comment rail, the canvas and the palette. `docs/AUTOMATION.md` is the
 reference.
 
-**Shipping.** Signed and notarized macOS builds, plus Windows and Linux installers, published by a
-release workflow that verifies its own assets before publishing. CI typechecks and tests on all
-three platforms and launches the packaged bundle on macOS.
+**Shipping.** Signed and notarized macOS builds, plus Linux installers, published by a
+release workflow that verifies its own assets before publishing. CI typechecks and tests on both
+supported platforms and launches the packaged bundle on macOS.
 
 ---
 
@@ -113,9 +113,6 @@ LaTeX-native journals, and nothing in the current export path needs it.
 
 These are failures, not gaps. Fix them before adding to the list above.
 
-- **The Windows CI leg fails.** Path quoting, symlink write boundaries and `SUNA_CONFIG_DIR`
-  handling in `packages/agent`, plus a docs-drift byte-identity gate. Found the first time any
-  machine ran those suites off macOS. Windows builds ship unsigned and untested regardless.
 - **`pnpm smoke` does not finish.** Five steps pass, then `reading-mode` fails on
   `document.querySelector('.editor-tab__mode')` being null. That button still exists but renders
   only for a markdown tab, so what drifted is the step's precondition, not the selector.

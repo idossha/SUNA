@@ -5,7 +5,7 @@ A region-by-region reference for SUNA's window: what each panel contains, what e
 If you have used VS Code the shape will be familiar. Top to bottom the window is a title bar, then a workbench row holding the activity bar, the sidebar and the tab area (with the terminal strip beneath it), then the status bar. The command palette, the keyboard-shortcut overlay and toast messages float on top of all of it.
 
 ::: info Key glyphs
-SUNA prints macOS glyphs — <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>⌥</kbd> <kbd>⌃</kbd> — in tooltips and in the shortcut overlay on every platform. Matching treats <kbd>⌘</kbd> as Command *or* Control, so a tooltip that reads <kbd>⌘⇧B</kbd> is <kbd>Ctrl+Shift+B</kbd> on Windows and Linux.
+SUNA prints macOS glyphs — <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>⌥</kbd> <kbd>⌃</kbd> — in tooltips and in the shortcut overlay on every platform. Matching treats <kbd>⌘</kbd> as Command *or* Control, so a tooltip that reads <kbd>⌘⇧B</kbd> is <kbd>Ctrl+Shift+B</kbd> on Linux.
 :::
 
 ## Title bar
@@ -47,7 +47,7 @@ Keyboard: <kbd>↑</kbd>/<kbd>↓</kbd> move (hold <kbd>⇧</kbd> to extend the 
 
 Mouse: click opens a file or toggles a folder, <kbd>⌥</kbd>-click opens a file in the side split, <kbd>⌘</kbd>-click adds a row to the selection, <kbd>⇧</kbd>-click selects a range, double-click opens the selection. Drag rows onto a folder — or onto the empty area below the tree, which means the project root — to move files.
 
-Right-click gives **New File…**, **New Folder…**, **Rename…**, **Reveal in Finder** (<kbd>⌘⌥R</kbd>; "Show in Explorer" on Windows, "Show in File Manager" elsewhere), **Open with Default App** (<kbd>⌘⌥O</kbd>) and **Delete**, which arms to "Confirm delete?" before it acts. With several rows selected, Rename and the two OS actions are disabled and Delete reads "Delete 3 items".
+Right-click gives **New File…**, **New Folder…**, **Rename…**, **Reveal in Finder** (<kbd>⌘⌥R</kbd>; "Show in File Manager" elsewhere), **Open with Default App** (<kbd>⌘⌥O</kbd>) and **Delete**, which arms to "Confirm delete?" before it acts. With several rows selected, Rename and the two OS actions are disabled and Delete reads "Delete 3 items".
 
 ::: warning Not built yet
 There is no filter box in the Explorer and no project-wide search view. To find a file by name, use the command palette (<kbd>⌘K</kbd>), which matches against the project-relative path.

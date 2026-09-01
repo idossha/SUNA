@@ -6667,11 +6667,7 @@ try {
 
     // --- §3: the OS actions, asserted at the IPC boundary only -------------
     const revealLabel =
-      process.platform === 'darwin'
-        ? 'Reveal in Finder'
-        : process.platform === 'win32'
-          ? 'Show in Explorer'
-          : 'Show in File Manager'
+      process.platform === 'darwin' ? 'Reveal in Finder' : 'Show in File Manager'
     const osItems = () =>
       evalJs(`(() => {
         const read = (action) => {

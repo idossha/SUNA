@@ -36,10 +36,7 @@ function CliCollaborators(): JSX.Element {
     }
     // Identity for the comment verbs: agent-authored comments carry this
     // name instead of the generic "Agent" (see packages/agent mcp/comments).
-    // The VAR=value prefix is POSIX shell syntax — on Windows launch bare
-    // and accept the generic author name rather than a broken command line.
-    const launch =
-      window.suna.platform === 'win32' ? command : `SUNA_AGENT_NAME='${label}' ${command}`
+    const launch = `SUNA_AGENT_NAME='${label}' ${command}`
     openTerminalWithCommand(launch, command)
     setNote(
       `${label} is starting in the terminal with SUNA's manuscript tools exposed over MCP. ` +

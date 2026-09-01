@@ -34,7 +34,6 @@ afterEach(() => {
 describe('exportToast', () => {
   it('names the file, not the path', () => {
     expect(exportedBaseName('/p/output/manuscript.docx')).toBe('manuscript.docx')
-    expect(exportedBaseName('C:\\p\\output\\manuscript.docx')).toBe('manuscript.docx')
   })
 
   it('appends the detail only when there is one', () => {

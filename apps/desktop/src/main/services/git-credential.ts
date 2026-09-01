@@ -32,17 +32,11 @@ let askpassPath: string | null = null
  *
  * git asks for a username and then a password; GitHub accepts the token in
  * either position, so the script can answer both prompts identically and stay
- * a single line — which is also what makes the Windows variant trivial.
+ * a single line.
  */
 async function askpassScript(): Promise<string> {
   if (askpassPath !== null) return askpassPath
   const dir = await mkdtemp(join(tmpdir(), 'suna-askpass-'))
-  if (process.platform === 'win32') {
-    const file = join(dir, 'askpass.bat')
-    await writeFile(file, `@echo off\r\n<nul set /p=%${TOKEN_VAR}%\r\n`, 'utf8')
-    askpassPath = file
-    return file
-  }
   const file = join(dir, 'askpass.sh')
   await writeFile(file, `#!/bin/sh\nprintf '%s' "$${TOKEN_VAR}"\n`, 'utf8')
   await chmod(file, 0o700)

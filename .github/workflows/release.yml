@@ -94,13 +94,10 @@ jobs:
     # `always()` plus the explicit check, so a `workflow_dispatch` run — where
     # `create-release` is skipped rather than successful — still builds the
     # matrix. A *tagged* run whose Release could not be created stops here
-    # instead of building three artifacts with nowhere to put them.
+    # instead of building artifacts with nowhere to put them.
     if: ${{ always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    # Windows is optional; see the matrix comment. A failure there must not
-    # fail the workflow.
-    continue-on-error: ${{ matrix.required == 'no' }}
     strategy:
       fail-fast: false
       matrix:
@@ -112,7 +109,6 @@ jobs:
           - name: macOS arm64 + x64 (dmg + zip)
             os: macos-latest
             builder: --mac
-            required: 'yes'
             artifacts: |
               release/*.dmg
               release/*.zip
@@ -121,26 +117,11 @@ jobs:
           - name: Linux x64 + arm64 (AppImage + deb + tar.gz)
             os: ubuntu-latest
             builder: --linux
-            required: 'yes'
             artifacts: |
               release/*.AppImage
               release/*.deb
               release/*.tar.gz
               release/latest-linux.yml
-          # Windows is OPTIONAL. macOS and Linux are the platforms SUNA is
-          # actually exercised on; this leg is here because it costs nothing to
-          # keep — electron-builder downloads its own NSIS and produces an
-          # unsigned installer with no extra tooling. `continue-on-error` plus
-          # `required: no` mean a Windows failure never blocks a macOS/Linux
-          # release, and `verify` reports it as an absence instead of failing.
-          - name: Windows x64 + arm64 (nsis, optional)
-            os: windows-latest
-            builder: --win
-            required: 'no'
-            artifacts: |
-              release/*.exe
-              release/*.blockmap
-              release/latest.yml
 
     steps:
       - uses: actions/checkout@v4
@@ -305,7 +286,7 @@ jobs:
           fail_on_unmatched_files: false
 
   # --------------------------------------------------------------------------
-  # 3. Verify. A release is not done because three jobs went green — it is done
+  # 3. Verify. A release is not done because two jobs went green — it is done
   #    when the files a user will click on are actually attached.
   # --------------------------------------------------------------------------
   verify:
@@ -338,16 +319,14 @@ jobs:
             "SUNA-$VERSION-linux-x86_64.AppImage"
             "SUNA-$VERSION-linux-amd64.deb"
           )
-          # OPTIONAL — Windows is a bonus leg, the arm64 Linux builds are
-          # untested, and the latest*.yml feeds exist for a future in-app
-          # updater rather than for a human. Absence is reported, not fatal.
+          # OPTIONAL — the arm64 Linux builds are untested and the latest*.yml
+          # feeds exist for a future in-app updater rather than for a human.
+          # Absence is reported, not fatal.
           optional=(
-            "SUNA-$VERSION-win-x64.exe"
             "SUNA-$VERSION-linux-arm64.AppImage"
             "SUNA-$VERSION-linux-x64.tar.gz"
             "latest-mac.yml"
             "latest-linux.yml"
-            "latest.yml"
           )
 
           missing=0

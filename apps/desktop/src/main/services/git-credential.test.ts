@@ -111,7 +111,7 @@ describe('the askpass helper itself', () => {
    * var proves nothing. git calls this with the prompt as argv[1] and reads
    * the answer from stdout.
    */
-  it.skipIf(process.platform === 'win32')(
+  it(
     'prints the token from the environment and nothing else',
     async () => {
       const env = await remoteAuthEnv('https://github.com/ada/paper.git')
@@ -132,7 +132,7 @@ describe('the askpass helper itself', () => {
     30_000
   )
 
-  it.skipIf(process.platform === 'win32')(
+  it(
     'is not readable or runnable by anyone but this user',
     async () => {
       const env = await remoteAuthEnv('https://github.com/ada/paper.git')
@@ -143,7 +143,7 @@ describe('the askpass helper itself', () => {
     }
   )
 
-  it.skipIf(process.platform === 'win32')(
+  it(
     'does not contain the token, which lives only in the environment',
     async () => {
       const env = await remoteAuthEnv('https://github.com/ada/paper.git')

@@ -12,8 +12,8 @@ import { watch, type FSWatcher } from 'node:fs'
  * Finder — left the tree silently stale. A watch on the directory is the only
  * thing that covers all of them at once.
  *
- * Recursive: `fs.watch(dir, { recursive: true })` is supported on macOS and
- * Windows natively and on Linux since Node 20. If it is refused we fall back
+ * Recursive: `fs.watch(dir, { recursive: true })` is native on macOS and has
+ * been supported on Linux since Node 20. If it is refused we fall back
  * to a NON-recursive watch of the project root, which still catches the common
  * case (a file appearing at the top level) rather than giving up entirely.
  *

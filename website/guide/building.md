@@ -37,7 +37,7 @@ node scripts/e2e/drive.mjs --stop
 
 | Job | Runs on | What it proves |
 |---|---|---|
-| `test` | Linux, macOS **and** Windows | Typecheck and unit tests pass on all three. The main process branches on platform, so a path-separator or `process.platform` mistake is caught by the runner it actually breaks on. |
+| `test` | Linux **and** macOS | Typecheck and unit tests pass on both. The main process branches on platform, so a path-separator or `process.platform` mistake is caught by the runner it actually breaks on. |
 | `python` | Linux | `suna_mpl`'s pytest suite. |
 | `package` | macOS | Builds the app, packages it, and **launches the real bundle**. |
 
@@ -87,7 +87,7 @@ git push origin v1.1.0        # this is what builds and publishes the release
 Pushing the tag runs `.github/workflows/release.yml`, which is three stages:
 
 1. **`create-release`** makes the GitHub Release immediately, as a **draft**, with the body taken from `CHANGELOG.md` plus a table telling a downloader which file to take.
-2. **`build`** runs macOS, Linux and Windows in parallel. Each leg builds, verifies what it produced, and attaches its own assets to that draft as soon as it has them — so a slow platform never holds up the others, and a leg that fails leaves the rest already attached.
+2. **`build`** runs macOS and Linux in parallel. Each leg builds, verifies what it produced, and attaches its own assets to that draft as soon as it has them — so a slow platform never holds up the others, and a leg that fails leaves the rest already attached.
 3. **`verify`** reads the assets actually attached, fails if any required one is missing, and **publishes the Release** when none is.
 
 There is no manual publish step. A green `verify` is the same statement a maintainer used to make by eye. And because the failure mode runs both ways, neither an incomplete release nor a finished-but-forgotten draft can happen.
@@ -115,4 +115,4 @@ The four secrets, how to set them, and the warning about retrying failed notariz
 
 ## What is not covered
 
-Windows and Linux builds are unsigned, and nothing in CI boots one. They are typechecked and unit-tested on their own runners, so platform-branching code is exercised, but no packaged Windows or Linux bundle is ever launched by a machine. Treat those builds as untested rather than unsupported, and say so when you report a bug on one.
+Linux builds are unsigned, and nothing in CI boots one. They are typechecked and unit-tested on their own runner, so platform-branching code is exercised, but no packaged Linux bundle is ever launched by a machine. Treat those builds as untested rather than unsupported, and say so when you report a bug on one.

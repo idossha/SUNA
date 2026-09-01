@@ -118,9 +118,9 @@ export async function renameEntry(path: string, newName: string): Promise<string
   const target = join(dirname(abs), newName)
   assertInsideAllowedRoot(target)
   const existing = await stat(target).catch(() => null)
-  // Identity, not existence: on a case-insensitive volume (macOS, Windows)
-  // `notes.md` -> `Notes.md` stats the source itself, and refusing that would
-  // block the one rename users make most often on those platforms.
+  // Identity, not existence: on a case-insensitive volume (APFS, which is the
+  // macOS default) `notes.md` -> `Notes.md` stats the source itself, and
+  // refusing that would block the one rename users make most often there.
   if (existing && !isSameEntry(existing, await stat(abs))) {
     const kind = existing.isDirectory() ? 'directory' : 'file'
     throw new Error(`refusing to overwrite an existing ${kind}: ${target}`)

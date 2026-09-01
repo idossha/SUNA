@@ -133,8 +133,8 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
    **Reveal in Finder / Open with Default App** (ARCHITECTURE §5.3) —
    the context menu's middle group, ⌥⌘R and ⌥⌘O on the focused row.
    Both act on one row and are disabled with more than one selected,
-   like Rename…. The label follows the platform (*Show in Explorer* on
-   Windows, *Show in File Manager* elsewhere). *Open with Default App*
+   like Rename…. The label follows the platform (*Reveal in Finder* on
+   macOS, *Show in File Manager* elsewhere). *Open with Default App*
    **refuses anything executable** — `.app .command .pkg .dmg .scpt
    .workflow .term` or any file carrying the user-execute bit — and says
    so naming the file, because an agent can write files into the project

@@ -4,13 +4,14 @@ Download an installer, or run from a source checkout. Most people want the insta
 
 ## Download
 
-Every [release](https://github.com/idossha/SUNA/releases) carries installers for macOS, Windows and Linux. Take the one for your machine from the newest release's **Assets** list.
+SUNA supports macOS and Linux. Windows is not supported.
+
+Every [release](https://github.com/idossha/SUNA/releases) carries installers for both. Take the one for your machine from the newest release's **Assets** list.
 
 | Your machine | The file to download |
 |---|---|
 | Mac with Apple silicon (M1–M4) | `SUNA-<version>-mac-arm64.dmg` |
 | Mac with an Intel processor | `SUNA-<version>-mac-x64.dmg` |
-| Windows | `SUNA-<version>-win-x64.exe` |
 | Debian, Ubuntu, or a derivative | `SUNA-<version>-linux-amd64.deb` |
 | Any other Linux | `SUNA-<version>-linux-x86_64.AppImage` |
 
@@ -27,12 +28,6 @@ That is all of it. SUNA's macOS builds are signed with an Apple Developer ID and
 ::: tip If macOS still complains
 An unexpected *"damaged"* or *"cannot be opened"* dialog means the download did not finish or is not one of ours. Delete it, and download again from the [releases page](https://github.com/idossha/SUNA/releases) — not from a mirror. If it persists, [open an issue](https://github.com/idossha/SUNA/issues) with the exact wording of the dialog.
 :::
-
-### Windows
-
-Run the `.exe`. The installer lets you choose the install location and installs for the current user only, so it needs no administrator password.
-
-Windows SmartScreen will warn about an **unknown publisher** — SUNA has no Windows code-signing certificate. Choose *More info* → *Run anyway*. Windows is not a platform SUNA has been exercised on; see [platform support](#platform-support) below.
 
 ### Linux
 
@@ -53,7 +48,7 @@ A `.tar.gz` is also attached for distributions where neither of those fits.
 
 ### Updating
 
-SUNA has no in-app updater yet. To move to a newer version, download the new installer and install over the top: on macOS drag the new app to Applications and replace the old one, on Windows run the new `.exe`, on Linux install the new package. Your projects live in your own folders and are never touched by an install, and your settings live in `~/.suna/`.
+SUNA has no in-app updater yet. To move to a newer version, download the new installer and install over the top: on macOS drag the new app to Applications and replace the old one, on Linux install the new package. Your projects live in your own folders and are never touched by an install, and your settings live in `~/.suna/`.
 
 ## Run from source
 
@@ -130,9 +125,11 @@ On first use SUNA creates a machine-level `~/SunaConfig/` folder holding the con
 
 ## Platform support
 
-**macOS is the platform SUNA is actually exercised on.** Every pull request typechecks and unit-tests on Linux, macOS and Windows, so platform-branching code is covered, and the macOS leg additionally packages the app and launches the real bundle. Nothing in that pipeline ever boots a packaged Windows or Linux build.
+**SUNA supports macOS and Linux. Windows is not supported** — no Windows installer is built, and nothing in the pipeline typechecks, tests or packages for it.
 
-So treat Windows and Linux as **untested rather than unsupported**: they build, the code carries the branches they need, and no machine has confirmed the result opens. If you run SUNA on either, [bug reports](https://github.com/idossha/SUNA/issues) are genuinely useful — say which platform you are on.
+**macOS is the platform SUNA is actually exercised on.** Every pull request typechecks and unit-tests on Linux and macOS, so platform-branching code is covered, and the macOS leg additionally packages the app and launches the real bundle. Nothing in that pipeline ever boots a packaged Linux build.
+
+So treat Linux as **untested rather than unsupported**: it builds, the code carries the branches it needs, and no machine has confirmed the result opens. If you run SUNA on Linux, [bug reports](https://github.com/idossha/SUNA/issues) are genuinely useful — say which distribution you are on.
 
 One feature is macOS-only by construction: the "Use Spotlight" setting, which asks `mdfind` for PDFs whose text contains a DOI or title before walking your folders, appears only on macOS.
 

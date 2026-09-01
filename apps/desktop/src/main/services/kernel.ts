@@ -45,12 +45,9 @@ export function bridgeScriptPath(): string {
  * bare `python` is not on PATH on a stock macOS or Debian.
  */
 export function pythonFor(envPath: string | null): string {
-  if (envPath === null) return process.platform === 'win32' ? 'python' : 'python3'
-  const binary =
-    process.platform === 'win32'
-      ? join(envPath, 'Scripts', 'python.exe')
-      : join(envPath, 'bin', 'python')
-  return existsSync(binary) ? binary : process.platform === 'win32' ? 'python' : 'python3'
+  if (envPath === null) return 'python3'
+  const binary = join(envPath, 'bin', 'python')
+  return existsSync(binary) ? binary : 'python3'
 }
 
 function send(session: Session, id: string, event: unknown): void {

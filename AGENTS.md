@@ -53,9 +53,8 @@ known disagreements** — check it before assuming either side is right.
   the packaged layout — asar contents, `extraResources`, the MCP bundle beside its `node_modules`.
 - `pnpm dev` opens a real window and is **for the human only**.
 
-**Establish a baseline before blaming your change.** Two failures currently pre-date any work you
-are doing: the Windows CI leg fails in `packages/agent` (path quoting, symlink write boundaries,
-`SUNA_CONFIG_DIR`), and `pnpm smoke` stops at `reading-mode` on a stale precondition. Neither is
+**Establish a baseline before blaming your change.** One failure currently pre-dates any work you
+are doing: `pnpm smoke` stops at `reading-mode` on a stale precondition. It is not
 yours unless you made it worse.
 
 ## Rules

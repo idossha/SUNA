@@ -25,12 +25,9 @@ open.
 | --- | --- | --- | --- | --- |
 | macOS | `dmg`, `zip` | arm64 **and** x64 | `macos-latest` — **one** runner builds both slices | **yes** |
 | Linux | `AppImage`, `deb`, `tar.gz` | x64 (AppImage also arm64) | `ubuntu-latest` | **yes** |
-| Windows | `nsis` | x64, arm64 | `windows-latest` | no |
 
-**macOS and Linux are the priority platforms.** The release workflow marks the
-Windows leg `continue-on-error`, and `verify` treats a missing `.exe` as an
-absence to report rather than a failure. A Windows problem never blocks a
-macOS or Linux release.
+**macOS and Linux are the only supported platforms.** Windows is not built and
+not supported.
 
 The exact asset names at version `<v>`:
 
@@ -41,8 +38,7 @@ SUNA-<v>-linux-x86_64.AppImage
 SUNA-<v>-linux-arm64.AppImage   (optional)
 SUNA-<v>-linux-amd64.deb
 SUNA-<v>-linux-x64.tar.gz       (optional)
-SUNA-<v>-win-x64.exe            (optional)
-latest-mac.yml  latest-linux.yml  latest.yml   (optional)
+latest-mac.yml  latest-linux.yml             (optional)
 ```
 
 **`${arch}` resolves per target to that ecosystem's own spelling**, which
@@ -56,14 +52,14 @@ double-clicks, the `.zip` is what a script downloads, and the `.zip` is the only
 mac artifact that unpacks without mounting an image. `tar.gz` on Linux is the
 escape hatch for every distro that is neither Debian nor FUSE-capable.
 
-The three `latest*.yml` files are electron-builder's update feeds. SUNA has no
+The `latest*.yml` files are electron-builder's update feeds. SUNA has no
 in-app updater yet, so they are attached but not required — they exist so that
 adding one later does not need a re-release.
 
 **`linux.executableName: suna` is required, not cosmetic.** electron-builder
 derives the Linux binary name from `package.json`'s `name` — here the scoped
-`@suna/desktop` — and then refuses it as unusable in a file path. macOS and
-Windows name the binary after `productName` and never reach that code, so the
+`@suna/desktop` — and then refuses it as unusable in a file path. macOS names
+the binary after `productName` and never reaches that code, so the
 failure is invisible until the first Linux build.
 
 **What ships beside the app** — the bundled example project, the MCP server and
@@ -130,7 +126,7 @@ git push origin v1.1.0        # <- this builds the matrix and publishes the Rele
    a **draft**, with the body taken from `CHANGELOG.md`'s section for this
    version (`scripts/changelog-section.mjs`) plus a download table, and
    GitHub's generated commit summary appended underneath.
-2. **`build`** — three parallel jobs (macOS, Linux, Windows). Each installs,
+2. **`build`** — two parallel jobs (macOS, Linux). Each installs,
    builds, packages, verifies what it produced, uploads a workflow artifact and
    then **attaches its own files to that Release**. Creating the Release first
    is what lets each platform publish as soon as it is ready instead of waiting
@@ -255,14 +251,11 @@ use the same four secret names.
 
 ---
 
-## 5. Windows and Linux
+## 5. Linux
 
-Neither is signed. Windows SmartScreen warns about an unknown publisher on
-first run (*More info* → *Run anyway*); an EV code-signing certificate is the
-only thing that removes that, and SUNA does not have one. Linux packages carry
-no signature by convention.
+Linux packages are not signed; they carry no signature by convention.
 
-CI typechecks and tests on both, so platform-branching code is exercised, but
-neither platform has a packaged-launch gate the way macOS does: nothing in the
-matrix boots a Windows or Linux bundle. Treat those builds as untested rather
+CI typechecks and tests on Linux, so platform-branching code is exercised, but
+Linux has no packaged-launch gate the way macOS does: nothing in the
+matrix boots a Linux bundle. Treat those builds as untested rather
 than unsupported.

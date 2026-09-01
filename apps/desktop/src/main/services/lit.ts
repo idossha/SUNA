@@ -55,7 +55,6 @@ export const AI_CLI_SEARCH_TIMEOUT_MS = 180_000
  * matches what the user's own shell sees.
  */
 export function cliEnv(): NodeJS.ProcessEnv {
-  if (process.platform === 'win32') return process.env
   const extras = [join(homedir(), '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin']
   const path = process.env['PATH'] ?? ''
   return { ...process.env, PATH: [path, ...extras].filter((entry) => entry !== '').join(':') }

@@ -47,7 +47,6 @@ Needs `rsvg-convert` (`brew install librsvg`); the `.icns` step also needs
 |---|---|
 | `apps/desktop/resources/icon.png` | 512. Loaded at runtime: `src/main/index.ts` imports it with electron-vite's `?asset` suffix and sets the dock icon from it in development. |
 | `apps/desktop/build/icon.icns` | macOS bundle icon |
-| `apps/desktop/build/icon.ico` | Windows |
 | `apps/desktop/build/icon.png` | 1024, Linux |
 
 They are committed, so a clone has an icon without librsvg installed. Re-run

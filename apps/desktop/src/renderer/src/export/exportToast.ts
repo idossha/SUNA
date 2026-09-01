@@ -19,9 +19,9 @@ import { openWithOs, osActionLabels, revealInOs } from '../shell/os-actions'
 /** Exports get a longer TTL than an Undo toast — the actions are a choice, not a race. */
 export const EXPORT_TOAST_TTL_MS = 12000
 
-/** Last path segment, tolerating either separator (Windows paths reach here too). */
+/** Last path segment. Export paths are local — macOS or Linux — so '/' is it. */
 export function exportedBaseName(path: string): string {
-  const segments = path.split(/[/\\]/).filter((segment) => segment !== '')
+  const segments = path.split('/').filter((segment) => segment !== '')
   return segments[segments.length - 1] ?? path
 }
 
