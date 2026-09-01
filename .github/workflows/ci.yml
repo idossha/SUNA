@@ -49,6 +49,18 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # Several suites scaffold a project, which runs `git init` and an initial
+      # commit — and a bare runner has no `user.name` / `user.email`, so those
+      # commits fail with `Author identity unknown` and the tests that assert a
+      # git-initialized project fail with them. This is the runner's gap, not
+      # the product's: a real user's machine has an identity. Set one.
+      - name: Give the runner a git identity
+        shell: bash
+        run: |
+          git config --global user.name 'SUNA CI'
+          git config --global user.email 'ci@suna.invalid'
+          git config --global init.defaultBranch main
+
       - name: Install
         run: pnpm install --frozen-lockfile
 

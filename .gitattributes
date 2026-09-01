@@ -1,0 +1,31 @@
+# Line endings.
+#
+# `text=auto` normalises to LF in the repository and lets git check out the
+# platform's native ending in a working tree — which is what you want for
+# source, and exactly wrong for a byte-for-byte fixture.
+#
+# `packages/notebook` asserts that its serializer reproduces `nbformat.writes`
+# byte for byte against `fixtures/sample.ipynb`. On a Windows runner git checked
+# that fixture out with CRLF, so the test compared LF output against a CRLF
+# expectation and failed on every line of a 200-line notebook — a green macOS
+# and Linux build and a red Windows one, for a difference the product does not
+# have. Any file whose exact bytes are the assertion must be pinned to LF.
+* text=auto
+
+*.ipynb text eol=lf
+*.svg    text eol=lf
+*.bib    text eol=lf
+*.sh     text eol=lf
+
+# Fixtures are compared byte for byte. Never let a checkout rewrite them.
+**/fixtures/** text eol=lf
+**/__fixtures__/** text eol=lf
+examples/** text eol=lf
+
+# Binary, so git never tries.
+*.png binary
+*.webp binary
+*.icns binary
+*.ico binary
+*.pdf binary
+*.docx binary
