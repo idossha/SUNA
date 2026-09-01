@@ -4,11 +4,7 @@ SUNA is a desktop workspace for writing a research paper: prose, figures, refere
 
 ## The problem it solves
 
-A paper today is spread across four tools that do not know about each other. The prose is in Overleaf or Word. The citations are in Zotero. The figures are PNGs exported from a notebook and dragged in. The journal's author guidelines are a PDF you read once and then approximated from memory.
-
-Every one of those seams costs you time at the worst moment — during revision, and again at submission. A figure changes and you re-export, re-crop, re-place it. A reviewer asks for a different citation style and you re-run the whole bibliography. You discover on submission day that the abstract is 60 words over the limit and the figure text is below the minimum point size.
-
-SUNA puts all of it in one versioned directory tree and makes the journal's rules a machine-readable object that checks your document instead of a PDF you half-remember.
+A modern take of human-AI accelerated academic process that streamline knowledge and context throughout the entire project life-cycle.
 
 ## The shape of the workspace
 
@@ -25,7 +21,7 @@ What is different from a code editor is the Manuscript tab: one combined documen
 
 A SUNA project is an ordinary directory containing a `suna.json` manifest and these folders: `manuscript/`, `figures/`, `code/`, `data/`, `analysis/`, `results/`, `output/`. Creating one runs `git init -b main` and makes an initial commit.
 
-The manuscript is one flat prose file — `manuscript/manuscript.md` — beside `manuscript.json` (metadata only), `authors.json`, and `references.bib`. There is no `sections/` directory; your sections are Markdown headings, and the outline is derived from them.
+The manuscript is one flat prose file — `manuscript/manuscript.md` — beside `manuscript.json` (metadata only), `authors.json`, and `references.bib`. Your sections are Markdown headings, and the outline is derived from them.
 
 You can open that folder in any other editor, diff it, branch it, and hand it to a collaborator who has never heard of SUNA. Nothing is locked in a database.
 
@@ -37,16 +33,14 @@ The practical consequence: every file that matters is diffable. `git diff` on a 
 
 ## The six things it does
 
-| | What you get |
-|---|---|
-| [Manuscript](/writing/manuscript) | One prose file in [SciMark](/writing/scimark) — CommonMark plus math, citations, and pandoc-crossref cross-references — with [Source and Reading views](/writing/editor) over the same buffer |
-| [Figure canvas](/figures/canvas) | A vector editor whose document model is the SVG file itself, with mm rulers, layers, snapping, align and distribute |
-| [References](/writing/references) | `references.bib` with a Cited/Uncited filter, literature search across Crossref, OpenAlex, bioRxiv/medRxiv and arXiv, and PDF attachment |
-| [Journal profiles](/publishing/profiles) | Ten profiles in the picker — SUNA's house style plus Science, Nature, Neuron, PNAS, Brain Stimulation, SLEEP, Sleep Advances, J. Neural Engineering and J. Neuroscience |
-| [Compliance and export](/publishing/compliance) | Word, PDF and HTML [export](/publishing/export) driven by the active profile, with the profile's stated limits checked first |
-| [Agent access](/ai/overview) | An [MCP server](/ai/mcp) exposing 23 typed manuscript verbs, so an agent edits the same files you do |
-
-Two of those deserve a sentence more.
+|                                                 | What you get                                                                                                                                                                                  |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Manuscript](/writing/manuscript)               | One prose file in [SciMark](/writing/scimark) — CommonMark plus math, citations, and pandoc-crossref cross-references — with [Source and Reading views](/writing/editor) over the same buffer |
+| [Figure canvas](/figures/canvas)                | A vector editor whose document model is the SVG file itself, with mm rulers, layers, snapping, align and distribute                                                                           |
+| [References](/writing/references)               | `references.bib` with a Cited/Uncited filter, literature search across Crossref, OpenAlex, bioRxiv/medRxiv and arXiv, and PDF attachment                                                      |
+| [Journal profiles](/publishing/profiles)        | Ten profiles in the picker — SUNA's house style plus Science, Nature, Neuron, PNAS, Brain Stimulation, SLEEP, Sleep Advances, J. Neural Engineering and J. Neuroscience                       |
+| [Compliance and export](/publishing/compliance) | Word, PDF and HTML [export](/publishing/export) driven by the active profile, with the profile's stated limits checked first                                                                  |
+| [Agent access](/ai/overview)                    | An [MCP server](/ai/mcp) exposing 23 typed manuscript verbs, so an agent edits the same files you do                                                                                          |
 
 **The canvas edits the SVG, not a copy of it.** There is no import/export conversion and no parallel scene graph — `figures/<slug>/figure.svg` on disk is always a valid SVG, byte-identical after a round trip. Text stays text, so a matplotlib figure exported through the `suna_mpl` companion remains editable label by label.
 
@@ -59,12 +53,12 @@ Two of those deserve a sentence more.
 
 ## How it compares
 
-| | What it does that SUNA does not | What SUNA does that it does not |
-|---|---|---|
-| Overleaf | Full LaTeX typesetting, real-time co-editing in the browser | Figures, references and journal compliance in the same tree; a vector figure editor |
-| Word | Track changes with co-authors; everyone already has it | Plain-text sources under git; derived numbering; agent access to the document |
-| Zotero | A machine-wide library across every project | Cites, renders and checks against the journal from the same `references.bib` |
-| A plain LaTeX repo | Typesetting quality, full macro control | A figure editor, live rendering, profile-driven compliance, an MCP interface |
+|                    | What it does that SUNA does not                             | What SUNA does that it does not                                                     |
+| ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Overleaf           | Full LaTeX typesetting, real-time co-editing in the browser | Figures, references and journal compliance in the same tree; a vector figure editor |
+| Word               | Track changes with co-authors; everyone already has it      | Plain-text sources under git; derived numbering; agent access to the document       |
+| Zotero             | A machine-wide library across every project                 | Cites, renders and checks against the journal from the same `references.bib`        |
+| A plain LaTeX repo | Typesetting quality, full macro control                     | A figure editor, live rendering, profile-driven compliance, an MCP interface        |
 
 ## What SUNA is not, yet
 
