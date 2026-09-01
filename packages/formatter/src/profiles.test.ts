@@ -146,7 +146,8 @@ describe('science facts from AAAS instructions', () => {
 
 // The eight describe blocks below cover the journals added by the second
 // research pass (ARCHITECTURE §12); every assertion cites the specific
-// finding in docs/design/author-guidelines-findings-2.json it traces to.
+// finding in resources/profiles/sources/author-guidelines-findings-2.json it
+// traces to.
 
 describe('nature facts from the flagship Nature formatting guide', () => {
   const nat = profiles['nature'];
@@ -473,7 +474,7 @@ describe('jneurosci facts from the Society for Neuroscience information for auth
 
 describe('no profile is bundled for a journal the findings marked found:false', () => {
   it('every journal in author-guidelines-findings-2.json with found:false has no matching resources/profiles/*.json', () => {
-    const findingsPath = join(here, '..', '..', '..', 'docs', 'design', 'author-guidelines-findings-2.json');
+    const findingsPath = join(profilesDir, 'sources', 'author-guidelines-findings-2.json');
     const findings = JSON.parse(readFileSync(findingsPath, 'utf8')) as Array<{
       journals: Array<{ name: string; found: boolean }>;
     }>;

@@ -189,8 +189,8 @@ export const SunaProjectManifestSchema = z.object({
   createdAt: z.iso.datetime(),
   /**
    * DEPRECATED and no longer read. Settings live in the user's
-   * ~/.suna/config.yml (see settings-resolve.ts and docs/design/
-   * configuration.md); there is no project level any more. The field stays in
+   * ~/.suna/config.yml (see settings-resolve.ts and docs/CONFIGURATION.md);
+   * there is no project level any more. The field stays in
    * the schema so every suna.json written while it existed still validates —
    * removing it would make those manifests fail to open, which is a far worse
    * outcome than an ignored key.

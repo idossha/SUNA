@@ -50,13 +50,13 @@ pnpm dev          # launches the Electron app
 | `apps/desktop` | Electron shell (main / preload / renderer) |
 | `packages/core` | Schemas: project, manuscript, figure, publisher profile, IPC contracts |
 | `packages/markdown` | SciMark — the manuscript Markdown dialect (math, citations, cross-refs) |
-| `packages/formatter` | Publisher profiles → LaTeX/HTML → PDF (Tectonic) |
+| `packages/formatter` | Publisher profile loader + compliance checkers |
 | `packages/canvas` | SVG-DOM-native figure editor |
 | `packages/bib` | BibTeX parsing, citation numbering, reference formatting |
 | `packages/agent` | Provider-agnostic AI layer (Anthropic, OpenAI, Ollama) |
 | `packages/provenance` | Figure ↔ generating-code sync (overlay model) |
 | `python/suna_mpl` | Matplotlib companion: stable SVG ids, journal mm presets |
-| `docs/design` | Architecture, reference analysis, ADRs |
+| `docs` | The contract (`ARCHITECTURE.md`), the decision log, and the operational references |
 | `website` | The user-facing documentation site (VitePress) |
 
 ## Develop
@@ -75,7 +75,7 @@ bundle — the packaged layout is the one thing `pnpm dev` can never exercise.
 
 `pnpm smoke` walkthrough details and the human testing script live in
 [docs/TESTING.md](docs/TESTING.md). What goes inside the bundle is
-[docs/packaging.md](docs/packaging.md); cutting a release, and the macOS
+[docs/PACKAGING.md](docs/PACKAGING.md); cutting a release, and the macOS
 signing and notarization rules, are [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Documentation site
@@ -93,6 +93,6 @@ Every screenshot on the site is captured from a hidden SUNA driving
 `examples/hello-suna`, so the docs can be re-rendered whenever the UI moves.
 
 The contract is `docs/ARCHITECTURE.md` and the decisions behind it are in
-`docs/DECISIONS.md`; the formatter and
-canvas requirements are derived from published Nature-family papers in
-`docs/design/reference-analysis.md`.
+`docs/DECISIONS.md`. The figure-capability measurements taken from published
+Nature-family papers are summarised in `docs/ARCHITECTURE.md` §20.9, and the
+research behind the publisher profiles lives in `resources/profiles/sources/`.

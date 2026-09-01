@@ -1,9 +1,9 @@
 # Configuring SUNA
 
-> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
-> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
-> sourcing it carries, but where it disagrees with the contract the contract wins — and
-> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+> This is the settings and theming reference — the key list, the theme token
+> layers, and how a value reaches the screen. The *rules* are
+> [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) §6, and where the two disagree the
+> contract and the code win.
 
 SUNA is configured the way nvim, ghostty and aerospace are: **one plain-text
 file you own**, in a dot-directory, seeded on first launch with every key
@@ -15,6 +15,11 @@ present and commented out.
 ```
 
 `SUNA_CONFIG_HOME` relocates the whole directory.
+
+This is not the only machine-level directory SUNA owns — it is the one that
+holds *settings and themes*. The agent context docs and the machine reference
+library live separately in `~/SunaConfig` (`SUNA_CONFIG_DIR`), described in
+ARCHITECTURE §6.3. Nothing in this file governs that one.
 
 There is **one level**. A key the file sets wins; a key it does not set takes
 the shipped default. There is no project-level override and no second global
@@ -46,6 +51,12 @@ The authoritative list — names, bounds, defaults and the one-line
 documentation the seeded file carries — is the `SETTING_KEYS` registry in
 `packages/core/src/settings-resolve.ts`. The generated `config.yml` is
 produced from it, so the file on your disk cannot drift from the real surface.
+
+**A registry key id and its YAML path are not always spelled the same, and the
+YAML path is what you type.** Two keys differ today: the theme is
+`editor: theme:` in the file and `editor.editorTheme` in `SETTING_KEYS`, and the
+preview profile is `preview: profileId:` in the file and `previewProfileId` in
+`SETTING_KEYS`. Everything in the table below is the YAML path.
 
 | Block | What it covers |
 | --- | --- |

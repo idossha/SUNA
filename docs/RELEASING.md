@@ -1,7 +1,7 @@
 # Releasing SUNA
 
 How a version becomes installers that people can download and double-click.
-This is the operator's manual; `docs/packaging.md` describes what is inside the
+This is the operator's manual; `docs/PACKAGING.md` describes what is inside the
 bundle, and the website's [Building and releasing](../website/guide/building.md)
 page is the same story written for someone who does not have this repository
 open.
@@ -68,7 +68,7 @@ failure is invisible until the first Linux build.
 
 **What ships beside the app** — the bundled example project, the MCP server and
 its flattened `node_modules`, the Python kernel bridge — is staged by
-`scripts/packaging/stage-resources.mjs` and covered in `docs/packaging.md`.
+`scripts/packaging/stage-resources.mjs` and covered in `docs/PACKAGING.md`.
 
 ---
 

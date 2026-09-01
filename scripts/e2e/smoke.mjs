@@ -8,7 +8,7 @@
  * manuscript document with title page/section editors/references/scroll-spy,
  * figures, references, git commit, agent) — asserting on real files inside
  * the copy — then the layout and citation rendering contract of
- * docs/design/ui-fix-plan.md, *measured* off real boxes (content-kind
+ * ARCHITECTURE §17.3, *measured* off real boxes (content-kind
  * widths/wrapping, one manuscript measure, cross-ref resolution, the
  * "Rendered as" round trip, the references panel).
  *
@@ -2678,7 +2678,7 @@ try {
     await screenshot('references-filters.png')
   })
 
-  // ---- layout & citation rendering (docs/design/ui-fix-plan.md) -------------
+  // ---- layout & citation rendering (ARCHITECTURE §17.3) ---------------------
 
   /** Layout facts of the frontmost editor tab, measured off the real boxes. */
   const editorLayout = () =>

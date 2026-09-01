@@ -16,7 +16,11 @@ known disagreements** — check it before assuming either side is right.
 | `docs/AUTOMATION.md` | Driving SUNA from outside: the MCP server, the context layer, the hidden-app driver. |
 | `docs/TESTING.md` | The operator's manual for the suites. |
 | `docs/RELEASING.md` | Cutting a release; macOS signing and notarization. |
-| `docs/packaging.md` | What goes inside the bundle. |
+| `docs/PACKAGING.md` | What goes inside the bundle. |
+| `docs/CONFIGURATION.md` | The settings key reference and the theme token layers. |
+| `docs/GITHUB-OAUTH.md` | Registering the OAuth App, and why it is not a GitHub App. |
+
+`docs/` is flat — there is no `design/` tier and no other nested directory.
 
 ## Commands
 
@@ -108,7 +112,7 @@ yours unless you made it worse.
 - **Settings and themes live in ONE user-owned file**, `~/.suna/config.yml`, plus
   `~/.suna/themes/*.yml`. There is no project settings level and no second store. Colours are **not**
   in any stylesheet: they come from the theme registry (`packages/core/src/theme.ts`) as a generated
-  sheet. See §6 and `docs/design/configuration.md`.
+  sheet. See §6 and `docs/CONFIGURATION.md`.
 - **There are two machine directories, not one.** `~/.suna` (`SUNA_CONFIG_HOME`) holds settings and
   themes; `~/SunaConfig` (`SUNA_CONFIG_DIR`) holds the agent context documents and `library.json`.
   Each is real and they are not the same thing (§6.3).

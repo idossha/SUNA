@@ -1,12 +1,17 @@
 # Signing in to GitHub
 
-> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
-> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
-> sourcing it carries, but where it disagrees with the contract the contract wins — and
-> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
-
 How SUNA authenticates a user to GitHub, why it is an OAuth App rather than a
 GitHub App, and how to register the one this build uses.
+
+> This is the operational procedure, and it is authoritative for it —
+> `docs/ARCHITECTURE.md` deliberately does not carry registration steps. The
+> reasoning behind the choices is logged in
+> [`docs/DECISIONS.md`](DECISIONS.md) 2026-08-19.
+>
+> **Status: this build has a client id.** `BUILT_IN_CLIENT_ID` in
+> `apps/desktop/src/main/services/github-auth.ts` is populated and committed,
+> so device-flow sign-in works out of the box. The registration steps below are
+> for a fork, or for re-registering the app.
 
 ## The decision
 

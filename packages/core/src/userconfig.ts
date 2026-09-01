@@ -353,7 +353,7 @@ export function defaultConfigYaml(): string {
     '#',
     '# Custom colour themes go in ~/.suna/themes/<name>.yml, or in the `themes:`',
     '# block at the bottom of this file. See the theme reference:',
-    '#   docs/design/configuration.md',
+    '#   docs/CONFIGURATION.md',
     '',
   ];
 

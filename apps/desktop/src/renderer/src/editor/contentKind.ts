@@ -1,7 +1,7 @@
 /**
  * Content-kind classification for editor tabs. Drives layout (width/wrap/
  * alignment/font) so prose and code stop sharing rules that only make sense
- * for one of them — see docs/design/ui-fix-plan.md, work item 1.
+ * for one of them — see ARCHITECTURE §17.3 rule 3.
  */
 export type ContentKind = 'prose' | 'code'
 

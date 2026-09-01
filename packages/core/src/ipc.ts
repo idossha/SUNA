@@ -2319,7 +2319,7 @@ export const CHANNELS = {
    * actually worked in — the same discipline numbering follows.
    *
    * An unaddressed point stops the export ONCE, named by reviewer and number
-   * (docs/design/document-kinds-ux.md §C.3), and `acknowledgeUnaddressed` is
+   * (ARCHITECTURE §14.2), and `acknowledgeUnaddressed` is
    * the author saying they know and want the file anyway — a draft for a
    * co-author is a legitimate thing to export. A point with no reply
    * contributes no reply text either way: SUNA does not answer a reviewer on

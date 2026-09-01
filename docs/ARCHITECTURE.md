@@ -9,9 +9,12 @@ This file is the **contract**. It states what the system *is*, not what it will 
 something this file names requires editing this file in the same commit. **Section numbers are
 cited from code comments and tests — do not renumber.**
 
-This file states the *rules*. `docs/design/` holds the reasoning that produced them and
-`docs/RELEASING.md` / `docs/packaging.md` hold the release mechanics; where any of them disagrees
-with this file, this file and the code win.
+This file states the *rules*. `docs/DECISIONS.md` holds the dated reasoning that produced them,
+`docs/CONFIGURATION.md` and `docs/GITHUB-OAUTH.md` hold two references this file deliberately does
+not carry, and `docs/RELEASING.md` / `docs/PACKAGING.md` hold the release mechanics; where any of
+them disagrees with this file, this file and the code win. `docs/` is flat: there are no design
+notes any more, and everything a deleted one carried that was still true was folded into this file
+or into `DECISIONS.md` before it went.
 
 Two words are used precisely throughout:
 
@@ -70,12 +73,14 @@ SUNA/
 │   └── suna_kernel/        bridge.py — the notebook kernel bridge (shipped — §16.2)
 ├── resources/
 │   ├── profiles/*.json     the ten bundled publisher profiles (§12)
+│   │   └── sources/        the guideline research they were read off — NOT shipped
 │   ├── suna-context/       the agent context docs written into ~/SunaConfig (§15.4)
 │   └── suna-skill/         SKILL.md installed into ~/.claude/skills/suna/
 ├── examples/hello-suna/    the starter project, shipped inside the app bundle
 ├── scripts/{e2e,packaging} smoke suite, drive.mjs, stage-resources.mjs
 ├── website/                the VitePress documentation site
-└── docs/                   this file, RELEASING.md, packaging.md, design/
+└── docs/                   flat: this file, DECISIONS, ROADMAP, AUTOMATION, TESTING,
+                            RELEASING, PACKAGING, CONFIGURATION, GITHUB-OAUTH
 ```
 
 **Package graph, no cycles.** `core` depends on nothing but zod and yaml. `markdown`, `bib`,
@@ -949,9 +954,25 @@ The renderer host adds the one thing that cannot be in the package:
 > and the only thing serialized to disk. What the user sees is a mirror clone, re-synced after
 > every engine mutation; gesture previews touch only the mirror.**
 
+**Three coordinate spaces, converted only through `DOMMatrix`:** *screen* (CSS px, owned by
+pointer events), *world* (SVG user units of the root viewBox, where **all** hit testing, snapping
+and gesture math happens), and *local* (an element's own user space, where attribute writes land).
+`screenToWorld = root.getScreenCTM()!.inverse()`; `worldToLocal(el) = el.getCTM()!.inverse() ×
+rootCTM`, computed per interaction and cached per frame. Gestures compile to commands **only at
+commit time** — during a drag the preview moves the mirror, and pointer-up emits one
+`translate`/`transform`; Escape aborts by restoring pre-state. Commands never encode view state:
+zoom and selection are ephemeral UI stores.
+
 Physical units: `mmPerUser = artboard.widthMm / viewBox.width`, with `1 pt = 0.3528 mm` and a
 unitless length read as px at 96 dpi. `set-artboard` rewrites `width`/`height` only and **never
-rescales content**.
+rescales content** — rescaling is a separate explicit `transform` on a wrapping group.
+
+The canvas tab's own surfaces — tool rail, properties panel, layers panel, rulers, text-edit
+overlay, palette/align/export sections — are React around the mounted SVG, and **every one of
+them compiles to the existing fifteen commands; none of them is a new mutation primitive.** New
+elements insert with `suna-e<n>` ids and style defaults taken from the active profile's figure
+rules (stroke width inside min/max, palette order, text at a compliant pt), so a shape drawn by
+hand starts compliant rather than being flagged a moment later.
 
 ### 10.4 What the canvas command bus is *not* — today
 
@@ -987,7 +1008,7 @@ OverlayOp[]}`, validated by zod, and `null` for a hand-drawn figure.
 
 ### 11.3 What is **not** implemented
 
-The overlay/regenerate/absorb loop described in `docs/design/provenance-loop.md` does not exist:
+The overlay/regenerate/absorb loop specified in the design record (§11.4) does not exist:
 
 * `packages/provenance` is a placeholder — one file containing `export {}`, one commit, zero
   importers.
@@ -1020,6 +1041,28 @@ Recovered from the design record, because they are the part worth keeping:
    change pixels stay, and the agent reports which and why.
 7. **The overlay is subordinate to the code. There are no merge prompts**, and no edit is ever
    auto-applied to a script — the human reviews a diff.
+
+The mechanical detail, recorded here because it is the part that would otherwise have to be
+re-derived. The replayable subset is `set-style` · `set-attrs` · `set-text` · `translate` ·
+`scale` · `reorder` · `delete` · `insert`; the recorder folds each dispatched command into the
+overlay by coalescing on `(target, kind)` — last `set-style` per property wins, `translate` deltas
+sum, a `delete` clears prior ops on that target, ops on an `insert`-created element keep their full
+subtree inline, and order is preserved otherwise. `provenance` gains an `orphans: OverlayOp[]`
+member beside `overlay` for rule 5's evictions, surfaced as a badge on the figure panel rather
+than a log line. Regeneration runs the generator with `SUNA_FIGURE_OUT=<tmp>/base.svg` (which
+`suna_mpl`'s `save_svg` honours); a script that writes nothing there is *detected and reported*,
+not guessed at, and an unchanged base hash stops the pass before replay. Absorption reads the
+semantic gid map to find the call site — `ax0.title` → the `set_title(...)` call, `ax0.line.<label>`
+→ the plot call with that `label=` — and translates what it can (`set-style {font-size}` →
+`fontsize=`, `translate` on a legend → `loc=`/`bbox_to_anchor=`, an axis-limit `set-attrs` →
+`set_xlim`), leaving unmappable ops in the overlay.
+
+Three drift cases, and each has one answer. A **hand-edited script** simply replays on the next
+regenerate, orphans and all. **`figure.svg` edited outside SUNA** is caught on open by a hash
+mismatch against `base ⊕ overlay` and marks provenance *stale*, offering exactly three choices —
+adopt (fold the external diff in by DOM diffing, the one place effect-level diffing is legitimate
+because intent is unavailable), detach (drop provenance), or discard. **Deleting `source/`**
+detaches provenance with a warning. None of these is a merge prompt.
 
 ---
 
@@ -1093,6 +1136,69 @@ Two of these exist because of a specific measured failure, and both belong in th
   notice.** Labels are derived, never stored; quotes are never pasted.
 
 Errors surface in the export dialog's preflight; **nothing is blocked and nothing is autofixed.**
+
+**The specified remainder, kept because the specification is the expensive part.** A design pass
+sourced 54 rules across four surfaces against real guidelines; 13 of them ship under the ids
+above (`fig.artboard-width` = FIG-001, `fig.min-font` = FIG-003, `fig.max-font` = FIG-004,
+`fig.line-weight` = FIG-006, `fig.palette` = FIG-008, `fig.color-sole-delimiter` = FIG-010,
+`fig.raster-dpi` = FIG-012, `ms.title-chars` = MAN-001, `ms.abstract-words` = MAN-003,
+`ms.word-limit` = MAN-005, `ms.display-items` = MAN-007, `ms.section-missing` /
+`ms.availability-*` = MAN-009, and `ms.max-references` = CIT-001). The `letter.*` and
+`response.*` surfaces are later work and were never in that set. The **41 that are not built** are
+listed below with the profile field each would read, because rebuilding the sourcing is the cost,
+not writing the checker. This is an inventory, not a plan — §20.8 records the gap and ROADMAP
+decides whether it closes.
+
+*Bibliography (no `CIT-*` surface exists at all).* CIT-002 Methods-scope reference allocation
+exceeded (`citations.maxReferences[type]` scope `methods`) · CIT-003 citation inside the abstract
+(`citationsAllowedInAbstract = false`) · CIT-004 disallowed citation target — in-press,
+personal communication, in-preparation, a grant as a numbered reference
+(`disallowedCitationTargets`) · CIT-005 literal "et al." in author *data* where full lists are
+mandatory (`refListAuthors.etAlAllowed = false`) · CIT-006 author list not truncated per policy on
+a user-overridden entry (`refListAuthors`) · CIT-007 missing DOI where required
+(`doi.requiredFor`) · CIT-008 DOI format mismatch (`doi.format`) · CIT-009 journal name not
+abbreviated per policy (`journalAbbreviation.policy`) · CIT-010 entry missing a template-required
+field, or carrying a forbidden one (`entryTemplates.*`) · CIT-011 one work under two numbers or
+two works under one (`numbering.onePerNumber`) · CIT-012 reference-list order mismatch after a
+manual edit (`sortOrder`) · CIT-013 preprint cited although the library holds the published
+version (`disallowedCitationTargets`) · CIT-014 self-citation share over cap
+(`maxSelfCitationPercent`).
+
+*Figures.* FIG-002 height over the caption-tier maximum (`maxHeightMm` + caption word count) ·
+FIG-005 font family off-policy (`fontFamilies`) · FIG-007 stroke above maximum weight
+(`lineWeightPt.max`) · FIG-009 red and green as a contrasting pair (`palette.redGreenCombination`)
+· FIG-011 colour-mode mismatch for the export target (`palette.colorMode`) · FIG-013 asset in a
+disallowed format (`formats.vector.notAccepted`) · FIG-014 file over the size cap
+(`formats.maxFileSizeMb`) · FIG-015 outlined text where live text is required
+(`formats.textMustRemainEditable`) · FIG-016 panel-label case/weight/size/wrapper mismatch
+(`panelLabel.*`) · FIG-017 panel count over the per-figure cap (`maxPanelsPerFigure`) · FIG-018
+missing required plot elements — borders, fiducial marks, axis units, scale bar, leading zeros
+(`requiredElements`) · FIG-019 caption over the word limit (`captionWordLimit`).
+
+*Manuscript.* MAN-002 running head over limit (`runningHeadLimitChars` — the field is sourced
+journal data even though SUNA dropped `shortTitle`) · MAN-004 abstract structured where a single
+unstructured paragraph is required (`abstractStructured = false`) · MAN-006 below a stated minimum
+length (`wordLimit.min`) · MAN-008 Extended Data count over cap (`maxExtendedDataItems`) · MAN-010
+section order violates the stated sequence (ordered `requiredSections`) · MAN-011 forbidden
+feature present — footnotes, shaded table cells, an image used as a table or equation
+(`forbiddenFeatures`) · MAN-012 keyword count outside range or off the controlled list
+(`keywords`) · MAN-013 spelling variant off-language (`submissionFormat.language`) · MAN-014
+abbreviations in the abstract (`forbiddenFeatures`) · MAN-015 estimated typeset length over a page
+limit (`articleTypes[].pageLimit`).
+
+*Export preflight (the `export` surface is declared and emitted by nothing).* EXP-001 output
+format not accepted at this submission stage (`fileTypes.initial/final`) · EXP-002 line numbers
+disabled where required · EXP-003 line numbers enabled where they must be off · EXP-004 spacing
+differs from the stated requirement (`submissionFormat.spacing`) · EXP-005 LaTeX class/template
+mismatch — **dead on arrival, since there is no LaTeX path (§20.1)** · EXP-006 profile staleness,
+`lastVerified` older than twelve months, prompting re-verification against the recorded source
+URLs.
+
+Two policies from that pass are worth keeping whatever gets built. **Severity is derived, not
+assigned**: an unhedged stated limit is an error, and a hedged one — or a value sourced from an
+umbrella/flagship page rather than the journal's own — is a warning. And **every diagnostic must
+be able to show its own provenance**: the governing field's `note` and source URL, on demand,
+which the shipped `provenance[]` already carries.
 
 ---
 
@@ -1218,6 +1324,18 @@ normal state of a reply.
 
 The exported response document is **derived** from these replies, which means what the author
 writes in the round workspace *is* the letter.
+
+**Completeness checks name items, never counts.** "Reviewer 2, point 3 is unaddressed", not "3
+problems" — a count tells an author that something is wrong and nothing about where, which is
+exactly the failure mode that let a real response letter reach RE83 with RE58 missing and nobody
+notice. The same rule shapes the three places completeness is shown: per-reviewer progress dots in
+the points pane, a status line reading `Round 2 — 12 of 19 points addressed`, and the export
+gate. **That gate stops the export once**, naming each unaddressed point by reviewer and number;
+`acknowledgeUnaddressed` is the author saying they have seen the list and want the file anyway,
+because a draft for a co-author is a legitimate thing to export. It is not a block, and it never
+writes a reply on the author's behalf. Relatedly, every automatically inferred value in these
+flows shows its reasoning inline — a detected segmentation, a claimed author, a matched anchor is
+presented with *why*, never as a bare result.
 
 ### 14.3 Cover letters
 
@@ -1619,7 +1737,7 @@ byte-identity for every command (§10.2).
 
 Short by design; the two existing documents are correct and are not duplicated here.
 
-* **What goes inside the bundle: `docs/packaging.md`.** `electron-builder`, configured by
+* **What goes inside the bundle: `docs/PACKAGING.md`.** `electron-builder`, configured by
   `apps/desktop/electron-builder.yml`, with the one conditional it cannot express — whether a
   signing certificate is present — in `scripts/electron-builder.sh`, which every packaging path
   goes through. `scripts/packaging/stage-resources.mjs` stages the three things main resolves
@@ -1644,14 +1762,20 @@ formatting at all — it is a profile loader plus four compliance checkers; PDF 
 `printToPDF` and DOCX is the `docx` library, both in main (§13). SciMark's ` ```{=latex} ` escape
 hatch parses to a node that renders as an HTML comment.
 
-**20.2 The provenance loop does not exist.** `docs/design/provenance-loop.md` describes
-generate → edit-as-overlay → regenerate-with-replay → absorb-into-code. `packages/provenance` is
+**20.2 The provenance loop does not exist.** The design record specified
+generate → edit-as-overlay → regenerate-with-replay → absorb-into-code (§11.4 carries its rules
+and its mechanics). `packages/provenance` is
 `export {}`; no code writes an overlay op; there is no replay; `absorb_overlay` is not a verb
 (§11.3).
 
-**20.3 The canvas command bus is not the agent's bus — yet.** `docs/design/canvas-engine.md` §6
-specifies `canvas_query` / `canvas_dispatch` / `canvas_screenshot` and auto-labelled agent
-history. None of the three exists; the agent's figure surface is read-only by design (§10.4).
+**20.3 The canvas command bus is not the agent's bus — yet.** The canvas engine specification gave
+the agent three tool surfaces: `canvas_query(figureId, query)` reading `{kind:'tree', depth}` /
+`{kind:'element', id}` / `{kind:'selection'}`, `canvas_dispatch(figureId, command)` taking the same
+`CanvasCommand` union through the same validation and the same history so an agent edit is
+undoable by the human, and `canvas_screenshot(figureId)` returning a raster for visual
+verification — with agent dispatches auto-labelled `agent: …` in history so the UI can show and
+revert them as a group. **None of the three exists**; the agent's figure surface is read-only by
+design (§10.4). If they are ever built, the auto-label is the part not to skip.
 
 **20.4 "Colours are not in any stylesheet" is substantially, not completely, true.** Zero colour
 literals in `.tsx`. In CSS the violations are real and clustered: a link blue `#8ab4d8` at three
@@ -1683,18 +1807,45 @@ run.
 **20.7 Dock layout is not persisted.** Every launch opens the welcome panel. Session restore is a
 gap, not a recorded decision.
 
-**20.8 The compliance rule set is a fraction of the planned one.**
-`docs/design/author-guidelines-profiles.md` §3 specifies 55 rules across four surfaces
-(CIT-001…014, FIG-001…019, MAN-001…015, EXP-001…007) and a `{value, notStated, note}` field
-wrapper under `figureRules` / `manuscriptRules`. The shipped schema is `schemaVersion: 3` with
+**20.8 The compliance rule set is a fraction of the planned one.** The design pass specified 54
+rules across four surfaces (CIT-001…014, FIG-001…019, MAN-001…015, EXP-001…006 — an earlier count
+of "55" miscounted the export surface as seven) and a `{value, notStated, note}` field wrapper
+under `figureRules` / `manuscriptRules`. **The 41 unbuilt rules are inventoried at the end of
+§12.1**, with the profile field each would read, so the sourcing survives the plan. The shipped
+schema is `schemaVersion: 3` with
 flat `figures` / `manuscript` sections and per-section `provenance[]`; 26 rules are implemented,
 with no `CIT-*` bibliography surface at all, and the `export` and `package` diagnostic surfaces
 are declared but emitted by nothing.
 
-**20.9 `docs/design/reference-analysis.md` §1 is documentation only.** Its page geometry,
-typography tokens, page templates and folio models were descoped by DECISIONS 2026-08-13; nothing in the
-profile schema consumes them. Its §2 canvas capability ranking (V1/V2/V3) was descoped by the
-same ADR: figures come from matplotlib, and the canvas adjusts and checks them.
+**20.9 The reference-paper analysis is documentation only — but it is the measurement record, and
+that half is worth keeping.** A structured analysis of four published papers (3× *Nature Astronomy*
+Articles 2026, 1× *Nature Physics* Review 2017) produced a profile model with page geometry,
+typography tokens, page templates and folio models. **All of that was descoped by DECISIONS
+2026-08-13** — SUNA does not typeset, profiles encode author guidelines and never a publisher's
+page design — and nothing in the profile schema consumes any of it. The same ADR descoped the
+note's ranked canvas capability list (V1/V2/V3): figures come from matplotlib, and the canvas
+adjusts, annotates and checks them.
+
+What survives is the **corpus and its tallies**, because they are the only record of what a real
+journal figure actually contains and they are what any future figure-capability argument has to
+argue against. Across **24 figure objects, 4 native tables and 2 author-pre-typeset tables, 128+
+individual panels**: multi-panel 17/24, embedding raster imagery 10/24, requiring log axes 14/24,
+carrying shaded bands or confidence regions 15/24, and **every** figure requiring math-capable
+text (Greek, multi-level sub/superscripts, overbars, ×10ⁿ, unit exponents) somewhere — in axis
+titles, tick labels, legends, annotations or colorbar titles. Math text, not drawing tools, is the
+single most pervasive requirement, and it is the reason the canvas is an *adjustment* surface over
+matplotlib output rather than a chart authoring engine.
+
+Two micro-formats from the same corpus are real, sourced constraints rather than design taste, and
+they belong to whatever renders captions: **every caption is bold label + bold title fragment +
+roman body, with bold lowercase panel letters inline** — compound and ranged forms all observed
+(`a,` `b,c`, `a–f`, `a(i)`, `a1–a4`, and parenthesized `(a)` in Extended Data) — and the label word
+itself is per-journal (`Fig. N |` for Nature Astronomy, `Figure N |` for Nature Physics), which is
+why it is a profile string and not a constant. Figure widths in the corpus cluster at ~88–89 mm
+single-column and ~180–183 mm double-column, consistent with the guideline-sourced
+`widthPresetsMm` the profiles actually ship; the corpus corroborates those numbers but is not
+their source (`resources/profiles/sources/` is). The raw analyses are
+`resources/profiles/sources/reference-analyses.json`.
 
 **20.10 The provider layer is not what §8 of the design document describes.** There is no
 `stream()` returning `AsyncIterable<AgentEvent>`, no tool registry executed app-side, no
@@ -1705,8 +1856,8 @@ document gets right.
 **20.11 Two machine-level directories exist, not one.** `~/.suna` (settings and themes,
 `SUNA_CONFIG_HOME`) and `~/SunaConfig` (agent context and `library.json`, `SUNA_CONFIG_DIR`). The
 shipped `resources/suna-context/README.md` describes `~/SunaConfig` as though it were the only
-one; `docs/design/configuration.md` describes `~/.suna` the same way. Both are right about their
-own half (§6.3).
+one. `docs/CONFIGURATION.md` used to describe `~/.suna` the same way and now names the other
+directory explicitly; the shipped context README is the remaining half of this (§6.3).
 
 **20.12 Areas that are designed in detail and not built.** The sponsor-package model and its
 rendered-page measurement (DECISIONS 2026-08-19) exist only as schema (§4.2). The round **freeze** is
@@ -1723,9 +1874,11 @@ back.
 **20.13 Small divergences worth naming.** `resources/suna-context/README.md` says "the 23 MCP
 verbs" in its reading map while `MCP.md` in the same directory correctly says 34.
 `packages/core`'s `EDITOR_VIEW_MODES` is `['source','reading']` while the renderer's `DocViewMode`
-has three members including `pages`. `docs/design/configuration.md` lists a `preview.profileId`
-setting whose key id is actually `previewProfileId`, and an `editor.theme` key whose id is
-`editor.editorTheme` (the YAML path in both cases is what the document says).
+has three members including `pages`. The `preview.profileId` / `editor.theme` naming divergence
+recorded here is **resolved**: those are the YAML paths, the registry key ids are
+`previewProfileId` and `editor.editorTheme`, and `docs/CONFIGURATION.md` now states the
+distinction instead of only spelling the paths. The registry key id and the YAML path being
+allowed to differ at all is the residual sharp edge.
 
 ---
 

@@ -9,7 +9,7 @@ import { editorSurfaceStyle, type EditorSettings } from '../editor/settings'
  * the combined document — title page, every section editor, and the
  * references block, all nested inside `.msdoc__page` — reflows from
  * *literally the same* vars EditorTab publishes. See
- * docs/design/ui-fix-plan.md, work item 2 ("one measure for the whole
+ * ARCHITECTURE §17.3 rule 3 ("one measure for the whole
  * document"): before this, the tab built its own inline style object by
  * hand, which is exactly the kind of duplication that lets the two surfaces
  * drift apart into "two measures" for one document.

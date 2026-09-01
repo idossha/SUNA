@@ -32,7 +32,7 @@ const TOKEN_SLOT = 'github:token'
 const SCOPES = 'repo read:org'
 
 /**
- * The OAuth App's client ID. See docs/design/github-oauth-app.md for how this
+ * The OAuth App's client ID. See docs/GITHUB-OAUTH.md for how this
  * one was registered and why an OAuth App rather than a GitHub App.
  *
  * PUBLIC by design, and committed on purpose: GitHub documents client IDs as

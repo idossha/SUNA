@@ -61,7 +61,7 @@ if (import.meta.env.DEV) {
       editorBibDiagnostics: editorDevSeam.bibDiagnostics,
       // fileName -> 'prose' | 'code' and the matching root modifier class,
       // so a driver can assert layout-by-content-kind without guessing at
-      // class names (docs/design/ui-fix-plan.md, work item 1).
+      // class names (ARCHITECTURE §17.3 rule 3).
       editorContentKindFor: editorDevSeam.contentKindFor,
       editorContentKindClass: editorDevSeam.contentKindClass,
       dataGrid: dataviewDevSeam,

@@ -745,7 +745,7 @@ through the main process → 26. **CSV data grid** → 27. **.bib
 diagnostics** → 28. **references Cited/Uncited filter**.
 
 The last five steps measure the layout and citation-rendering contract
-(`docs/design/ui-fix-plan.md`) in the running app rather than eyeballing
+(ARCHITECTURE §17.3) in the running app rather than eyeballing
 it:
 
 29. **layout-by-content-kind** — `stripping_model.py` and
@@ -1207,7 +1207,8 @@ re-checked without launching the app.
 | `export-profile-contrast.test.ts` | the **point** of the feature: `examples/hello-suna` exported under `nature` (numeric) vs `jneurosci` (author-year) must differ |
 
 `packages/formatter/src/profiles.test.ts` asserts each bundled profile's
-values against `docs/design/author-guidelines-findings-2.json`, and fails if
+values against `resources/profiles/sources/author-guidelines-findings-2.json`,
+and fails if
 a profile is bundled for a journal the findings marked `found: false`.
 
 ### Re-running the real-manuscript import check
