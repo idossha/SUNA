@@ -64,7 +64,7 @@ export async function writeSettings(patch: Settings): Promise<Settings> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Recent projects (feature-plan-5 §1) — global settings, key 'recentProjects' */
+/* Recent projects (DECISIONS 2026-08-15) — global settings, key 'recentProjects' */
 /* ------------------------------------------------------------------ */
 
 /** A recents row is openable when its directory still holds a suna.json. */

@@ -52,7 +52,7 @@ ${LETTER_PRIVATE_GITIGNORE_LINE}
 
 /**
  * The placeholder byline every scaffold starts from. Lives in
- * manuscript/authors.json, never in manuscript.json (feature-plan-7 §1).
+ * manuscript/authors.json, never in manuscript.json (ARCHITECTURE §4.3).
  */
 function starterAuthors(): AuthorsFile {
   return AuthorsFileSchema.parse({
@@ -132,7 +132,7 @@ export async function createProject(
     directories: DEFAULT_PROJECT_DIRS,
     // The starter is a document SET, not one manuscript: it ships a cover
     // letter beside the paper, so the registry is declared rather than
-    // synthesized (ADR-009).
+    // synthesized (ARCHITECTURE §4.2).
     documents: starterDocuments(),
     createdAt: new Date().toISOString()
   })
@@ -208,7 +208,7 @@ export async function scaffoldStatus(
 }
 
 /* ------------------------------------------------------------------ */
-/* Onboarding wizard (feature-plan-5 §5)                                */
+/* Onboarding wizard (DECISIONS 2026-08-15)                                */
 /* ------------------------------------------------------------------ */
 
 /** Deliberately UNconfined by allowedRoots — the target project doesn't exist yet (step 1). */
@@ -257,7 +257,7 @@ export interface ScaffoldResult {
  * onboarding wizard. Directories → suna.json → the scaffolded manuscript →
  * .gitignore → git init/commit, in that order, mirroring createProject's
  * shape but parameterized by profile/scaffold-kind and an optional settings
- * patch (feature-plan-5 §4/§5). A git failure is reported as a warning, never
+ * patch (DECISIONS 2026-08-15). A git failure is reported as a warning, never
  * thrown — the project still exists on success.
  */
 export async function scaffoldProject(
@@ -279,7 +279,7 @@ export async function scaffoldProject(
     createdAt: new Date().toISOString(),
     // Only the starter ships a letter, so only the starter declares a
     // registry. Every other scaffold keeps the synthesized one-manuscript
-    // registry it has always had — a zero-file difference (ADR-009).
+    // registry it has always had — a zero-file difference (ARCHITECTURE §4.2).
     ...(scaffold === 'starter' ? { documents: starterDocuments() } : {}),
   })
 

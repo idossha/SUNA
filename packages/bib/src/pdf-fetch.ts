@@ -3,7 +3,7 @@ import { detectArxivId } from './model.js';
 import { isPdfBytes, looksLikeHtml } from './pdf-bytes.js';
 
 /**
- * Where a PDF might be, and getting it — feature-plan-10 Layer 2,
+ * Where a PDF might be, and getting it — ARCHITECTURE §9,
  * `pdf-fetch.ts`. Pure URL derivation first (`pdfUrlCandidates` /
  * `citationPdfUrlFromHtml`), then one guarded fetch (`downloadPdf`).
  *
@@ -31,7 +31,7 @@ import { isPdfBytes, looksLikeHtml } from './pdf-bytes.js';
  * candidate fails, the error names every URL tried and why each one failed,
  * plus every step that was skipped (the policy gate, or Unpaywall without a
  * contact email). That is the whole point of the ladder — the caller has to
- * be able to say which of feature-plan-10's four outcomes happened, and why.
+ * be able to say which of ARCHITECTURE §9's four outcomes happened, and why.
  *
  * **One budget for the whole call.** `downloadPdf` returns within
  * TOTAL_BUDGET_MS (60 s), full stop. The 20 s hop timeout is a SUB-limit of
@@ -243,7 +243,7 @@ function encodeIdPath(id: string): string {
 
 /**
  * The full ordered ladder plus the rungs that were skipped and why —
- * feature-plan-10 Layer 2, `pdf-fetch.ts`:
+ * ARCHITECTURE §9, `pdf-fetch.ts`:
  *
  *   1. arXiv id            → https://arxiv.org/pdf/<id>
  *   2. bioRxiv/medRxiv     → <landing>.full.pdf

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { gateFromStatus, stripFence } from './directedActions'
 
 /**
- * The pure half of cliGate (feature-plan-8 §2a/§2c): resolution must mirror
+ * The pure half of cliGate (ARCHITECTURE §15.6): resolution must mirror
  * main's resolveCli exactly — 'auto' tries claude then codex, an explicit
  * preference NEVER falls back — because the gate's verdict and the spawn's
  * actual CLI choice must never disagree (a gate that says ok while the

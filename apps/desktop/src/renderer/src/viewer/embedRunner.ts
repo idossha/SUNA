@@ -15,14 +15,14 @@ import { highlightRectsFromAnnotations, type HighlightRect } from './pdfGeometry
 import type { PdfViewportLike } from './pdfSelection'
 
 /**
- * Keeping `references/<citekey>.pdf` in step with the sidecar (ADR-008,
+ * Keeping `references/<citekey>.pdf` in step with the sidecar (ARCHITECTURE §14.4,
  * amended: "keep it simple and robust ... make sure everything is updated even
  * if users make changes via preview or Zotero").
  *
  * The whole operation is a RECONCILE against the file as it is right now.
  * Nothing is remembered between runs — no pristine baseline, no stored object
  * ref, no hash — so there is nothing a foreign edit can invalidate. Preview
- * rewriting the file, Zotero adding a highlight, ADR-007 replacing the paper
+ * rewriting the file, Zotero adding a highlight, ARCHITECTURE §9 replacing the paper
  * with the published version: each is just a different starting document, read
  * fresh and edited minimally.
  *

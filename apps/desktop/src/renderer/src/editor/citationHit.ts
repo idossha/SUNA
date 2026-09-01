@@ -1,6 +1,6 @@
 /**
  * Pure "what citation is at this position" hit test for the editor's
- * right-click context menu (feature-plan-4.md §3, "Open reference PDF").
+ * right-click context menu (DECISIONS 2026-08-14, "Open reference PDF").
  *
  * codemirror.ts hit-tests a native `contextmenu` event to a document
  * position with `view.posAtCoords`, slices out that line's text, and calls

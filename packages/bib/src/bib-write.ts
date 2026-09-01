@@ -31,7 +31,7 @@ export interface AppendLitResultOutcome {
    * Exactly the `file` field written into the new entry, or null when none
    * was — the 2-argument call, or an `opts.filePath` that was blank. Always
    * present and explicitly null rather than omitted, so the caller reporting
-   * the acquisition outcome (feature-plan-10 Layer 4, `cite_study`) can say
+   * the acquisition outcome (ARCHITECTURE §15.2, `cite_study`) can say
    * whether the entry points at a PDF without re-parsing its own output.
    */
   fileField: string | null
@@ -41,7 +41,7 @@ export interface AppendLitResultOptions {
   /**
    * Where the PDF backing this reference lives, project-relative with POSIX
    * separators — `references/gunn1972.pdf`, the destination
-   * `importPdfIntoProject`/`savePdfBytes` write to (feature-plan-10 Layer 3).
+   * `importPdfIntoProject`/`savePdfBytes` write to (ARCHITECTURE §15.5).
    * It is written verbatim as the entry's `file` field so `resolvePdfPath`'s
    * `file-field` rule answers immediately, with no directory listing and no
    * rescan. Must end in `.pdf`: that rule accepts nothing else, so a path
@@ -155,7 +155,7 @@ function foldTitle(title: string): string {
 
 /**
  * The cite key `references.bib` ALREADY uses for this work, or null when the
- * file has no entry for it. feature-plan-10 Layer 2: `cite_study` asks this
+ * file has no entry for it. ARCHITECTURE §9: `cite_study` asks this
  * before appending, so a reference the bibliography already carries is reused
  * rather than duplicated under a second key.
  *

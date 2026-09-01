@@ -12,7 +12,7 @@ import {
  * author markers) is NEVER stored; it is derived at format time from
  * array/tree order and the active publisher profile.
  *
- * As of feature-plan-7 §1 the prose is NOT here either: `manuscript/` is flat
+ * Under the flat layout (ARCHITECTURE §4.3) the prose is NOT here either: `manuscript/` is flat
  * and holds exactly manuscript.md (all prose, sections are Markdown
  * headings), manuscript.json (this), authors.json and references.bib. The
  * old `body` array of `sections/NN-name.md` pointers is gone — sections are

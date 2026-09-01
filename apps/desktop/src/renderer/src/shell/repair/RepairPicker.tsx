@@ -1,5 +1,5 @@
 /**
- * "Repair this UI" picker (feature-plan-8 §5, dev-only — the 'ai.repairUi'
+ * "Repair this UI" picker (DECISIONS 2026-08-17, dev-only — the 'ai.repairUi'
  * command in state/commands.ts is gated on import.meta.env.DEV and is the
  * only caller of startRepairPick). Pick mode is a full-screen crosshair
  * layer (`.repair-picker`, a §7 probe selector) that tracks the element

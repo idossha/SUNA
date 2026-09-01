@@ -1,5 +1,10 @@
 # Reference Analysis: Design Requirements
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 Derived from structured analyses of four published Nature-family astrophysics papers (3× *Nature Astronomy* Articles 2026, 1× *Nature Physics* Review Article 2017). These papers define the target output quality for SUNA's formatter and figure canvas. All requirements below are traceable to observed features in the reference PDFs.
 
 ---

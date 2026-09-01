@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * DOCX import (feature-plan-6 §2) — the analyze/commit split.
+ * DOCX import (DECISIONS 2026-08-15) — the analyze/commit split.
  *
  * `docx:analyze` turns a .docx into this structured, EDITABLE draft without
  * writing anything to disk. Every front-matter field carries a `reason`

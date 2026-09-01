@@ -1,5 +1,5 @@
 /**
- * Right-click context menu for prose editors (feature-plan-3.md §1).
+ * Right-click context menu for prose editors (ARCHITECTURE §17.3).
  *
  * `openContextMenu` is the entry point used by codemirror.ts: it mounts this
  * component imperatively (its own React root appended to `document.body`),

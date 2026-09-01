@@ -1,5 +1,5 @@
 /**
- * Drive probe — the '?' keyboard-shortcut overlay (feature-plan-8 §1, the
+ * Drive probe — the '?' keyboard-shortcut overlay (DECISIONS 2026-08-17, the
  * §7 assertions the smoke step does not carry):
  *
  *   1. '?' from a non-typing target opens the overlay, focus moves into the
@@ -8,7 +8,7 @@
  *      guard's case) does NOT open it, and the character really inserts;
  *   3. with a canvas tab active the overlay opens on the canvas section,
  *      and the section tabs switch it;
- *   4. with vim motions ON and the buffer in NORMAL mode (feature-plan-9 §1):
+ *   4. with vim motions ON and the buffer in NORMAL mode (DECISIONS 2026-08-17):
  *      `:help` is the ONLY door — a bare '?' drives vim's own
  *      search-backward panel instead (measurement 1), and ⌘⇧/ does nothing
  *      at all, since that chord was removed in favour of exactly two ways

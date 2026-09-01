@@ -51,7 +51,7 @@ interface ManuscriptEditorProps {
   rootDir: string
   /** Path relative to manuscript/ — the manuscript.json `manuscriptFile`, e.g. "manuscript.md". */
   contentPath: string
-  /** Registry id of the document this editor belongs to (ADR-009). */
+  /** Registry id of the document this editor belongs to (ARCHITECTURE §4.2). */
   documentId: string
   /** Reading mode (live-preview decorations). Read once at mount; use the handle's `setLive` to change it after. */
   live: boolean
@@ -73,7 +73,7 @@ const OUTLINE_DEBOUNCE_MS = 500
 
 /**
  * The combined manuscript document's single CodeMirror editor, in live-
- * preview mode, over the whole prose file (feature-plan-7 §1 — one file,
+ * preview mode, over the whole prose file (ARCHITECTURE §4.3 — one file,
  * headings are Markdown, no more one-editor-per-section). Sizes to content —
  * the outer document (manuscript/ManuscriptTab) scrolls, never the editor.
  * ⌘S saves the whole file.

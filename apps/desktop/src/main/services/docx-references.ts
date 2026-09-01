@@ -1,6 +1,6 @@
 /**
  * Reference-list detection/parsing and in-text citation rewriting
- * (feature-plan-6 §2.4) — the one step the spec calls out as the place where
+ * (DECISIONS 2026-08-15) — the one step the spec calls out as the place where
  * a wrong guess corrupts a manuscript: "map it or leave it alone." Every
  * function here is pure over Block[]/Run[] (see docx-html.ts); the orchestrator
  * in docx-import.ts is the only impure caller.

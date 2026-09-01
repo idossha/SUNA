@@ -1,5 +1,5 @@
 /**
- * "?" keyboard-shortcut overlay (feature-plan-8 §1) — one centred dialog for
+ * "?" keyboard-shortcut overlay (DECISIONS 2026-08-17) — one centred dialog for
  * the WHOLE app: a surface with its own shortcuts adds a section here rather
  * than a panel of its own, so there is one place to look and one key to
  * press. One dialog over
@@ -13,7 +13,7 @@
  * on ⌘/⌃/⌥ (⇧ is what produces `?` and must pass), and on any typing
  * surface.
  *
- * Selectors are API (feature-plan-8 §7): `.help-overlay` (dialog root, with
+ * Selectors are API (DECISIONS 2026-08-17): `.help-overlay` (dialog root, with
  * `data-help-section` = active section id), `.help-overlay__tab`.
  */
 import {

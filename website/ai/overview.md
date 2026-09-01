@@ -38,7 +38,7 @@ Opening a project in SUNA writes a machine-local `.mcp.json` in the project root
 
 The in-app panel is deliberately small. Its whole request is a system prompt plus the message list, so it cannot read your manuscript, and pasting is the only way it sees your text. <kbd>⌘⏎</kbd> sends. It is multi-turn: each send posts the accumulated transcript, so the model sees the earlier exchanges in the panel. Detail on [the in-app page](/ai/in-app).
 
-Between the two sit the directed actions — places in the UI where SUNA hands one narrow job to your agent CLI: the **✦ AI** button on a comment card, the **✦ Send to agent** box on the canvas right rail, and `?` in the command palette. Each spawns a single one-shot CLI run with a restricted tool allowlist, and the answer lands in the Agent panel transcript so every AI reply is reviewed in one place.
+Between the two sit the directed actions — places in the UI where SUNA hands one narrow job to your agent CLI. There are six, plus a plain `?` ask in the command palette: fix a comment (**✦ AI** on a comment card), edit a figure (**✦ Send to agent** on the canvas right rail), repair a UI element, draft a cover letter, draft a reply to a referee, and learn from a past letter. Each spawns a single one-shot CLI run with a restricted tool allowlist, and the answer lands in the Agent panel transcript so every AI reply is reviewed in one place. [The directed-actions page](/ai/directed) covers each one.
 
 ::: info Worth knowing
 Those runs share no conversation state — each is a fresh process, and consecutive asks do not remember each other. They time out after 180 seconds and can be cancelled. Directed *edits* need Claude Code specifically; with only Codex installed the buttons are disabled with the reason "AI edits need Claude Code (codex runs read-only here)". A plain `?` ask works with either.
@@ -74,3 +74,6 @@ Comments and replies written over MCP are always marked as authored by an agent,
 - [Context files](/ai/context) — the three layers, what to put in `WHO-AM-I.md` and `PROJECT.md`, and how SUNA heals them.
 - [The MCP server](/ai/mcp) — every verb, its arguments, and what it returns.
 - [The in-app AI](/ai/in-app) — providers, keys, the directed actions, and their limits.
+- [Directed actions](/ai/directed) — the six one-shot jobs you can hand to your agent CLI.
+
+Working on SUNA itself, rather than with it? [`docs/AUTOMATION.md`](https://github.com/idossha/SUNA/blob/main/docs/AUTOMATION.md) in the repository is the implementation-level version of these pages — every verb's exact signature, the drift gates that keep the shipped docs honest, and how to drive the app headlessly. [Building and releasing](/guide/building) is the rest of the developer story.

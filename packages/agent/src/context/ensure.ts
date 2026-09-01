@@ -17,7 +17,7 @@ import {
 } from './templates'
 
 /**
- * The machine-level context layer (adr-004): ~/SunaConfig holds the
+ * The machine-level context layer (ARCHITECTURE §15.4): ~/SunaConfig holds the
  * user-owned UserContext and the app-owned SunaContext docs, re-synced from
  * the embedded module whenever the content hash changes. Both the Electron
  * main process and the standalone MCP server call ensureSunaConfig() at
@@ -351,7 +351,7 @@ export async function ensureProjectAgentLayer(
 /**
  * Ensure .gitignore contains `line` exactly; additive append, never rewrites.
  *
- * Exported since feature-plan-12 §2a: creating a cover letter has to ignore
+ * Exported for cover letters (ARCHITECTURE §14.3): creating one has to ignore
  * the private-letter glob under manuscript/ (suggested and excluded
  * reviewers carry other people's names, emails and conflict reasons)
  * BEFORE it writes the file, and a project scaffolded before that feature

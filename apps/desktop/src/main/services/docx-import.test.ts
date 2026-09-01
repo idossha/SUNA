@@ -196,7 +196,7 @@ describe('commitDocxAnalysis (real fixture end to end)', () => {
     expect(authorsFile.authors).toHaveLength(2)
     expect(authorsFile.authors[0]?.affiliationRefs).toEqual(['af1'])
 
-    // The flat layout has no sections/ directory at all (feature-plan-7 §1).
+    // The flat layout has no sections/ directory at all (ARCHITECTURE §4.3).
     await expect(readdir(join(targetDir, 'manuscript', 'sections'))).rejects.toThrow()
 
     const manuscriptMd = await readFile(join(targetDir, 'manuscript', 'manuscript.md'), 'utf8')

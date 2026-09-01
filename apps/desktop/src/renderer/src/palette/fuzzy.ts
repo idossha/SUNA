@@ -1,5 +1,5 @@
 /**
- * Pure fuzzy matcher for the command palette (feature-plan-4 §5): a simple
+ * Pure fuzzy matcher for the command palette (DECISIONS 2026-08-14): a simple
  * case-insensitive SUBSEQUENCE scorer — every query character must appear in
  * `text` in order, but not contiguously — with bonuses for matches that fall
  * at a path-segment start (right after `/`, `-`, `_`, `.`, or a space) and an

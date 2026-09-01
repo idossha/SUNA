@@ -41,7 +41,7 @@ function TexText({ text }: { text: string }): JSX.Element {
 /**
  * Manuscript sidebar: title/authors/abstract summary plus the outline —
  * clicking a row opens (or focuses) the combined manuscript tab and scrolls
- * it to that heading (feature-plan-7 §2 — activating the Manuscript view
+ * it to that heading (ARCHITECTURE §17.3 — activating the Manuscript view
  * itself, via the activity bar, also opens the tab; see state/ui.ts).
  */
 export function ManuscriptView(): JSX.Element {

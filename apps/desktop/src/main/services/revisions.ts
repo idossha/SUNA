@@ -5,7 +5,7 @@ import { revisionsJsonPath } from './paths'
 import { assertInsideAllowedRoot } from './roots'
 
 /**
- * manuscript/revisions.json — the AI-diff baseline (feature-plan-11 §11e).
+ * manuscript/revisions.json — the AI-diff baseline (ARCHITECTURE §5.6).
  * Same discipline as comments.json: read fresh, validate, write atomically,
  * a missing file reads as empty and is created on first write.
  */

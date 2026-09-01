@@ -4,7 +4,7 @@ import type { ForeignHighlight, HighlightRect } from './pdfGeometry'
 import type { ResolvedNotes } from './useNoteRects'
 
 /**
- * Painted highlights for one page (ADR-008 M2).
+ * Painted highlights for one page (ARCHITECTURE §14.4).
  *
  * Sits UNDER the text layer, not over it: the reader must still be able to
  * select the text a highlight covers, and an overlay that swallowed pointer

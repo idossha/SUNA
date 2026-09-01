@@ -80,7 +80,7 @@ export function FiguresView(): JSX.Element {
         <button
           key={card.hit.dirPath}
           className="figs__card"
-          // ⌘↵ (or ⌘-click) opens to the side, reusing the split group (feature-plan-4 §1/§5)
+          // ⌘↵ (or ⌘-click) opens to the side, reusing the split group (DECISIONS 2026-08-14)
           onClick={(e) =>
             e.metaKey || e.ctrlKey
               ? openInSplit(card.hit.svgPath, 'right')

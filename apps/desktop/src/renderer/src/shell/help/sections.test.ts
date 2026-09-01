@@ -33,7 +33,7 @@ describe('SECTIONS', () => {
   })
 
   /**
-   * feature-plan-9 §1 and §6: the vim rows live in the `editor` section (which
+   * DECISIONS 2026-08-17: the vim rows live in the `editor` section (which
    * `manuscript` shares), and the chord that reaches this dialog from inside a
    * buffer has to be findable from the Global tab too — a reader who is stuck
    * in NORMAL mode is not on the Editor tab by accident.
@@ -72,7 +72,7 @@ describe('SECTIONS', () => {
   })
 
   /**
-   * feature-plan-9 §3: the reveal / open-with chords are bound in ExplorerView
+   * ARCHITECTURE §5.3: the reveal / open-with chords are bound in ExplorerView
    * and shown in its context menu, so the overlay owes the reader the same
    * glyphs the menu's accelerator prints — derived here from the one spec the
    * view binds, so a rebinding cannot leave a stale key in this table.

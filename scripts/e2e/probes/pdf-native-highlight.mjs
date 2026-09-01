@@ -1,5 +1,5 @@
 /**
- * Drive probe — highlights are NATIVE to the PDF, and removable (ADR-008,
+ * Drive probe — highlights are NATIVE to the PDF, and removable (ARCHITECTURE §14.4,
  * amended on user direction: "the highlighting functionality should be native
  * to the pdf as if we were highlighting in Preview App" / "we must as easily
  * be able to remove the highlight").

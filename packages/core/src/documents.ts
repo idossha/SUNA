@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { SunaProjectManifest } from './project';
 
 /**
- * The document registry (ADR-009, feature-plan-12 §1).
+ * The document registry (ARCHITECTURE §4.2, ARCHITECTURE §4.2).
  *
  * A SUNA project holds a SET of typed documents rather than one manuscript.
  * `manuscript` becomes the first entry in this registry by DESCRIBING the
@@ -43,7 +43,7 @@ export type ProfileRegistry = z.infer<typeof ProfileRegistrySchema>;
  * therefore inherit `suna.json:activeProfileId` when their own `profile` is
  * null. 'package' and 'component' are absent deliberately: they take a sponsor
  * profile from PackageDocument.packageProfileId and must never fall back to a
- * journal id (ADR-010).
+ * journal id (ARCHITECTURE §4.2).
  */
 export const JOURNAL_REGISTRY_KINDS = [
   'manuscript',
@@ -112,7 +112,7 @@ export type DocumentEntry = z.infer<typeof DocumentEntrySchema>;
 
 /**
  * Which filenames each kind owns. THE SINGLE SOURCE OF TRUTH for
- * kind → filename: ADR-009's model table cites this rather than restating it,
+ * kind → filename: ARCHITECTURE §4.2's model table cites this rather than restating it,
  * and the shipped example registries are asserted against it in the unit
  * suite, so the three cannot drift apart.
  *
@@ -147,7 +147,7 @@ export const PRIMARY_DOCUMENT_ID = 'manuscript';
  * The registry a manifest declares, or the synthesized one-manuscript registry
  * when it declares none.
  *
- * This is what makes ADR-009 a zero-file migration: a project written before
+ * This is what makes ARCHITECTURE §4.2 a zero-file migration: a project written before
  * the registry existed resolves to exactly the document it always had, and
  * nothing is written to suna.json to make that true.
  */

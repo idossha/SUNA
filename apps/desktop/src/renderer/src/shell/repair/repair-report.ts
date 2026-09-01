@@ -1,5 +1,5 @@
 /**
- * Pure halves of "Repair this UI" (feature-plan-8 §5), kept out of
+ * Pure halves of "Repair this UI" (DECISIONS 2026-08-17), kept out of
  * RepairPicker.tsx so they are unit-testable without a DOM: the tag.class
  * identity/path formatting for context.json and the picker label, and the
  * bundle slug derived from the user's report.

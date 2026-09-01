@@ -389,7 +389,7 @@ async function noteRecentProject(dir: string, name: string): Promise<void> {
 }
 
 /**
- * Follow the newly-opened project's suna.json (feature-plan-5 §4). Every entry
+ * Follow the newly-opened project's suna.json (ARCHITECTURE §6.1). Every entry
  * point that makes a project "the open one" calls this, so an external edit —
  * an agent, `$` in the terminal, another editor — reaches the renderer's
  * resolver without a restart. Best-effort: a project that cannot be watched
@@ -418,8 +418,8 @@ function followProjectManifest(dir: string): void {
 }
 
 /**
- * Bring a project to the flat manuscript layout as it opens (feature-plan-7
- * §1). migrateProject already returns a structured error rather than throwing,
+ * Bring a project to the flat manuscript layout as it opens (ARCHITECTURE §4.3).
+ * migrateProject already returns a structured error rather than throwing,
  * but an unexpected throw must not stop a project from opening either — the
  * old layout on disk is intact in that case, and the renderer surfaces the
  * outcome.
@@ -467,7 +467,7 @@ export function registerIpcHandlers(): void {
   })
   handle('project:migrate', ({ dir }) => migrateProject(dir))
 
-  /* ---- documents, letters and rounds (feature-plan-12) ------------------ */
+  /* ---- documents, letters and rounds (ARCHITECTURE §4.2) ------------------ */
   handle('documents:list', async ({ dir }) => ({
     documents: await projectDocuments(dir),
     missing: await missingDocuments(dir)
@@ -701,7 +701,7 @@ export function registerIpcHandlers(): void {
     return {}
   })
 
-  // references/notes/<citekey>.json — reading notes on a reference PDF (ADR-008).
+  // references/notes/<citekey>.json — reading notes on a reference PDF (ARCHITECTURE §14.4).
   handle('refnotes:read', async ({ dir, citekey }) => ({
     file: await readReferenceNotes(dir, citekey)
   }))
@@ -767,7 +767,7 @@ export function registerIpcHandlers(): void {
     return {}
   })
 
-  // The reference library (feature-plan-10 §Layer 5). The settings live in
+  // The reference library (ARCHITECTURE §15.5). The settings live in
   // ~/SunaConfig/library.json rather than userData, so the standalone MCP
   // server searches the same folders this pane writes — which is why these
   // are their own channels and not keys on 'settings:get'/'settings:set'.
@@ -1043,7 +1043,7 @@ export function registerIpcHandlers(): void {
 
   handle('agent:write-mcp-config', async ({ dir }) => {
     // Claude Code and Codex both auto-discover .mcp.json in the project root.
-    // Healing the whole layer (adr-004) writes it plus the stubs/context
+    // Healing the whole layer (ARCHITECTURE §15.4) writes it plus the stubs/context
     // files, so "Open Claude Code here" always launches into a wired project.
     // A failed heal must throw — launching a CLI that claims MCP wiring which
     // was never written is worse than an error the view can show.

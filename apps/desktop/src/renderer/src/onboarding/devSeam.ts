@@ -1,10 +1,10 @@
 import type { WizardState } from './types'
 
 /**
- * Dev-only seam so an e2e driver can walk the onboarding wizard (feature-plan-5
- * §5) without the native folder picker. Step 1's "Choose folder…" goes through
+ * Dev-only seam so an e2e driver can walk the onboarding wizard (DECISIONS 2026-08-15)
+ * without the native folder picker. Step 1's "Choose folder…" goes through
  * `dialog:pick-directory`, which opens an OS dialog CDP cannot drive — the same
- * wall "Attach PDF…" hits (see TESTING.md). Rather than bypassing the wizard's
+ * wall "Attach PDF…" hits (see docs/TESTING.md). Rather than bypassing the wizard's
  * own logic, the driver patches the *state* the picker would have produced and
  * then drives real buttons: gating, validation, the Review preview and Create
  * all run exactly as they do for a user.

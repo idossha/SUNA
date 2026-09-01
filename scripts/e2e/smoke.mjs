@@ -235,7 +235,7 @@ const setFieldJs = (selectorJs, value, tag = 'HTMLInputElement') =>
  * events (a synthetic DOM Selection is discarded by CodeMirror). Returns the
  * text CodeMirror ended up with selected.
  *
- * Since feature-plan-5 §3 the coordinates have to be re-measured *after* the
+ * With live preview on (ARCHITECTURE §17.3) the coordinates have to be re-measured *after* the
  * caret lands, not just once up front. True live preview replaces markdown
  * syntax with zero-width decorations and reveals it under the cursor, so
  * moving the caret can re-wrap a line and shift every line below it — a rect
@@ -556,7 +556,7 @@ process.on('exit', cleanup)
 
 let FIGURE = null // <copy>/figures/timesheet/figure.svg — known after open
 let originalSvg = null
-/** Scratch project directories the feature-plan-5 steps create outside the
+/** Scratch project directories the onboarding-wizard steps create outside the
  *  example copy; removed in the finally block however the run ends. */
 const TEMP_PROJECT_DIRS = []
 /** Scratch FILES a step wrote inside the example copy; same cleanup, so a
@@ -1148,13 +1148,13 @@ try {
 
   await step('manuscript-doc', async () => {
     // Activating the Manuscript view opens (or refocuses) the combined
-    // document tab directly (feature-plan-7 §2 — the old .ms__open button is
+    // document tab directly (ARCHITECTURE §17.3 — the old .ms__open button is
     // gone; outline rows and the activity bar are the entry points).
     if (!(await evalJs(`!!document.querySelector('.msdoc__titlepage')`))) {
       await activateView('Writing')
       await sleep(1200)
     }
-    // ONE CodeMirror over the whole flat manuscript.md (feature-plan-7 §1)
+    // ONE CodeMirror over the whole flat manuscript.md (ARCHITECTURE §4.3)
     const edDeadline = Date.now() + 10_000
     let editors = 0
     while (Date.now() < edDeadline && editors !== 1) {
@@ -1258,7 +1258,7 @@ try {
     )
     await screenshot('manuscript-outline-active.png')
 
-    // ⌘S saves the whole flat manuscript (one file since feature-plan-7):
+    // ⌘S saves the whole flat manuscript (one file under the flat layout (ARCHITECTURE §4.3)):
     // edit a visible line, save, then undo+save restores byte-identical.
     const prosePath = join(COPY_DIR, 'manuscript', 'manuscript.md')
     const proseOriginal = readFileSync(prosePath, 'utf8')
@@ -1303,7 +1303,7 @@ try {
 
   /**
    * Open (or focus) the combined manuscript tab. Activating the Manuscript
-   * view IS the open gesture since feature-plan-7 §2 — there is no longer a
+   * view IS the open gesture (ARCHITECTURE §17.3) — there is no longer a
    * button in the view to click — and the action toggles the sidebar when its
    * own view is already active, so this always activates it from another one.
    */
@@ -2555,7 +2555,7 @@ try {
       `mcp server path looks wrong: ${JSON.stringify(server.args)}`
     )
     assert(existsSync(server.args[0]), `mcp server bundle missing at ${server.args[0]}`)
-    // adr-004: the write heals the whole agent layer, not just .mcp.json
+    // ARCHITECTURE §15.4: the write heals the whole agent layer, not just .mcp.json
     assert(written.agents.includes('suna:agent-stub'), 'AGENTS.md stub missing after heal')
     assert(written.claude.includes('suna:agent-stub'), 'CLAUDE.md stub missing after heal')
     assert(written.notebook.includes('Session log'), 'context/MEMORY.md missing after heal')
@@ -2867,7 +2867,7 @@ try {
   const focusManuscript = async () => {
     // The combined tab opens by focusing its dock tab (or activating the
     // Manuscript view, which opens it directly — the .ms__open button is
-    // gone). ONE editor over the flat manuscript.md since feature-plan-7.
+    // gone). ONE editor over the flat manuscript.md (ARCHITECTURE §4.3).
     const focused = await evalJs(`(() => {
       const tab = [...document.querySelectorAll('.dv-tab')]
         .find((t) => t.textContent.trim().replace(/\s*[•✕×]\s*$/, '') === 'Manuscript');
@@ -3237,8 +3237,8 @@ try {
     assert(!title.text.includes('$'), `sidebar title still shows raw TeX: ${title.text}`)
   })
 
-  // ======================= feature-plan-2.md acceptance =====================
-  // docs/design/feature-plan-2.md §1–4. Everything below asserts on real
+  // ======================= DECISIONS 2026-08-14 acceptance =====================
+  // DECISIONS 2026-08-14 — everything below asserts on real
   // files inside the example copy, or on measured DOM boxes.
 
   const MANUSCRIPT_JSON = join(COPY_DIR, 'manuscript', 'manuscript.json')
@@ -3393,7 +3393,7 @@ try {
   })
 
   /**
-   * feature-plan-3 §1 acceptance, measured against the FILE ON DISK: ⌘B wraps
+   * ARCHITECTURE §17.3 acceptance, measured against the FILE ON DISK: ⌘B wraps
    * the selection in `**`, ⌘B again removes it, the context menu offers the
    * documented items with Comment enabled only on a selection, and a menu
    * action is exactly one undo step. Runs before the comment steps so
@@ -4422,7 +4422,7 @@ try {
   })
 
   /**
-   * feature-plan-3 §4 acceptance, asserted on DISK plus the live canvas:
+   * DECISIONS 2026-08-14 acceptance, asserted on DISK plus the live canvas:
    * New Figure writes a directory, a schema-valid figure.json (validated with
    * the real @suna/core schema through the dev seam) and an SVG at the
    * profile's double-column width, registers it in manuscript.json, shows the
@@ -4549,12 +4549,12 @@ try {
   })
 
   /**
-   * feature-plan-3 §2 plumbing, WITHOUT spending the developer's tokens: the
+   * ARCHITECTURE §15.6 plumbing, WITHOUT spending the developer's tokens: the
    * ai-cli provider is offered when a CLI is detected (OpenAlex stays the
    * selected default — ai-cli is strictly opt-in), and cancelling an
    * in-flight search actually kills the child process and releases the UI.
    * The billed "≥3 results with DOIs inside 180 s" leg is a manual
-   * verification — see TESTING.md — because every run of it costs real
+   * verification — see docs/TESTING.md — because every run of it costs real
    * money.
    *
    * The cancel leg starts a real child and kills it after ~3 s, which is
@@ -4682,7 +4682,7 @@ try {
     const providers = await evalJs(
       `[...document.querySelectorAll('.lit-search__providers .refs__style')].map((b) => b.textContent)`
     )
-    // feature-plan-3 §2 added 'ai-cli' as a FIFTH provider, listed first
+    // 'ai-cli' is the FIFTH provider (ARCHITECTURE §15.6), listed first
     // (@suna/core's UI_LIT_PROVIDER_IDS); OpenAlex is the selected default.
     assert(providers.length === 5, `provider buttons: ${providers.join(' | ')}`)
     assert(providers[0].includes('AI search'), `AI search is not listed first: ${providers[0]}`)
@@ -4847,7 +4847,7 @@ try {
   })
 
   /* ------------------------------------------------------------------
-   * Steps 48-54: docs/design/feature-plan-4.md acceptance criteria
+   * Steps 48-54: DECISIONS 2026-08-14 acceptance criteria
    * (split view, PDF/image viewers, reference PDFs, command palette),
    * measured the same way — real keys, real files, real page counts.
    * ------------------------------------------------------------------ */
@@ -5376,7 +5376,7 @@ try {
    * child is located in `ps` by the run's own unique prompt text, never by
    * the string "claude", so running this suite from inside an agent CLI
    * session cannot match. The billed half (a full answer) is verified by hand
-   * — see TESTING.md.
+   * — see docs/TESTING.md.
    */
   await step('palette-ai-ask-cancel', async () => {
     const cli = await evalJs(`window.suna.invoke('lit:cli-status', {})`)
@@ -5447,7 +5447,7 @@ try {
   })
 
   /* =======================================================================
-     docs/design/feature-plan-5.md — recents, typography defaults, true live
+     DECISIONS 2026-08-15 — recents, typography defaults, true live
      preview, onboarding, settings hierarchy.
      ======================================================================= */
 
@@ -6256,10 +6256,10 @@ try {
   })
 
   /* =======================================================================
-     docs/design/feature-plan-8.md §7 — the '?' help overlay and the
+     DECISIONS 2026-08-17 — the '?' help overlay and the
      directed AI actions, unbilled halves only. The billed legs (a comment
      fix landing edit + reply + resolve; a figure edit surviving
-     compliance) are manual, like steps 47/54 — see TESTING.md →
+     compliance) are manual, like steps 47/54 — see docs/TESTING.md →
      "Directed AI actions".
      ======================================================================= */
 
@@ -6381,7 +6381,7 @@ try {
     // pair only a directed run against this project carries. Never by the
     // string "claude" (whoever runs this suite may be inside an agent CLI
     // session — step 47's rule) and never by prompt text: stdin delivery
-    // keeps the prompt out of ps by design (feature-plan-8 §2a).
+    // keeps the prompt out of ps by design (ARCHITECTURE §15.6).
     const mcpArg = join(COPY_DIR, '.mcp.json')
     const running = () =>
       execSync('ps -eo pid,command', { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
@@ -6500,7 +6500,7 @@ try {
   })
 
   await step('explorer-drag-move', async () => {
-    // feature-plan-9 §2 in the running app: a real synthetic drag moves a file
+    // DECISIONS 2026-08-17 in the running app: a real synthetic drag moves a file
     // on disk, the open tab follows it, and a folder dropped into its own
     // child is refused. The Finder/OS actions at the end stop at the IPC
     // boundary on purpose (§5): a real `shell:reveal` would pop a Finder
@@ -6744,7 +6744,7 @@ try {
   })
 
   await step('help-in-vim-mode', async () => {
-    // feature-plan-9 §1. Measured, not assumed: in NORMAL mode a bare '?' is
+    // DECISIONS 2026-08-17. Measured, not assumed: in NORMAL mode a bare '?' is
     // vim's search-backward and never reaches the window listener, so the
     // overlay is reachable only through vim's own :help.
     //
@@ -7188,7 +7188,7 @@ try {
   if (FIGURE && originalSvg !== null && existsSync(FIGURE)) {
     writeFileSync(FIGURE, originalSvg)
   }
-  // Scratch projects the feature-plan-5 steps created outside the example
+  // Scratch projects the onboarding-wizard steps created outside the example
   // copy. The app is stopped FIRST (unless --keep) so nothing rewrites files
   // while they are removed; stale recents rows need no scrubbing — they live
   // in the scratch userData, which the next run wipes.

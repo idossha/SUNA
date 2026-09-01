@@ -20,8 +20,8 @@ import JSZip from 'jszip'
 /**
  * mammoth's default style map already sends "Heading 1..6" to h1..h6 and
  * direct bold/italic/superscript/subscript formatting to strong/em/sup/sub —
- * this makes the paragraph-style mapping explicit anyway (feature-plan-6
- * §2.1), and covers a couple of common non-default styles mammoth leaves
+ * this makes the paragraph-style mapping explicit anyway (DECISIONS 2026-08-15),
+ * and covers a couple of common non-default styles mammoth leaves
  * untouched.
  */
 export const DOCX_STYLE_MAP = [
@@ -38,7 +38,7 @@ export const DOCX_STYLE_MAP = [
 
 /**
  * Word equations are OOXML `<m:oMath>` elements mammoth does not convert
- * (feature-plan-6 §2.3: "attempt only if you can do it reliably; otherwise
+ * (DECISIONS 2026-08-15: "attempt only if you can do it reliably; otherwise
  * keep the text and add a warning — a broken \( \) is worse than a flagged
  * paragraph"). Rather than guess which output paragraph lost math, this
  * counts them straight from the part XML: import warns with the number, and

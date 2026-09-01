@@ -161,7 +161,7 @@
   color: var(--s-err);
 }
 
-/* ---- directed AI action (feature-plan-8 §3) ---------------------------------
+/* ---- directed AI action (DECISIONS 2026-08-17) ---------------------------------
    `.cmt__btn--ai` and `.cmt-card--ai-busy` are probe selectors (§7) — renaming
    them breaks scripts/e2e. Gold accent throughout: agent things are gold here
    (badge, anchors), and the disabled state keeps the honest `title` reason. */

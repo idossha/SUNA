@@ -1,6 +1,6 @@
 /**
  * One page of a PDF, flattened to a string that a text-quote anchor can be
- * built against and re-located in (ADR-008).
+ * built against and re-located in (ARCHITECTURE §14.4).
  *
  * This module is the pivot of PDF reading notes: the anchor builder and the
  * renderer's offset -> geometry mapping BOTH call `buildPageText`, so they
@@ -223,7 +223,7 @@ export function offsetsForItemRange(
  * body-line pairs have content-order items between them that belong to neither
  * line. A selection stored as one `[from, to)` span would swallow those and
  * quote text the reader never selected, self-consistently enough to re-anchor
- * forever without anyone noticing. One anchor per run is the fix (ADR-008).
+ * forever without anyone noticing. One anchor per run is the fix (ARCHITECTURE §14.4).
  *
  * Input need not be sorted or unique.
  */

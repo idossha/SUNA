@@ -42,7 +42,7 @@ interface ProviderStatus {
  * the DOI — so the request size sets the runtime almost linearly, and the
  * adapter has a hard 180 s budget (AI_CLI_SEARCH_TIMEOUT_MS). Measured on
  * this machine: `limit: 20` ran past 180 s and was killed by that timeout,
- * returning nothing; the plan's own ground-truth probe (feature-plan-3 §2.0)
+ * returning nothing; the plan's own ground-truth probe (ARCHITECTURE §9)
  * took 30–60 s for 3 results. 8 keeps a comfortable margin while still
  * clearing the "≥3 results with DOIs" bar.
  */
@@ -119,7 +119,7 @@ export function SearchTab({ seed }: { seed: FindSimilarSeed | null }): JSX.Eleme
 
   // The active ai-cli run: searchId + its event unsubscribers, so a provider
   // switch, a new search, or the tab unmounting can cancel/clean it up
-  // (feature-plan-3 §2: "the child is killed on cancel or tab close").
+  // (ARCHITECTURE §15.6: "the child is killed on cancel or tab close").
   const activeAiSearch = useRef<{ searchId: string; unsubscribe: () => void } | null>(null)
   const [cancelling, setCancelling] = useState(false)
 

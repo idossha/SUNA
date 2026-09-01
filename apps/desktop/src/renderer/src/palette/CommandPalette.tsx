@@ -1,5 +1,5 @@
 /**
- * Command palette (feature-plan-4 §5): one popup over everything, opened
+ * Command palette (DECISIONS 2026-08-14): one popup over everything, opened
  * with Mod-K (Mod-Shift-P opens it straight into '>' command mode). Modes by
  * prefix — none: fuzzy file search; `>`: app commands; `$`: run a line in the
  * integrated terminal; `?`: ask the agent CLI — are decided by
@@ -211,7 +211,7 @@ export function CommandPalette(): JSX.Element | null {
     (line: string) => {
       const trimmed = line.trim()
       if (trimmed === '') return
-      // "create-or-reuse a tab" (feature-plan-4 §5): sessions.ts exposes no
+      // "create-or-reuse a tab" (DECISIONS 2026-08-14): sessions.ts exposes no
       // way to write into an already-running session from outside itself, so
       // this reuses the PANEL (never re-toggles it shut) and always starts a
       // fresh tab+pty for the command, via sessions.ts's own exported

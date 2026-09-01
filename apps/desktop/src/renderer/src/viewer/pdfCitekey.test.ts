@@ -39,7 +39,7 @@ describe('citekeyForPdfPath', () => {
   })
 
   it('lets the conventional filename break a tie the fuzzy tier created', () => {
-    // gunn1972.pdf is the name ADR-007's ladder writes; a fuzzy claim from a
+    // gunn1972.pdf is the name ARCHITECTURE §9's ladder writes; a fuzzy claim from a
     // neighbouring key must not make the project's own convention ambiguous.
     const map = new Map([
       ['gunn1972', res(`${ROOT}/references/gunn1972.pdf`, 'citekey')],

@@ -1,5 +1,10 @@
 # Configuring SUNA
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 SUNA is configured the way nvim, ghostty and aerospace are: **one plain-text
 file you own**, in a dot-directory, seeded on first launch with every key
 present and commented out.

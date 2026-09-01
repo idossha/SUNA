@@ -4,7 +4,7 @@ import type { HighlightRect } from './pdfGeometry'
 
 /**
  * The reconcile that keeps a PDF's own annotations in step with the sidecar
- * (ADR-008). Identity is geometry, resolved fresh every run — the property
+ * (ARCHITECTURE §14.4). Identity is geometry, resolved fresh every run — the property
  * that makes a foreign edit a non-event rather than a lockout.
  */
 

@@ -125,15 +125,14 @@ export const ProjectEditorSettingsSchema = z.object({
 export type ProjectEditorSettings = z.infer<typeof ProjectEditorSettingsSchema>;
 
 /**
- * The optional `settings` block of suna.json — the project half of the two
- * level hierarchy (feature-plan-5 §4). EVERY key is optional and nullable:
- * every suna.json written before this block existed stays valid, and `null`
- * means "not set here, fall through to global" exactly like an absent key
- * (see resolveSettings). The writer prunes cleared keys, so a null only ever
- * appears in a hand-edited file.
+ * The optional `settings` block of suna.json. **DEPRECATED and no longer
+ * read** — settings have ONE level, ~/.suna/config.yml (ARCHITECTURE §6.1,
+ * §4.1). The schema stays so that every suna.json ever written still
+ * validates; nothing resolves through it. EVERY key is optional and nullable,
+ * which is what makes an old file with a populated block still parse.
  */
 /**
- * How the AI's unreviewed changes are shown (feature-plan-11 §11g).
+ * How the AI's unreviewed changes are shown (ARCHITECTURE §5.6).
  * 'inline' paints them in the editor — removals red, additions green, at word
  * resolution. 'off' hides the paint; it does NOT stop the baseline being
  * captured, so turning it back on shows everything that accumulated meanwhile.
@@ -198,8 +197,8 @@ export const SunaProjectManifestSchema = z.object({
    */
   settings: ProjectSettingsSchema.optional(),
   /**
-   * The document registry (ADR-009). Absent on every project created before
-   * feature-plan-12, and `resolveDocuments` synthesizes a one-manuscript
+   * The document registry (ARCHITECTURE §4.2). Absent on every project created before
+   * ARCHITECTURE §4.2, and `resolveDocuments` synthesizes a one-manuscript
    * registry for those — which is what makes the registry a zero-file
    * migration. `settings` above is the precedent for an additive optional
    * block, and `schemaVersion` stays 1 for the same reason it did then.
@@ -216,7 +215,7 @@ export const SunaProjectManifestSchema = z.object({
 export type SunaProjectManifest = z.infer<typeof SunaProjectManifestSchema>;
 
 /* ------------------------------------------------------------------ */
-/* Recent projects (feature-plan-5 §1)                                  */
+/* Recent projects (DECISIONS 2026-08-15)                                  */
 /* ------------------------------------------------------------------ */
 
 /** Global-settings key holding the recents list. */

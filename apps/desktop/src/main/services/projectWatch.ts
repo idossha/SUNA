@@ -3,7 +3,7 @@ import { basename, dirname } from 'node:path'
 
 /**
  * Watch the open project's `suna.json` for changes made outside the app —
- * feature-plan-5 §4 ("watch suna.json for external edits (the user typing in
+ * ARCHITECTURE §6.1 ("watch suna.json for external edits (the user typing in
  * it, or an agent) and re-resolve live").
  *
  * Watches the *directory*, not the file. Every writer in this codebase —

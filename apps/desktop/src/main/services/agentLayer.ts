@@ -7,7 +7,7 @@ import {
 } from '@suna/agent'
 
 /**
- * The app side of the agent context layer (adr-004): resolve how THIS
+ * The app side of the agent context layer (ARCHITECTURE §15.4): resolve how THIS
  * install runs the MCP server, and heal the machine folder + a project's
  * agent files wherever a project becomes "the open one". The MCP server
  * performs the same heal on boot, so whichever surface runs first wins and

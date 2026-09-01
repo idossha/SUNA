@@ -204,7 +204,7 @@ function shortCause(reason: string): string {
 }
 
 /**
- * The status note for a finished `fs:move` batch (feature-plan-9 §2). Partial
+ * The status note for a finished `fs:move` batch (DECISIONS 2026-08-17). Partial
  * by contract, so the wording always says what moved AND what did not —
  * mirroring confirmDelete's multi-delete note. Null when the batch was empty.
  * Failures read as `name (cause)` with main's reason shortened by shortCause:

@@ -8,7 +8,7 @@ import { allowRoot } from './roots'
 
 /**
  * The notes sidecar service, and the guard on the one file SUNA overwrites but
- * did not create (ADR-008).
+ * did not create (ARCHITECTURE §14.4).
  */
 
 let root: string

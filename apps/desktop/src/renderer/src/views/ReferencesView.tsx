@@ -127,7 +127,7 @@ export function ReferencesView(): JSX.Element {
   )
   const [removingKey, setRemovingKey] = useState<string | null>(null)
   const cited = useCitedKeys()
-  // Reference PDFs (feature-plan-4 §3/§4): resolved once per project (and on
+  // Reference PDFs (DECISIONS 2026-08-14): resolved once per project (and on
   // saveBump) independent of this view ever mounting — see state/referencePdfs.
   const referencePdfs = useReferencePdfs()
   const autoOpenPdf = useSettingsStore((s) => s.settings['references.autoOpenPdf'])
@@ -223,7 +223,7 @@ export function ReferencesView(): JSX.Element {
 
   /** Select a row and, when 'references.autoOpenPdf' is on and a PDF
    *  resolves, open it in the side group — replacing whatever was there
-   *  (openViewerInSide), never stacking (feature-plan-4.md §4). */
+   *  (openViewerInSide), never stacking (DECISIONS 2026-08-14). */
   const selectEntry = (key: string): void => {
     setSelectedKey(key)
     const path = autoOpenPdfPath(referencePdfs.map.get(key), autoOpenPdf)
@@ -257,7 +257,7 @@ export function ReferencesView(): JSX.Element {
     }
   }
 
-  /** "Find PDF": feature-plan-10's acquisition ladder, run in the main
+  /** "Find PDF": ARCHITECTURE §9's acquisition ladder, run in the main
    *  process in its strict preference order — the project's own
    *  references/<key>.pdf, then this machine's configured library roots, then
    *  an open-access/publisher download, then metadata-only. Reads may leave
@@ -339,7 +339,7 @@ export function ReferencesView(): JSX.Element {
       // The reading notes go with the paper. Left behind they are invisible:
       // nothing lists `references/notes/`, so an orphaned sidecar would sit
       // there until someone opened the folder, and would silently re-attach if
-      // the same citekey were ever added again (ADR-008).
+      // the same citekey were ever added again (ARCHITECTURE §14.4).
       try {
         await window.suna.invoke('fs:delete', {
           path: `${rootDir}/${REFERENCE_NOTES_DIR}/${entry.key}.json`

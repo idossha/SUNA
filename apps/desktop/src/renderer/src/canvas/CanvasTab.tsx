@@ -151,7 +151,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   /**
    * Compliance check against the project's active journal profile. Returns
    * the fresh list as well as setting state — the Agent section builds its
-   * prompt from the return value at send time (feature-plan-8 §4), when the
+   * prompt from the return value at send time (ARCHITECTURE §10.4), when the
    * React-state copy may still be a render behind.
    */
   const runCompliance = (): Diagnostic[] => {
@@ -532,7 +532,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   /**
    * THE load path: read figure.svg from disk into a fresh engine session.
    * Used at mount and re-used verbatim after a successful agent edit
-   * (feature-plan-8 §4) — deliberately not resetting pan/zoom, so a reload
+   * (ARCHITECTURE §10.4) — deliberately not resetting pan/zoom, so a reload
    * keeps the user's view. Returns null when the tab died mid-read.
    */
   const loadFromDisk = async (): Promise<CanvasDocument | null> => {
@@ -636,7 +636,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rev])
 
-  // ---- directed AI figure edits (feature-plan-8 §4) --------------------------
+  // ---- directed AI figure edits (ARCHITECTURE §10.4) --------------------------
   /**
    * Union of the selected ids' MIRROR rects (the mirror is layout truth; the
    * engine doc is off-DOM), or the artboard when nothing is selected, padded
@@ -699,7 +699,7 @@ export function CanvasTab({ api, params }: DockPanelProps): JSX.Element {
   }
 
   // Command palette seam: "Run Compliance Check" / "Export Figure as PNG/PDF"
-  // (feature-plan-4 §5) act on whichever figure is on screen.
+  // (DECISIONS 2026-08-14) act on whichever figure is on screen.
   useEffect(() => {
     if (rootDir === null || figureId === null) return
     return registerCanvasPaletteContext({

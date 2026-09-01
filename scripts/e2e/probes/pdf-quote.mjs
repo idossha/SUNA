@@ -1,5 +1,5 @@
 /**
- * Drive probe — quoting a passage out of a reference PDF (ADR-008 M1).
+ * Drive probe — quoting a passage out of a reference PDF (ARCHITECTURE §14.4).
  *
  * Measures the whole path in the running app, not a stub: a real drag-shaped
  * DOM selection over pdf.js's live text layer, the popover that follows it,

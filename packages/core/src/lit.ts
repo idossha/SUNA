@@ -15,7 +15,7 @@ export const LitProviderIdSchema = z.enum(LIT_PROVIDER_IDS);
 export type LitProviderId = z.infer<typeof LitProviderIdSchema>;
 
 /**
- * Agent CLIs the 'ai-cli' provider can spawn (feature-plan-3 §2). Detection
+ * Agent CLIs the 'ai-cli' provider can spawn (ARCHITECTURE §15.6). Detection
  * and process management live in the main process
  * (apps/desktop/src/main/services/lit.ts); this is just the shared id type.
  */

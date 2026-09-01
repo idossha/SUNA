@@ -1,5 +1,5 @@
 /**
- * Drive probe — a highlight survives (ADR-008 M2).
+ * Drive probe — a highlight survives (ARCHITECTURE §14.4).
  *
  * The property under test is not "a coloured box appeared". It is:
  *   1. selecting text and picking a colour writes `references/notes/<key>.json`,

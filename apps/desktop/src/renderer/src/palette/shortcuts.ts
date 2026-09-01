@@ -59,8 +59,8 @@ const CODE_LABELS: Record<string, string> = {
 }
 
 /**
- * Punctuation whose SHIFTED glyph is the name of the chord (feature-plan-9
- * §1): `Mod-Shift-Slash` is ⌘?, because Shift+Slash *is* the `?` key and a
+ * Punctuation whose SHIFTED glyph is the name of the chord (DECISIONS 2026-08-17):
+ * `Mod-Shift-Slash` is ⌘?, because Shift+Slash *is* the `?` key and a
  * reader hunting for "?" must find "?" — "⌘⇧/" makes them decode it. The ⇧
  * glyph is dropped with the substitution, or the label would read as a third
  * key to press.

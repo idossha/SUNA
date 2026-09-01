@@ -5,7 +5,7 @@ import { useRevisionsStore, peekRevision } from '../state/revisions'
 import { revisionBaseField, revisionHunks, setRevisionBase, type DiffHunk } from './revisionDiff'
 
 /**
- * Acting on the AI's changes (feature-plan-11 §11f) — the half of the review
+ * Acting on the AI's changes (ARCHITECTURE §5.6) — the half of the review
  * view that is not paint.
  *
  * Accept and reject are deliberately asymmetric, because the document already

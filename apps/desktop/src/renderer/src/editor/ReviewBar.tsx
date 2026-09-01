@@ -7,7 +7,7 @@ import { acceptAll, gotoHunk, rejectAll } from './revisionReview'
 
 /**
  * The strip that says the AI has changed something and lets the author deal
- * with it (feature-plan-11 §11f).
+ * with it (ARCHITECTURE §5.6).
  *
  * It shows only when there is an open baseline AND `review.aiDiffs` resolves
  * to 'inline' — turning the setting off hides the paint, and hiding the paint

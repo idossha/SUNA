@@ -9,7 +9,7 @@ import type { ProjectContext } from './project';
 /**
  * `list_reference_notes` over a real temp project — the verb an agent uses to
  * see what the researcher judged worth keeping, and which paper each judgement
- * belongs to (ADR-008).
+ * belongs to (ARCHITECTURE §14.4).
  */
 
 const roots: string[] = [];

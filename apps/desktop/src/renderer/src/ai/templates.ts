@@ -1,5 +1,5 @@
 /**
- * Prompt builders for the three directed AI actions (feature-plan-8 §2c).
+ * Prompt builders for the three directed AI actions (DECISIONS 2026-08-17).
  * Pure string assembly, no IO: every template shares one skeleton — role
  * line → TASK (the user's words verbatim) → CONTEXT (absolute paths, ids,
  * structured facts) → RULES (surgical constraints, which MCP verbs to use,
@@ -28,7 +28,7 @@ function assemble(
 }
 
 /**
- * One-line transcript label (feature-plan-8 §2c: "promptTitle = a one-line
+ * One-line transcript label (DECISIONS 2026-08-17: "promptTitle = a one-line
  * label, not the full prompt") — pushExternalExchange renders it as the
  * user-side bubble, so it must stay short and single-line.
  */

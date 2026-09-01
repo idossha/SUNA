@@ -31,7 +31,7 @@ describe('suggestionFor', () => {
 })
 
 describe('hintFor', () => {
-  it('gives ai-cli the subscription/latency hint from feature-plan-3 §2', () => {
+  it('gives ai-cli the subscription/latency hint from ARCHITECTURE §15.6', () => {
     expect(hintFor('ai-cli')).toBe('uses your Claude/Codex subscription · ~30–60s')
   })
 

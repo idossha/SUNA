@@ -1,5 +1,10 @@
 # Review: fluxsci/flux (2026-08-14)
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 `github.com/fluxsci/flux` — "local-first desktop app for assembling
 scientific figures, papers, and slides… entirely offline." A **direct
 sibling project** to SUNA: Electron + Svelte 5 + CodeMirror 6 + KaTeX,

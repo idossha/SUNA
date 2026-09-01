@@ -7,7 +7,7 @@ import {
 } from './aiActions'
 
 /**
- * Transition tests for the directed-action run store (feature-plan-8 §2c).
+ * Transition tests for the directed-action run store (DECISIONS 2026-08-17).
  * The invariant that matters most: a run key that has finished can never be
  * resurrected by a late progress tick — the done event races the adapter's
  * last synthetic "Thinking…" push, and a resurrected run would leave a

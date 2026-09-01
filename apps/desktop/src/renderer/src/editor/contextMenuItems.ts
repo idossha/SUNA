@@ -36,7 +36,7 @@ export interface ContextMenuSeparator {
 export type ContextMenuEntry = ContextMenuItem | ContextMenuSeparator
 
 /**
- * A citation the right-click landed on (feature-plan-4.md §3): `path` is the
+ * A citation the right-click landed on (DECISIONS 2026-08-14): `path` is the
  * resolved PDF path, or null when none resolves — the menu still shows the
  * item, disabled, naming the key.
  */
@@ -59,7 +59,7 @@ export interface ContextMenuAvailability {
  * boundary for tests. Formatting items (Comment/Bold/Italic/Code/
  * Strikethrough) need a non-empty selection; the Insert group and Paste
  * don't ("Right-click with no selection gives the plain Cut/Copy/Paste +
- * Insert group" — feature-plan-3.md §1). An item whose behaviour the host
+ * Insert group" — ARCHITECTURE §17.3). An item whose behaviour the host
  * didn't supply (see `ContextMenuAvailability`) is left out of the list
  * entirely rather than shown disabled.
  */

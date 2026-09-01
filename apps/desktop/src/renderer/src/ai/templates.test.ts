@@ -16,7 +16,7 @@ import {
 } from './templates'
 
 /**
- * The prompts ARE the interface to the headless CLI (feature-plan-8 §2c), so
+ * The prompts ARE the interface to the headless CLI (DECISIONS 2026-08-17), so
  * the tests pin three things: every context field lands in the output, the
  * forbidden-action lines are present, and the skeleton's section order is
  * stable — a reordered template silently changes agent behaviour with no

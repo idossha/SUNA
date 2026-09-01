@@ -24,7 +24,7 @@ export interface ProjectContext {
   /** Directory names keyed by role (manuscript, figures, …). */
   dirs: Record<ProjectDirKey, string>
   /**
-   * The document registry (ADR-009) — the declared one, or the synthesized
+   * The document registry (ARCHITECTURE §4.2) — the declared one, or the synthesized
    * one-manuscript registry for a project written before it existed.
    */
   documents: DocumentEntry[]

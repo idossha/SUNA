@@ -10,7 +10,7 @@ import { getBundledProfile } from '../bundled';
 import { checkLetter, letterRequirements } from './letter';
 
 /**
- * feature-plan-12 §2d, reworked without the assertion sidecar: the letter is
+ * ARCHITECTURE §12.1, reworked without the assertion sidecar: the letter is
  * plain prose, so venue-required claims surface as unverifiable warnings and
  * only the structural checks (journal names, authors.json, data locations,
  * the abbreviated summary) remain findings SUNA stands behind. The two

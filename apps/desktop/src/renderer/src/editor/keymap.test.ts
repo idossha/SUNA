@@ -1,6 +1,6 @@
 /**
- * The ⌘K arbitration between *Insert link* (feature-plan-3 §1) and the
- * command palette (feature-plan-4 §5).
+ * The ⌘K arbitration between *Insert link* (ARCHITECTURE §17.3) and the
+ * command palette (DECISIONS 2026-08-14).
  *
  * The load-bearing decision is the command's RETURN VALUE: CodeMirror's
  * `runHandlers` only calls `event.preventDefault()` when a binding's command

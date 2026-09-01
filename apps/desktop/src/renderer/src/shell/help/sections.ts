@@ -1,7 +1,7 @@
 /**
- * Static data for the "?" keyboard-shortcut overlay (feature-plan-8 §1).
+ * Static data for the "?" keyboard-shortcut overlay (DECISIONS 2026-08-17).
  * Content is the plan's Appendix inventory verbatim — it was cross-checked
- * against the code and TESTING.md; do not add bindings here that no surface
+ * against the code and docs/TESTING.md; do not add bindings here that no surface
  * actually implements. The overlay renders this as tabs (one per section),
  * groups, and <kbd> rows; sections.test.ts pins ids, non-empty groups, and
  * the surface → section mapping.
@@ -57,7 +57,7 @@ const EDITOR_GROUPS: readonly HelpGroup[] = [
       ['✦ AI', 'On a comment card: send the comment to the agent']
     ]
   },
-  // feature-plan-9 §1. The `?` row is the honest one: in NORMAL mode vim
+  // DECISIONS 2026-08-17. The `?` row is the honest one: in NORMAL mode vim
   // consumes Shift-Slash entirely (measured — the window listener records no
   // event at all), so :help is the ONLY way into this dialog from a vim
   // buffer. Saying so beats letting the reader conclude help is broken.
@@ -218,7 +218,7 @@ export const SECTIONS: readonly HelpSection[] = [
           ['Esc', 'Clear selection']
         ]
       },
-      // feature-plan-9 §3: ExplorerView renders both context-menu items and
+      // ARCHITECTURE §5.3: ExplorerView renders both context-menu items and
       // binds both chords on the focused row, so they belong here. The menu's
       // label follows the platform (Reveal in Finder / Show in Explorer / Show
       // in File Manager); this overlay is static, so it names the neutral pair

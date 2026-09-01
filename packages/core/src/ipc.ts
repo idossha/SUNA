@@ -83,7 +83,7 @@ export const RecentProjectEntrySchema = RecentProjectSchema.extend({
 export type RecentProjectEntry = z.infer<typeof RecentProjectEntrySchema>;
 
 /**
- * Submission-format knobs the export dialog exposes (feature-plan-6 §3/§4):
+ * Submission-format knobs the export dialog exposes (ARCHITECTURE §13):
  * a profile-stated value SEEDS the checkbox default on profile switch but is
  * never forced — the journal's stance shows as an informational tag and the
  * user can override it (a `null` value, "does not state this", leaves the
@@ -108,7 +108,7 @@ export const ExportOptionsSchema = z.object({
 export type ExportOptions = z.infer<typeof ExportOptionsSchema>;
 
 /**
- * A table or figure the printed page cannot hold (feature-plan-13 §A4).
+ * A table or figure the printed page cannot hold (ARCHITECTURE §13).
  *
  * The print stylesheet keeps tables and figures whole across a page boundary
  * (`break-inside: avoid`) right up to the point where the block is taller
@@ -129,7 +129,7 @@ export const OversizedBlockSchema = z.object({
 export type OversizedBlock = z.infer<typeof OversizedBlockSchema>;
 
 /**
- * The outcome of the flat-layout migration (feature-plan-7 §1). Rides along on
+ * The outcome of the flat-layout migration (ARCHITECTURE §4.3). Rides along on
  * every project open so the renderer can tell the user what happened to their
  * files, and is the response of the manual 'project:migrate' trigger.
  *
@@ -148,7 +148,7 @@ export type MigrationOutcome = z.infer<typeof MigrationOutcomeSchema>;
 
 /**
  * `library.json` as it now stands, plus what its roots resolve to on THIS
- * machine (feature-plan-10 §Layer 5). Both library config channels answer with
+ * machine (ARCHITECTURE §15.5). Both library config channels answer with
  * this shape, so a write needs no follow-up read.
  *
  * `expanded` is what lets the Settings pane be honest about the search it is
@@ -184,7 +184,7 @@ export const LibraryConfigStateSchema = z.object({
 export type LibraryConfigState = z.infer<typeof LibraryConfigStateSchema>;
 
 /**
- * The result of one read-only machine search (feature-plan-10 §Layer 3).
+ * The result of one read-only machine search (ARCHITECTURE §15.5).
  *
  * An empty `matches` is a real answer, never a swallowed failure — which is
  * why it always arrives with the rest: "nothing matched in 3 roots, ~/Papers
@@ -210,7 +210,7 @@ export const LibraryScanOutcomeSchema = z.object({
 export type LibraryScanOutcome = z.infer<typeof LibraryScanOutcomeSchema>;
 
 /**
- * What one run of the acquisition ladder did (feature-plan-10, the four
+ * What one run of the acquisition ladder did (ARCHITECTURE §9, the four
  * outcomes in their strict preference order): `already-present` →
  * `copied-local` → `downloaded` → `metadata-only`.
  *
@@ -301,7 +301,7 @@ export const ReviewPointWireSchema = z.object({
 });
 
 export const CHANNELS = {
-  /* ---- documents, letters and rounds (feature-plan-12) ------------------ */
+  /* ---- documents, letters and rounds (ARCHITECTURE §4.2) ------------------ */
   /** The project's document registry, resolved (synthesized when absent). */
   'documents:list': {
     request: z.object({ dir: z.string().min(1) }),
@@ -398,7 +398,7 @@ export const CHANNELS = {
   },
 
   /**
-   * Point a round at the version its reviewers read (feature-plan-14 §1).
+   * Point a round at the version its reviewers read (DECISIONS 2026-08-21).
    * `versionId: null` clears the pointer, which puts the round back on the
    * date-inferred baseline rather than leaving it with none.
    */
@@ -412,7 +412,7 @@ export const CHANNELS = {
   },
 
   /**
-   * Version comparison (feature-plan-14 §2). Reading only: a comparison
+   * Version comparison (DECISIONS 2026-08-21). Reading only: a comparison
    * writes nothing, and the diff itself is computed in the renderer from the
    * two texts, so the same pure functions serve the tests and the screen.
    */
@@ -553,7 +553,7 @@ export const CHANNELS = {
   },
   /**
    * Manual re-run of the flat-layout migration on an already-open project
-   * (feature-plan-7 §1). Idempotent, and never needed in the happy path —
+   * (ARCHITECTURE §4.3). Idempotent, and never needed in the happy path —
    * 'project:open' / 'project:open-example' already migrate. Useful after the
    * user fixes whatever made an automatic attempt abandon.
    */
@@ -569,8 +569,8 @@ export const CHANNELS = {
     }),
   },
   /**
-   * Recent projects for the welcome screen, most-recent first (feature-plan-5
-   * §1). Persisted in GLOBAL settings under 'recentProjects'; `exists` is
+   * Recent projects for the welcome screen, most-recent first (DECISIONS 2026-08-15).
+   * Persisted in GLOBAL settings under 'recentProjects'; `exists` is
    * recomputed on every read (true = the directory still holds a suna.json) so
    * a deleted project can render its "Missing" state without being opened.
    */
@@ -593,7 +593,7 @@ export const CHANNELS = {
     response: z.object({ recents: z.array(RecentProjectEntrySchema) }),
   },
   /**
-   * Onboarding wizard step 1 live validation (feature-plan-5 §5): does
+   * Onboarding wizard step 1 live validation (DECISIONS 2026-08-15): does
    * `<parentDir>/<name>` already exist, and can `parentDir` be written to.
    * Pure filename-shape checks (empty/illegal characters) run in the renderer
    * without a round trip — this only answers questions the filesystem knows.
@@ -630,7 +630,7 @@ export const CHANNELS = {
     }),
   },
   /**
-   * Onboarding wizard step 7 "Create project" (feature-plan-5 §5): the one
+   * Onboarding wizard step 7 "Create project" (DECISIONS 2026-08-15): the one
    * call that actually writes anything — directories, suna.json, the
    * scaffolded/imported manuscript, and (best-effort) a git init + first
    * commit. Never called before the review step. Settings the wizard collected
@@ -658,7 +658,7 @@ export const CHANNELS = {
     }),
   },
   /**
-   * DOCX import step 1 (feature-plan-6 §2): converts `path` with mammoth and
+   * DOCX import step 1 (DECISIONS 2026-08-15): converts `path` with mammoth and
    * runs the front-matter/section/reference heuristics, WITHOUT writing
    * anything — the review screen edits the returned `analysis` before
    * 'docx:commit' ever runs. Images are extracted to a temp dir named in
@@ -705,7 +705,7 @@ export const CHANNELS = {
    * DOCX import step 2: writes the project from a (possibly user-edited)
    * `analysis` into a fresh `dir` — suna.json, manuscript/manuscript.json,
    * manuscript/manuscript.md (one flat prose file, each analyzed section's
-   * heading rendered at its level — feature-plan-7 §1, no `sections/`
+   * heading rendered at its level — ARCHITECTURE §4.3, no `sections/`
    * directory), manuscript/authors.json, manuscript/references.bib, and
    * figures/imported-N directories. Refuses a non-empty `dir` unless `force`
    * is set, and refuses a `dir` that
@@ -852,7 +852,7 @@ export const CHANNELS = {
   },
   /**
    * Move entries into `targetDir`, keeping their basenames — the explorer's
-   * drag-and-drop drop (feature-plan-9 §2). Batched so one drop is one tree
+   * drag-and-drop drop (DECISIONS 2026-08-17). Batched so one drop is one tree
    * refresh, and PARTIAL by contract: every source that could not move is
    * named in `failed` with a human reason instead of failing the whole batch.
    * Sources and target are all root-confined, an existing destination is
@@ -882,7 +882,7 @@ export const CHANNELS = {
   /**
    * Open `path` with the OS's default application. Root-confined, and refuses
    * anything executable — launchable bundles/extensions plus any file carrying
-   * a user-execute bit (feature-plan-9 §3): an agent can write files into the
+   * a user-execute bit (ARCHITECTURE §5.3): an agent can write files into the
    * project, and "open with the OS" must never become "run what the agent just
    * wrote". Directories are allowed (that is a Finder window). Electron's
    * openPath returns '' on success; that is mapped to null here, so a non-null
@@ -1619,7 +1619,7 @@ export const CHANNELS = {
     response: z.object({}),
   },
 
-  /** manuscript/revisions.json — the AI-diff baseline (feature-plan-11). */
+  /** manuscript/revisions.json — the AI-diff baseline (ARCHITECTURE §5.6). */
   'revisions:read': {
     request: z.object({ dir: z.string().min(1) }),
     response: z.object({ file: z.unknown() }),
@@ -1630,7 +1630,7 @@ export const CHANNELS = {
   },
 
   /**
-   * `references/notes/<citekey>.json` (ADR-008). A missing file reads as
+   * `references/notes/<citekey>.json` (ARCHITECTURE §14.4). A missing file reads as
    * `emptyReferenceNotes(citekey)`; the write validates with
    * ReferenceNotesFileSchema and lands atomically, same discipline as
    * comments.json. Separate from comments:* because reading notes are a
@@ -1663,7 +1663,7 @@ export const CHANNELS = {
   },
   /**
    * Write SUNA's highlights into `references/<citekey>.pdf` as real PDF
-   * annotations (ADR-008, amended: native, in place, never a copy in output/).
+   * annotations (ARCHITECTURE §14.4, amended: native, in place, never a copy in output/).
    *
    * `bytes` is the whole file after an incremental save that added and removed
    * exactly the annotations the sidecar called for. The main process holds one
@@ -1754,7 +1754,7 @@ export const CHANNELS = {
   },
 
   /**
-   * The reference library (feature-plan-10 §Layer 5): which folders on THIS
+   * The reference library (ARCHITECTURE §15.5): which folders on THIS
    * machine may be searched for a paper's PDF, whether Spotlight helps, and
    * how far a download may reach.
    *
@@ -1838,7 +1838,7 @@ export const CHANNELS = {
   },
 
   /**
-   * General-purpose "ask the agent CLI" (feature-plan-4 §5, the command
+   * General-purpose "ask the agent CLI" (DECISIONS 2026-08-14, the command
    * palette's `?` prefix): spawns whichever agent CLI is installed with
    * `prompt`, cwd'd to `dir`, and returns immediately with an askId; progress
    * and the final answer arrive over EVENT_CHANNELS.aiAskProgress(askId) /
@@ -1850,7 +1850,7 @@ export const CHANNELS = {
       prompt: z.string().min(1),
       dir: z.string().min(1),
       /**
-       * Directed-action extensions (feature-plan-8 §2a). All three shape the
+       * Directed-action extensions (ARCHITECTURE §15.6). All three shape the
        * CLAUDE spawn only; the codex path ignores them (codex asks run
        * --sandbox read-only, so directed EDIT actions never target it).
        * `allowedTools` joins into ONE `--allowed-tools` argv element,
@@ -1879,7 +1879,7 @@ export const CHANNELS = {
     response: z.object({}),
   },
   /**
-   * Screenshot a region of the SENDER's window (feature-plan-8 §2b). Main
+   * Screenshot a region of the SENDER's window (DECISIONS 2026-08-17). Main
    * clamps `rect` to the window's content bounds, captures, and writes a PNG
    * to `targetPath` (root-confined like every renderer-directed write) or to
    * <temp>/suna-captures/cap-<ts>.png when omitted. `width`/`height` are the
@@ -1901,7 +1901,7 @@ export const CHANNELS = {
    * Whether this is a dev (unpackaged) run, and where the SUNA source
    * checkout is. `repoRoot` is non-null exactly when `isDev` — a packaged app
    * has no source repo, which is what gates "Repair this UI"
-   * (feature-plan-8 §5).
+   * (DECISIONS 2026-08-17).
    */
   'app:dev-info': {
     request: z.object({}),
@@ -1912,7 +1912,7 @@ export const CHANNELS = {
   },
   /**
    * Write a "Repair this UI" report bundle under <repoRoot>/bug-reports/
-   * (feature-plan-8 §5): context.json (the renderer's serialized report,
+   * (DECISIONS 2026-08-17): context.json (the renderer's serialized report,
    * written verbatim) plus shot.png when `rect` is given. Dev-only — throws
    * when packaged. Main also allow-lists repoRoot so the renderer's follow-up
    * 'ai:ask' with dir = repoRoot passes root confinement; main writes the
@@ -2030,8 +2030,8 @@ export const CHANNELS = {
   },
 
   /**
-   * Word export (feature-plan-6 §3): renders manuscript.json +
-   * manuscript.md + authors.json + references.bib (feature-plan-7 §1 flat
+   * Word export (ARCHITECTURE §13): renders manuscript.json +
+   * manuscript.md + authors.json + references.bib (ARCHITECTURE §4.3 flat
    * layout — sections are derived from manuscript.md's Markdown headings,
    * not stored separately) through the active profile with the bundled
    * 'docx' library — title page, body, figures, reference list, submission
@@ -2105,7 +2105,7 @@ export const CHANNELS = {
     response: z.object({ path: z.string().min(1) }),
   },
   /**
-   * PDF export (feature-plan-6 §4): the SAME profile-styled content model as
+   * PDF export (ARCHITECTURE §13): the SAME profile-styled content model as
    * 'export:docx', rendered to HTML and printed via a hidden BrowserWindow's
    * `printToPDF` — no LaTeX, no external binary. `figurePngPaths` and
    * `target` have the same contract as 'export:docx'. Writes to
@@ -2182,7 +2182,7 @@ export const CHANNELS = {
   },
   /**
    * A letter's pages, rendered in memory for the Pages view
-   * (feature-plan-13 §B5).
+   * (ARCHITECTURE §13).
    *
    * Deliberately its own channel rather than a `target` on 'export:preview':
    * a cover letter goes through the simpler export-letter.ts pipeline, which
@@ -2368,7 +2368,7 @@ export const EVENT_CHANNELS = {
   /** Terminal event for one 'ai:ask' run: `{ text: string | null, error: string | null }`. */
   aiAskDone: (askId: string) => `ai:done:${askId}`,
   /**
-   * The open project's `suna.json` changed on disk (feature-plan-5 §4: "watch
+   * The open project's `suna.json` changed on disk (ARCHITECTURE §6.1: "watch
    * suna.json for external edits — the user typing in it, or an agent — and
    * re-resolve live"). Payload: `{ dir: string }`, the project root whose
    * manifest moved. A single channel rather than a per-project one: exactly

@@ -25,7 +25,7 @@ interface DragState {
   panY: number
 }
 
-/** Image viewer (feature-plan-4 §2): fit/100%/zoom, drag-to-pan, a pixel
+/** Image viewer (DECISIONS 2026-08-14): fit/100%/zoom, drag-to-pan, a pixel
  *  readout, and a checkerboard behind transparency. */
 export function ImageTab({ params }: DockPanelProps): JSX.Element {
   const path = String(params['path'] ?? '')

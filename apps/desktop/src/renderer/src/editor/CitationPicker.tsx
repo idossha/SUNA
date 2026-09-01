@@ -1,5 +1,5 @@
 /**
- * Insert-citation palette (feature-plan-3.md §1, ⌘⇧K / context-menu "Insert
+ * Insert-citation palette (ARCHITECTURE §17.3, ⌘⇧K / context-menu "Insert
  * citation…"). Reads `<rootDir>/manuscript/<bibliography>` (defaulting to
  * "references.bib" when manuscript.json doesn't specify one — same
  * resolution manuscript/ReferencesBlock.tsx uses), lists its entries,

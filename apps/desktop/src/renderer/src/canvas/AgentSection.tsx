@@ -5,7 +5,7 @@ import { complianceLines, selectionReadout } from './agent-section'
 import { activeCanvasPaletteContext } from './palette-actions'
 
 /**
- * Agent section (feature-plan-8 §4): send the current selection + a prompt
+ * Agent section (ARCHITECTURE §10.4): send the current selection + a prompt
  * to the headless agent CLI as a directed figure edit. Identity for the
  * BUSY key comes from props (per-tab correct even while dockview hides the
  * panel); the send-time facts — rootDir, doc, profile, fresh compliance —

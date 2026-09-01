@@ -3,7 +3,7 @@ import type { Author } from './authors';
 import type { LetterAssertionId, LetterKind } from './letters';
 
 /**
- * The seeded letter skeleton (feature-plan-12 §2e).
+ * The seeded letter skeleton (DECISIONS 2026-08-19).
  *
  * PURE, on purpose: the New Letter sheet previews exactly what `letter:new`
  * writes, and neither can drift from the other. Same discipline as
@@ -129,7 +129,7 @@ export function buildLetterSkeleton(input: LetterSeedInput): string {
 
 /**
  * The abstract seed, delivered as an agent comment on the opening paragraph
- * rather than as prose (feature-plan-12 §2e).
+ * rather than as prose (DECISIONS 2026-08-19).
  */
 export function abstractSeedComment(
   manuscript: LetterSeedInput['manuscript'],

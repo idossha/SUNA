@@ -8,7 +8,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** Step 1 — Where & what (feature-plan-5 §5). Only shown in 'create' mode. */
+/** Step 1 — Where & what (DECISIONS 2026-08-15). Only shown in 'create' mode. */
 export function Step1Location({ state, update }: StepProps): JSX.Element {
   const requestId = useRef(0)
 

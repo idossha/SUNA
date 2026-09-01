@@ -78,7 +78,7 @@ describe('buildContextMenuItems', () => {
   })
 })
 
-describe('buildContextMenuItems — "Open reference PDF" (feature-plan-4.md §3)', () => {
+describe('buildContextMenuItems — "Open reference PDF" (DECISIONS 2026-08-14)', () => {
   it('omits the item entirely when the click did not land on a citation', () => {
     const items = buildContextMenuItems(false, { ...ALL_AVAILABLE, openReferencePdf: null })
     expect(items.filter((e) => e.kind === 'item').map((e) => e.id)).not.toContain('openReferencePdf')

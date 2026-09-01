@@ -19,7 +19,7 @@ import { BUNDLED_PROFILE_IDS, checkLetter, checkResponse, getBundledProfile } fr
 import { resolveInside, type ProjectContext } from './project'
 
 /**
- * Document-registry, letter and round verbs (feature-plan-12 §10).
+ * Document-registry, letter and round verbs (ARCHITECTURE §15.2).
  *
  * One deliberate omission, and it is a design decision rather than an
  * oversight: **there is no verb that writes a letter assertion.** A cover
@@ -228,7 +228,7 @@ function knownJournalNames(): string[] {
 /* ------------------------------------------------------------------ */
 
 function roundsRoot(ctx: ProjectContext): string {
-  // rounds/ is fixed at the project root and is not a ProjectDirKey (ADR-009).
+  // rounds/ is fixed at the project root and is not a ProjectDirKey (ARCHITECTURE §4.2).
   return resolveInside(ctx.root, 'rounds')
 }
 

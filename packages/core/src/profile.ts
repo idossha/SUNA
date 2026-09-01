@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { LetterAssertionIdSchema, LetterKindSchema } from './letters';
 
 /**
- * Publisher profile v3 — author-guideline model (ADR-002).
+ * Publisher profile v3 — author-guideline model (ARCHITECTURE §12).
  *
  * A profile encodes what a journal's published author guidelines actually
  * state: citation/reference formatting, figure design rules, manuscript
@@ -208,7 +208,7 @@ export const ManuscriptRulesSchema = z.object({
     /**
      * Page numbering, when the style states it. OPTIONAL rather than
      * nullable-required because published author guidelines almost never
-     * mention it (ADR-002) and the twelve journal profiles therefore leave
+     * mention it (ARCHITECTURE §12) and the twelve journal profiles therefore leave
      * the field out entirely; absent reads the same as null — "not stated",
      * the user's own toggle to set. The SUNA house style DOES state it,
      * because a house style is allowed to have an opinion.
@@ -234,7 +234,7 @@ export type ManuscriptRules = z.infer<typeof ManuscriptRulesSchema>;
  * guidelines actually say — a figure-label word, a captions-list placement, a
  * references-on-a-new-page rule — and inherits the SUNA default for
  * everything else. Published guidelines almost never state page geometry or
- * point sizes for the *submitted manuscript* (ADR-002), so a journal profile
+ * point sizes for the *submitted manuscript* (ARCHITECTURE §13), so a journal profile
  * carrying typography here would be inventing a rule; `suna.json` itself sets
  * every typography field, which is what makes "SUNA style" a real,
  * reproducible layout rather than a set of magic numbers buried in the DOCX
@@ -313,7 +313,7 @@ export const DocumentStyleSchema = z
 export type DocumentStyle = z.infer<typeof DocumentStyleSchema>;
 
 /* ------------------------------------------------------------------ */
-/* Cover-letter rules (feature-plan-12 §2c) — additive and optional      */
+/* Cover-letter rules (ARCHITECTURE §12) — additive and optional      */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -403,7 +403,7 @@ export const PublisherProfileSchema = z.object({
    */
   documentStyle: DocumentStyleSchema.optional(),
   /**
-   * Cover-letter rules (feature-plan-12 §2c). Absent means nobody has
+   * Cover-letter rules (ARCHITECTURE §12). Absent means nobody has
    * researched this venue's letter requirements — which is NOT the same as
    * the venue not asking for a letter. schemaVersion stays 3 because this is
    * an additive optional, exactly as `documentStyle` was.

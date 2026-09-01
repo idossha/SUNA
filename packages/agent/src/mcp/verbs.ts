@@ -134,7 +134,7 @@ const DEFAULT_MANUSCRIPT_FILE = 'manuscript.md'
 
 /**
  * manuscript.json's `manuscriptFile` field names the one prose file
- * (feature-plan-7 §1 — the flat layout has no `sections/` directory
+ * (ARCHITECTURE §4.3 — the flat layout has no `sections/` directory
  * anymore). Read fresh on every call, same as the rest of this module's
  * "no restart needed" philosophy; a missing or unparsable manuscript.json
  * falls back to the default name rather than failing the whole verb.
@@ -152,12 +152,12 @@ async function manuscriptFileName(ctx: ProjectContext): Promise<string> {
   return DEFAULT_MANUSCRIPT_FILE
 }
 
-/** The whole manuscript prose file (feature-plan-7 §1: one flat manuscript.md, sections are Markdown headings). */
+/** The whole manuscript prose file (ARCHITECTURE §4.3: one flat manuscript.md, sections are Markdown headings). */
 /**
  * What this server last saw each manuscript file contain — recorded on every
  * read and every write it performs itself.
  *
- * write_manuscript checks it before overwriting (feature-plan-11 §11d). The
+ * write_manuscript checks it before overwriting (ARCHITECTURE §15.3). The
  * race it closes is real and routine: the agent reads the manuscript, thinks
  * for thirty seconds, and writes the whole file back — while the author has
  * been typing in SUNA the entire time. Without this the author's paragraphs
@@ -332,7 +332,7 @@ export async function listOutline(ctx: ProjectContext): Promise<string> {
 
 /**
  * manuscript.json (title, figures, tables, back matter, …) plus
- * authors.json (feature-plan-7 §1 moved the byline out of manuscript.json
+ * authors.json (ARCHITECTURE §4.3 moved the byline out of manuscript.json
  * into its own file, so the two are surfaced together here rather than
  * leaving an agent to guess it needs a second read).
  */
@@ -493,7 +493,7 @@ export async function checkManuscriptCompliance(ctx: ProjectContext): Promise<st
 
 /** Tool metadata shared by the server and its tests. */
 export const TOOLS = [
-  // ---- the document registry, letters and rounds (feature-plan-12 §10) ----
+  // ---- the document registry, letters and rounds (ARCHITECTURE §15.2) ----
   // There is deliberately NO verb that writes a letter assertion. A cover
   // letter's assertions are the author's factual claims to an editor, over
   // the author's signature; an agent may draft the argument and read what is

@@ -20,7 +20,7 @@ export type EditorThemeName = string
 export type EditorViewMode = 'source' | 'reading'
 
 /**
- * The view modes a whole DOCUMENT tab offers (feature-plan-13 §B1).
+ * The view modes a whole DOCUMENT tab offers (ARCHITECTURE §13).
  *
  * A manuscript or a letter is exported as pages, so it can also be shown as
  * the pages it will become — read-only, rendered by the exporter itself
@@ -75,7 +75,7 @@ export const EDITOR_SETTINGS_LIMITS = {
 } as const
 
 /**
- * Must match @suna/core's SETTINGS_DEFAULTS (feature-plan-5 §2: 14px / 1.6).
+ * Must match @suna/core's SETTINGS_DEFAULTS (DECISIONS 2026-08-15: 14px / 1.6).
  * This store is what the editor surface renders from, so a mismatch here is
  * what the user actually sees — the resolver's defaults would never show.
  * Persisted user values are unaffected: only the fallback changes.

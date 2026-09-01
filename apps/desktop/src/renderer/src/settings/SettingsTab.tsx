@@ -255,7 +255,7 @@ const DOWNLOAD_POLICY_LABELS: Record<DownloadPolicy, string> = {
 }
 
 /**
- * "Reference library" (feature-plan-10 §Layer 5): which folders on THIS
+ * "Reference library" (ARCHITECTURE §15.5): which folders on THIS
  * machine may be searched for a paper's PDF, whether Spotlight helps, and how
  * far a download may reach.
  *
@@ -1352,7 +1352,7 @@ const SETTINGS_CATEGORIES: readonly [SettingsCategory, ...SettingsCategory[]] = 
 /* --------------------------------------------------------------------------
    "Global (all projects)" — a couple of new typography rows live through the
    same resolver (useResolved + setGlobal) so the Settings page can show the
-   feature-plan-5 §2 defaults (14px / 1.6); everything else here is the
+   DECISIONS 2026-08-15 defaults (14px / 1.6); everything else here is the
    pre-existing settings:set flow via useSettingsStore.update, unchanged.
    -------------------------------------------------------------------------- */
 

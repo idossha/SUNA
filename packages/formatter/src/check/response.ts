@@ -7,7 +7,7 @@ import { pointStateFor, unaddressedPoints } from '@suna/core';
 import type { Diagnostic } from './types';
 
 /**
- * Response-document compliance (feature-plan-12 §6d).
+ * Response-document compliance (ARCHITECTURE §12.1).
  *
  * The completeness check is the whole point of this module, and it exists
  * because of a specific, real failure: a response letter in the evidence set

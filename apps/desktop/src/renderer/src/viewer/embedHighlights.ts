@@ -3,7 +3,7 @@ import type { HighlightRect } from './pdfGeometry'
 import type { PdfViewportLike } from './pdfSelection'
 
 /**
- * Writing SUNA's highlights into the PDF as REAL annotations (ADR-008, amended
+ * Writing SUNA's highlights into the PDF as REAL annotations (ARCHITECTURE §14.4, amended
  * 2026-08-18 on user direction: "the highlighting functionality should be
  * native to the pdf as if we were highlighting in Preview App", then "keep it
  * simple and robust ... make sure everything is updated even if users make
@@ -319,7 +319,7 @@ function overlapsRect(a: HighlightRect, b: HighlightRect, slack = 2): boolean {
  * Identity is GEOMETRY, resolved fresh every time, and that is the whole
  * robustness argument. Nothing is remembered between runs — no baseline, no
  * stored object ref, no hash — so a file rewritten by Preview or re-downloaded
- * by ADR-007's ladder is simply read as it now is. An annotation covering a
+ * by ARCHITECTURE §9's ladder is simply read as it now is. An annotation covering a
  * region one of our notes covers IS that note's; one covering a region no note
  * covers belongs to somebody else and is never touched.
  *

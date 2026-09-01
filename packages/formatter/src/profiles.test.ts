@@ -31,7 +31,7 @@ function articleType(profile: PublisherProfile, id: string): ArticleTypeRules {
   return found;
 }
 
-// feature-plan-6.md §1: journal-profile research pass 2 (2026-08-15) added these
+// ARCHITECTURE §12: journal-profile research pass 2 (2026-08-15) added these
 // eight journals; author-guidelines-findings-2.json is the source of every
 // non-null value below. lastVerified differs from the first research pass
 // (2026-08-13) because these were extracted in a separate session.
@@ -145,7 +145,7 @@ describe('science facts from AAAS instructions', () => {
 });
 
 // The eight describe blocks below cover the journals added by the second
-// research pass (feature-plan-6.md §1); every assertion cites the specific
+// research pass (ARCHITECTURE §12); every assertion cites the specific
 // finding in docs/design/author-guidelines-findings-2.json it traces to.
 
 describe('nature facts from the flagship Nature formatting guide', () => {
@@ -613,7 +613,7 @@ describe('the SUNA house style', () => {
       for (const key of Object.keys(style)) {
         expect(
           (CONVENTION_FIELDS as readonly string[]).includes(key),
-          `${id} documentStyle.${key} is typography — journals must not invent page setup (ADR-002)`,
+          `${id} documentStyle.${key} is typography — journals must not invent page setup (ARCHITECTURE §13)`,
         ).toBe(true);
       }
     }

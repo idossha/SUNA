@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * manuscript/revisions.json — the baseline behind the AI-diff review view
- * (feature-plan-11 §11e).
+ * (ARCHITECTURE §5.6).
  *
  * The rule that shapes everything here: **the manuscript file itself never
  * carries diff markers.** An agent CLI edits files directly and cannot be

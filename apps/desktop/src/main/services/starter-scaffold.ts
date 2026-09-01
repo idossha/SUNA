@@ -311,7 +311,7 @@ export async function writeStarterFigure(projectDir: string, figuresDir: string)
 }
 
 /* ------------------------------------------------------------------ */
-/* The starter cover letter (ADR-009, feature-plan-12 §2)              */
+/* The starter cover letter (ARCHITECTURE §4.2, ARCHITECTURE §14.3)              */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -444,7 +444,7 @@ export function starterLetterPrivate(): LetterPrivate {
 }
 
 /* ------------------------------------------------------------------ */
-/* The starter review round (feature-plan-12 §3, §6)                   */
+/* The starter review round (ARCHITECTURE §4.5)                   */
 /* ------------------------------------------------------------------ */
 
 export const STARTER_ROUND_ID = 'round-1'

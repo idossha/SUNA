@@ -11,7 +11,7 @@ import {
 import { createLetter } from './letter-new'
 
 /**
- * feature-plan-12 §2e end to end, against a real project tree on disk.
+ * DECISIONS 2026-08-19 end to end, against a real project tree on disk.
  */
 
 let dir: string

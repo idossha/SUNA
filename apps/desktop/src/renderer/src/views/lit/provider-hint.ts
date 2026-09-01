@@ -1,7 +1,7 @@
 import type { UiLitProviderId } from '@suna/core'
 
 /**
- * ERROR HONESTY (feature-plan-2 §4): a provider error always renders with a
+ * ERROR HONESTY (DECISIONS 2026-08-14): a provider error always renders with a
  * concrete way forward, never leaves the panel looking like an empty,
  * silently-failed search. Crossref is the keyless, always-available
  * fallback, so every non-Crossref suggestion points back to it.
@@ -17,7 +17,7 @@ export function suggestionFor(provider: UiLitProviderId): string {
 }
 
 /**
- * Short badge shown next to each provider in the picker (feature-plan-3 §2
+ * Short badge shown next to each provider in the picker (ARCHITECTURE §15.6
  * BUILD step 4) — a cost/latency hint, not the longer per-provider note
  * (@suna/core's LIT_PROVIDER_META.note) shown once the provider is selected.
  */

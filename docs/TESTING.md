@@ -16,7 +16,7 @@ the CSVs in `data/`, behind a real analysis pipeline
 same profile a project you create yourself starts in; the journal profiles
 are exercised against this project by `export-profile-contrast.test.ts`.
 
-**`manuscript/` is flat** (feature-plan-7 §1) — exactly four files, no
+**`manuscript/` is flat** (ARCHITECTURE §4.3) — exactly four files, no
 `sections/` directory:
 
 ```
@@ -111,7 +111,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
    the built-in terminal (`touch data/new.csv`), or run an export, and
    the row appears/disappears within ~150 ms without touching anything.
 
-   **Drag-and-drop** (feature-plan-9 §2) — drag a row onto a **folder**
+   **Drag-and-drop** (DECISIONS 2026-08-17) — drag a row onto a **folder**
    to move it in, onto a **file** to move it into that file's folder, or
    onto the empty area below the last row to move it to the project
    root; the resolved target lights up while you hover. A multi-selection
@@ -130,7 +130,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
    `results/spectrum_fit.json` and its tab re-points at the new path
    instead of going dead, which a rename does now too.
 
-   **Reveal in Finder / Open with Default App** (feature-plan-9 §3) —
+   **Reveal in Finder / Open with Default App** (ARCHITECTURE §5.3) —
    the context menu's middle group, ⌥⌘R and ⌥⌘O on the focused row.
    Both act on one row and are disabled with more than one selected,
    like Rename…. The label follows the platform (*Show in Explorer* on
@@ -143,7 +143,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
    was asked for.
 6. **Manuscript view** (activity bar): **clicking the activity-bar icon
    opens (or focuses) the manuscript tab directly** — the old *Open full
-   manuscript* button is gone (feature-plan-7 §2). The sidebar still
+   manuscript* button is gone (ARCHITECTURE §17.3). The sidebar still
    shows the title (its `$z = 1.7$` typeset through KaTeX, like the title
    page), author count (from `authors.json`), abstract word count, the
    ordered outline (level chips + per-section word counts, both derived
@@ -151,7 +151,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
    the first heading), and figure/table counts. Any outline row scrolls
    the open document to that section.
 7. **Manuscript document**: one scrollable page with **ONE editor** over
-   the whole of `manuscript.md` (feature-plan-7 §1 — not one editor per
+   the whole of `manuscript.md` (ARCHITECTURE §4.3 — not one editor per
    section as before). The rendered title page (KaTeX in the title,
    affiliation superscripts derived from author order, `*` + e-mail for
    the corresponding author, small-caps Abstract/Significance blocks) is
@@ -259,7 +259,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
     The rail appears in the combined manuscript tab and in single-file
     prose editor tabs. Agents reach the same file over MCP
     (`list_comments`, `add_comment`, `reply_comment`, `resolve_comment`).
-    **✦ AI** sits between Reply and Resolve on a card (feature-plan-8 §3;
+    **✦ AI** sits between Reply and Resolve on a card (DECISIONS 2026-08-17;
     Claude Code only — codex runs read-only here, and the disabled
     button's title says so): it snapshots the LIVE anchor at click time,
     packs the thread plus ±400 characters of surrounding prose, and
@@ -275,7 +275,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
     batch, so one ⌘Z reverts the whole lettering pass, at the active
     profile's case/weight/wrapper), **Palette** (Fill/Stroke toggle, a
     *No fill* chip, ramps seeded from the profile's suggested palette,
-    *Import palette…*), **Agent** (feature-plan-8 §4: the selection
+    *Import palette…*), **Agent** (ARCHITECTURE §10.4: the selection
     readout — *Selection: `ax0.title` (+2 more)*, or *Whole figure* with
     nothing selected — over a prompt box whose Send captures the selected
     region with the gold overlay deliberately kept in shot and hands it,
@@ -384,7 +384,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
     project directory and drops the answer into the Agent transcript,
     with progress and a **Cancel** that really kills the child. Escape
     closes with nothing changed.
-25. **Project switcher in the title bar** (feature-plan-7 §3). The title
+25. **Project switcher in the title bar** (DECISIONS 2026-08-15). The title
     bar's `SUNA · <project name>` is now a **button** with a chevron
     (with no project open it reads *Open project*). Click it: a menu
     lists up to 8 **recent projects**, each with its parent path, then
@@ -405,7 +405,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
     switch to is in the old `sections/` layout, the status note tells you
     it was migrated — or, if migration was abandoned, says so and leaves
     the project untouched.
-26. **"?" — the keyboard-shortcut overlay** (feature-plan-8 §1). Press
+26. **"?" — the keyboard-shortcut overlay** (DECISIONS 2026-08-17). Press
     **?** anywhere you are not typing: a dialog opens on the section for
     the surface you are on — global / editor / manuscript / canvas /
     explorer / viewers — with `<kbd>` rows and the ⌘/⌃/⌥/⇧ legend in the
@@ -419,7 +419,7 @@ uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
     the code and this file — including the ✦ AI comment button and the
     canvas Agent section.
 
-    **From inside a vim buffer** (feature-plan-9 §1): turn vim motions on
+    **From inside a vim buffer** (DECISIONS 2026-08-17): turn vim motions on
     (gear → Vim motions) and put the cursor in the prose. Vim's own
     **`:help`** (or `:h`) is the ONLY way in from there. A bare **`?`**
     does not work: in NORMAL mode it is vim's search-backward and the
@@ -497,7 +497,7 @@ The recommended order when testing a change:
 3. **`pnpm smoke`** as the regression gate, filtered with
    `--only`/`--from`; the full 71-step run rarely.
 
-### Directed AI actions (feature-plan-8)
+### Directed AI actions (DECISIONS 2026-08-17)
 
 Three surfaces hand targeted work to a headless agent CLI run. All share
 one runner (`renderer/src/ai/directedActions.ts` over the extended
@@ -597,7 +597,7 @@ here:
   "observed" and every id untouched, and the open canvas tab re-read the
   file and rendered the new label without a manual reload.
 
-### Explorer drag-and-drop, and the OS actions (feature-plan-9)
+### Explorer drag-and-drop, and the OS actions (DECISIONS 2026-08-17)
 
 **A test run must never call `shell:reveal` or `shell:open-path` for
 real** — that would pop Finder windows and launch applications onto the
@@ -650,18 +650,17 @@ with Default App* must launch nothing and leave
 pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
-> **STALE as of feature-plan-7 — the driver has not been updated to the
+> **STALE as of the flat layout (ARCHITECTURE §4.3) — the driver has not been updated to the
 > flat layout and several steps below still describe the old one.**
 > `scripts/e2e/smoke.mjs` still clicks `.ms__open` (the removed *Open full
 > manuscript* button, lines 1070/1074/1658/1662/2029), still saves and
 > compares `manuscript/sections/*.md` (lines 1183, 1607, 1852, 4490) and
 > still targets comments at `sections/02-results.md` (lines 2316, 2409).
 > None of those paths or selectors exist any more, so those steps will
-> fail. Feature-plan-7 shipped with `pnpm typecheck`, `pnpm test` and
-> `pnpm --filter @suna/desktop build` as its gates and **no smoke run**;
-> updating the driver is the outstanding follow-up tracked in
-> `docs/design/roadmap.md`. The steps that need rewriting are 17, 18, 29,
-> 31, 35–37 and 43. Everything each of them measures is still a real
+> fail. The flat-manuscript work shipped with `pnpm typecheck`, `pnpm test`
+> and `pnpm --filter @suna/desktop build` as its gates and **no smoke run**
+> (DECISIONS 2026-08-15); updating the driver is tracked in
+> `docs/ROADMAP.md`. Everything each affected step measures is still a real
 > requirement — only the selectors and file paths changed.
 
 Launches the app **hidden** (no window, no dock icon; pass `--show` or
@@ -786,8 +785,8 @@ it:
     spilling out of its row, titles clamped to two lines; and the
     manuscript summary title renders KaTeX with no raw `$`.
 
-Steps 34–43 are the acceptance criteria of
-`docs/design/feature-plan-2.md`, measured the same way:
+Steps 34–43 are the acceptance criteria of the title-page / comments /
+canvas-parity round (DECISIONS 2026-08-14), measured the same way:
 
 34. **title-page-edits-manuscript-json** — the title page renders the
     journal author line with *derived* affiliation superscripts and is
@@ -855,13 +854,13 @@ Steps 34–43 are the acceptance criteria of
 43. **mcp-server-exposes-all-verbs** — the bundled server is probed over
     stdio for `tools/list`: all 20 verbs (including the four comment and
     three literature tools, plus `edit_manuscript` and `check_manuscript`
-    from adr-004) with JSON Schemas. The step then round-trips a real
+    from ARCHITECTURE §15.4) with JSON Schemas. The step then round-trips a real
     `edit_manuscript` (edit a unique phrase, assert the section report,
     revert) and asserts `check_manuscript` speaks against the demo's
     active profile.
 
-Steps 44–47 are the acceptance criteria of
-`docs/design/feature-plan-3.md`, measured the same way:
+Steps 44–47 are the acceptance criteria of the text-editing round
+(ARCHITECTURE §17.3), measured the same way:
 
 44. **markdown-formatting-and-context-menu** (§1) — asserted against
     `sections/02-results.md` **on disk**. Drag-select *centroid*, ⌘B, ⌘S
@@ -940,8 +939,8 @@ Steps 44–47 are the acceptance criteria of
     count: at the original `limit: 20` the same query ran **past** the
     180 s timeout and returned nothing.
 
-Steps 48–54 are the acceptance criteria of
-`docs/design/feature-plan-4.md`, measured the same way:
+Steps 48–54 are the acceptance criteria of the split-view / viewers /
+palette round (DECISIONS 2026-08-14), measured the same way:
 
 48. **split-view-two-groups** (§1) — the dock is emptied first
     (`__sunaDev.dock.clearDock()`), because "the second group" is defined
@@ -1028,8 +1027,8 @@ Steps 48–54 are the acceptance criteria of
     As with step 47, the **billed** leg — a full answer coming back and
     landing in the Agent transcript — is not run on every `pnpm smoke`.
 
-Steps 70–71 are the acceptance criteria of
-`docs/design/feature-plan-9.md`, measured the same way:
+Steps 70–71 are the acceptance criteria of the explorer drag-and-drop
+round (DECISIONS 2026-08-17), measured the same way:
 
 70. **explorer-drag-move** (§2/§3) — a `drag-probe.md` created at the
     root through the real `fs:create-file` channel is dragged onto the
@@ -1075,9 +1074,9 @@ and `23-lit-search.png` from steps 34–41, plus `text-context-menu.png`,
 steps 44–47, plus `split-view.png`, `pdf-viewer.png`,
 `image-viewer.png`, `reference-pdf-side.png` and `command-palette.png`
 from steps 48–53, plus `help-overlay.png` and `comment-ai-busy.png` from
-the feature-plan-8 steps 67–69, plus `explorer-drag-move.png` (taken
+smoke steps 67–69, plus `explorer-drag-move.png` (taken
 mid-drag, with the drop target lit) and `help-in-vim-mode.png` from the
-feature-plan-9 steps 70–71) land in `scripts/e2e/.artifacts/`; failures add
+smoke steps 70–71) land in `scripts/e2e/.artifacts/`; failures add
 `FAIL-<step>.png`. `ai-lit-search.png` in the same directory is from the
 manual billed run described under step 47 — `pnpm smoke` never
 overwrites it.
@@ -1096,7 +1095,7 @@ node scripts/e2e/mcp-probe.mjs --project <dir> --call add_comment \
   '{"path":"manuscript.md","quote":"…","body":"…"}'
 ```
 
-Booting the server has one side effect (adr-004): it heals the machine
+Booting the server has one side effect (ARCHITECTURE §15.4): it heals the machine
 context layer (`~/SunaConfig`, or `$SUNA_CONFIG_DIR`) and the target
 project's agent files (AGENTS.md/CLAUDE.md stubs, `context/`,
 `.gitignore`'s `.mcp.json` line, `.mcp.json`) best-effort before serving.
@@ -1107,7 +1106,7 @@ it is a standalone esbuild bundle, so an edit to `@suna/core`,
 `@suna/markdown` or `verbs.ts` does not reach a running agent CLI until
 `node build-mcp.mjs` runs again.
 
-The prose verbs follow the flat layout (feature-plan-7 §1):
+The prose verbs follow the flat layout (ARCHITECTURE §4.3):
 `read_manuscript` / `write_manuscript` operate on
 `manuscript/<manuscriptFile>` (resolved from `manuscript.json` on every
 call), `list_outline` reports the derived outline (heading, depth, word
@@ -1139,7 +1138,7 @@ Either way you evaluate JS in the page — dev builds expose
 `getReferencePdf`, `settingsStore`, `settingsDefaults`, `terminal` and
 `openProjectAt`.
 
-`openProjectAt(dir)` is feature-plan-7 §3's switching function — the one
+`openProjectAt(dir)` is the project-switching function (DECISIONS 2026-08-15) — the one
 call every "open an existing project" path goes through (the title-bar
 menu's recents, the welcome screen's recents, and *Open project…* once
 its native picker has returned a path). It re-points the project store,
@@ -1163,7 +1162,7 @@ creation order, so `[1]` is the side group) and `panelComponents()` (id →
 dock component, which is how "exactly one PDF tab" is counted without
 re-deriving it from file extensions). `clearDock()` empties the dock so a
 split assertion starts from one known group. `openDocxImportTab(path)` and
-`openExportTab(rootDir)` (feature-plan-6) open the import review and the
+`openExportTab(rootDir)` (ARCHITECTURE §13) open the import review and the
 export dialog directly, bypassing the native file picker the Welcome tab's
 *Import .docx…* button goes through.
 `commands` is the palette's registry — `listCommands`, `getCommand`,
@@ -1186,7 +1185,8 @@ of the schema.
 
 ## DOCX import / export — verifying without the smoke suite
 
-`feature-plan-6` (journal profiles, DOCX import, DOCX/PDF export) was built
+The export round (journal profiles, DOCX import, DOCX/PDF export —
+ARCHITECTURE §12, §13) was built
 and verified with **`pnpm smoke` deliberately not run**. Everything below is
 driven from Node or from unit tests instead, so the whole feature can be
 re-checked without launching the app.
@@ -1262,7 +1262,7 @@ cd python/suna_mpl && uv run pytest  # matplotlib companion
 Note that `pnpm typecheck | tail` **hides a failure** — the pipe reports
 `tail`'s exit status, not `tsc`'s. Check `$?` on the unpiped command.
 
-### Flat-layout coverage (feature-plan-7)
+### Flat-layout coverage (ARCHITECTURE §4.3)
 
 | Test file | Covers |
 | --- | --- |
@@ -1336,7 +1336,7 @@ manual check.
 | `apps/desktop/src/renderer/src/state/explorer.test.ts` | selection semantics — plain/⌘/shift click, backwards ranges, re-shift replacing rather than growing a range, ⌘A, Esc — plus multi-target delete (deletes what it can, names what it could not) and right-click inside vs outside the selection |
 | `apps/desktop/src/main/services/projectTreeWatch.test.ts` | the live-refresh watcher: one notification per burst, ignored paths (`.git`, `node_modules`) not waking it, recursive→flat fallback, one project watched at a time, and no notification after being stopped mid-debounce |
 | `apps/desktop/src/renderer/src/state/dock.test.ts` | the dock fake now emits dockview's panel events, so the open-tab set the explorer's indicators read from is kept in sync by the real code path; plus `retargetPanels` (a moved file, a moved directory's children by `sep` boundary, and the no-match case) |
-| `apps/desktop/src/renderer/src/shell/explorer-dnd.test.ts` | every drop guard (feature-plan-9 §2): folder row vs file row vs empty area, the no-op into a path's own parent, a folder into itself or a descendant — including that `/p/data2` is **not** inside `/p/data` — a row inside the dragged set, collisions named rather than overwritten, and paths outside the root |
+| `apps/desktop/src/renderer/src/shell/explorer-dnd.test.ts` | every drop guard (DECISIONS 2026-08-17): folder row vs file row vs empty area, the no-op into a path's own parent, a folder into itself or a descendant — including that `/p/data2` is **not** inside `/p/data` — a row inside the dragged set, collisions named rather than overwritten, and paths outside the root |
 | `apps/desktop/src/renderer/src/shell/os-actions.test.ts`, `apps/desktop/src/main/services/shell-open.test.ts` | the §3 actions without ever asking the OS: platform labels and the ⌥⌘R/⌥⌘O specs, the file-naming refusal note, and main's refusal table (launchable extensions, the owner-execute bit, a plain directory allowed, root confinement, `openPath`'s `''` success sentinel mapped to `null`) |
 
 Not covered by unit tests: that the OS actually delivers `fs.watch` events
@@ -1369,13 +1369,13 @@ byte-identical with `sections/` intact.
 
 ## Not yet covered
 
-- **The OS effect of the two Finder actions** (feature-plan-9 §3). Every
+- **The OS effect of the two Finder actions** (ARCHITECTURE §5.3). Every
   automated check stops at the IPC boundary on purpose — a real
   `shell:reveal` / `shell:open-path` would open windows on the
   developer's screen — so "Finder actually came up at the right folder"
   is the one-line manual check under *Explorer drag-and-drop, and the OS
   actions*. Last measured: **PENDING**.
-- **The smoke driver's flat-layout update** (feature-plan-7). See the
+- **The smoke driver's flat-layout update** (ARCHITECTURE §4.3). See the
   warning at the top of *Agent / CI smoke test*: `scripts/e2e/smoke.mjs`
   still drives `.ms__open` and `manuscript/sections/*.md`. The milestone
   shipped without a smoke run by request, and the driver was **not**
@@ -1396,7 +1396,7 @@ byte-identical with `sections/` intact.
   has engine tests but no UI yet.
 - Agent chat against a live provider (the smoke test stops at provider
   configuration; no network calls).
-- Export (submission PDF/DOCX) **is** built (feature-plan-6 §3/§4) but has
+- Export (submission PDF/DOCX) **is** built (ARCHITECTURE §13) but has
   **no smoke step** — `pnpm smoke` was excluded from that milestone. It is
   covered by the unit gates and the Node-driven checks described under
   *DOCX import / export* above.
@@ -1416,13 +1416,13 @@ byte-identical with `sections/` intact.
   `import/DocxImportTab.tsx`.
 - The billed `ai-cli` search leg (see step 47) — verified by hand, not by
   `pnpm smoke`.
-- **The billed directed-AI legs** (feature-plan-8): a comment fix landing
+- **The billed directed-AI legs** (DECISIONS 2026-08-17): a comment fix landing
   edit + reply + resolve, and a figure edit surviving
   `check_figure_compliance`. Step 69 starts and cancels a real comment
   fix (unbilled); the full round trips are the manual protocol under
   *Directed AI actions* — both last measured 2026-08-17, see there.
 - **Insert cross-reference…** is specified for the editor context menu
-  (feature-plan-3 §1) but is not implemented: `ContextMenu` supports the
+  (ARCHITECTURE §17.3) but is not implemented: `ContextMenu` supports the
   action and omits any item whose callback a host does not supply, and no
   host supplies this one, so the item never appears. *Insert citation…*
   beside it is wired and working.
@@ -1436,7 +1436,7 @@ byte-identical with `sections/` intact.
   answer arriving and landing in the Agent transcript. Started and
   cancelled by `pnpm smoke`; the complete round trip costs tokens per
   run, so it is a manual check, like step 47's.
-- **"Attach PDF…"** (feature-plan-4 §4) is wired end to end
+- **"Attach PDF…"** (DECISIONS 2026-08-14) is wired end to end
   (`dialog:pick-file` → `fs:copy-file` → rescan) but has **no smoke
   step**: it opens a *native* file dialog, which CDP cannot drive and the
   app exposes no dev seam to bypass. The two IPC channels underneath it

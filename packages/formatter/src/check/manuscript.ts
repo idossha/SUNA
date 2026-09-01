@@ -10,7 +10,7 @@ import type { Diagnostic, DiagnosticSeverity } from './types';
 import { sourceSuffix } from './util';
 
 /**
- * Manuscript compliance checker (ADR-002 §4). Flags violations of the
+ * Manuscript compliance checker (ARCHITECTURE §12.1). Flags violations of the
  * profile's stated manuscript rules for one article type; every null rule
  * ("the journal does not state this") is skipped.
  *
@@ -27,7 +27,7 @@ export interface ManuscriptCheckInput {
   manuscript: Manuscript;
   /**
    * The manuscript prose as Markdown, keyed by file path. Since
-   * feature-plan-7 §1 the prose lives in one flat `manuscript.md`, so this is
+   * ARCHITECTURE §4.3 the prose lives in one flat `manuscript.md`, so this is
    * normally a single entry; the keys are never inspected, only the values
    * (word counts, figure references, and the derived section headings), so a
    * caller with several files may still pass them all.
@@ -175,7 +175,7 @@ function phraseEq(a: string, b: string): boolean {
 }
 
 /**
- * Section headings are DERIVED from the prose (feature-plan-7 §1): the
+ * Section headings are DERIVED from the prose (ARCHITECTURE §4.3): the
  * required-section check reads the Markdown headings out of the same
  * `sectionTexts` the word and figure-reference checks already scan.
  * `outlineFromMarkdown` is the one outline implementation in the repo, so a

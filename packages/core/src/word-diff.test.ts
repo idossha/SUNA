@@ -67,7 +67,7 @@ describe('wordDiff — word resolution', () => {
   });
 
   it('marks only the changed identifier, not the call around it', () => {
-    // The reference case from feature-plan-11: hashlib.md5() -> hashlib.sha256()
+    // The reference case from ARCHITECTURE §5.6: hashlib.md5() -> hashlib.sha256()
     const a = '        h = hashlib.md5()\n';
     const b = '        h = hashlib.sha256()\n';
     checkContract(a, b);

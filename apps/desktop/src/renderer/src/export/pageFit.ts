@@ -1,6 +1,6 @@
 /**
  * How large a page is drawn before the user touches the zoom
- * (feature-plan-13 §B2).
+ * (ARCHITECTURE §13).
  *
  * Pulled out of PagedDocument as a pure function because the difference
  * between the two fits is the difference between the export preview and the

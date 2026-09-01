@@ -1,7 +1,7 @@
 /**
  * Drive probe — is the PDF text layer actually aligned with the rendered page?
  *
- * ADR-008 §M0 claims every selection-derived feature in the PDF viewer is
+ * ARCHITECTURE §14.4 claims every selection-derived feature in the PDF viewer is
  * silently wrong at any zoom but 100%, because `.pdfview__pagesurface` pins
  * `--total-scale-factor: 1` (viewer.css) while pdf.js's TextLayer sizes its
  * spans through that variable — and because our `:is(span, br)` rule sets no

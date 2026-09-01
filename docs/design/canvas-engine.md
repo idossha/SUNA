@@ -1,5 +1,10 @@
 # Canvas Engine Specification
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 Implementation contract for `@suna/canvas`. Extends ADR-001 (custom SVG-DOM
 editor) and reference-analysis §2 (capability ranking). Everything here is
 renderer-side; no Node APIs.

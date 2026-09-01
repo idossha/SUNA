@@ -16,8 +16,8 @@ function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T
 }
 
 /**
- * Recent projects, listed under the welcome screen's actions (feature-plan-5
- * §1). Renders nothing while loading and nothing when the list is empty, so a
+ * Recent projects, listed under the welcome screen's actions (DECISIONS 2026-08-15).
+ * Renders nothing while loading and nothing when the list is empty, so a
  * first-time install still shows today's plain welcome copy.
  *
  * Opening a row goes through state/project.ts's `openProjectAt` (feature-

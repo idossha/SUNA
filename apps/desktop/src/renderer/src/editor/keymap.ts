@@ -1,5 +1,5 @@
 /**
- * Prose formatting shortcuts (feature-plan-3.md §1): ⌘B bold, ⌘I italic,
+ * Prose formatting shortcuts (ARCHITECTURE §17.3): ⌘B bold, ⌘I italic,
  * ⌘⇧C code, ⌘⇧X strikethrough, ⌘K link (selection only — see
  * `insertLinkOnSelection`), ⌘⇧M comment, ⌘⇧K insert citation, ⌘⇧F insert
  * figure.
@@ -12,15 +12,15 @@ import { keymap, type Command, type EditorView } from '@codemirror/view'
 import { insertLink, toggleWrap } from './markdownCommands'
 
 /**
- * ⌘K is claimed by two shipped specs: feature-plan-3 §1 gave it to *Insert
- * link* ("select a word and press ⌘K"), feature-plan-4 §5 gave it to the
+ * ⌘K is claimed by two shipped specs: the editor contract (ARCHITECTURE §17.3) gave it to *Insert
+ * link* ("select a word and press ⌘K"), DECISIONS 2026-08-14 gave it to the
  * command palette ("⌘K opens focused"). Both are real, and a keymap that
  * silently swallows ⌘K inside every prose editor makes the palette
  * unreachable from the app's primary surface — you cannot search files while
  * writing, which is exactly when you want to.
  *
  * The split follows what each spec actually documents: with a **selection**
- * ⌘K wraps it as a link, which is the only form feature-plan-3 describes;
+ * ⌘K wraps it as a link, which is the only form the editor contract describes (ARCHITECTURE §17.3);
  * with an **empty** selection it returns false, so CodeMirror does not
  * preventDefault and the palette's window-level listener opens
  * (CommandPalette.tsx deliberately skips `defaultPrevented` events). The

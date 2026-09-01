@@ -1,6 +1,6 @@
 /**
  * Pure, DOM-free CodeMirror commands for Word/Flux-grade markdown formatting
- * (feature-plan-3.md §1). Every "*Effect" function takes an `EditorState`
+ * (ARCHITECTURE §17.3). Every "*Effect" function takes an `EditorState`
  * and returns a `TransactionSpec` (or null for a no-op) — testable directly
  * with `@codemirror/state`, no `EditorView`/DOM required. The thin `Command`
  * wrappers at the bottom just dispatch that spec on a real view.

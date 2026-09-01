@@ -1,5 +1,5 @@
 /**
- * Shared zoom math for the PDF and image viewers (feature-plan-4 §2): a
+ * Shared zoom math for the PDF and image viewers (DECISIONS 2026-08-14): a
  * clamped multiplicative step for the +/- controls, plus the two "fit"
  * formulas each viewer's default view uses. Pure — no DOM, safe to unit test.
  */

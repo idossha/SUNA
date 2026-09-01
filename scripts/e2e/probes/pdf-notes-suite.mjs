@@ -1,5 +1,5 @@
 /**
- * The reading-notes suite (ADR-008) — the whole highlight/note paradigm, driven
+ * The reading-notes suite (ARCHITECTURE §14.4) — the whole highlight/note paradigm, driven
  * in the running app.
  *
  * Every scenario checks the FILE, not the UI's opinion of it: annotations are

@@ -4,7 +4,7 @@ import { useProjectStore } from './project'
 
 /**
  * The project's document registry and round ledger, as the renderer sees them
- * (feature-plan-12 §1, §3; document-kinds-ux.md §A.1, §D.1).
+ * (ARCHITECTURE §4.2, §3; document-kinds-ux.md §A.1, §D.1).
  *
  * Read-through-refresh rather than a live subscription: both files change only
  * when the user or an agent does something deliberate, and the project tree

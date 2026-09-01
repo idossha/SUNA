@@ -12,7 +12,7 @@ import { useInlineField } from './titlepage-edit/useInlineField'
 
 interface TitlePageProps {
   manuscript: Manuscript
-  /** The byline (manuscript/authors.json — feature-plan-7 §1 split it out of
+  /** The byline (manuscript/authors.json — ARCHITECTURE §4.3 split it out of
    *  manuscript.json), passed separately since ManuscriptSchema no longer
    *  carries it. */
   authors: readonly Author[]

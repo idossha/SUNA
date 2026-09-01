@@ -5,7 +5,7 @@ import type { RenderedPage } from './pdfSelection'
 import { pageTextsOf, resolveRun } from './resolveRuns'
 
 /**
- * Where every note sits, resolved once and shared (ADR-008).
+ * Where every note sits, resolved once and shared (ARCHITECTURE §14.4).
  *
  * One computation feeds two consumers that must not disagree: the overlay the
  * reader sees, and the `/QuadPoints` written into the PDF itself. Computing

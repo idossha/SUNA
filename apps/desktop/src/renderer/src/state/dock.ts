@@ -132,7 +132,7 @@ export function openFileTab(path: string): void {
   })
 }
 
-/** Onboarding wizard entry points (feature-plan-5 §5). */
+/** Onboarding wizard entry points (DECISIONS 2026-08-15). */
 export interface OnboardingParams {
   mode: 'create' | 'setup'
   /** 'setup' only: the existing folder missing suna.json, run steps 2-7 against it. */
@@ -162,7 +162,7 @@ export function openOnboardingTab(params: OnboardingParams): void {
 }
 
 /**
- * Open (or focus) the DOCX Import Review tab (feature-plan-6 §2), keyed by
+ * Open (or focus) the DOCX Import Review tab (DECISIONS 2026-08-15), keyed by
  * the source file's path so importing two different .docx files can be in
  * flight as separate tabs — same pattern as the onboarding wizard's 'setup'
  * mode being keyed by directory.
@@ -210,7 +210,7 @@ export function openTrashTab(rootDir: string): void {
   dockApi.addPanel({ id, component: 'trash', title: 'Trash', params: { rootDir } })
 }
 
-/** Open (or focus) the cross-paper reading notes tab (ADR-008). */
+/** Open (or focus) the cross-paper reading notes tab (ARCHITECTURE §14.4). */
 export function openReadingNotesTab(rootDir: string): void {
   if (!dockApi) return
   const id = `reading-notes:${rootDir}`
@@ -245,7 +245,7 @@ export function openManuscriptTab(rootDir: string): void {
 }
 
 /**
- * Open (or focus) a document tab by registry id (feature-plan-12 §1).
+ * Open (or focus) a document tab by registry id (ARCHITECTURE §4.2).
  *
  * `openManuscriptTab` stays as the alias for the primary document so the
  * three unconditional callers in state/project.ts do not change.
@@ -360,7 +360,7 @@ export function openReviewImportTab(rootDir: string): void {
 }
 
 /**
- * Open (or focus) a version comparison (feature-plan-14 §4).
+ * Open (or focus) a version comparison (DECISIONS 2026-08-21).
  *
  * One panel per pair of sides, so "Round 2 vs the working copy" and "v1.1 vs
  * v2.1" are two tabs rather than one tab that keeps changing under you — the
@@ -441,7 +441,7 @@ export function openRoundTab(rootDir: string, roundId: string): void {
 
 /**
  * Components whose panels point into a specific project's directory —
- * closed by closeProjectTabs (feature-plan-7 §3) when the app switches to a
+ * closed by closeProjectTabs (DECISIONS 2026-08-15) when the app switches to a
  * different project, so no stale editor/viewer survives pointing at the
  * directory that is no longer open. The combined manuscript tab is handled
  * separately below since it keys off `params.rootDir`, not a file path.
@@ -462,7 +462,7 @@ const PROJECT_SCOPED_PATH_COMPONENTS = new Set([
  * panels whose path falls inside it, plus the combined manuscript tab for it.
  * Called by state/project.ts's openProjectAt right after the project store
  * switches to a different directory — the one place project-scoped tabs are
- * closed on a switch (feature-plan-7 §3). Deliberately narrower than "every
+ * closed on a switch (DECISIONS 2026-08-15). Deliberately narrower than "every
  * panel": settings/export/docx-import/onboarding tabs are left open, since
  * none of them silently misrepresents data from the old project the way a
  * stale editor tab would.
@@ -506,7 +506,7 @@ export function closeProjectTabs(rootDir: string): void {
  * reopens at the matching path under `to`. Returns how many panels it
  * rewrote. Called after each successful `fs:move`, and after `fs:rename`,
  * which without it leaves the tab pointing at a path that no longer exists
- * (feature-plan-9 measurement 5).
+ * (DECISIONS 2026-08-17).
  *
  * "Rewrites" means close-and-re-add rather than an in-place patch, and two
  * things force that: DockHost renders a panel's React component ONCE from
@@ -569,8 +569,8 @@ export interface ExportPreselect {
 }
 
 /**
- * Open (or focus) the unified export page for a project (feature-plan-6
- * §3/§4). Every export in the app funnels here — manuscript, supplement,
+ * Open (or focus) the unified export page for a project (ARCHITECTURE §13).
+ * Every export in the app funnels here — manuscript, supplement,
  * cover letters and reviewer responses — so a tab's own Export button passes
  * a `preselect` naming what it wants exported. When the panel already exists
  * the preselect is delivered through dockview's parameter channel
@@ -637,7 +637,7 @@ export function sideGroupId(): string | null {
  * The active panel's file path (its `params.path`), or null when nothing is
  * active or the active panel is a special tab with no `path` param (welcome,
  * settings, the combined manuscript view — those key off `rootDir` instead).
- * Feeds the split commands (feature-plan-4 §1/§5): "duplicate the ACTIVE tab".
+ * Feeds the split commands (DECISIONS 2026-08-14): "duplicate the ACTIVE tab".
  */
 export function activePanelPath(): string | null {
   const panel = dockApi?.activePanel
@@ -681,7 +681,7 @@ export function openPanelSummaries(): PanelSummary[] {
 /**
  * The active panel's dock component kind ('editor', 'canvas', 'manuscript',
  * 'pdf', …), or null when nothing is active. The help overlay feeds this to
- * sectionForSurface for its initial tab (feature-plan-8 §1); the repair
+ * sectionForSurface for its initial tab (DECISIONS 2026-08-17); the repair
  * picker records it in context.json (§5).
  */
 export function activePanelComponent(): string | null {
@@ -737,7 +737,7 @@ function freePanelId(path: string): string {
 
 /**
  * Open `path` in the group beside/below the active one, creating that group on
- * the first call and reusing it afterwards (feature-plan-4 §1). Calling it
+ * the first call and reusing it afterwards (DECISIONS 2026-08-14). Calling it
  * twice for the same file leaves exactly two groups, the second focused on it.
  */
 export function openInSplit(path: string, direction: SplitDirection): void {
@@ -779,8 +779,8 @@ export function openInSplit(path: string, direction: SplitDirection): void {
 /**
  * Show `path` in the side group as *the* viewer there: any PDF/image tab
  * already in that group is closed once the new one is in place, so clicking
- * three references in a row leaves one tab showing the last (feature-plan-4
- * §4). The new panel is added before the old ones are closed — closing the
+ * three references in a row leaves one tab showing the last (DECISIONS 2026-08-14).
+ * The new panel is added before the old ones are closed — closing the
  * group's last panel would destroy the group and collapse the split.
  */
 export function openViewerInSide(path: string): void {
@@ -808,26 +808,26 @@ export const dockDevSeam = {
   openFileTab,
   openInSplit,
   openViewerInSide,
-  /** feature-plan-5 §5: open the wizard the way the welcome screen's buttons do. */
+  /** DECISIONS 2026-08-15: open the wizard the way the welcome screen's buttons do. */
   openOnboardingTab,
   openSettingsTab,
   /**
-   * feature-plan-6 §2: open the DOCX import review for a path directly. The
+   * DECISIONS 2026-08-15: open the DOCX import review for a path directly. The
    * Welcome tab's "Import .docx…" button goes through the NATIVE file picker
    * ('dialog:pick-file'), which CDP cannot drive — this is the bypass, same
    * role the onboarding seam plays for the native folder picker.
    */
   openDocxImportTab,
-  /** feature-plan-6 §3/§4: open the export dialog for a project. */
+  /** ARCHITECTURE §13: open the export dialog for a project. */
   openExportTab,
   /**
-   * feature-plan-8 probes: open-or-focus the combined manuscript tab
+   * DECISIONS 2026-08-17: open-or-focus the combined manuscript tab
    * directly. The UI route (activity-bar click) TOGGLES when the view is
    * already active, so a driver cannot use it idempotently.
    */
   openManuscriptTab,
   /**
-   * feature-plan-13 §B: open a typed document's own tab — a cover letter's,
+   * ARCHITECTURE §13: open a typed document's own tab — a cover letter's,
    * in practice. Its UI route is the Documents sidebar list, which a driver
    * can only reach by matching row text, and a probe that cannot open a
    * letter deterministically ends up asserting against whatever tab happened
@@ -838,7 +838,7 @@ export const dockDevSeam = {
   openSupplementTab,
   openReadingNotesTab,
   /**
-   * feature-plan-12 §6: open the reviewer-import screen. Its UI route is a
+   * ARCHITECTURE §4.5: open the reviewer-import screen. Its UI route is a
    * menu item behind a "+" button that is not mounted in every project view,
    * so a driver cannot reach the screen at all without this seam.
    */
@@ -850,14 +850,14 @@ export const dockDevSeam = {
    */
   openRoundTab,
   /**
-   * feature-plan-14: the version comparison, full-window and beside the
+   * DECISIONS 2026-08-21: the version comparison, full-window and beside the
    * current group. Its UI routes are the round header's "Changes since
    * v1.3" and a hover control in the sidebar's version list, neither of
    * which is mounted in every view — the same reason the round tab is here.
    */
   openCompareTab,
   openCompareInSide,
-  /** feature-plan-7 §3: close every tab scoped to a project directory. */
+  /** DECISIONS 2026-08-15: close every tab scoped to a project directory. */
   closeProjectTabs,
   sideGroupId,
   activePanelPath,
@@ -899,7 +899,7 @@ export const dockDevSeam = {
    * Re-open the welcome tab. The app adds it once at startup and reopens it
    * whenever the user empties the dock, but `clearDock()` deliberately does
    * not — so a driver measuring the welcome screen's recent-projects list
-   * (feature-plan-5 §1) after a project is already open needs a way back.
+   * (DECISIONS 2026-08-15) after a project is already open needs a way back.
    */
   openWelcomeTab: (): void => {
     if (!dockApi) return

@@ -88,7 +88,7 @@ interface VersionedSource {
 }
 
 /**
- * The unified export page (feature-plan-6 §5, extended): one surface for
+ * The unified export page (DECISIONS 2026-08-25, extended): one surface for
  * everything the project exports — the manuscript, the Supplementary
  * Information, every cover letter and every response-to-reviewers round. The
  * left column holds the controls, the right column the live preview and the

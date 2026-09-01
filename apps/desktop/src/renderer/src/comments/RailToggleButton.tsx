@@ -8,7 +8,7 @@ import './comments.css'
  * Carries the open-comment count as a badge (`|| null` semantics: zero
  * renders no badge at all).
  *
- * The count is scoped to ONE document (feature-plan-12 gap 5b). Every
+ * The count is scoped to ONE document (DECISIONS 2026-08-21). Every
  * document kind writes into the one project-wide `manuscript/comments.json`,
  * so an unscoped count would show a manuscript tab the badge for a cover
  * letter's open comments. `docPath` is the manuscript-relative prose path the

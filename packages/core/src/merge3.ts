@@ -1,5 +1,5 @@
 /**
- * Three-way text merge — feature-plan-11 §11c, the piece that turns "an agent
+ * Three-way text merge — ARCHITECTURE §5.5, the piece that turns "an agent
  * wrote while you were typing" from a blocking prompt into a non-event.
  *
  * The situation it exists for: a document session holds unsaved edits (ours)

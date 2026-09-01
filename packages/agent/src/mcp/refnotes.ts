@@ -14,7 +14,7 @@ import { resolveInside, type ProjectContext } from './project';
 
 /**
  * MCP-side reading notes: what the user highlighted in each paper, and which
- * paper it was (ADR-008).
+ * paper it was (ARCHITECTURE §14.4).
  *
  * Reads `references/notes/<citekey>.json` straight off disk, the same
  * discipline `mcp/comments.ts` uses for comments.json — the MCP server runs

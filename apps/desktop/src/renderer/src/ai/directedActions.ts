@@ -1,5 +1,5 @@
 /**
- * The one runner behind the three directed AI actions (feature-plan-8 §2c):
+ * The one runner behind the three directed AI actions (DECISIONS 2026-08-17):
  * comment fix (§3), figure edit (§4), UI repair (§5). Each entry point
  * composes its template, starts a headless 'ai:ask' run with the action's
  * tool allowlist, and drives state/aiActions so any surface can render
@@ -36,7 +36,7 @@ import { peerReviewLearnPrompt, type PeerReviewLearnPromptInput } from './templa
 
 /* ------------------------------------------------------------ allowlists -- */
 
-// Verbatim from feature-plan-8 §2c. Main joins each list into ONE
+// Verbatim from DECISIONS 2026-08-17. Main joins each list into ONE
 // --allowed-tools argv element; the mcp__suna__* names are the registered
 // tools in packages/agent/src/mcp/verbs.ts (+ comments.ts).
 const FIGURE_TOOLS = [
@@ -125,7 +125,7 @@ export function gateFromStatus(
 /**
  * Can a directed action run right now? The §3/§4 buttons call this to
  * disable themselves with an honest title. Uses the same 'lit:cli-status'
- * round trip as the settings page and the same 'lit.cli' preference the
+ * round trip as the settings page and the same 'literature.cli' preference the
  * spawn itself will resolve against.
  */
 export async function cliGate(): Promise<CliGateResult> {

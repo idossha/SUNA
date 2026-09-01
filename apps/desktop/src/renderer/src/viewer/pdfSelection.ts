@@ -7,7 +7,7 @@ import {
 import type { ForeignHighlight } from './pdfGeometry'
 
 /**
- * Turning a drag across a PDF page into anchors (ADR-008 M1).
+ * Turning a drag across a PDF page into anchors (ARCHITECTURE §14.4).
  *
  * Split along the seam this repo already uses: everything above
  * `readPdfSelection` is pure and unit-tested from fixtures; the DOM walk below

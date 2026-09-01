@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------------------------
    Manuscript sidebar view additions — scroll-spy outline rows (clicking one
-   opens/focuses the combined manuscript tab directly; feature-plan-7 §2
+   opens/focuses the combined manuscript tab directly; ARCHITECTURE §17.3
    removed the separate "Open full manuscript" button). Complements
    views.css; only tokens from tokens.css.
    --------------------------------------------------------------------------- */

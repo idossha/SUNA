@@ -1,5 +1,10 @@
 # Signing in to GitHub
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 How SUNA authenticates a user to GitHub, why it is an OAuth App rather than a
 GitHub App, and how to register the one this build uses.
 

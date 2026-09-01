@@ -2,7 +2,7 @@ import { wordDiff, type DiffOp } from './word-diff';
 
 /**
  * Document comparison — what changed between the manuscript the reviewers
- * read and the one you have now (feature-plan-14).
+ * read and the one you have now (DECISIONS 2026-08-21).
  *
  * The primitive underneath is `wordDiff`, which already answers "which words
  * differ" for the AI-revision review bar. What a peer-review comparison needs

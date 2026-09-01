@@ -1,6 +1,6 @@
 /**
  * "Reveal in Finder" / "Open with Default App" for the explorer
- * (feature-plan-9 §3). The menu items and the ⌥⌘R / ⌥⌘O row bindings live in
+ * (ARCHITECTURE §5.3). The menu items and the ⌥⌘R / ⌥⌘O row bindings live in
  * ExplorerView; what lives here is everything that is not a React tree — the
  * platform wording and the two IPC calls — so the view stays a view and the
  * wording stays testable in node.

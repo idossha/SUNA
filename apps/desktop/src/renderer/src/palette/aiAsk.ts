@@ -6,7 +6,7 @@
  * window.suna, same as terminal/sessions.ts's own `startPty`).
  *
  * Two callers: the palette's `?` prefix (no options — the plain read-only
- * ask), and ai/directedActions.ts (feature-plan-8 §2c), which passes the
+ * ask), and ai/directedActions.ts (DECISIONS 2026-08-17), which passes the
  * directed-action options through to the extended 'ai:ask' contract.
  */
 
@@ -23,7 +23,7 @@ export interface AiAskHandle {
   cancel: () => void
 }
 
-/** Directed-action extensions (feature-plan-8 §2a); all claude-spawn-only. */
+/** Directed-action extensions (ARCHITECTURE §15.6); all claude-spawn-only. */
 export interface AiAskRunOptions {
   /** Joined into one --allowed-tools argv element by main. */
   allowedTools?: string[]
@@ -31,7 +31,7 @@ export interface AiAskRunOptions {
   useMcp?: boolean
   /** Deliver the prompt over stdin: no argv limit, and absent from `ps`. */
   viaStdin?: boolean
-  /** One line naming this run in the AI-diff review bar (feature-plan-11). */
+  /** One line naming this run in the AI-diff review bar (ARCHITECTURE §5.6). */
   label?: string
   /** Per-task model tier. Omit to use the project's setting. */
   model?: AiModel
@@ -48,7 +48,7 @@ export async function startAiAsk(
 ): Promise<AiAskHandle> {
   // The agent reads from disk, so anything the author has typed but not saved
   // would be invisible to it — and a whole-file write would then erase it.
-  // feature-plan-11 §11d.
+  // ARCHITECTURE §15.3.
   await flushDirtySessions(dir)
   // Snapshot the manuscript AFTER that flush, so the diff the author reviews
   // afterwards is against what they could actually see. A run that changes

@@ -3,7 +3,7 @@ import { projectTreeLines } from './preview'
 import { createInitialWizardState } from './types'
 
 describe('projectTreeLines', () => {
-  // The flat manuscript directory (feature-plan-7 §1): every scaffold writes
+  // The flat manuscript directory (ARCHITECTURE §4.3): every scaffold writes
   // the same four files, and the preview must say so — sections are headings
   // inside manuscript.md now, so no scaffold produces section FILES at all.
   it('lists the flat manuscript directory and no imported/ dir for the starter scaffold', () => {

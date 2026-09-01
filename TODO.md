@@ -1,9 +1,9 @@
 # TODO
 
 Ideas that are worth doing but are not being done right now. This file is a
-holding pen, not a plan: the master plan is `docs/design/architecture.md`,
-and anything with a settled design belongs in an ADR beside it rather than
-here.
+holding pen, not a plan: the contract is `docs/ARCHITECTURE.md`, what is
+open is `docs/ROADMAP.md`, and anything with a settled design belongs as a
+dated entry in `docs/DECISIONS.md` rather than here.
 
 An entry earns its place by being **actionable later without its author
 present** — enough context that whoever picks it up (human or agent) can

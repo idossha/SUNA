@@ -1,6 +1,6 @@
 /**
  * Drive probe — tables and figures are not split across page boundaries
- * (feature-plan-13 §A5).
+ * (DECISIONS 2026-08-20).
  *
  * A unit test cannot prove this. `break-inside: avoid` is a REQUEST to
  * Chromium's print pass, and whether Chromium honours it on a block container

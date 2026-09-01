@@ -129,7 +129,7 @@ function rowKeepNext(row: string): boolean[] {
   })
 }
 
-describe('tables are held together across a page break (feature-plan-13 §A3)', () => {
+describe('tables are held together across a page break (ARCHITECTURE §13)', () => {
   /** A plain markdown table appended to the fixture prose: no managed caption, no note. */
   const PLAIN_TABLE = '| a | b | c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |'
 
@@ -600,7 +600,7 @@ describe('SUNA style (the house style)', () => {
    * The always-on model: a journal profile inherits the FULL SUNA typography
    * and shifts only the convention deltas its guidelines state. The old
    * "journal profile left completely alone on A4/12pt" behavior is gone BY
-   * DESIGN — no journal states submitted-manuscript page geometry (ADR-002),
+   * DESIGN — no journal states submitted-manuscript page geometry (ARCHITECTURE §13),
    * so every export drafts in SUNA style.
    */
   it('a journal profile inherits the SUNA typography plus only its stated deltas', async () => {

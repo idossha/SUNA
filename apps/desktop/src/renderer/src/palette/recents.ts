@@ -1,5 +1,5 @@
 /**
- * Recent-entry persistence for the command palette (feature-plan-4 §5):
+ * Recent-entry persistence for the command palette (DECISIONS 2026-08-14):
  * "Recent entries persist per project (last 20) and appear on an empty
  * input." Stored via the existing 'settings:set' bag under a key namespaced
  * by project root, alongside the app's other per-project overrides — never a

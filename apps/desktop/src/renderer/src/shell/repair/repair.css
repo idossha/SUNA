@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   "Repair this UI" picker (feature-plan-8 §5, dev-only). `.repair-picker` is
+   "Repair this UI" picker (DECISIONS 2026-08-17, dev-only). `.repair-picker` is
    a §7 probe selector. Sits ABOVE the palette/toasts layer (z 200) — a
    repair report may be about those overlays themselves.
    --------------------------------------------------------------------------- */

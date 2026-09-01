@@ -143,7 +143,7 @@ export function makeManuscript(): Manuscript {
 }
 
 /**
- * The manuscript prose — ONE flat `manuscript.md` since feature-plan-7 §1,
+ * The manuscript prose — ONE flat `manuscript.md` (ARCHITECTURE §4.3),
  * whose Markdown headings are the sections the required-section check reads.
  *
  * Total counted words is still exactly 900 (the fixture arithmetic every word

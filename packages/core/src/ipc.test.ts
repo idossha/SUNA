@@ -12,7 +12,7 @@ import { DEFAULT_LIBRARY_CONFIG, DEFAULT_LIBRARY_ROOTS } from './library';
 import { type LitResult } from './lit';
 import { DEFAULT_PROJECT_DIRS } from './project';
 
-/** Gunn & Gott 1972 — the paper feature-plan-10's own examples are written around. */
+/** Gunn & Gott 1972 — the paper the study-acquisition examples are written around. */
 const GUNN: LitResult = {
   source: 'crossref',
   id: '10.1086/151605',

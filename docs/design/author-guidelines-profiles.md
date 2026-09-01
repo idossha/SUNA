@@ -1,3 +1,8 @@
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 oritative formatting source; IOP defers to them.",
       "The ApJL '5-6 page limit' seen in web summaries is third-party and excluded; official page states word/figure limits only, no longer compulsory."
     ]

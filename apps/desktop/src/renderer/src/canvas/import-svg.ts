@@ -1,5 +1,5 @@
 /**
- * SVG import pipeline (feature-plan-3 §4): pure string transforms so the
+ * SVG import pipeline (DECISIONS 2026-08-14): pure string transforms so the
  * riskiest part — id namespacing — is unit-testable without a DOM. The
  * engine's `insert` command wraps `cmd.svg` in a temporary
  * `<svg xmlns=".." xmlns:xlink="..">` context and requires exactly one root

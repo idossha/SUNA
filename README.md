@@ -74,7 +74,7 @@ request, and additionally packages the app on macOS and launches the real
 bundle — the packaged layout is the one thing `pnpm dev` can never exercise.
 
 `pnpm smoke` walkthrough details and the human testing script live in
-[TESTING.md](TESTING.md). What goes inside the bundle is
+[docs/TESTING.md](docs/TESTING.md). What goes inside the bundle is
 [docs/packaging.md](docs/packaging.md); cutting a release, and the macOS
 signing and notarization rules, are [docs/RELEASING.md](docs/RELEASING.md).
 
@@ -92,6 +92,7 @@ pnpm docs:shots     # regenerate every screenshot from the running app
 Every screenshot on the site is captured from a hidden SUNA driving
 `examples/hello-suna`, so the docs can be re-rendered whenever the UI moves.
 
-Design decisions live in `docs/design/architecture.md`; the formatter and
+The contract is `docs/ARCHITECTURE.md` and the decisions behind it are in
+`docs/DECISIONS.md`; the formatter and
 canvas requirements are derived from published Nature-family papers in
 `docs/design/reference-analysis.md`.

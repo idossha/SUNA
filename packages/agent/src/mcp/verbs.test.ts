@@ -18,7 +18,7 @@ import {
 import type { ProjectContext } from './project'
 
 /**
- * feature-plan-7 §1 realignment: the manuscript is one flat manuscript.md
+ * ARCHITECTURE §4.3 realignment: the manuscript is one flat manuscript.md
  * (no more manuscript/sections/*.md), so `read_section`/`write_section`
  * become thin aliases over `read_manuscript`/`write_manuscript`, and
  * `list_outline`/the byline in `read_manuscript_meta` are new.
@@ -53,7 +53,7 @@ afterEach(async () => {
 })
 
 /**
- * feature-plan-11 §11d. The race: the agent reads the manuscript, thinks for
+ * ARCHITECTURE §15.3. The race: the agent reads the manuscript, thinks for
  * half a minute, and writes the whole file back — while the author has been
  * typing in SUNA the entire time. A blind overwrite erases their paragraphs
  * with nothing anywhere recording that it happened.

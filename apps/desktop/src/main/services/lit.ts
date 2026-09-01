@@ -7,7 +7,7 @@
 export { lookupByDoi, searchLiterature } from '@suna/bib'
 
 /**
- * The 'ai-cli' provider (feature-plan-3 §2): spawns a Claude Code or Codex
+ * The 'ai-cli' provider (ARCHITECTURE §15.6): spawns a Claude Code or Codex
  * CLI as a child process from THIS process — the only place in the app that
  * touches child_process for literature search. `@suna/bib` does the pure
  * parsing (JSON.parse → strip fences → validate, dropping malformed items);
@@ -17,7 +17,7 @@ export { lookupByDoi, searchLiterature } from '@suna/bib'
  * Deliberately NOT wired into the MCP `search_literature` tool (an agent
  * already has its own web search — see packages/agent/src/mcp/lit.ts).
  *
- * Ground truth (probed 2026-08-14, feature-plan-3 §2.0, plus a live
+ * Ground truth (probed 2026-08-14, ARCHITECTURE §9, plus a live
  * verification run for codex during this build — see providers.ts's
  * ai-cli section doc for the exact commands):
  *   - claude: `-p "<prompt>" --output-format json --allowed-tools WebSearch`.
@@ -99,7 +99,7 @@ export async function detectAvailableClis(probe: CliProbe = defaultProbe): Promi
   return available
 }
 
-/** Applies the 'lit.cli' settings preference ('auto' | 'claude' | 'codex') against what's installed. */
+/** Applies the 'literature.cli' settings preference ('auto' | 'claude' | 'codex') against what's installed. */
 export async function resolveCli(
   preference: LitCliPreference,
   probe: CliProbe = defaultProbe
@@ -355,7 +355,7 @@ async function runCodexSearch(
 }
 
 /**
- * Run an 'ai-cli' search: resolves which CLI to use (settings 'lit.cli'
+ * Run an 'ai-cli' search: resolves which CLI to use (settings 'literature.cli'
  * preference against what's installed), spawns it, and returns once it
  * completes, was cancelled (`cancelAiCliSearch`), or hit the 180s timeout.
  * Never throws — every failure mode comes back as `{ results: [], error }`.

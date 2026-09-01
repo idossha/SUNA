@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { VERSION_ID_RE, compareVersions, parseVersionId, type LoggedVersion } from './versions';
 
 /**
- * Rounds — the development ledger (ADR-009, feature-plan-12 §3 and §6).
+ * Rounds — the development ledger (ARCHITECTURE §4.2, ARCHITECTURE §4.5 and §6).
  *
  * A manuscript moves through rounds after the analysis is done: internal
  * circulations to co-authors, and external submission/review/revision cycles.
@@ -193,7 +193,7 @@ export const RoundSchema = z.object({
   responseDocumentId: z.string().min(1).nullable().default(null),
   /**
    * The logged version (`manuscript/archive/vX.Y`) that went out — the exact
-   * text these reviewers read (feature-plan-14 §1).
+   * text these reviewers read (DECISIONS 2026-08-21).
    *
    * A pointer into the version archive rather than a second copy of the
    * bytes: the archive is already read-only, already carries the code and

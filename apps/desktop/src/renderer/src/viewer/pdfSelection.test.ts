@@ -9,7 +9,7 @@ import {
 } from './pdfSelection'
 
 /**
- * The pure half of PDF selection (ADR-008 M1). The DOM walk in
+ * The pure half of PDF selection (ARCHITECTURE §14.4). The DOM walk in
  * `readPdfSelection` needs a live pdf.js text layer and is measured by
  * `scripts/e2e/probes/pdf-quote.mjs` instead — the same split
  * `CommentsRail.test.ts` makes.

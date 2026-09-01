@@ -1,5 +1,5 @@
 /**
- * Title-bar project switcher (feature-plan-7 §3): opened from the project
+ * Title-bar project switcher (DECISIONS 2026-08-15): opened from the project
  * name button in TitleBar.tsx. Lists recent projects (capped at 8, missing
  * ones dimmed with a Remove action), then "Open project…", "New project…",
  * "Open example".

@@ -74,7 +74,7 @@ describe('createExRegistry', () => {
   })
 
   /**
-   * `:help` / `:h` (feature-plan-9 §1). In vim NORMAL mode a bare `?` is
+   * `:help` / `:h` (DECISIONS 2026-08-17). In vim NORMAL mode a bare `?` is
    * search-backward and never reaches a window listener at all, so `:help` is
    * the vim-native way out of the buffer — and it is app-wide, not per-view.
    */

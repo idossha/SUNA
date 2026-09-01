@@ -59,7 +59,7 @@ import './viewer.css'
 // electron-vite/Vite resolves this bare specifier through the same node
 // resolution it uses for static imports and emits it as a built worker
 // asset (this is pdf.js's own documented Vite integration pattern — see
-// feature-plan-4 §0/§2). If that ever proves brittle in a real build, the
+// DECISIONS 2026-08-14). If that ever proves brittle in a real build, the
 // fallback is a `?url` asset import of the same file, or
 // `disableWorker: true` on getDocument; neither was needed here.
 GlobalWorkerOptions.workerSrc = new URL(
@@ -69,7 +69,7 @@ GlobalWorkerOptions.workerSrc = new URL(
 
 const PAGE_GAP = 12
 /** IntersectionObserver rootMargin: render pages within ~one screen's reach
- *  of the viewport, in each direction (feature-plan-4 §2's "±1 page" — a
+ *  of the viewport, in each direction (DECISIONS 2026-08-14's "±1 page" — a
  *  fixed px margin rather than a literal page count, since page height
  *  varies with zoom; see PdfTab report notes). */
 const RENDER_MARGIN_PX = 800
@@ -140,7 +140,7 @@ function PdfPageCanvas({
       // getTextContent() rather than streamTextContent(): the SAME items array
       // both feeds the layer and builds the page text an anchor is measured
       // against, so `textDivs[i]` and `itemStarts[i]` cannot describe different
-      // items (ADR-008). Streaming would give the layer its items and leave us
+      // items (ARCHITECTURE §14.4). Streaming would give the layer its items and leave us
       // fetching a second, independently-ordered copy.
       void (async () => {
         try {
@@ -185,7 +185,7 @@ function PdfPageCanvas({
   )
 }
 
-/** PDF viewer (feature-plan-4 §2): continuous vertical scroll, lazy per-page
+/** PDF viewer (DECISIONS 2026-08-14): continuous vertical scroll, lazy per-page
  *  canvas rendering, a selectable text layer, and fit-width/zoom controls. */
 export function PdfTab({ params }: DockPanelProps): JSX.Element {
   const path = String(params['path'] ?? '')

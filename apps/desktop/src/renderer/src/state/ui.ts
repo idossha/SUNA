@@ -171,7 +171,7 @@ interface UiState {
   /** Comments rail (both editing surfaces share one visibility + width). */
   commentsRailVisible: boolean
   commentsRailWidth: number
-  /** "?" keyboard-shortcut overlay (feature-plan-8 §1). Not persisted. */
+  /** "?" keyboard-shortcut overlay (DECISIONS 2026-08-17). Not persisted. */
   helpOpen: boolean
   setActiveView: (view: SidebarView) => void
   setSidebarVisible: (visible: boolean) => void
@@ -219,7 +219,7 @@ export const useUiStore = create<UiState>((set, get) => ({
     )
     // Activating the Manuscript view (not merely toggling it while it's
     // already active, per the branch above) opens or focuses the combined
-    // manuscript tab directly (feature-plan-7 §2) — the sidebar still shows
+    // manuscript tab directly (ARCHITECTURE §17.3) — the sidebar still shows
     // the outline + metadata summary alongside it. A side effect, so it runs
     // after the state update rather than inside the `set` updater itself.
     if (!wasActive && view === 'manuscript') {

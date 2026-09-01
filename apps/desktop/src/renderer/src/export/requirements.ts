@@ -7,7 +7,7 @@ import type { CitationMode, PublisherProfile } from '@suna/core'
  * comments/railCss.test.ts and the palette helpers).
  *
  * The one schema rule that governs everything here: `null` means "the journal
- * does not state this" (ADR-002). Null never becomes an invented value — it is
+ * does not state this" (ARCHITECTURE §12). Null never becomes an invented value — it is
  * either rendered as an explicit "not stated" status (submission-format rows)
  * or the item is omitted entirely (limits, figure rules, availability). A
  * section whose profile block states nothing at all comes back null/empty so

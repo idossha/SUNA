@@ -8,7 +8,7 @@ import { allowRoot } from './roots'
 
 /**
  * The whole point of this file: a test run must NEVER open a Finder window or
- * launch an application on the developer's screen (feature-plan-9 §5). Both
+ * launch an application on the developer's screen (ARCHITECTURE §5.3). Both
  * shell entry points are mocked the way fs.test.ts mocks trashItem, and every
  * assertion stops at "was the OS asked, and with what".
  */

@@ -6,7 +6,7 @@ import { readLetterMeta } from './letter-new'
 import { documentFile, projectDocument, projectSubdir } from './paths'
 
 /**
- * Run the letter checker for one document in a project (feature-plan-12 §2d).
+ * Run the letter checker for one document in a project (ARCHITECTURE §12.1).
  *
  * Lives here rather than in the IPC handler because it has to gather four
  * things off disk — the sidecar, the prose, authors.json, and the venue's

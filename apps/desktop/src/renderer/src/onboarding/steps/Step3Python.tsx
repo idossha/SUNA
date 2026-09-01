@@ -6,7 +6,7 @@ interface Step4Props extends StepProps {
   scanDir: string | null
 }
 
-/** Step 4 — Python environment (feature-plan-5 §5). Nothing runs until Create project. */
+/** Step 4 — Python environment (DECISIONS 2026-08-15). Nothing runs until Create project. */
 export function Step3Python({ state, update, scanDir }: Step4Props): JSX.Element {
   useEffect(() => {
     if (state.envsScanned || scanDir === null) return

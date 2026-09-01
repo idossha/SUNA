@@ -27,7 +27,7 @@ function verbOf(row: string): string {
  * The MCP.md ↔ TOOLS comparison, factored out of the gate so the gate itself
  * can be tested — a drift gate nobody has watched fail is a comment.
  *
- * ADR-004 §Drift gates promises the table equals the registry in "names and
+ * ARCHITECTURE §21 promises the table equals the registry in "names and
  * count". The Set comparison this replaces delivered only the first half:
  * duplicating a row left the two Sets equal, so an MCP.md listing
  * `cite_study` twice — 24 rows against 23 verbs, reading to the agent as if

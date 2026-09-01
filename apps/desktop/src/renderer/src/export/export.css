@@ -94,7 +94,7 @@
   min-height: 0;
 }
 
-/* A block that could not fit the page (feature-plan-13 §A4). Warning-toned,
+/* A block that could not fit the page (ARCHITECTURE §13). Warning-toned,
    not error-toned: the export succeeded and the file is usable — this is
    something only the author can act on, so it must be visible without
    reading as a failure. */
@@ -358,7 +358,7 @@
 /* ------------------------------------------------------------------ */
 /* Requirements panel (RequirementsPanel.tsx): the journal's own stated */
 /* rules, rendered informationally — "not stated" is always shown as    */
-/* such, never invented (ADR-002's null rule).                          */
+/* such, never invented (ARCHITECTURE §12's null rule).                          */
 /* ------------------------------------------------------------------ */
 
 .req-panel {

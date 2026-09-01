@@ -1,5 +1,5 @@
 /**
- * Drive probe — the AI-change review view (feature-plan-11 §11e–§11g).
+ * Drive probe — the AI-change review view (ARCHITECTURE §5.6).
  *
  * Drives the real surfaces end to end: a baseline is written to
  * manuscript/revisions.json, the manuscript is edited the way an agent's

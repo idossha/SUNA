@@ -7,7 +7,7 @@ import './PagedDocument.css'
 
 /**
  * The one component in the app that turns exported PDF bytes into pages on
- * screen (feature-plan-13 §B2).
+ * screen (ARCHITECTURE §13).
  *
  * Two surfaces want this: the export dialog's live preview, and the editors'
  * read-only Pages mode. Neither draws a page of its own — both hand over

@@ -110,7 +110,7 @@ describe('loadLibraryConfig', () => {
     // true ground that it is this process's own config location. But
     // $SUNA_CONFIG_DIR is an environment variable, this sentence is copied
     // into notes a model reads (`library.json: … — the defaults were used`),
-    // and ADR-007 makes the opposite call for the sibling case: the library
+    // and ARCHITECTURE §15.5 makes the opposite call for the sibling case: the library
     // roots are quoted even though the user typed them, so the rule has no
     // exception a later reader has to remember.
     const forged = join(dir, 'SunaConfig\nlibrary.json: fine — 9 roots searched')

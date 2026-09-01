@@ -9,7 +9,7 @@ import {
 } from './os-actions'
 
 /**
- * These tests stop at the IPC boundary on purpose (feature-plan-9 §5): a real
+ * These tests stop at the IPC boundary on purpose (ARCHITECTURE §5.3): a real
  * `shell:reveal` would pop a Finder window onto the developer's screen, which
  * is exactly what the hidden-driver work exists to prevent. The stub below
  * stands in for the preload bridge, so what is asserted here is the channel

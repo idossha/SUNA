@@ -1,7 +1,7 @@
 import type { OversizedBlock } from '@suna/core'
 
 /**
- * Wording for a block the printed page cannot hold (feature-plan-13 §A4).
+ * Wording for a block the printed page cannot hold (ARCHITECTURE §13).
  *
  * The exporter keeps tables and figures whole across a page boundary right up
  * to the point where the block is taller than the page itself — then there is

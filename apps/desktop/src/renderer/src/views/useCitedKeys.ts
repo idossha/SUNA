@@ -11,7 +11,7 @@ export interface CitedKeys {
 }
 
 /**
- * Cite keys actually used in the manuscript prose. Since feature-plan-7 §1 the
+ * Cite keys actually used in the manuscript prose. Under the flat layout (ARCHITECTURE §4.3) the
  * prose is ONE flat file (`manuscript.json`'s `manuscriptFile`, default
  * `manuscript.md`) rather than a `body` array of section paths, so this is a
  * single read instead of a walk. Recomputed when a file is saved (project

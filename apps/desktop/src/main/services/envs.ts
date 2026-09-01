@@ -146,7 +146,7 @@ async function defaultUvVenvRunner(dir: string): Promise<void> {
  * Runs `uv venv` in `dir` (the project directory the wizard just created).
  * Never throws: a missing `uv` or a failed venv creation comes back as
  * `ok: false` with a human `error`, so one failed sub-step of Create project
- * never takes down the rest (feature-plan-5 §5 step 7).
+ * never takes down the rest (DECISIONS 2026-08-15).
  */
 export async function createEnvWithUv(
   dir: string,

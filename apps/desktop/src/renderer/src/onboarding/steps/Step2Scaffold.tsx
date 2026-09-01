@@ -23,7 +23,7 @@ const SCAFFOLD_OPTIONS: { id: ScaffoldKind; title: string; hint: string }[] = [
   }
 ]
 
-/** Step 3 — What to scaffold (feature-plan-5 §5). */
+/** Step 3 — What to scaffold (DECISIONS 2026-08-15). */
 export function Step2Scaffold({ state, update }: StepProps): JSX.Element {
   const pickDocument = async (): Promise<void> => {
     try {

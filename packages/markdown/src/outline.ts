@@ -6,7 +6,7 @@ import { unified } from 'unified';
 
 /**
  * The manuscript outline, DERIVED from manuscript.md rather than stored
- * (feature-plan-7 §1). `manuscript.json` no longer carries a `body` array of
+ * (ARCHITECTURE §4.3). `manuscript.json` no longer carries a `body` array of
  * section-file pointers: the prose file is the source of truth and its
  * Markdown headings ARE the sections.
  *

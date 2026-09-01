@@ -5,7 +5,7 @@ import './segmented.css'
  * A segmented control: two or more mutually exclusive options, all visible,
  * one lit.
  *
- * Introduced for the document tabs' view switch (feature-plan-13 §B1). It
+ * Introduced for the document tabs' view switch (ARCHITECTURE §13). It
  * replaced a single button that CYCLED — a control that showed the mode you
  * were in but not the modes you could reach, so "what else is there?" could
  * only be answered by clicking and finding out. With three modes rather than

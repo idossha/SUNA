@@ -1,5 +1,5 @@
 /**
- * DOCX import orchestrator (feature-plan-6 §2) — the only impure file in the
+ * DOCX import orchestrator (DECISIONS 2026-08-15) — the only impure file in the
  * import pipeline. `analyzeDocx` runs mammoth + the pure heuristics in
  * docx-html.ts/docx-heuristics.ts/docx-references.ts and returns a
  * `DocxAnalysis` WITHOUT writing anything to the target project; `commitDocxAnalysis`
@@ -333,7 +333,7 @@ function requireComplete(analysis: DocxAnalysis): void {
   }
 }
 
-/** figures/<id>/figure.<ext> relative to manuscript/manuscript.md (feature-plan-7 §1: one flat prose file). */
+/** figures/<id>/figure.<ext> relative to manuscript/manuscript.md (ARCHITECTURE §4.3: one flat prose file). */
 function figureRelativePath(id: string, ext: string): string {
   return `../figures/${id}/figure.${ext}`
 }
@@ -437,8 +437,8 @@ interface BuiltManuscript {
 }
 
 /**
- * Builds manuscript.json's metadata (no prose, no byline — feature-plan-7
- * §1) and authors.json's byline together, since both derive from the same
+ * Builds manuscript.json's metadata (no prose, no byline — ARCHITECTURE §4.3)
+ *  and authors.json's byline together, since both derive from the same
  * correspondence-line split.
  */
 function buildManuscriptAndAuthors(analysis: DocxAnalysis): BuiltManuscript {

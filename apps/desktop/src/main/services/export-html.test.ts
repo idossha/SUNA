@@ -308,7 +308,7 @@ describe('buildManuscriptHtml', () => {
  * mirroring the SUNA reading tab — linked citations, in-page cross-refs,
  * inlined figures and KaTeX, the reading palette/typography.
  */
-describe('page-break rules in the printed stylesheet (feature-plan-13 §A2)', () => {
+describe('page-break rules in the printed stylesheet (ARCHITECTURE §13)', () => {
   /**
    * These assert the DECLARATION only. Whether Chromium honours it is an
    * empirical question about the print pass, answered by the rendered bytes

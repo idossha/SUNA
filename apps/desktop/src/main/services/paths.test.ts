@@ -16,7 +16,7 @@ import {
 } from './paths'
 
 /**
- * feature-plan-12 §1's load-bearing acceptance criterion: a project with no
+ * ARCHITECTURE §4.2's load-bearing acceptance criterion: a project with no
  * `documents` field in suna.json resolves byte-identical paths through the
  * registry helpers and through the three helpers that predate them.
  */

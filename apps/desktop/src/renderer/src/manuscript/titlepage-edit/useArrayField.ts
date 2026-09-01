@@ -16,7 +16,7 @@ export interface ArrayFieldController<T> {
 }
 
 /**
- * One authors.json array field (authors, affiliations — feature-plan-7 §1
+ * One authors.json array field (authors, affiliations — ARCHITECTURE §4.3
  * moved the byline out of manuscript.json) edited as a whole: every change
  * here is a full-array patch, committed through `commitAuthorsPatch`'s own
  * read-merge-validate-write. Local `list` is authoritative once mounted; it

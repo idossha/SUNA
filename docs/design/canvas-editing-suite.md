@@ -1,5 +1,10 @@
 # Canvas Editing Suite Specification
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 The Figma-grade interaction layer over the `@suna/canvas` engine
 (canvas-engine.md). Everything here compiles to existing engine commands —
 no new mutation primitives. Two layers:

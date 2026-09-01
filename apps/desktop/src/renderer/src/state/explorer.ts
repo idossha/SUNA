@@ -176,7 +176,7 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
         })
         // Before this, a rename orphaned its open tab: the panel kept the old
         // path and quietly stopped matching anything on disk
-        // (feature-plan-9 measurement 5). Retarget FIRST, so the openFileTab
+        // (DECISIONS 2026-08-17). Retarget FIRST, so the openFileTab
         // below focuses the tab that already holds the file instead of
         // opening a second one beside the dead one.
         retargetPanels(editing.path, path)
@@ -201,7 +201,7 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
   },
 
   /**
-   * One drop is one `fs:move` call and one status note (feature-plan-9 §2).
+   * One drop is one `fs:move` call and one status note (DECISIONS 2026-08-17).
    * The tree is NOT re-listed here: main watches the project directory and
    * pushes a refresh, which is the same route an agent's or the terminal's
    * writes take. What this does own is everything the watcher cannot know —

@@ -1,5 +1,5 @@
 /**
- * Extension → MIME mapping for ImageTab (feature-plan-4 §2). Bytes arrive as
+ * Extension → MIME mapping for ImageTab (DECISIONS 2026-08-14). Bytes arrive as
  * base64 from `fs:read-binary`; the viewer turns them into a `data:` URI
  * rather than a `file://` load (no CSP relaxation needed). Pure string logic.
  */

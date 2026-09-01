@@ -11,7 +11,7 @@ import { useManuscriptStore } from './manuscript'
 import { useUiStore } from './ui'
 
 /**
- * The AI-diff baseline (feature-plan-11 §11e/§11f), backed by
+ * The AI-diff baseline (ARCHITECTURE §5.6), backed by
  * manuscript/revisions.json.
  *
  * A revision is opened when an AI run starts, holding the manuscript's text

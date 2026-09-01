@@ -35,7 +35,7 @@ export type AuthorsCommitResult =
 
 /**
  * The authors/affiliations counterpart of `commitManuscriptPatch`, targeting
- * manuscript/authors.json (feature-plan-7 §1 moved the byline out of
+ * manuscript/authors.json (ARCHITECTURE §4.3 moved the byline out of
  * manuscript.json — see AuthorsFileSchema). There is no dedicated
  * `authors:update` IPC channel (the foundation's `manuscript:update`
  * read-merge-validate-write only ever touched manuscript.json), so this does

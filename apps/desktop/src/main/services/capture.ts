@@ -1,6 +1,6 @@
 /**
- * Region capture and the dev-only "Repair this UI" bundle (feature-plan-8
- * §2b): the services behind 'app:capture-rect', 'app:dev-info' and
+ * Region capture and the dev-only "Repair this UI" bundle (DECISIONS 2026-08-17):
+ * the services behind 'app:capture-rect', 'app:dev-info' and
  * 'ai:repair-bundle'. The capture feeds the canvas Agent section — the gold
  * selection overlay stays visible in the shot on purpose, it is how the
  * agent learns what "the selection" means — and the repair bundle is the

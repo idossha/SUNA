@@ -11,7 +11,7 @@ import type { DocumentStyle, PublisherProfile } from '@suna/core'
  * on top of it by `resolveDocumentStyle`: a journal profile states only what
  * its published author guidelines actually say (a figure-label word, a
  * captions-list requirement), because guidelines almost never state page
- * geometry or point sizes for the submitted manuscript (ADR-002), and
+ * geometry or point sizes for the submitted manuscript (ARCHITECTURE §13), and
  * inventing per-journal typography would be exactly the kind of guess this
  * codebase refuses to make. Everything a profile leaves unstated inherits the
  * SUNA default below.

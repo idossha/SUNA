@@ -25,7 +25,7 @@ import { writeFileAtomic } from './atomic'
 import { projectDocuments, projectSubdir } from './paths'
 
 /**
- * Create a cover letter (feature-plan-12 §2e, document-kinds-ux.md §A).
+ * Create a cover letter (DECISIONS 2026-08-19, document-kinds-ux.md §A).
  *
  * The order of operations is the whole point and is not negotiable:
  *

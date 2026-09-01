@@ -43,7 +43,7 @@ function RunSpans({ runs }: { runs: readonly Run[] }): JSX.Element {
 
 interface ReferencesBlockProps {
   rootDir: string
-  /** Registry id of the document this reference list belongs to (ADR-009). */
+  /** Registry id of the document this reference list belongs to (ARCHITECTURE §4.2). */
   documentId: string
   /** The manuscript's prose file, relative to manuscript/ (manuscript.json's `manuscriptFile`). */
   manuscriptFile: string

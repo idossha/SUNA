@@ -612,7 +612,7 @@ export function getDocSession(path: string): DocSession | null {
 
 /**
  * Write every dirty buffer under `dir` before an agent is let loose on the
- * project (feature-plan-11 §11d).
+ * project (ARCHITECTURE §15.3).
  *
  * An agent reads files from DISK. Whatever the author has typed but not saved
  * is invisible to it, so without this it reasons about — and rewrites — prose

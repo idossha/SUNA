@@ -57,7 +57,7 @@ function splitPath(path: string): { parent: string; name: string } {
 }
 
 /**
- * Onboarding wizard (feature-plan-5 §5) — a full dock tab, component
+ * Onboarding wizard (DECISIONS 2026-08-15) — a full dock tab, component
  * 'onboarding'. Two entry points: {mode:'create'} starts from step 1;
  * {mode:'setup', dir} targets an existing suna.json-less folder and starts
  * at step 2 (steps 2-6 "against it", per the spec). Nothing is written to
@@ -120,7 +120,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     []
   )
 
-  // Escape cancels from anywhere in the wizard (feature-plan-5 §5) — but only
+  // Escape cancels from anywhere in the wizard (DECISIONS 2026-08-15) — but only
   // while this wizard is the panel on screen. dockview keeps hidden panels
   // mounted, so an ungated window listener would let an Escape pressed in a
   // completely different tab silently discard a half-filled wizard.

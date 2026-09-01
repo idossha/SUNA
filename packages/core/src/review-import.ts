@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Reviewer-report segmentation (feature-plan-12 §6, document-kinds-ux.md §B).
+ * Reviewer-report segmentation (ARCHITECTURE §4.5, document-kinds-ux.md §B).
  *
  * Turns one blob — a pasted decision letter, or the text extracted from a
  * .docx/.pdf — into discrete reviewer points, DETERMINISTICALLY and offline.

@@ -1,5 +1,5 @@
 /**
- * DOCX front-matter and section heuristics (feature-plan-6 §2.2/§2.3). Every
+ * DOCX front-matter and section heuristics (DECISIONS 2026-08-15). Every
  * function here is pure over a `Block[]` (see docx-html.ts) so it is
  * unit-testable without mammoth or Electron, and every detector returns a
  * `reason` string alongside its result — the review screen shows the reason
@@ -421,7 +421,7 @@ export interface SectionDraft {
  * own "split at h1/h2" wording.
  *
  * These drafts are what the import REVIEW screen shows and lets the user
- * edit. Since feature-plan-7 §1 they are no longer written out as
+ * edit. Since the flat layout (ARCHITECTURE §4.3) they are no longer written out as
  * `sections/NN-slug.md`: `commitDocxAnalysis` joins them into the single
  * `manuscript/manuscript.md`, each draft's heading emitted at its level. The
  * split still matters, because it is the unit the reviewer renames, merges

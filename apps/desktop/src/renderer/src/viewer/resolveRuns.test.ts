@@ -3,7 +3,7 @@ import { buildPageText, makeAnchor, type PageText, type PdfNoteRun } from '@suna
 import { resolveRun, searchOrder } from './resolveRuns'
 
 /**
- * The re-anchoring cascade (ADR-008 M2/M4). Pure — page texts in, verdict out.
+ * The re-anchoring cascade (ARCHITECTURE §14.4). Pure — page texts in, verdict out.
  */
 
 const page = (text: string): PageText => buildPageText([{ str: text, hasEOL: false }])

@@ -8,7 +8,7 @@ import {
 import { checkResponse, unassignedPoints } from './response';
 
 /**
- * feature-plan-12 §6d. The headline case is the one from the evidence set:
+ * ARCHITECTURE §12.1. The headline case is the one from the evidence set:
  * a hand-numbered response that reached RE83 with RE58 missing.
  */
 

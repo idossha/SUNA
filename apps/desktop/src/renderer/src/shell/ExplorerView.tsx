@@ -519,7 +519,7 @@ export function ExplorerView(): JSX.Element {
     }
   }
 
-  /* ---- drag and drop (feature-plan-9 §2) ---------------------------------- */
+  /* ---- drag and drop (DECISIONS 2026-08-17) ---------------------------------- */
 
   /** What a drop over `overPath` (null = the empty area, i.e. the root) does. */
   const resolveOver = (

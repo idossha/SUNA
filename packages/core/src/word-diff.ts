@@ -1,6 +1,6 @@
 /**
  * Word-level structural diff between two texts — the primitive behind both
- * halves of feature-plan-11.
+ * halves of ARCHITECTURE §5.6.
  *
  * Two consumers, one algorithm:
  *  - `diffSpans` replaces state/minimalDiff's single-span answer, so an

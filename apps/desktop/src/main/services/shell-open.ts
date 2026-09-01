@@ -25,7 +25,7 @@ const USER_EXECUTE = 0o100
  * Would opening this entry with the OS run code? Pure so the refusal table is
  * testable without asking the OS to open anything.
  *
- * The reason is concrete rather than theoretical: since feature-plan-8 an agent
+ * The reason is concrete rather than theoretical: an agent
  * can write files into the project, and "Open with Default App" must never
  * become "run whatever the agent just wrote".
  */

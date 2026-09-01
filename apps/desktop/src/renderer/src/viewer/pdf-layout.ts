@@ -1,6 +1,6 @@
 /**
- * Pure layout math for PdfTab's continuous vertical scroll (feature-plan-4
- * §2). The component measures each page at the current zoom and hands the
+ * Pure layout math for PdfTab's continuous vertical scroll (DECISIONS 2026-08-14).
+ * The component measures each page at the current zoom and hands the
  * heights here; everything about *where* a page sits and *which* pages are
  * near the viewport is computed without touching the DOM, so it is fully
  * unit-testable and reused for three real jobs:

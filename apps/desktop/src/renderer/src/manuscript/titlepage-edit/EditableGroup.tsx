@@ -16,7 +16,7 @@ interface EditableGroupProps {
  * (authors, affiliations) rather than a contentEditable span: the journal
  * rendering — including the DERIVED affiliation superscripts — stays on
  * screen until you click it, then the compact row editor takes over in
- * place. Nothing is a modal (docs/design/feature-plan-2.md §1).
+ * place. Nothing is a modal.
  *
  * Closing blurs whatever input is focused *first*, so a text field's
  * commit-on-blur runs before the editor unmounts and a half-typed rename is

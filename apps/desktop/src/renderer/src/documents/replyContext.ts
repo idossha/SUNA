@@ -9,7 +9,7 @@ import type { SiblingReply } from '../ai/templates'
 
 /**
  * What the AI is told about one reviewer point, assembled from what the app
- * already has (feature-plan-12 §C).
+ * already has (ARCHITECTURE §14.2).
  *
  * The prompt itself sends the agent to read the manuscript through the MCP
  * verbs — that part is the agent's job and it does it better than a

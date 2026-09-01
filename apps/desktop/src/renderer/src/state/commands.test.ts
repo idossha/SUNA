@@ -214,7 +214,7 @@ describe('nextFigureName', () => {
 describe('nextProfileId', () => {
   /**
    * Derived from BUNDLED_PROFILE_IDS rather than hardcoded: the bundled set
-   * grows whenever a journal profile is added (feature-plan-6 §1 added eight),
+   * grows whenever a journal profile is added (ARCHITECTURE §12),
    * and the behaviour under test is "advance one, wrap at the end" — not the
    * membership of the list, which profiles.test.ts owns.
    */

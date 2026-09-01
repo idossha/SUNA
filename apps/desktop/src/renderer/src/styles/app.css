@@ -365,7 +365,7 @@ button {
   color: var(--s-ink-faint);
 }
 
-/* ---- recent projects (feature-plan-5 §1) ---------------------------------- */
+/* ---- recent projects (DECISIONS 2026-08-15) ---------------------------------- */
 
 .recents {
   width: 100%;
@@ -1694,7 +1694,7 @@ button {
   border-radius: 3px;
 }
 
-/* ---- agent section (feature-plan-8 §4) ---------------------------------------- */
+/* ---- agent section (ARCHITECTURE §10.4) ---------------------------------------- */
 
 .canvas-agent__target {
   margin-bottom: 6px;

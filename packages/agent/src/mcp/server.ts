@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   const root = projectRoot()
 
   // Heal the machine context layer and this project's agent files before
-  // serving (adr-004). Best-effort: a failed heal must never stop the server
+  // serving (ARCHITECTURE §15.4). Best-effort: a failed heal must never stop the server
   // — the verbs work regardless.
   try {
     const inv = selfInvocation()

@@ -1,6 +1,6 @@
 /**
- * Pure HTML → Block[] parser tuned for mammoth's output shape (feature-plan-6
- * §2). Deliberately NOT a general HTML parser: mammoth's own writer always
+ * Pure HTML → Block[] parser tuned for mammoth's output shape (DECISIONS 2026-08-15).
+ * Deliberately NOT a general HTML parser: mammoth's own writer always
  * produces well-formed, entity-escaped markup from a fixed, known tag set
  * (headings, p, strong/em/sup/sub, lists, tables, blockquote, img, a, br,
  * hr), so a small tolerant tree-builder is enough and keeps this file free of

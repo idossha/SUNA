@@ -2,7 +2,7 @@ import type { LitResult, MatchConfidence, StudyResolution } from '@suna/core';
 import { detectArxivId } from './model.js';
 
 /**
- * Mention → one work (feature-plan-10 Layer 2, `study-match.ts`). The user
+ * Mention → one work (ARCHITECTURE §9, `study-match.ts`). The user
  * says "the Gunn & Gott 1972 ram-pressure stripping paper"; the providers
  * answer with dozens of records across four APIs; this module turns the first
  * into hints, folds the second into one candidate list, ranks it, and reports

@@ -5,7 +5,7 @@ import { createNewFigure } from './new-figure'
  * "New Figure" affordance: a plain button that turns into an inline text
  * field on click (no modal) — Enter creates+opens the figure, Escape or
  * blur-with-no-text cancels. Shared by the Figures view header and the
- * canvas tab's own "+" (feature-plan-3 §4).
+ * canvas tab's own "+" (DECISIONS 2026-08-14).
  */
 export function NewFigureButton(props: {
   rootDir: string

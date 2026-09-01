@@ -33,8 +33,8 @@ import { assertInsideAllowedRoot } from './roots'
 import { resolveDocumentStyle } from './export-style'
 
 /**
- * The shared export content model (feature-plan-6 §3/§4, updated for the
- * flat layout of feature-plan-7 §1 — "one content model, two renderers"):
+ * The shared export content model (ARCHITECTURE §13, updated for the
+ * flat layout of ARCHITECTURE §4.3 — "one content model, two renderers"):
  * manuscript.md + manuscript.json + authors.json + references.bib, resolved
  * through the ACTIVE PROFILE exactly the way the combined Manuscript tab
  * renders them (same citation engine, same numbering, same reference
@@ -635,7 +635,7 @@ export interface ExportContent {
    * from a temp directory where nothing relative resolves at all.
    */
   manuscriptDir: string
-  /** The byline, from manuscript/authors.json (feature-plan-7 §1) — empty when the file doesn't exist yet. */
+  /** The byline, from manuscript/authors.json (ARCHITECTURE §4.3) — empty when the file doesn't exist yet. */
   authors: AuthorsFile
   profile: PublisherProfile
   affiliations: AffiliationNumbering

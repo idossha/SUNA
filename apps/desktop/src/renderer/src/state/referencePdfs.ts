@@ -4,7 +4,7 @@ import { parseBibtex, resolvePdfPath, type BibEntry, type PdfResolution } from '
 import { useProjectStore } from './project'
 
 /**
- * citekey -> resolved PDF, project-wide (feature-plan-4.md §3/§4). Scanned
+ * citekey -> resolved PDF, project-wide (DECISIONS 2026-08-14). Scanned
  * once per project open and re-scanned on saveBump (a citation could have
  * just gained a `file` field, or a PDF could have just been attached) via the
  * module-level subscription below — self-contained, so the map is populated

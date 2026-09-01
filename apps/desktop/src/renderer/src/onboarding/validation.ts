@@ -1,5 +1,5 @@
 /**
- * Onboarding wizard step 1 validation (feature-plan-5 §5), split so the
+ * Onboarding wizard step 1 validation (DECISIONS 2026-08-15), split so the
  * filename-shape rules run instantly (no IPC round trip) while the
  * existence/writability rules — which need the filesystem — combine in
  * afterward. Pure: no fs, no IPC.

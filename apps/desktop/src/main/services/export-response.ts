@@ -36,7 +36,7 @@ import { assertInsideAllowedRoot } from './roots'
  * output. They are the author's own bookkeeping; an editor reading the
  * response has no business seeing which points the authors called rebuttals.
  *
- * **Colour** (`response.colorRoles`, feature-plan-12 §6c). With it on, the
+ * **Colour** (`response.colorRoles`, ARCHITECTURE §14.2). With it on, the
  * three voices are painted in the values both real documents in
  * `examples/peer-review/` use — black comment, `#0432FF` reply, `#EE0000`
  * quoted manuscript text that is new — because the one thing a reader of a

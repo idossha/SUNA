@@ -1,7 +1,7 @@
 import type { Author, BibEntry } from './model.js';
 
 /**
- * How a reference PDF was found, in the resolution order of feature-plan-4 §3:
+ * How a reference PDF was found, in the resolution order of DECISIONS 2026-08-14:
  * the BibTeX `file` field first, then the `references/<citekey>.pdf`
  * convention, then an `Author_Year*` fuzzy match. First hit wins.
  */
@@ -208,7 +208,7 @@ function fuzzyHit(entry: BibEntry, listing: readonly string[]): string | null {
 }
 
 /**
- * Where a reference's PDF lives, in the order of feature-plan-4 §3 — file
+ * Where a reference's PDF lives, in the order of DECISIONS 2026-08-14 — file
  * field, then `references/<citekey>.pdf`, then an `Author_Year*` fuzzy match.
  * Pure: `listing` is the caller's set of project-relative file paths (POSIX
  * separators, e.g. `references/Gunn_1972_Infall.pdf`), and nothing here

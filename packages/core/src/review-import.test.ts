@@ -6,7 +6,7 @@ import {
 } from './review-import';
 
 /**
- * feature-plan-12 §6 / document-kinds-ux.md §B.2.
+ * ARCHITECTURE §4.5 / document-kinds-ux.md §B.2.
  *
  * The fixtures below reproduce the structural grammar of two real reviewer
  * documents — including the artifacts a .docx → text conversion leaves behind

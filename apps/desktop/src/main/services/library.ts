@@ -33,7 +33,7 @@ export type {
 
 /**
  * The Electron-only glue on top of it: resolving the open project, walking
- * feature-plan-10's acquisition ladder for one reference, and enforcing the
+ * ARCHITECTURE §9's acquisition ladder for one reference, and enforcing the
  * boundary this feature is built around.
  *
  * **Reads leave the project; writes never do.** `findLibraryPdf` searches
@@ -340,7 +340,7 @@ function scanSummary(found: FindLocalPdfResult): string {
 }
 
 /**
- * Walk feature-plan-10's ladder for one reference, in its strict preference
+ * Walk ARCHITECTURE §9's ladder for one reference, in its strict preference
  * order: `already-present` → `copied-local` → `downloaded` → `metadata-only`.
  *
  * Every rung that does not produce a PDF leaves a line in `notes`, so
@@ -476,7 +476,7 @@ export async function acquireLibraryPdf(
         // provider's own JSON string (Unpaywall's `url_for_pdf`), never
         // through `new URL()`, so a CR or LF in it survives to here and would
         // write a second line into this report. A URL is the same trust class
-        // as a name found on disk — feature-plan-10 §Layer 6 and ADR-007 both
+        // as a name found on disk — ARCHITECTURE §21 and ARCHITECTURE §9 both
         // say so, and `mcp/study.ts` quotes its OA link on the same grounds.
         notes.push(
           `download: fetched ${outcome.bytes.length} bytes from ${outcome.sourceUrl === null ? 'an unnamed URL' : quoteExternalPath(outcome.sourceUrl)} but could not save them — ${saved.error}`

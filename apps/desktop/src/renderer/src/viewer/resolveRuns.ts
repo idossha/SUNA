@@ -4,7 +4,7 @@ import { occurrencesOf } from './pdfGeometry'
 
 /**
  * Finding a stored run again on a PDF that may have changed underneath it
- * (ADR-008). Pure: takes page texts, returns a verdict — no DOM, no store.
+ * (ARCHITECTURE §14.4). Pure: takes page texts, returns a verdict — no DOM, no store.
  *
  * The cascade is Hypothesis's, adapted, and the page HINT is the load-bearing
  * part rather than an optimisation. `packages/core/src/anchor.ts` returns its
@@ -52,7 +52,7 @@ export function searchOrder(hint: number, pages: readonly number[]): number[] {
  *
  * `ambiguous` is reported rather than resolved when a page holds several
  * copies of the quote and the stored context picks none of them — the same
- * refusal-to-guess ADR-007 applies to citations, for the same reason: a wrong
+ * refusal-to-guess ARCHITECTURE §3.1 D2 applies to citations, for the same reason: a wrong
  * answer here is invisible and permanent.
  */
 export function resolveRun(

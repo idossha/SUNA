@@ -87,7 +87,7 @@ describe('formatShortcut', () => {
     expect(formatShortcut('Mod-F1')).toBe('⌘F1')
   })
 
-  // feature-plan-9 §1: the help chord is ⌘? to a reader, whatever the spec
+  // DECISIONS 2026-08-17: the help chord is ⌘? to a reader, whatever the spec
   // says. The ⇧ is folded into the character, not printed beside it.
   it('renders shifted punctuation as the character it produces', () => {
     expect(formatShortcut('Mod-Shift-Slash')).toBe('⌘?')
@@ -113,7 +113,7 @@ describe('the ⌘? help chord end to end', () => {
     // `.key` — the physical Slash plus Shift is the whole signal.
     expect(matchesShortcut(event({ code: 'Slash', metaKey: true, shiftKey: true }), spec)).toBe(true)
     expect(matchesShortcut(event({ code: 'Slash', ctrlKey: true, shiftKey: true }), spec)).toBe(true)
-    // ⌘/ is CodeMirror's toggleComment (measured, feature-plan-9) — it must
+    // ⌘/ is CodeMirror's toggleComment (measured, DECISIONS 2026-08-17) — it must
     // not fall through to help.
     expect(matchesShortcut(event({ code: 'Slash', metaKey: true }), spec)).toBe(false)
     // and a bare '?' on a non-typing surface belongs to HelpOverlay's own

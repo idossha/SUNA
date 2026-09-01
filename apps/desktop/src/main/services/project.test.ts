@@ -145,7 +145,7 @@ describe('scaffoldProject', () => {
     )
     expect(manuscript.manuscriptFile).toBe('manuscript.md')
     expect(await readFile(join(target, 'manuscript', 'manuscript.md'), 'utf8')).toBe('')
-    // Flat layout: four files, no sections/ directory (feature-plan-7 §1).
+    // Flat layout: four files, no sections/ directory (ARCHITECTURE §4.3).
     expect((await readdir(join(target, 'manuscript'))).sort()).toEqual([
       'authors.json',
       'manuscript.json',

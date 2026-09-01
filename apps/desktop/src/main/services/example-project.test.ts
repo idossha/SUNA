@@ -29,7 +29,7 @@ it('every JSON in the shipped example parses under its schema', async () => {
   for (const id of ['hello', 'timesheet']) FigureDocumentSchema.parse(await read(`figures/${id}/figure.json`))
 
   // The round ledger lives at the project root, not under manuscript/
-  // (ADR-009: "manuscript/ is prose you edit; rounds/ is the ledger"), and the
+  // (ARCHITECTURE §4.2: "manuscript/ is prose you edit; rounds/ is the ledger"), and the
   // version log — when a project has one — lives at manuscript/archive/,
   // because it holds copies of prose. The shipped example logs no version, so
   // its round resolves its baseline by date rather than by pointer.

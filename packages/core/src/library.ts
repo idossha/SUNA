@@ -3,7 +3,7 @@ import { LitResultSchema } from './lit';
 
 /**
  * Study acquisition — the shared vocabulary for turning a mention into a
- * PDF-backed citation (feature-plan-10 §Layer 1). Three parties speak it: the
+ * PDF-backed citation (ARCHITECTURE §9). Three parties speak it: the
  * pure matchers in @suna/bib, the disk scanner and MCP verbs in @suna/agent,
  * and the desktop Settings / References surfaces. It lives here, in the one
  * package both hosts already depend on, so none of them can drift.

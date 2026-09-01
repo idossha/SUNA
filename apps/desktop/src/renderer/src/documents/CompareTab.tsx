@@ -29,7 +29,7 @@ import './documents.css'
 import './compare.css'
 
 /**
- * The version comparison (feature-plan-14).
+ * The version comparison (DECISIONS 2026-08-21).
  *
  * The question this answers is the one every response letter is built on:
  * *what did we change since the reviewers read it?* Two sides, picked at the

@@ -5,7 +5,7 @@ import type { LabelMap } from '../manuscript/citations'
 
 /**
  * Shared state between a document tab (manuscript/ManuscriptTab and, from
- * feature-plan-12, every other structured-document tab) and the Documents
+ * ARCHITECTURE §4.2, every other structured-document tab) and the Documents
  * sidebar view: the live outline (derived from that tab's current buffer),
  * which heading is in view, outline-click → smooth-scroll requests, and the
  * citation render data the tab's References block publishes for the editor's
@@ -16,7 +16,7 @@ import type { LabelMap } from '../manuscript/citations'
  * outlineRows projects it for display) — a heading's position in that array
  * is its "section index" everywhere in this store.
  *
- * **Keyed by document id (feature-plan-12 gap 4).** This was one global slot
+ * **Keyed by document id (ARCHITECTURE §17.2).** This was one global slot
  * until the registry landed, which meant two open document tabs would
  * overwrite each other's outline, scroll target and citation map. Each
  * document now owns a slice; the sidebar reads whichever slice
@@ -73,7 +73,7 @@ export interface DocSlice {
   citationRender: CitationRender | null
 }
 
-/** The id the primary manuscript's slice is filed under (ADR-009). */
+/** The id the primary manuscript's slice is filed under (ARCHITECTURE §4.2). */
 export const PRIMARY_DOC_SLICE = 'manuscript'
 
 export const EMPTY_SLICE: DocSlice = Object.freeze({

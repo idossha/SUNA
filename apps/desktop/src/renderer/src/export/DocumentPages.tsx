@@ -11,7 +11,7 @@ import { rasterizeManuscriptFigures } from './rasterizeFigures'
 
 /**
  * Pages mode: the document as the pages it will be exported as
- * (feature-plan-13 §B).
+ * (ARCHITECTURE §13).
  *
  * A manuscript is written in a continuous scroll, but it is SUBMITTED as
  * paper — and page count, where a figure lands, and whether a table survives

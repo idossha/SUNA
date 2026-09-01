@@ -1,5 +1,5 @@
 /**
- * Pure prefix parsing for the command palette (feature-plan-4 §5): which of
+ * Pure prefix parsing for the command palette (DECISIONS 2026-08-14): which of
  * the four modes the raw input line selects, and the text after the marker
  * that mode acts on. Kept separate from CommandPalette.tsx so it is directly
  * unit-testable without mounting anything.

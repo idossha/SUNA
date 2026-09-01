@@ -17,7 +17,7 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Step 5 — AI (feature-plan-5 §5). CLI detection is shared with the
+ * Step 5 — AI (DECISIONS 2026-08-15). CLI detection is shared with the
  * literature-search picker ('lit:cli-status') rather than a second detector.
  * An API key card writes immediately through the existing global key
  * channel — like the Settings page's provider rows — since a keychain entry

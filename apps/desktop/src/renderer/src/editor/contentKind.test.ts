@@ -55,7 +55,7 @@ describe('settings -> style mapping stays content-kind agnostic', () => {
     // same style object either way — the var exists on every tab; CSS
     // scoping (not the settings->style mapping) decides who consumes it.
     expect(style['--ed-content-width']).toBe('80ch')
-    // feature-plan-5 §2 defaults: 14px / 1.6 line-height.
+    // DECISIONS 2026-08-15 defaults: 14px / 1.6 line-height.
     expect(style['--ed-font-size']).toBe('14px')
     expect(style['--ed-line-height']).toBe('1.6')
   })

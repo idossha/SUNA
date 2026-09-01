@@ -1,5 +1,5 @@
 /**
- * PNG import sizing (feature-plan-3 §4): a dropped/opened raster is embedded
+ * PNG import sizing (DECISIONS 2026-08-14): a dropped/opened raster is embedded
  * at its natural pixel size, read at 300 dpi and converted to the artboard's
  * user units — pure math, unit-tested without touching an <img>/Image().
  */

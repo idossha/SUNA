@@ -18,7 +18,7 @@ import { extractPlainText } from './document-import'
 import { roundDir, roundsDir } from './paths'
 
 /**
- * Rounds on disk (feature-plan-12 §3, §6; document-kinds-ux.md §B).
+ * Rounds on disk (ARCHITECTURE §4.5; document-kinds-ux.md §B).
  *
  * Import is two calls on purpose, because the UX is two steps and the house
  * contract is that nothing is written until the human confirms:

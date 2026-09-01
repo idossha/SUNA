@@ -46,8 +46,8 @@ These apply to every project. The key column is the name the value has in the gl
 | Body font | `editor.fontFamily` | Serif | Reading-mode body font — Serif, Sans or Mono; source view stays monospace |
 | Shell | `terminal.shell` | empty | Absolute shell path for new terminals; empty uses the system default |
 | Auto-open reference PDF | `references.autoOpenPdf` | on | Selecting a reference that has a PDF opens it beside the list |
-| Contact email | `lit.mailto` | empty | Sent to Crossref and OpenAlex as a polite-pool contact, not a login |
-| AI CLI preference | `lit.cli` | Automatic | Which agent CLI the "AI search" literature provider spawns |
+| Contact email | `literature.mailto` | empty | Sent to Crossref and OpenAlex as a polite-pool contact, not a login |
+| AI CLI preference | `literature.cli` | Automatic | Which agent CLI the "AI search" literature provider spawns |
 | Model | `ai.model` | Sonnet | Model tier every AI call runs at — Opus, Sonnet or Haiku |
 | Effort | `ai.effort` | Low | How hard it thinks before answering — Low, Medium, High, Extra high or Max |
 
@@ -134,7 +134,7 @@ The split is deliberate: the committed path is the one your co-author should rep
 
 ## Literature providers and API keys
 
-**Contact email** (`lit.mailto`) is sent to Crossref and OpenAlex as a polite-pool contact — their preferred practice, not a login. Left empty it falls back to your `user.email` setting, and if that is empty too, nothing is sent. This field reaches only the app's own lookups; the standalone MCP server reads `SUNA_CONTACT_EMAIL` from its own environment and SUNA never passes this value to it.
+**Contact email** (`literature.mailto`) is sent to Crossref and OpenAlex as a polite-pool contact — their preferred practice, not a login. Left empty it falls back to your `user.email` setting, and if that is empty too, nothing is sent. This field reaches only the app's own lookups; the standalone MCP server reads `SUNA_CONTACT_EMAIL` from its own environment and SUNA never passes this value to it.
 
 Four HTTP providers are listed, each with its own status line:
 

@@ -4,7 +4,7 @@
    The root carries the .editor-tab theme classes so the --ed-* palette and
    live-preview widget styles from editor.css apply to the embedded editor
    (manuscript/ManuscriptEditor — one CodeMirror over the whole manuscript.md,
-   feature-plan-7 §1). Layout properties from app.css's .editor-tab are
+   ARCHITECTURE §4.3). Layout properties from app.css's .editor-tab are
    overridden here with higher specificity (this file loads before app.css —
    order must never be relied on).
    --------------------------------------------------------------------------- */
@@ -34,7 +34,7 @@
   color: var(--ed-ink, var(--s-ink));
 }
 
-/* Pages mode (feature-plan-13 §B): the tab stops being the scroller.
+/* Pages mode (ARCHITECTURE §13): the tab stops being the scroller.
    PagedDocument has its own scrollport, and "fit the whole page" needs a
    BOUNDED height to fit into — inside `overflow-y: auto` the container's
    client height is the content's height, so the fit would silently degrade to
@@ -96,7 +96,7 @@
   background: var(--s-accent);
 }
 
-/* Export entry point (feature-plan-6 §3/§4) — opens the Word/PDF export dialog. */
+/* Export entry point (ARCHITECTURE §13) — opens the Word/PDF export dialog. */
 .msdoc__export-btn {
   background: transparent;
   border: 1px solid var(--ed-border, var(--s-border-strong));

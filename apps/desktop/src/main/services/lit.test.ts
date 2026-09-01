@@ -11,7 +11,7 @@ import {
 import { allowRoot } from './roots'
 
 /**
- * CLI detection with a mocked probe (feature-plan-3 §2 BUILD step 1) — no
+ * CLI detection with a mocked probe (DECISIONS 2026-08-14) — no
  * real `claude --version` / `codex --version` spawn, so this suite is
  * deterministic regardless of what's actually installed on the machine
  * running the tests.

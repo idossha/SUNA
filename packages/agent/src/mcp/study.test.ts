@@ -29,7 +29,7 @@ import { TOOLS, callTool } from './verbs'
 import type { ProjectContext } from './project'
 
 /**
- * Every dependency that leaves the process is injected (feature-plan-10 §Tests:
+ * Every dependency that leaves the process is injected (DECISIONS 2026-08-18:
  * "MCP verbs with injected fake providers"). There is no `fetch` here and no
  * real machine scan: the default fakes below are inert, so a test that forgets
  * to stub a rung gets an empty answer rather than a live request. The only real

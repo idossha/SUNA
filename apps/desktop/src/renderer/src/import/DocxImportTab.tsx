@@ -17,7 +17,7 @@ function fileNameOf(path: string): string {
 type Status = 'loading' | 'ready' | 'error'
 
 /**
- * DOCX Import Review (feature-plan-6 §2.5-2.7). Runs 'docx:analyze' on
+ * DOCX Import Review (DECISIONS 2026-08-15). Runs 'docx:analyze' on
  * mount, shows every front-matter heuristic's result with its `reason`, lets
  * the user correct title/authors/affiliations/abstract, and only calls
  * 'docx:commit' — which writes the project — when "Import" is pressed.

@@ -152,7 +152,7 @@ function headingHtml(level: HeadingLevel, text: string, anchorId?: string): stri
     case 'C-runin':
       // Journal "run-in" headings typeset as a bold lead-in on the same line
       // as the paragraph that follows; reproducing that exactly is page
-      // layout (ADR-002 out of scope). This renders as its own bold line —
+      // layout — page facsimile is a non-goal (ARCHITECTURE §12.1). This renders as its own bold line —
       // structurally distinguishable from A/B, not a page facsimile.
       return `<p class="ms-h-c"${id}>${safe}</p>`
   }
@@ -420,7 +420,7 @@ function titlePageHtml(content: ExportContent): string {
 }
 
 /**
- * Page-break rules for the printed stylesheet (feature-plan-13 §A2).
+ * Page-break rules for the printed stylesheet (ARCHITECTURE §13).
  *
  * Before this existed the ONLY break declaration in the whole print
  * stylesheet was `page-break-before` on the references section, so Chromium

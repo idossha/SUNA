@@ -14,7 +14,7 @@ import {
 } from './round-new'
 
 /**
- * feature-plan-12 §3/§6 on disk. The contract under test is the two-step
+ * ARCHITECTURE §4.5 on disk. The contract under test is the two-step
  * import: analyse writes nothing, commit writes only what a human confirmed,
  * and neither can produce a verbatim that is not a slice of the source.
  */

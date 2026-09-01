@@ -16,7 +16,7 @@ const THEME_LABELS: Record<WizardDefaults['editorTheme'], string> = {
   'mono-blue-light': 'Mono Blue Light'
 }
 
-/** Step 5 — Defaults (feature-plan-5 §5), seeded from global settings by the wizard shell. */
+/** Step 5 — Defaults (DECISIONS 2026-08-15), seeded from global settings by the wizard shell. */
 export function Step5Defaults({ state, update }: StepProps): JSX.Element {
   const set = <K extends keyof WizardDefaults>(key: K, value: WizardDefaults[K]): void =>
     update({ defaults: { ...state.defaults, [key]: value } })

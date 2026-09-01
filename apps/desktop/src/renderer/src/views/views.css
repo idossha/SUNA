@@ -407,7 +407,7 @@
   font-size: var(--s-text-xs);
 }
 
-/* PDF badge (resolved) / "Attach PDF…" (unresolved) — feature-plan-4 §4.
+/* PDF badge (resolved) / "Attach PDF…" (unresolved) — DECISIONS 2026-08-14.
    The only row action that stays on the row rather than moving into the
    right-click menu: whether a reference has a PDF is information worth
    seeing at a glance, not an action to go looking for. */
@@ -2240,7 +2240,7 @@
   text-decoration: none;
 }
 
-/* Cross-paper reading notes (ADR-008). An ACTION, not a third tab — it opens
+/* Cross-paper reading notes (ARCHITECTURE §14.4). An ACTION, not a third tab — it opens
    a document rather than switching this panel — so it is kept out of the
    tablist and given the tab row's own metrics instead of a pill, which sat
    above the baseline and read as a different visual language. */

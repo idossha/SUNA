@@ -4,7 +4,7 @@ import { relativeTime } from '../comments/relativeTime'
 import '../comments/comments.css'
 
 /**
- * Reading notes beside the PDF (ADR-008 M3).
+ * Reading notes beside the PDF (ARCHITECTURE §14.4).
  *
  * Deliberately the manuscript comments rail's clothes on reading notes' body:
  * the same `cmt-*` class vocabulary, the same card shape, the same compose

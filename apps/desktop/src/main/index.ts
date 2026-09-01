@@ -122,7 +122,7 @@ app.whenReady().then(() => {
     })
   })
 
-  // Sync the machine-level agent context (~/SunaConfig — adr-004) so agents
+  // Sync the machine-level agent context (~/SunaConfig — ARCHITECTURE §15.4) so agents
   // launched outside any project still find current docs. Fire-and-forget:
   // startup never waits on it, and a failure only logs.
   void ensureSunaConfig(appMcpInvocation()).catch((error: unknown) => {

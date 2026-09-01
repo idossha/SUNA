@@ -52,7 +52,7 @@ export const FIND_PDF_HINT =
 export const PDF_BADGE_LABEL = 'PDF'
 
 /**
- * Tooltip text for the References list's PDF badge (feature-plan-4.md §4).
+ * Tooltip text for the References list's PDF badge (DECISIONS 2026-08-14).
  *
  * The badge is a button, so the tooltip leads with what clicking it does and
  * keeps the resolution mechanism as the second half: which of the three ways
@@ -66,7 +66,7 @@ export function pdfBadgeTitle(how: PdfResolutionHow): string {
 /**
  * The path to auto-open beside the list on selecting an entry, or null when
  * the 'references.autoOpenPdf' preference is off or no PDF resolves for it
- * (feature-plan-4.md §4 — "clicking three entries in a row leaves exactly
+ * (DECISIONS 2026-08-14 — "clicking three entries in a row leaves exactly
  * one PDF tab, showing the last" is openViewerInSide's job; this decides
  * *whether* to call it at all).
  */
@@ -95,7 +95,7 @@ export function entryMatches(entry: BibEntry, filter: string): boolean {
 }
 
 /* --------------------------------------------------------------------------
-   "Find PDF" (feature-plan-10 §Layer 5) — the pure half of the References
+   "Find PDF" (ARCHITECTURE §15.5) — the pure half of the References
    view's acquisition action: turning a bibliography row into the LitResult
    the library channels take, and turning what came back into one honest
    sentence for the status bar. Main owns the ladder itself; this file owns

@@ -1,6 +1,6 @@
 /**
  * General-purpose "ask the agent CLI" adapter — the command palette's `?`
- * prefix (feature-plan-4 §5): "the rest is sent to the agent CLI in the
+ * prefix (DECISIONS 2026-08-14): "the rest is sent to the agent CLI in the
  * project directory (same adapter as literature search)". This mirrors
  * lit.ts's 'ai-cli' process management (detect → spawn `-p … --output-format
  * json` → timeout → cancellable) but the *parsing* is deliberately different:
@@ -29,7 +29,7 @@ export interface AiAskOptions {
   onProgress: (status: string) => void
   /** Test seam: override CLI detection without spawning a real process. */
   probe?: CliProbe
-  // Directed-action extensions (feature-plan-8 §2a). All three shape the
+  // Directed-action extensions (ARCHITECTURE §15.6). All three shape the
   // CLAUDE spawn only; the codex path ignores them — codex asks run
   // `--sandbox read-only`, so directed EDIT actions never target codex.
   /** Values for ONE `--allowed-tools` argv element, comma-joined. */
@@ -176,7 +176,7 @@ function manageChild(
 }
 
 /**
- * Argv for one `claude -p` run (feature-plan-8 §2a) — pure so tests can pin
+ * Argv for one `claude -p` run (ARCHITECTURE §15.6) — pure so tests can pin
  * the flag contract without spawning. With `viaStdin` the positional prompt
  * is dropped (`claude -p` reads stdin when none is given — measured live);
  * `allowedTools` joins into ONE argv element (the CLI accepts comma-separated
@@ -378,7 +378,7 @@ async function runCodexAsk(askId: string, prompt: string, options: AiAskOptions)
 
 /**
  * Run one `?`-prefixed palette question: resolves which CLI to use (settings
- * 'lit.cli' preference against what's installed — the same setting the
+ * 'literature.cli' preference against what's installed — the same setting the
  * literature ai-cli provider reads, since it names the same underlying
  * choice), spawns it in `dir`, and returns once it completes, was cancelled
  * (`cancelAiAsk`), or hit the 180s timeout. Never throws — every failure mode

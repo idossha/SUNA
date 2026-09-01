@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * manuscript/authors.json — the byline, split out of manuscript.json so the
  * prose file, the metadata file, and the people are three separate,
- * independently editable sources of truth (feature-plan-7 §1).
+ * independently editable sources of truth (ARCHITECTURE §4.3).
  *
  * The Author/Affiliation shapes are unchanged from when they lived inside
  * ManuscriptSchema: nothing about ORCID, corresponding authorship or

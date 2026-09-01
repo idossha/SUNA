@@ -4,7 +4,7 @@ import type { Diagnostic } from '@suna/formatter'
 
 /**
  * Lets the command palette's figure commands ("Run Compliance Check",
- * "Export Figure as PNG/PDF" — feature-plan-4 §5 BUILD step 2) act on
+ * "Export Figure as PNG/PDF" — DECISIONS 2026-08-14) act on
  * whichever CanvasTab is actually on screen, without commands.ts reaching
  * into CanvasTab's internals. Same provider-stack shape as
  * `canvas/dev-seam.ts`'s `canvasToolsSeam`: more than one figure can be
@@ -20,7 +20,7 @@ export interface CanvasPaletteContext {
   save: () => Promise<void>
   /**
    * Re-checks compliance, updates the tab's diagnostics UI, and RETURNS the
-   * fresh list — the Agent section (feature-plan-8 §4) reads it at send
+   * fresh list — the Agent section (ARCHITECTURE §10.4) reads it at send
    * time, when the tab's cached React state may be stale.
    */
   runCompliance: () => Diagnostic[]

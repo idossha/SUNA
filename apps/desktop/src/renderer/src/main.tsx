@@ -37,7 +37,7 @@ if (import.meta.env.DEV) {
     __sunaDev: {
       openFileTab,
       projectStore: useProjectStore,
-      // --- feature-plan-7 ---------------------------------------------------
+      // --- ARCHITECTURE §4.3 ---------------------------------------------------
       // Project switcher (§3): the title-bar menu's own "Open project…" opens a
       // NATIVE directory picker a CDP driver cannot operate, so the one
       // switching function is seamed directly. It re-points the whole app
@@ -86,26 +86,26 @@ if (import.meta.env.DEV) {
       // manuscript/comments.json state — a driver reloads it after an
       // out-of-band write (an MCP add_comment) instead of restarting the app,
       // and reads `comments` to assert anchoring/detached flips
-      // (docs/design/feature-plan-2.md §2).
+      // (ARCHITECTURE §14.1).
       commentsStore: useCommentsStore,
       // Schema-validate a file the app just wrote using the REAL @suna/core
       // schemas. Workspace packages are raw TS, so a driver script cannot
       // import them directly — see dev/schemaSeam.ts
-      // (feature-plan-3 §4 asserts a schema-valid figure.json on disk).
+      // (DECISIONS 2026-08-14 asserts a schema-valid figure.json on disk).
       validateDoc: schemaDevSeam.validateDoc,
       validateFile: schemaDevSeam.validateFile,
-      // --- feature-plan-4 -------------------------------------------------
+      // --- DECISIONS 2026-08-14 -------------------------------------------------
       // Split view (§1): openInSplit/openViewerInSide plus the group/panel
       // readouts the "exactly 2 groups" / "exactly one PDF tab" acceptance
       // checks measure (state/dock.ts).
       //
-      // --- feature-plan-6 --------------------------------------------------
+      // --- ARCHITECTURE §13 --------------------------------------------------
       // Also carries openDocxImportTab (§2) and openExportTab (§3/§4), which
       // bypass the native file/folder pickers a CDP driver cannot operate.
       // NOT yet seamed: the import review's own "Import into new project…"
       // button still opens a native directory picker, so a full
       // analyze→review→commit e2e needs a target-directory seam inside
-      // import/DocxImportTab.tsx (see docs/design/roadmap.md).
+      // import/DocxImportTab.tsx (ARCHITECTURE §13).
       dock: dockDevSeam,
       // Command registry (§5): list/inspect/run a command by id, so a driver
       // can assert '>split right' without synthesizing every keystroke.
@@ -113,15 +113,17 @@ if (import.meta.env.DEV) {
       // citekey -> resolved PDF map (§3/§4), scanned per project + saveBump.
       referencePdfsStore: useReferencePdfsStore,
       getReferencePdf,
-      // Settings store (feature-plan-4 §4's 'references.autoOpenPdf', and
-      // feature-plan-5 §4's two-level hierarchy: `resolved.value` /
-      // `resolved.sources` per key, plus setGlobal/setProject/clearProject and
-      // refreshProjectSettings for an out-of-band suna.json edit).
+      // Settings store (DECISIONS 2026-08-14's 'references.autoOpenPdf'):
+      // `resolved.value` / `resolved.sources` per key, plus setGlobal. There
+      // is ONE level — ~/.suna/config.yml (ARCHITECTURE §6.1). The project
+      // half of the old two-level hierarchy is gone: setProject/clearProject/
+      // refreshProjectSettings no longer exist, and suna.json's `settings`
+      // block is deprecated and not read (§4.1).
       settingsStore: settingsDevSeam.settingsStore,
       settingsDefaults: settingsDevSeam.defaults,
       // Integrated terminal (§5 '$' mode): tab metadata + the panel store.
       terminal: terminalDevSeam,
-      // --- feature-plan-5 -------------------------------------------------
+      // --- DECISIONS 2026-08-15 -------------------------------------------------
       // Onboarding wizard (§5): read/patch the visible wizard's state so a
       // driver can walk all seven steps past step 1's NATIVE folder picker,
       // which CDP cannot drive (onboarding/devSeam.ts).

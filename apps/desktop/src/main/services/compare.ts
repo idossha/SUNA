@@ -20,7 +20,7 @@ import { listRounds, readRound, writeRound } from './round-new'
 import { listVersions, versionDir } from './version-log'
 
 /**
- * Reading the two sides of a comparison (feature-plan-14 §2).
+ * Reading the two sides of a comparison (DECISIONS 2026-08-21).
  *
  * All three side kinds resolve to the same three artefacts — the prose, the
  * manuscript.json fields a reviewer reads, and the bibliography — so the

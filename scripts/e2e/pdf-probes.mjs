@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 /**
- * Run every PDF reading-notes probe in one command (ADR-008).
+ * Run every PDF reading-notes probe in one command (ARCHITECTURE §14.4).
  *
  * These were manual-only, which is the same as not running. They are NOT
- * folded into `pnpm smoke`: that suite still references selectors and paths the
- * flat-manuscript layout removed (`.ms__open`, `manuscript/sections/`), so it
- * cannot currently run, and adding steps to a suite nobody can execute would
- * look like coverage without being any. When the smoke driver is brought back,
- * these should move into it and this file should go away.
+ * folded into `pnpm smoke` because that suite does not currently finish:
+ * measured on 2026-09-01, it gets five steps in and then fails `reading-mode`
+ * on `document.querySelector('.editor-tab__mode')` being null. That button is
+ * still rendered by EditorTab.tsx, but only for a markdown tab — so what
+ * drifted is the step's precondition (what `editor-opens-section` leaves
+ * open), not the selector. Adding steps to a suite that cannot reach them
+ * would look like coverage without being any.
+ *
+ * The older note here claimed `.ms__open` and `manuscript/sections/` were the
+ * blockers; both were fixed some time ago and the claim outlived them. When
+ * the suite runs clean again these probes should move into it and this file
+ * should go away.
  *
  * Boots the app hidden with the example project, stages a reference PDF the
  * probes can annotate, runs each probe against the same instance, and stops.

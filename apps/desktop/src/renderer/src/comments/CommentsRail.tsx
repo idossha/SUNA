@@ -64,7 +64,7 @@ export interface CommentsRailProps {
 const HOST_MIN_DOCUMENT_PX = 420
 /** Assumed height for a card not measured yet. */
 const DEFAULT_CARD_HEIGHT = 72
-/** Prose sent to the agent around a comment's anchor (feature-plan-8 §3). */
+/** Prose sent to the agent around a comment's anchor (DECISIONS 2026-08-17). */
 const SURROUND_RADIUS = 400
 /** Shown on the AI buttons until the one cliGate round trip resolves. */
 const GATE_PENDING: CliGateResult = { ok: false, reason: 'Checking for an AI CLI…' }

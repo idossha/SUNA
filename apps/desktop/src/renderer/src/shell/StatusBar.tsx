@@ -79,7 +79,7 @@ export function StatusBar(): JSX.Element {
           className="statusbar__btn"
           aria-label="Keyboard shortcuts"
           // '?' is the only chord-free door; inside a vim buffer it is vim's
-          // search-backward, and :help is the way in (feature-plan-9 §1).
+          // search-backward, and :help is the way in (DECISIONS 2026-08-17).
           title="Keyboard shortcuts (?)"
           onClick={() => useUiStore.getState().setHelpOpen(true)}
         >

@@ -9,7 +9,7 @@ import { PDF_SAMPLE_BYTES, asciiSample } from './pdf-bytes.js';
 
 /**
  * "Is this file on disk that paper?" — the pure half of the local PDF search
- * (feature-plan-10 §Layer 2, "pdf-match.ts"). The scanner in @suna/agent owns
+ * (ARCHITECTURE §9, "pdf-match.ts"). The scanner in @suna/agent owns
  * the disk, because `fs` may not be imported here; this module owns the
  * judgement, so the desktop app, the standalone MCP server and these tests all
  * rank candidates through one implementation and cannot drift apart.
@@ -38,7 +38,7 @@ import { PDF_SAMPLE_BYTES, asciiSample } from './pdf-bytes.js';
 
 /**
  * Share of a title's significant tokens that must appear in the byte sample
- * for `title-in-bytes` (feature-plan-10 §Layer 2). Not 100 %: hyphenation,
+ * for `title-in-bytes` (ARCHITECTURE §9). Not 100 %: hyphenation,
  * ligatures and line-broken kerning runs routinely damage a word or two in a
  * PDF's text layer, and the XMP title can be a subtitle-less short form.
  */
@@ -65,7 +65,7 @@ export interface PdfCandidate {
   path: string;
   /**
    * The file's leading bytes — the scanner reads the first `PDF_SAMPLE_BYTES`
-   * of its best filename candidates and re-scores them (feature-plan-10 §Layer
+   * of its best filename candidates and re-scores them (ARCHITECTURE §9 §Layer
    * 3 step 3). Explicitly `null` when the file has not been read: the two-pass
    * design means "no bytes yet" is the normal state, not an omission.
    */

@@ -39,7 +39,7 @@ const TOOLBAR_HEIGHT_PX = 40
 /**
  * The combined manuscript document: one scrollable page with the rendered
  * title page, a single live-preview CodeMirror over the whole manuscript.md
- * (feature-plan-7 §1 — sections are Markdown headings, not files), and the
+ * (ARCHITECTURE §4.3 — sections are Markdown headings, not files), and the
  * profile-driven reference list. The outline (@suna/markdown's
  * outlineFromMarkdown, via ManuscriptEditor) drives the sidebar's outline
  * list and this tab's scroll-spy/click-to-scroll, both keyed by document
@@ -100,7 +100,7 @@ export function ManuscriptTab({ api, params }: DockPanelProps): JSX.Element {
   const comments = useCommentsStore((s) => s.comments)
 
   // This tab shows the primary manuscript. When other document kinds get
-  // their own tabs (feature-plan-12 §2, §6) this becomes a panel param.
+  // their own tabs (ARCHITECTURE §14.3 and §4.5) this becomes a panel param.
   const documentId = PRIMARY_DOC_SLICE
   const outline = useManuscriptDocStore((s) => docSlice(s, documentId).outline)
 

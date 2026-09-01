@@ -1,9 +1,9 @@
 /**
- * App-wide command registry (feature-plan-4 §5 BUILD step 2): one place any
+ * App-wide command registry (DECISIONS 2026-08-14): one place any
  * feature registers `{ id, title, category, shortcut?, run, enabled? }`, and
  * the single place the command palette's `>` mode and the global shortcut
  * dispatcher both read from. The built-ins below are registered directly
- * here rather than scattered across their owning views — feature-plan-4
+ * here rather than scattered across their owning views — DECISIONS 2026-08-14
  * asked for "the app's commands" as one list, and this keeps that list
  * honest and greppable in one file.
  */
@@ -353,12 +353,12 @@ registerCommand({
 // The shortcut is ⌘⇧/ (rendered ⌘?), NOT a bare Shift-Slash: '?' stays with
 // HelpOverlay's own window listener, which has the isTyping guard this
 // dispatcher lacks — a Shift-Slash Command here would fire while typing '?'
-// into the explorer filter (feature-plan-8 §1).
+// into the explorer filter (DECISIONS 2026-08-17).
 //
 // There is deliberately no chord here either. Help has exactly two doors:
 // '?' everywhere it is not being typed, and ':help' inside a vim buffer,
 // where NORMAL mode swallows '?' as search-backward before any listener
-// sees it (feature-plan-9 §1). The palette still lists this command.
+// sees it (DECISIONS 2026-08-17). The palette still lists this command.
 registerCommand({
   id: 'help.tour',
   title: 'Take the App Tour',
@@ -398,7 +398,7 @@ registerCommand({
   run: () => showFloatTerminal()
 })
 
-// Dev-only (feature-plan-8 §5): 'ai:repair-bundle' rejects when packaged,
+// Dev-only (DECISIONS 2026-08-17): 'ai:repair-bundle' rejects when packaged,
 // and a packaged app has no source repo to repair.
 registerCommand({
   id: 'ai.repairUi',

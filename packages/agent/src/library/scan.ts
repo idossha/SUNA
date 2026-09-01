@@ -27,7 +27,7 @@ import { resolveInside } from '../mcp/project'
 import { describeExternalError, errorCode, expandRoots, quoteExternalPath } from './config'
 
 /**
- * The disk half of study acquisition (feature-plan-10 §Layer 3, "scan.ts").
+ * The disk half of study acquisition (ARCHITECTURE §15.5, "scan.ts").
  * It lives here rather than in @suna/bib because it touches `fs` and
  * `child_process`, which that package is forbidden; the *judgement* — is this
  * file that paper? — stays in @suna/bib's `scorePdfCandidate`, so the desktop
@@ -76,7 +76,7 @@ import { describeExternalError, errorCode, expandRoots, quoteExternalPath } from
 
 /* ---------------------------------------------------------------- limits -- */
 
-/** Per-query Spotlight budget (feature-plan-10 §Layer 3 step 1). */
+/** Per-query Spotlight budget (ARCHITECTURE §15.5). */
 export const SPOTLIGHT_TIMEOUT_MS = 5_000
 
 /** Hits kept per Spotlight query; the rest are a note, not silence. */
@@ -236,7 +236,7 @@ interface SpotlightQuery {
   hit: SpotlightContentHit | null
 }
 
-/** The three queries of feature-plan-10 §Layer 3 step 1, in that order. */
+/** The three queries of ARCHITECTURE §15.5, in that order. */
 function spotlightQueries(result: LitResult): SpotlightQuery[] {
   const queries: SpotlightQuery[] = []
 
@@ -760,7 +760,7 @@ export interface PdfSaveOutcome {
   path: string | null
   /** The same file as a project-relative POSIX path — what the BibTeX `file` field wants. */
   relativePath: string | null
-  /** Which of feature-plan-10's outcomes happened, or null when none did. */
+  /** Which of ARCHITECTURE §9's outcomes happened, or null when none did. */
   acquisition: PdfAcquisition | null
   /** Human-readable failure, or null. Never thrown. */
   error: string | null

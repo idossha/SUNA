@@ -49,7 +49,7 @@ export function resolvePreviewProfileId(
  * whose full `journalName` is too long for a picker need an entry — this map
  * is deliberately PARTIAL so that bundling a new profile can never again
  * break the build (it did: two hardcoded `Record<BundledProfileId, string>`
- * maps went stale the moment feature-plan-6 §1 added eight journals).
+ * maps went stale the moment the journal set grew to ten (ARCHITECTURE §12)).
  */
 const PROFILE_SHORT_LABELS: Partial<Record<BundledProfileId, string>> = {
   'brain-stimulation': 'Brain Stimul.',

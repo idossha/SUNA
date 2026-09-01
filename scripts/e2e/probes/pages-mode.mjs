@@ -1,6 +1,6 @@
 /**
  * Drive probe — Pages mode in the manuscript and letter tabs
- * (feature-plan-13 §B).
+ * (ARCHITECTURE §13).
  *
  * The claims worth checking are the ones a unit test cannot reach, because
  * they are about the real app's layout and the real exporter:

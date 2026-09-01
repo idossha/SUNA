@@ -52,7 +52,7 @@ afterEach(async () => {
 
 /* ---------------------------------------------------------------- fixtures -- */
 
-/** Gunn & Gott 1972 — the paper feature-plan-10's own examples are written around. */
+/** Gunn & Gott 1972 — the paper the study-acquisition examples are written around. */
 const GUNN: LitResult = {
   source: 'crossref',
   id: '10.1086/151605',
@@ -567,7 +567,7 @@ describe('acquireLibraryPdf', () => {
    * `sourceUrl` is Unpaywall's `url_for_pdf` (or a publisher's) kept as the raw
    * JSON string it arrived as — `new URL()`, which would have dropped a CR or
    * LF, is only ever applied to a copy. A URL is the same trust class as a
-   * name found on disk (ADR-007, feature-plan-10 §Layer 6), and both places
+   * name found on disk (ARCHITECTURE §9, ARCHITECTURE §21), and both places
    * this host names one reach a note the user reads and a model may be shown.
    */
   const FORGED_URL =

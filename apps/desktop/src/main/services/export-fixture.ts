@@ -9,7 +9,7 @@ import { join } from 'node:path'
  * references.bib (exercises the "cited but not found" row), a figure embed,
  * a GFM table, a managed (caption-only) manuscript table, keywords, and a
  * populated backMatter/availability block — writes the FLAT layout
- * (feature-plan-7 §1):
+ * (ARCHITECTURE §4.3):
  * manuscript.json, manuscript.md, authors.json, references.bib and
  * figures/fig-a/figure.png (a real, valid 1x1 PNG) under `dir`, which the
  * caller must have already `allowRoot`-ed.

@@ -4,10 +4,10 @@ import { checkManuscript, type Diagnostic } from '@suna/formatter'
 import { collectClusters } from '../manuscript/citations'
 
 /**
- * Runs the compliance checker (ADR-002 §4) against the profile the export
+ * Runs the compliance checker (ARCHITECTURE §12.1) against the profile the export
  * dialog is about to render with, BEFORE export — spec §5: "RUN THE
  * COMPLIANCE CHECKER FIRST and show violations as warnings that do not
- * block". The prose lives in ONE flat manuscript.md now (feature-plan-7 §1),
+ * block". The prose lives in ONE flat manuscript.md now (ARCHITECTURE §4.3),
  * so there is only one section text to read — `checkManuscript`'s
  * `sectionTexts` keys are never inspected, only `Object.values()`'d for word
  * counts and figure-reference scanning, so a single-entry record is exactly

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 /**
- * Progress/cancel state for directed AI action runs (feature-plan-8 §2c),
+ * Progress/cancel state for directed AI action runs (DECISIONS 2026-08-17),
  * keyed 'comment:<id>' / 'figure:<figureId>' / 'repair'. A store rather than
  * component state because the surfaces that display a run unmount freely
  * mid-run — dockview detaches hidden panels and ThreadCard unmounts on

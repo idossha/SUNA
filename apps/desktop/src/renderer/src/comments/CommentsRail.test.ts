@@ -3,7 +3,7 @@ import type { Comment } from '@suna/core'
 import { commentThreadEntries, surroundingText } from './CommentsRail'
 
 /**
- * The pure halves of the comment card's ✦ AI button (feature-plan-8 §3):
+ * The pure halves of the comment card's ✦ AI button (DECISIONS 2026-08-17):
  * the ±400-char context slice and the thread flattening the prompt template
  * renders as "author (when): body" lines. The click handler itself needs a
  * live EditorView and the IPC bridge — its anchor-snapshot idiom is the same

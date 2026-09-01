@@ -83,7 +83,7 @@ describe('parseClaudeAskOutput', () => {
   })
 })
 
-describe('claudeAskArgs (feature-plan-8 §2a)', () => {
+describe('claudeAskArgs (ARCHITECTURE §15.6)', () => {
   it('keeps the plain palette ask byte-identical to the original argv', () => {
     expect(claudeAskArgs('why is the sky blue', {})).toEqual([
       '-p',

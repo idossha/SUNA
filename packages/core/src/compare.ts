@@ -3,7 +3,7 @@ import { VERSION_ID_RE } from './versions';
 import type { Manuscript } from './manuscript';
 
 /**
- * What a comparison compares (feature-plan-14 §2).
+ * What a comparison compares (DECISIONS 2026-08-21).
  *
  * A comparison has two sides, and each side is named by a REFERENCE rather
  * than by a path. The reason is that the three things an author wants to

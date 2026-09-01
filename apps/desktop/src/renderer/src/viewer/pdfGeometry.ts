@@ -2,9 +2,9 @@ import { itemAtOffset, type PageText } from '@suna/core'
 import type { RenderedPage } from './pdfSelection'
 
 /**
- * Where a stored quote sits on a rendered page (ADR-008 M2).
+ * Where a stored quote sits on a rendered page (ARCHITECTURE §14.4).
  *
- * ## Deviation from ADR-008, deliberately and with a measurement
+ * ## Deviation from ARCHITECTURE §14.4, deliberately and with a measurement
  *
  * The ADR specifies rectangles reconstructed in PDF user space from each
  * item's `transform`/`width`/`height`, because `Range.getClientRects()` was

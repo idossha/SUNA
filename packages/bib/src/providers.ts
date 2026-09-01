@@ -527,7 +527,7 @@ async function arxivByDoi(doi: string): Promise<LitLookupOutcome> {
 /* ------------------------------------------------------------------ ai-cli -- */
 
 /**
- * Pure parsing for the 'ai-cli' provider (feature-plan-3 §2): a Claude Code
+ * Pure parsing for the 'ai-cli' provider (ARCHITECTURE §15.6): a Claude Code
  * or Codex CLI child process, spawned by the main process
  * (apps/desktop/src/main/services/lit.ts — the only place that touches
  * child_process), is prompted to answer with ONLY a JSON array of
@@ -535,7 +535,7 @@ async function arxivByDoi(doi: string): Promise<LitLookupOutcome> {
  * dependency-free (no fetch, no fs, no child_process) so it runs unmodified
  * under plain vitest and inside the bundled main process alike.
  *
- * Ground truth probed 2026-08-14 (feature-plan-3 §2.0, plus a live
+ * Ground truth probed 2026-08-14 (ARCHITECTURE §9, plus a live
  * verification run for codex during this build):
  *   - `claude -p "<prompt>" --output-format json --allowed-tools WebSearch`
  *     exits 0 and prints ONE JSON object whose `.result` is a STRING holding
@@ -611,7 +611,7 @@ function mapAiCliItem(raw: unknown): unknown {
  * Parse a model's raw text answer into LitResults: tolerates a bare array, a
  * fenced array, and prose wrapped around the array, and drops malformed
  * items rather than failing the whole search — the parse pipeline promised
- * by feature-plan-3 §2 BUILD step 2.
+ * by DECISIONS 2026-08-14.
  */
 export function parseAiCliText(text: string): AiCliOutcome {
   const unfenced = stripCodeFence(text)

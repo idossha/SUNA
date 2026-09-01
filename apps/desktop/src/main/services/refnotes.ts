@@ -16,7 +16,7 @@ const sha256 = (bytes: Uint8Array | Buffer): string =>
 
 /**
  * `references/notes/<citekey>.json` — reading notes on a reference PDF
- * (ADR-008). Same discipline as comments.json: read fresh, validate, write
+ * (ARCHITECTURE §14.4). Same discipline as comments.json: read fresh, validate, write
  * atomically, and never silently discard a file that fails to parse.
  *
  * One file per paper rather than one for the project, so a highlight is a
@@ -28,7 +28,7 @@ const sha256 = (bytes: Uint8Array | Buffer): string =>
  * boundary asserted against what the filesystem will actually reach.
  *
  * The lexical check is not enough on its own and this is the same hole
- * `prepareReferencesDir` documents for ADR-007: a `references/` that is a
+ * `prepareReferencesDir` documents for ARCHITECTURE §9: a `references/` that is a
  * symlink out of the project passes any string-prefix test, and `mkdir -p`
  * then follows the link. So the directory and the project root are BOTH
  * realpath-resolved after the directory exists, and the prefix is re-asserted
@@ -119,7 +119,7 @@ export async function writeReferenceNotes(
 }
 
 // ---------------------------------------------------------------------------
-// Native annotations in the PDF itself (ADR-008, amended: in place, never a
+// Native annotations in the PDF itself (ARCHITECTURE §14.4, amended: in place, never a
 // copy in output/).
 // ---------------------------------------------------------------------------
 

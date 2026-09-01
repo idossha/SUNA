@@ -12,12 +12,12 @@ import { sunaConfigDir } from '../context/paths'
 
 /**
  * Where the reference-library settings live and how they become searchable
- * directories (feature-plan-10 §Layer 3, "config.ts").
+ * directories (ARCHITECTURE §15.5, "config.ts").
  *
  * The file is `~/SunaConfig/library.json`, NOT Electron userData: the
  * standalone MCP server has no userData and must read the same roots the
  * Settings pane wrote, which is the same one-layer-two-hosts reasoning
- * `context/ensure.ts` records for SunaConfig as a whole (adr-004).
+ * `context/ensure.ts` records for SunaConfig as a whole (ARCHITECTURE §15.4).
  *
  * Two rules hold this module together:
  *
@@ -151,7 +151,7 @@ function freshDefaults(): LibraryConfig {
  * to carry in `external-paths.test.ts` ("this process's own config location")
  * was true and still the wrong shape: it is exactly the "that path is ours"
  * exception `describeExternalError` above refuses for errno messages, and
- * ADR-007 makes the same call for the library roots, which are quoted even
+ * ARCHITECTURE §3.1 D12 makes the same call for the library roots, which are quoted even
  * though the user typed them, so that the rule has no exception a later reader
  * has to remember. One call is cheaper than an exception.
  */

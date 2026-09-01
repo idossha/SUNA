@@ -9,7 +9,7 @@ import { EnvPicker } from './EnvPicker'
 const NAV_TOGGLE_TITLE = `Toggle left nav bar (${formatShortcut('Mod-Alt-KeyB')})`
 
 /**
- * Title bar (feature-plan-7 §3). The project name is a button opening
+ * Title bar (DECISIONS 2026-08-15). The project name is a button opening
  * ProjectMenu.tsx: Recent projects, then Open project… / New project… /
  * Open example. Reads "Open project" with no chevron target changed — the
  * button itself always reflects the current project (or the fallback label

@@ -61,8 +61,8 @@ Vim.defineEx('quit', 'q', (cm, params) => exRegistry.close(cm, FORCED(params)))
 Vim.defineEx('wq', 'wq', (cm) => exRegistry.saveAndClose(cm))
 Vim.defineEx('xit', 'x', (cm) => exRegistry.saveAndClose(cm))
 
-// `:help` / `:h` — the vim-native way to the shortcut overlay (feature-plan-9
-// §1), because in NORMAL mode a bare `?` is vim's search-backward and never
+// `:help` / `:h` — the vim-native way to the shortcut overlay (DECISIONS 2026-08-17),
+// because in NORMAL mode a bare `?` is vim's search-backward and never
 // reaches the window listener that opens it. `:h` is vim's own abbreviation
 // and collides with nothing: defaultExCommandMap has no command whose name or
 // short name starts with `h`. No caller is passed on — the overlay is one
@@ -219,7 +219,7 @@ export interface CreateEditorOptions {
    */
   onVimMode?: (owner: object, mode: string | null) => void
   /**
-   * Formatting UX (feature-plan-3.md §1): ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K always work on
+   * Formatting UX (ARCHITECTURE §17.3): ⌘B/⌘I/⌘⇧C/⌘⇧X/⌘K always work on
    * prose files (contentKindFor === 'prose'); ⌘⇧M, ⌘⇧K and ⌘⇧F plus the
    * right-click context menu's "Comment", "Insert citation…" and "Insert
    * figure…" items only do anything when the host supplies the matching
@@ -263,7 +263,7 @@ export interface EditorHandle {
 }
 
 /**
- * The citation under a right-click, if any (feature-plan-4.md §3): hit-tests
+ * The citation under a right-click, if any (DECISIONS 2026-08-14): hit-tests
  * the click to a document position, slices out that line, and runs the pure
  * `citationKeyAtLineOffset` grammar over it — then resolves the key against
  * the project's reference-PDF map (state/referencePdfs.ts). Returns null
@@ -336,7 +336,7 @@ export function createEditor(options: CreateEditorOptions): EditorHandle {
       if (update.docChanged) options.onDocChanged()
     }),
     ...languageExtensions(options.fileName),
-    // Word/Flux-grade formatting UX (feature-plan-3.md §1) — prose only,
+    // Word/Flux-grade formatting UX (ARCHITECTURE §17.3) — prose only,
     // and after the language/keymap extensions above so Prec.high inside
     // formattingKeymap wins regardless of source order.
     ...(isProse

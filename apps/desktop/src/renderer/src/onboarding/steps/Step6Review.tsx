@@ -42,7 +42,7 @@ function aiSummary(state: StepProps['state']): string {
   return `API key (${state.apiProvider ?? 'no provider chosen'}).`
 }
 
-/** Step 6 — Review (feature-plan-5 §5). Presentational only; the Create button lives in the footer. */
+/** Step 6 — Review (DECISIONS 2026-08-15). Presentational only; the Create button lives in the footer. */
 export function Step6Review({ state, update, targetPath }: Step6Props): JSX.Element {
   // createdAt is necessarily a preview — the real write timestamps at Create
   // time — but it must still be a valid ISO datetime for the schema to accept

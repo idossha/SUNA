@@ -160,8 +160,8 @@ Do not pipe the typecheck into a pager: `pnpm typecheck | tail` reports `tail`'s
 
 [Building and releasing](/guide/building) covers the rest — the hidden-app UI driver, what CI checks, building installers yourself, and how a release is cut and signed.
 
-::: warning `pnpm smoke` is stale
-The end-to-end UI smoke test still clicks a removed button and reads manuscript paths that no longer exist, so several of its steps fail on a healthy checkout. Do not treat it as a green check that your install is good; use `pnpm typecheck && pnpm test` for that.
+::: warning `pnpm smoke` does not currently finish
+The end-to-end UI smoke test gets five steps in and then fails on a stale precondition in its `reading-mode` step, so it stops before reaching the rest. Do not treat it as a green check that your install is good — use `pnpm typecheck && pnpm test` for that.
 :::
 
 Next: the [quickstart](/guide/quickstart) takes the example project from open to exported PDF, or take the [tour](/guide/tour) of the workspace first.

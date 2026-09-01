@@ -1,5 +1,5 @@
 /**
- * Reply markup — the three voices in a response letter (feature-plan-12 §6c,
+ * Reply markup — the three voices in a response letter (ARCHITECTURE §14.2,
  * "the black/blue/red role styling both real documents use").
  *
  * Read off the two response documents in this user's own corpus
@@ -18,7 +18,7 @@
  *
  * **Marks, not anchors.** A quoted change is written into the reply with two
  * plain-text marks — `::quote … ::` around a manuscript excerpt, `+++ … +++`
- * around the part of it that is new. feature-plan-12 §6c specifies a further
+ * around the part of it that is new. ARCHITECTURE §20.12 records a further
  * step (`::quote{id=q7}` resolved through `anchor.ts locate()` at format
  * time, so a quote can never go stale) and that step is still worth taking;
  * this is the authoring surface it will resolve INTO. Until then red is
@@ -479,7 +479,7 @@ export interface QuoteChangeRange {
 
 /**
  * Build a quote block out of manuscript text and the parts of it that are new
- * (feature-plan-14 §e).
+ * (DECISIONS 2026-08-21).
  *
  * This is the bridge from a comparison to a reply: the comparison already
  * knows, word by word, which of the current manuscript's characters were not

@@ -6,7 +6,7 @@ import { useUiStore } from '../state/ui'
 import { widthPresetsFor } from './export-presets'
 
 /**
- * "New Figure" (feature-plan-3 §4): create figures/<slug>/{figure.svg,
+ * "New Figure" (DECISIONS 2026-08-14): create figures/<slug>/{figure.svg,
  * figure.json} at the active profile's double-column width, register it in
  * manuscript.json, refresh the tree, and open it on the canvas. Shared by
  * the Figures view header button and the canvas tab's own "+" (CanvasTab.tsx).

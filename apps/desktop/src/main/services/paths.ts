@@ -43,13 +43,13 @@ export async function figureDirPath(dir: string, figureId: string): Promise<stri
 }
 
 /* ------------------------------------------------------------------ */
-/* The document registry (ADR-009, feature-plan-12 §1)                  */
+/* The document registry (ARCHITECTURE §4.2, ARCHITECTURE §4.2)                  */
 /* ------------------------------------------------------------------ */
 
 /**
  * The manifest's document registry, or the synthesized one-manuscript
  * registry when suna.json declares none. A project written before
- * feature-plan-12 resolves to exactly the document it always had.
+ * the registry resolves to exactly the document it always had (ARCHITECTURE §4.2).
  */
 export async function projectDocuments(dir: string): Promise<DocumentEntry[]> {
   try {
@@ -73,7 +73,7 @@ export async function projectPrimaryDocument(dir: string): Promise<DocumentEntry
 
 /**
  * The directory a document's files live in. Every editable document lives
- * under manuscript/ (ADR-009 decision 2), so this is the manuscript dir for
+ * under manuscript/ (ARCHITECTURE §4.2 decision 2), so this is the manuscript dir for
  * every kind; the nesting is in the entry's own `file`/`meta`.
  */
 export async function documentDir(dir: string): Promise<string> {
@@ -102,7 +102,7 @@ export async function documentFile(
  *
  * `SunaProjectManifestSchema.directories` is an exhaustive record whose seven
  * keys every shipped suna.json lists, so widening PROJECT_DIR_KEYS would
- * invalidate every manifest on disk (ADR-009). These helpers exist anyway so
+ * invalidate every manifest on disk (ARCHITECTURE §4.2). These helpers exist anyway so
  * that this module's invariant — every service that touches a source of truth
  * resolves its path through here — stays literally true, even for the one
  * directory with nothing to look up.

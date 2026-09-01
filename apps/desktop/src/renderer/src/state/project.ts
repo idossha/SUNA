@@ -35,7 +35,7 @@ function migrationStatusNote(name: string, migration: MigrationOutcome): string 
 
 /**
  * Re-point every project-scoped piece of state at (`dir`, `manifest`),
- * shared by every switch path below (feature-plan-7 §3): the create/open/
+ * shared by every switch path below (DECISIONS 2026-08-15): the create/open/
  * open-example store actions and the exported `openProjectAt`.
  *
  * - project store: rootDir + manifest swap first, so everything below (and
@@ -66,7 +66,7 @@ async function adoptProject(dir: string, manifest: SunaProjectManifest): Promise
 }
 
 /**
- * THE project-switching entry point (feature-plan-7 §3). Every surface that
+ * THE project-switching entry point (DECISIONS 2026-08-15). Every surface that
  * opens an EXISTING project by path — the title-bar Project menu's Recent
  * projects list, the welcome screen's recent-projects list, "Open project…"
  * — should call this rather than hand-rolling `project:open` + `setState`,

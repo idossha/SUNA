@@ -187,7 +187,7 @@ interface LetterDocument {
  * prose, clean any legacy assertion markup (substituting the author's sidecar
  * answers), and derive the subtitle.
  *
- * Split out of exportLetter (feature-plan-13 §B5) so the page view can have
+ * Split out of exportLetter (ARCHITECTURE §13) so the page view can have
  * the same letter the export would produce WITHOUT writing a file. Preview
  * and export now see the identical document: there is no gate on either.
  */

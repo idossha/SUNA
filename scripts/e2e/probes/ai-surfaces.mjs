@@ -1,5 +1,5 @@
 /**
- * Drive probe — the directed-AI surfaces (feature-plan-8 §3/§4/§2b, the §7
+ * Drive probe — the directed-AI surfaces (DECISIONS 2026-08-17, the §7
  * contract):
  *
  *   1. a section comment's card carries the ✦ AI button (.cmt__btn--ai) —

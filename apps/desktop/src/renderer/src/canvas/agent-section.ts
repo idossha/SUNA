@@ -1,7 +1,7 @@
 import type { Diagnostic } from '@suna/formatter'
 
 /**
- * Pure math/formatting behind the canvas Agent section (feature-plan-8 §4),
+ * Pure math/formatting behind the canvas Agent section (ARCHITECTURE §10.4),
  * split from AgentSection.tsx so it stays unit-testable without dragging the
  * directed-action runner (and its window.suna calls) into a node test run.
  */

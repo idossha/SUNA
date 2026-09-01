@@ -4,7 +4,7 @@ import type { PdfCitekeyMatch } from './pdfCitekey'
 import { describeCitekeyMatch } from './pdfCitekey'
 
 /**
- * The popover in the PDF viewer (ADR-008 M1/M2).
+ * The popover in the PDF viewer (ARCHITECTURE §14.4).
  *
  * Two shapes, one component. Over a fresh SELECTION it offers the eight
  * highlight colours, a note, and Copy. Over an EXISTING highlight it offers

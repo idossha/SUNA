@@ -1,5 +1,10 @@
 # UI fix plan — layout, settings parity, live citation rendering
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 Derived from eight screenshots of the running app (2026-08-14). Each defect
 below was observed, not inferred. Screens are referenced by time.
 

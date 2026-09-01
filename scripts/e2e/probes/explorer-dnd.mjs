@@ -1,5 +1,5 @@
 /**
- * Drive probe — explorer drag-and-drop (feature-plan-9 §2, the §6 selector
+ * Drive probe — explorer drag-and-drop (DECISIONS 2026-08-17, the §6 selector
  * contract):
  *
  *   1. a file row dragged onto a folder row moves the file ON DISK, retargets

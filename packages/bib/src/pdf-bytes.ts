@@ -1,5 +1,5 @@
 /**
- * Byte-level sniffing for files that claim to be PDFs (feature-plan-10 §Layer 2,
+ * Byte-level sniffing for files that claim to be PDFs (ARCHITECTURE §9,
  * "pdf-bytes.ts"). Two callers need it and neither may trust what it is told:
  * `downloadPdf` gets a `Content-Type` from a server that is often wrong (a
  * publisher's paywall interstitial is served as `application/pdf` more often
@@ -26,7 +26,7 @@ export const HTML_SNIFF_WINDOW_BYTES = 4096;
 
 /**
  * What the scanner reads off the front of a candidate file before re-scoring it
- * with byte-level evidence (feature-plan-10 §Layer 3 step 3). 256 KB is enough
+ * with byte-level evidence (ARCHITECTURE §15.5). 256 KB is enough
  * to cover the header, the XMP metadata packet and the first page's text of a
  * typical article, and small enough that reading twelve of them is free.
  */

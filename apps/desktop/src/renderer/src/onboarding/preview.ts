@@ -10,14 +10,14 @@ export function projectTreeLines(state: WizardState): string[] {
   const lines: string[] = [`${state.name || 'project'}/`]
   lines.push('  suna.json')
   lines.push('  .gitignore')
-  // The agent layer (adr-004) — written unconditionally by every scaffold.
+  // The agent layer (ARCHITECTURE §15.4) — written unconditionally by every scaffold.
   lines.push('  AGENTS.md')
   lines.push('  CLAUDE.md')
   lines.push('  context/')
   lines.push('    PROJECT.md')
   lines.push('    MEMORY.md')
   lines.push('    RULES.md')
-  // Flat manuscript directory (feature-plan-7 §1) — one prose file, sections
+  // Flat manuscript directory (ARCHITECTURE §4.3) — one prose file, sections
   // are its Markdown headings, and the byline lives in authors.json. Mirrors
   // writeManuscriptDir's write order in main/services/project.ts.
   lines.push('  manuscript/')
@@ -28,7 +28,7 @@ export function projectTreeLines(state: WizardState): string[] {
   lines.push('    references.bib')
 
   // Only the starter ships a letter and a demonstration review round; every
-  // other scaffold writes the manuscript alone (ADR-009).
+  // other scaffold writes the manuscript alone (ARCHITECTURE §4.2).
   if (state.scaffold === 'starter') {
     lines.push('    letters/')
     lines.push('      cover.md')

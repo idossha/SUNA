@@ -22,7 +22,7 @@ import '../comments/comments.css'
 import './viewer.css'
 
 /**
- * Every highlight in the project, across every paper (ADR-008).
+ * Every highlight in the project, across every paper (ARCHITECTURE §14.4).
  *
  * Reading notes are stored per paper because a highlight should be a small
  * write and `git diff` on a paper should show that paper's reading. The cost

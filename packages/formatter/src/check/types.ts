@@ -1,5 +1,5 @@
 /**
- * Compliance diagnostics (ADR-002 §4): profile-driven checks FLAG violations
+ * Compliance diagnostics (ARCHITECTURE §12.1): profile-driven checks FLAG violations
  * of a journal's stated author guidelines — they never rewrite content.
  * A `null` rule in the profile means "the journal does not state this" and
  * the corresponding check is skipped entirely.
@@ -11,18 +11,18 @@ export type DiagnosticSurface =
   | 'figure'
   | 'manuscript'
   | 'export'
-  /** feature-plan-12 §2 — cover-letter assertions and journal requirements. */
+  /** ARCHITECTURE §14.3 — cover-letter assertions and journal requirements. */
   | 'letter'
-  /** feature-plan-12 §6 — unaddressed reviewer points, response structure. */
+  /** ARCHITECTURE §4.5 — unaddressed reviewer points, response structure. */
   | 'response'
-  /** feature-plan-12 §9 — sponsor package slots and rendered-page limits. */
+  /** ARCHITECTURE §20.12 — sponsor package slots and rendered-page limits. */
   | 'package';
 
 export interface DiagnosticTarget {
   figureId?: string;
   elementId?: string;
   sectionPath?: string;
-  /** Registry id of the document the diagnostic belongs to (ADR-009). */
+  /** Registry id of the document the diagnostic belongs to (ARCHITECTURE §4.2). */
   documentId?: string;
   slotId?: string;
   pointId?: string;

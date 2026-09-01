@@ -2,7 +2,7 @@ import { buildQuoteBlock, type DiffOp } from '@suna/core'
 
 /**
  * Turning a section's diff ops into something a browser can paint, and into
- * something a response letter can quote (feature-plan-14 §4, §5).
+ * something a response letter can quote (DECISIONS 2026-08-21).
  *
  * Two jobs, one walk. The ops from `wordDiff` tile both texts exactly, so a
  * single pass produces both the ordered run of spans the view renders and the

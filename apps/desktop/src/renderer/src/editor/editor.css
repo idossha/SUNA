@@ -87,7 +87,7 @@
   color: var(--s-warn);
 }
 
-/* ---- AI review bar (editor/ReviewBar, feature-plan-11 §11f) ---------------
+/* ---- AI review bar (editor/ReviewBar, ARCHITECTURE §5.6) ---------------
    Same strip geometry as the divergence banner above, in the accent rather
    than the warning colour: unreviewed AI changes are normal work to look at,
    not a problem to fix. */

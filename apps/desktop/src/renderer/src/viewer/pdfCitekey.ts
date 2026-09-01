@@ -1,10 +1,10 @@
 import type { PdfResolution } from '@suna/bib'
 
 /**
- * Which reference is this open PDF (ADR-008)?
+ * Which reference is this open PDF (ARCHITECTURE §14.4)?
  *
  * `PdfTab` is handed only a path, but reading notes are keyed by citekey —
- * the one identifier that survives ADR-007 re-acquiring a paper, where the
+ * the one identifier that survives ARCHITECTURE §9 re-acquiring a paper, where the
  * bytes, the filename and the fingerprint can all change.
  *
  * The reverse lookup has to be careful because `resolvePdfPath`'s third tier
@@ -36,7 +36,7 @@ function samePath(a: string, b: string): boolean {
  * Resolve `pdfPath` to the citekey whose notes belong to it.
  *
  * Tier 1 is the conventional name `references/<citekey>.pdf`, which wins
- * outright — it is the path ADR-007's ladder writes and the one
+ * outright — it is the path ARCHITECTURE §9's ladder writes and the one
  * `resolvePdfPath` looks for first, so a file named that way is never
  * ambiguous however many fuzzy claims exist beside it.
  *

@@ -632,7 +632,7 @@ function RoundPaneView({
 }
 
 /**
- * **Compare** — one button, two comparisons (feature-plan-14 §3).
+ * **Compare** — one button, two comparisons (DECISIONS 2026-08-21).
  *
  * Answering a point needs two different "against what?"s, and they were two
  * buttons in the header until the header ran out of room. They are one

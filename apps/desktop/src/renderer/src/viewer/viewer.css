@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   PDF and image viewers (feature-plan-4 §2). Dark app chrome (toolbar/scroll
+   PDF and image viewers (DECISIONS 2026-08-14). Dark app chrome (toolbar/scroll
    backdrop use the standard --s-* tokens); the content itself — PDF pages,
    the image's checkerboard frame — is deliberately NOT theme-tokenized: a
    page is white paper and a transparent PNG shows a neutral checkerboard
@@ -321,7 +321,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Quote popover (ADR-008 M1) — appears at the end of a drag over a page.
+   Quote popover (ARCHITECTURE §14.4) — appears at the end of a drag over a page.
    Deliberately flat and quiet: it sits ON a document the reader is reading,
    so it announces the citation it will produce and gets out of the way.
    -------------------------------------------------------------------------- */
@@ -439,7 +439,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Painted highlights (ADR-008 M2). The layer sits between the canvas and the
+   Painted highlights (ARCHITECTURE §14.4). The layer sits between the canvas and the
    text layer so a highlighted passage stays selectable — an overlay that ate
    pointer events would make the one passage you cannot quote the one you
    already cared about.
@@ -476,7 +476,7 @@
 }
 
 /* A run that matched several equally-good places: painted, but marked, because
-   we will not silently pick one (ADR-008). */
+   we will not silently pick one (ARCHITECTURE §14.4). */
 .pdfhl__rect--ambiguous {
   outline: 1px dashed rgba(180, 40, 30, 0.85);
 }
@@ -538,7 +538,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Notes rail (ADR-008 M3) — the manuscript comments rail's clothes on reading
+   Notes rail (ARCHITECTURE §14.4) — the manuscript comments rail's clothes on reading
    notes' body, so a researcher who has used one already knows this one. The
    card internals reuse the `cmt-*` vocabulary from comments.css verbatim;
    only the container is new, because a PDF has no editor height map to
@@ -726,7 +726,7 @@ button.pdfnotes__dot:hover {
 }
 
 /* --------------------------------------------------------------------------
-   Cross-paper reading notes tab (ADR-008). Notes are stored per paper so a
+   Cross-paper reading notes tab (ARCHITECTURE §14.4). Notes are stored per paper so a
    highlight is a small write; this is the other half of that trade — one
    surface for the whole literature, because synthesis happens across papers.
    -------------------------------------------------------------------------- */

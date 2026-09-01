@@ -6,7 +6,7 @@ import { projectDocuments, projectSubdir } from './paths'
 
 /**
  * Migrate a project from the OLD manuscript layout to the flat one
- * (feature-plan-7 §1).
+ * (ARCHITECTURE §4.3).
  *
  * Old: `manuscript.json` carried a `body` array of nodes pointing at
  * `manuscript/sections/NN-name.md`, plus `authors` and `affiliations`.
@@ -203,7 +203,7 @@ export function migrateCommentTargets(
   file: unknown,
   manuscriptFile: string,
   /**
-   * Prose paths belonging to OTHER documents in the registry (ADR-009), which
+   * Prose paths belonging to OTHER documents in the registry (ARCHITECTURE §4.2), which
    * this retarget must leave alone.
    *
    * Before the registry there was exactly one prose file, so "every section
@@ -212,8 +212,8 @@ export function migrateCommentTargets(
    * manuscript it stops being safe: an unscoped retarget would collapse every
    * document's comments onto manuscript.md.
    *
-   * feature-plan-12 gap 5 is explicit that this collision needs a project that
-   * is simultaneously pre-feature-plan-7 and post-registry, which nothing can
+   * DECISIONS 2026-08-21 is explicit that this collision needs a project that
+   * is simultaneously pre-flat-layout and post-registry, which nothing can
    * produce today — `migrateProject` returns early on any flat project long
    * before this runs. This parameter is cheap insurance against a future
    * ordering, not a fix for a live bug.
@@ -415,7 +415,7 @@ export async function migrateProject(dir: string): Promise<MigrationResult> {
   // never a reason to undo a verified prose migration.
   try {
     // Every prose file the registry claims for a NON-primary document is off
-    // limits to the retarget (feature-plan-12 gap 5).
+    // limits to the retarget (DECISIONS 2026-08-21).
     const otherDocumentPaths = (await projectDocuments(dir))
       .filter((d) => d.kind !== 'manuscript' && d.file !== null)
       .map((d) => d.file as string)

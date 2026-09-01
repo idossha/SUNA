@@ -10,7 +10,7 @@ import {
 import { readLocalAuthorName } from './comments'
 
 /**
- * `references/notes/<citekey>.json` state (ADR-008 M2).
+ * `references/notes/<citekey>.json` state (ARCHITECTURE §14.4).
  *
  * One paper loaded at a time — the PDF viewer shows one document — so this is
  * a single-slot store rather than a project-wide map. That is the point of the

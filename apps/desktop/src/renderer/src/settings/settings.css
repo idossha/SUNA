@@ -241,7 +241,9 @@
   opacity: 0.4;
 }
 
-/* ---- two-level hierarchy: Global vs This project (feature-plan-5 §4) ------ */
+/* ---- setting-group separators (ARCHITECTURE §6.1) -------------------------
+   Named `__scope` from when settings had Global and This-project levels.
+   There is one level now; the class survives as a group separator. --------- */
 
 .settings__scope + .settings__scope,
 .settings__scope + h2.settings-tab__section {

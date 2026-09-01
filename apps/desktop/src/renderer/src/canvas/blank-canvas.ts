@@ -1,5 +1,5 @@
 /**
- * Blank-canvas affordance (feature-plan-3 §4): a fresh artboard shows a
+ * Blank-canvas affordance (DECISIONS 2026-08-14): a fresh artboard shows a
  * centered drop hint until the document has any drawable content, then it
  * disappears. `ElementLike` mirrors panel-letters.ts's structural DOM shape
  * so this is unit-testable against plain object fixtures, no DOM required.

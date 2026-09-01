@@ -54,7 +54,7 @@ import { resolveInside, type ProjectContext } from './project'
 
 /**
  * Study acquisition — the four verbs that carry a free-text mention all the
- * way to a PDF-backed citation (feature-plan-10 §Layer 4): `find_study`,
+ * way to a PDF-backed citation (ARCHITECTURE §15.2): `find_study`,
  * `find_local_pdf`, `fetch_pdf`, `cite_study`.
  *
  * Same host constraints as lit.ts, and for the same reason: this server runs
@@ -414,7 +414,7 @@ interface BibTextOutcome {
  * file reported as "0 entries parsed" is the silent empty list this project
  * forbids, and `citeStudy` builds the text it WRITES on top of what it read —
  * so a file that cannot be read but can be written would be replaced wholesale
- * by the one new entry, against feature-plan-10 §Layer 4's "Nothing here
+ * by the one new entry, against ARCHITECTURE §15.2's "Nothing here
  * overwrites or deletes". Every caller must stop when `error` is non-null.
  */
 async function readBibText(ctx: ProjectContext): Promise<BibTextOutcome> {

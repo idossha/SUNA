@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   "?" keyboard-shortcut overlay (feature-plan-8 §1). Palette-convention
+   "?" keyboard-shortcut overlay (DECISIONS 2026-08-17). Palette-convention
    backdrop/dialog — same z-index 200 layer and raised surface as
    palette/palette.css. `.help-overlay` and `.help-overlay__tab` are probe
    selectors (§7); rename them only with the probes.

@@ -8,7 +8,7 @@ import {
 } from './ReadingNotesTab'
 
 /**
- * The pure halves of the cross-paper reading notes tab (ADR-008).
+ * The pure halves of the cross-paper reading notes tab (ARCHITECTURE §14.4).
  */
 
 describe('describeIpcFailure', () => {

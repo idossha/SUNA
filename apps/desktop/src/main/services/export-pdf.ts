@@ -10,7 +10,7 @@ import { buildManuscriptHtml, buildSupplementHtml } from './export-html'
 import { exportPalette, resolveDocumentStyle } from './export-style'
 
 /**
- * PDF export (feature-plan-6 §4): the same profile-styled content model as
+ * PDF export (ARCHITECTURE §13): the same profile-styled content model as
  * export-docx.ts, rendered to HTML (export-html.ts) and printed via a
  * hidden BrowserWindow's `printToPDF` — no LaTeX, no Tectonic, no external
  * binary (mirrors figure-export.ts's own PDF path for one figure).
@@ -18,7 +18,7 @@ import { exportPalette, resolveDocumentStyle } from './export-style'
  * Page size/margins come from the resolved document style (export-style.ts):
  * the always-on SUNA house default (US Letter, 0.5 in margins), which a
  * profile's partial documentStyle may shift — though journal guidelines
- * almost never state submitted-manuscript page geometry (ADR-002), so in
+ * almost never state submitted-manuscript page geometry (ARCHITECTURE §13), so in
  * practice every profile prints on the SUNA page.
  *
  * Line numbers are the one thing `printToPDF` has no native primitive for

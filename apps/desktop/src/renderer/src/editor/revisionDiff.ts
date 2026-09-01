@@ -3,7 +3,7 @@ import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemir
 import { hunksFromOps, wordDiff, type DiffOp } from '@suna/core'
 
 /**
- * Word-level AI-change decorations (feature-plan-11 §11f) — removals in red,
+ * Word-level AI-change decorations (ARCHITECTURE §5.6) — removals in red,
  * additions in green, at the resolution of the words that actually changed.
  *
  * Everything is DERIVED, nothing is stored. The baseline (the manuscript's

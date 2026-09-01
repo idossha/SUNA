@@ -69,7 +69,7 @@ import {
 } from './export-style'
 
 /**
- * DOCX export (feature-plan-6 §3), built entirely with the bundled 'docx'
+ * DOCX export (ARCHITECTURE §13), built entirely with the bundled 'docx'
  * library — no external binary required. Walks the SAME parsed SciMark AST
  * (`ExportContent.sections[i].root`) the HTML/PDF path renders with
  * (export-html.ts) into `docx` Paragraphs/Tables, so citations, cross-refs
@@ -400,7 +400,7 @@ function cellAlignment(align: ColumnAlign | undefined, isHeader: boolean, colInd
  * exported table read as a scientific table rather than a spreadsheet grid,
  * which is what Word's default full-border table looks like.
  *
- * Keeping the table whole across a page boundary (feature-plan-13 §A3) takes
+ * Keeping the table whole across a page boundary (ARCHITECTURE §13) takes
  * two different properties, because OOXML has no table-level "keep together":
  *
  *  - `cantSplit` on every row stops a SINGLE ROW being torn in half — the
@@ -894,7 +894,7 @@ function headingParagraph(
   const wrap = (run: TextRun): DocxInline[] =>
     opts.bookmarkId !== undefined ? [new Bookmark({ id: opts.bookmarkId, children: [run] })] : [run]
   if (level === 'C-runin') {
-    // Run-in headings are page-typesetting (ADR-002 out of scope) — rendered
+    // Run-in headings are page-typesetting, a non-goal (ARCHITECTURE §12.1) — rendered
     // as their own bold+italic line rather than inline with the paragraph.
     return new Paragraph({
       keepNext: true,

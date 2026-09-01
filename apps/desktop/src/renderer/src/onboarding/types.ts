@@ -1,7 +1,7 @@
 import type { EditorThemeId, ResolvedSettingKey, ResponseOf } from '@suna/core'
 
 /**
- * Onboarding wizard (feature-plan-5 §5). Two entry points share every step
+ * Onboarding wizard (DECISIONS 2026-08-15). Two entry points share every step
  * after the first: 'create' starts from nothing (step 1 picks parent+name);
  * 'setup' targets an existing folder that is missing suna.json (step 1 is
  * skipped — `parentDir`/`name` are seeded from that folder and never re-picked).

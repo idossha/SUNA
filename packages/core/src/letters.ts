@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Cover letters and letters to the editor (ADR-009, feature-plan-12 §2).
+ * Cover letters and letters to the editor (ARCHITECTURE §4.2, ARCHITECTURE §14.3).
  *
  * A letter is `manuscript/letters/<id>.md` (prose, the source of truth) plus
  * `manuscript/letters/<id>.json` (this sidecar). It lives under `manuscript/`
@@ -198,7 +198,7 @@ export type LetterPrivate = z.infer<typeof LetterPrivateSchema>;
 export const LETTER_PRIVATE_GITIGNORE_LINE = 'manuscript/**/*.private.json';
 
 /* ------------------------------------------------------------------ */
-/* Per-user identity (feature-plan-12 §2b)                              */
+/* Per-user identity (DECISIONS 2026-08-19)                              */
 /* ------------------------------------------------------------------ */
 
 /**

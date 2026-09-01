@@ -70,7 +70,7 @@ const REPO = join(HERE, '..', '..', '..')
  * same `notes` array out of the same values, hands it to the same renderer,
  * and an agent asked about a reference reads it. A rule that stopped at the
  * package boundary would be a rule about a directory rather than about where
- * outside values go, and that is precisely the shape of exemption ADR-007
+ * outside values go, and that is precisely the shape of exemption ARCHITECTURE §9
  * argues against — the file spent one release "outside the rule" and grew a
  * local `describeError` and two raw URLs in the meantime.
  */
@@ -156,7 +156,7 @@ const ALLOW_LIST: Record<string, Allowed[]> = {
     // ground that it is this process's own config location. It is quoted now
     // and the entry is gone: $SUNA_CONFIG_DIR is an environment variable and a
     // home directory is a directory name, so both can hold a newline, and
-    // ADR-007 makes the opposite call for the sibling case (the library roots
+    // ARCHITECTURE §15.5 makes the opposite call for the sibling case (the library roots
     // are quoted even though the user typed them, "so the rule has no
     // exception a later reader has to remember"). Two readings of one rule is
     // the thing that produced the defects this file exists to stop.

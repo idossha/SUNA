@@ -1,5 +1,10 @@
 # Document kinds — the interaction design
 
+> **Historical design note.** The contract is [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and the
+> decisions are in [`docs/DECISIONS.md`](../DECISIONS.md). This file is kept for the detail and the
+> sourcing it carries, but where it disagrees with the contract the contract wins — and
+> `ARCHITECTURE.md` §20 lists the places it is known to. Do not treat anything here as current.
+
 Companion to `feature-plan-12.md`, which specifies the schemas, the checks and
 the files. This document specifies what the user *does*, and it replaces §11's
 table with a design. It sits beside the plan the way

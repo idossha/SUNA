@@ -4,7 +4,7 @@ import type { Diagnostic, DiagnosticTarget } from './types';
 import { fmtNum, sourceSuffix } from './util';
 
 /**
- * Figure compliance checker (ADR-002 §4). Parses an SVG with the canvas
+ * Figure compliance checker (ARCHITECTURE §12.1). Parses an SVG with the canvas
  * engine and flags violations of the profile's stated figure rules. Every
  * rule is skipped when the profile value is null ("the journal does not
  * state this").
