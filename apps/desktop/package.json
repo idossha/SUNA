@@ -10,9 +10,9 @@
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
     "test": "vitest run --passWithNoTests",
-    "package": "electron-builder --config electron-builder.config.cjs",
-    "package:mac": "electron-builder --config electron-builder.config.cjs --mac",
-    "package:dir": "electron-builder --config electron-builder.config.cjs --dir"
+    "package": "bash ../../scripts/electron-builder.sh",
+    "package:mac": "bash ../../scripts/electron-builder.sh --mac",
+    "package:dir": "bash ../../scripts/electron-builder.sh --dir"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -52,7 +52,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@electron/notarize": "^3.1.1",
     "@electron/rebuild": "^4.2.0",
     "@types/node": "^26.2.0",
     "@types/papaparse": "^5.5.2",
@@ -62,7 +61,6 @@
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
-    "js-yaml": "^5.4.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"

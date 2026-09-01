@@ -4,13 +4,19 @@ Straight answers to the questions an evaluator asks before committing a paper to
 
 ## Is SUNA ready to use? What state is it in?
 
-It runs, and it does real work on a real manuscript — but it is pre-release software you build from source. There is no packaged `.app`, no installer, no signed build and no release; you clone the repository and run `pnpm install` then `pnpm dev`. The shell, editor, manuscript view, figure canvas, publisher profiles, export and agent layer are all built and in daily use, and every file it touches is plain text under git, so a bad session is a `git checkout` away from undone.
+It runs, and it does real work on a real manuscript. There are signed installers for macOS, Windows and Linux attached to every [release](https://github.com/idossha/SUNA/releases) — the macOS builds are notarized by Apple, so the `.dmg` opens by double-clicking it — and you can still build from source if you would rather. The shell, editor, manuscript view, figure canvas, publisher profiles, export and agent layer are all built and in daily use, and every file it touches is plain text under git, so a bad session is a `git checkout` away from undone.
+
+It is still young software, and the version number is honest about that rather than the polish. Treat it as something to try on a real paper with your work in git, not as something with a decade of edge cases behind it.
 
 Some paths are covered by unit tests but have never been driven end-to-end under automation — notably producing a real `.pdf` and the study-acquisition download ladder. Open the exported file and look at it before you rely on it. See [Install and run](/guide/install) for prerequisites.
 
 ## Does it work on Windows or Linux?
 
-macOS is the only tested platform. The code is written cross-platform — there are Windows branches for Python paths and file-manager labels — but every walkthrough and every measurement in the repository was done on macOS, and no Windows or Linux run has been recorded. Some features are explicitly macOS-only: the "Use Spotlight" control for finding reference PDFs appears only on macOS. Treat other platforms as untested rather than unsupported.
+Installers are built for all three, and every change is typechecked and unit-tested on Linux, macOS **and** Windows before it is merged — so platform-branching code (Python paths, file-manager labels) is genuinely exercised.
+
+What macOS has that the others do not is a machine that opens the packaged app: the build pipeline packages SUNA on macOS and launches the real bundle on every pull request, and nothing in it ever boots a packaged Windows or Linux build. Every walkthrough and measurement in the repository was also done on macOS. So treat Windows and Linux as **untested rather than unsupported** — they build, the code carries the branches they need, and no machine has confirmed the result opens. [Bug reports](https://github.com/idossha/SUNA/issues) from either are genuinely useful.
+
+One feature is macOS-only by construction: the "Use Spotlight" control for finding reference PDFs.
 
 ## Can I collaborate with someone who does not use SUNA?
 

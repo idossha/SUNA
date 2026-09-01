@@ -1,0 +1,118 @@
+# SUNA CI — the checks that must be green before anything is merged or tagged.
+#
+# Two jobs, deliberately separate:
+#
+#   test     typecheck + vitest on Linux, macOS and Windows. The workspace is
+#            TypeScript strict and the main process branches on platform, so a
+#            path-separator or a `process.platform` mistake is caught by the
+#            runner it actually breaks on rather than by a user.
+#   package  macOS only: build the app, package it, and LAUNCH THE REAL BUNDLE.
+#            This is the only check that sees the packaged layout — asar
+#            contents, extraResources, the MCP bundle beside its node_modules —
+#            because none of it exists until electron-builder has run. It is
+#            also where a release's build would first go wrong, so it runs on
+#            every pull request rather than being discovered on a tag.
+#
+# The `package` job builds UNSIGNED on purpose: no signing secrets are passed,
+# so scripts/electron-builder.sh takes its ad-hoc path. Signing and
+# notarization belong to release.yml, and paying Apple's several-minute notary
+# round trip on every pull request would buy nothing.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm build` first, not as an afterthought: packages/agent's MCP bundle
+      # and the workspace's emitted declarations are prerequisites of the
+      # typecheck, so typechecking a fresh clone without it fails on missing
+      # `dist/` rather than on any real error.
+      - name: Build
+        run: pnpm build
+
+      # NEVER pipe this into a pager or `tail`: the pipeline reports the last
+      # command's exit status, not tsc's, and hides a failure. CLAUDE.md.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+  # The Python companion. Seconds long, and its own leg so a matplotlib failure
+  # is not buried inside a TypeScript one.
+  python:
+    name: python (suna_mpl)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: pytest
+        working-directory: python/suna_mpl
+        run: uv run pytest
+
+  package:
+    name: package + launch the bundle (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm package` is build + stage:resources + electron-builder. No
+      # signing secrets reach this job, so the mac build is ad-hoc signed and
+      # not notarized — see the header.
+      - name: pnpm package:mac
+        run: pnpm package:mac
+
+      # Asserts the signature verifies, every process.resourcesPath dependency
+      # resolved, and the app opens the bundled example project through the
+      # same IPC the menu uses. A bundle that boots but cannot find its own
+      # example is exactly the regression `pnpm dev` cannot see.
+      - name: Launch the packaged bundle
+        run: node scripts/e2e/packaged.mjs
+
+      - name: Upload the DMGs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: suna-macos-unsigned
+          path: release/*.dmg
+          if-no-files-found: warn
+          retention-days: 7

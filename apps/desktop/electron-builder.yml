@@ -1,5 +1,13 @@
 # Packaging for the downloadable SUNA app.
 #
+# THIS FILE DESCRIBES THE SIGNED BUILD — hardened runtime, entitlements, a
+# Developer ID picked up from CSC_LINK — because that is what a release must
+# be. Whether it is used as written is decided in exactly one place,
+# `scripts/electron-builder.sh`, which every packaging path goes through
+# (`pnpm package`, ci.yml, release.yml). Without a certificate that script
+# turns the signed-only settings back off and builds ad-hoc signed, so a fork
+# or a contributor still gets a working app. See docs/RELEASING.md §4.
+#
 # `build/resources/` is produced by scripts/packaging/stage-resources.mjs and
 # lands at Contents/Resources — the main process resolves examples/, mcp/ and
 # python/ from there via process.resourcesPath when packaged.
@@ -29,18 +37,33 @@ asarUnpack:
 
 mac:
   category: public.app-category.productivity
+  # The mac default, inherited by every mac target that has no artifactName of
+  # its own — here the `.zip`. The `dmg:` block below needs its own, because
+  # the top-level target blocks do NOT inherit this one.
+  #
+  # `${arch}` resolves to each ecosystem's own spelling, which matters if you
+  # write a download URL by hand: mac and zip get `arm64`/`x64`, the AppImage
+  # gets `x86_64`, the .deb gets `amd64`. The pattern is uniform; the token
+  # inside it is native. Hard-coding `x64` would silently misname arm64 Linux.
+  artifactName: SUNA-${version}-mac-${arch}.${ext}
+  # `zip` alongside `dmg` is not redundant: the `.dmg` is what a human
+  # double-clicks, the `.zip` is what a script downloads, and the `.zip` is the
+  # only mac artifact that unpacks without mounting an image.
   target:
     - target: dmg
       arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
   icon: build/icon.icns
   darkModeSupport: true
-  # With a Developer ID in the keychain (CSC_LINK/CSC_KEY_PASSWORD in CI)
-  # electron-builder picks it up on its own and the app can be notarized.
-  # Without one it falls back to ad-hoc signing: `identity: null` would skip
-  # signing altogether, leaving only Electron's inherited linker signature,
-  # which macOS rejects as a damaged app. Ad-hoc keeps the bundle valid — but
-  # only notarization stops Gatekeeper calling a browser download "damaged".
-  identity: '-'
+  # DELIBERATELY NO `identity:` KEY. With one, electron-builder never looks at
+  # CSC_LINK, and the whole Developer ID path dies silently. It imports the
+  # certificate from CSC_LINK / CSC_KEY_PASSWORD and selects it itself.
+  # `scripts/electron-builder.sh` supplies `--config.mac.identity=-` (ad-hoc)
+  # on the no-certificate path; `identity: null` is NOT the same thing and
+  # must never be used — it skips signing entirely, leaving only Electron's
+  # inherited linker signature, which Apple silicon rejects outright as
+  # "SUNA is damaged and can't be opened", with no override offered.
   gatekeeperAssess: false
   hardenedRuntime: true
   type: distribution
@@ -50,8 +73,16 @@ mac:
     NSMicrophoneUsageDescription: SUNA does not use the microphone.
     NSCameraUsageDescription: SUNA does not use the camera.
 
+  # electron-builder 26 notarizes through the APPLE_* variables on its own;
+  # @electron/notarize is its dependency, not one of ours. The `.dmg` is a
+  # separate submission and is stapled by release.yml, not here — see
+  # docs/RELEASING.md §4.
+  notarize: true
+
 dmg:
   artifactName: SUNA-${version}-mac-${arch}.dmg
+
+
 
 win:
   target:
@@ -76,6 +107,10 @@ linux:
     - target: AppImage
       arch: [x64, arm64]
     - target: deb
+      arch: [x64]
+    # The escape hatch for every distro that is neither Debian nor
+    # FUSE-capable.
+    - target: tar.gz
       arch: [x64]
   category: Office
   icon: build/icon.png

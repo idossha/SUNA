@@ -1,8 +1,13 @@
 # Packaging and releases
 
 SUNA ships as a downloadable desktop app built with `electron-builder`.
-Configuration lives in `apps/desktop/electron-builder.config.cjs`, which loads the static `electron-builder.base.yml` and decides signing from the environment; artifacts land in
-`release/` at the repo root (git-ignored).
+Configuration lives in `apps/desktop/electron-builder.yml`; the one conditional
+it cannot express — whether a signing certificate is present — lives in
+`scripts/electron-builder.sh`, which every packaging path goes through.
+Artifacts land in `release/` at the repo root (git-ignored).
+
+Cutting an actual release is `docs/RELEASING.md`. This page is about what goes
+*inside* the bundle.
 
 ## Building locally
 
@@ -12,7 +17,9 @@ pnpm package         # every target configured for the current host
 ```
 
 Both run three steps: `pnpm build` (workspace + `electron-vite build` +
-the MCP bundle), `pnpm stage:resources`, then `electron-builder`.
+the MCP bundle), `pnpm stage:resources`, then `scripts/electron-builder.sh`.
+Without a `CSC_LINK` in the environment that last step builds ad-hoc signed and
+says so — see `docs/RELEASING.md` §4.
 
 ## What ships beside the app
 
@@ -50,65 +57,28 @@ catch these regressions — the packaged layout only exists after a build.
 
 ## Signing
 
-There is no Apple Developer identity configured, so macOS builds are ad-hoc
-signed (`identity: '-'`) under the hardened runtime, with
-`build/entitlements.mac.plist` granting the library-validation exemption
-ad-hoc signing requires. Windows builds are unsigned.
+Signing and notarization are covered in full in **`docs/RELEASING.md` §4** —
+the two-path rule in `scripts/electron-builder.sh`, why the ad-hoc fallback
+must still sign, why the `.dmg` is stapled by the workflow rather than by
+electron-builder, and the four secrets. The short version:
 
-`identity: null` is NOT the same thing: it skips signing entirely, leaving the
-bundle with only Electron's inherited linker signature, and Apple silicon then
-rejects it as *"SUNA is damaged and can't be opened"* — a dead end for the
-user, since there is no "open anyway". `scripts/e2e/packaged.mjs` asserts the
-signature verifies so this cannot regress silently.
-
-Ad-hoc signing is not notarization, and on current macOS that distinction is
-absolute: an app carrying the quarantine flag that Apple cannot check is
-reported as **"damaged"**, and neither right-click → Open nor the Gatekeeper
-override in System Settings is offered. Signing correctly did not change the
-dialog the user sees — it only means the bundle is no longer *also* broken.
-
-The flag is attached by the downloading browser, not by the file, so the
-supported install path is `scripts/install-macos.sh`, which fetches the DMG
-with `curl` (no quarantine attached), installs to `/Applications` and clears
-the attribute if one is present. Users who already downloaded through a
-browser can run:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/SUNA.app
-```
-
-**A Developer ID certificate plus notarization is the only thing that makes a
-double-clicked download work.**
-
-The setup mirrors TI-Toolbox (`idossha/TI-Toolbox`, `package/build/notarize.js`),
-which is notarized and passes Gatekeeper: electron-builder signs with the
-Developer ID, an `afterSign` hook (`apps/desktop/build/notarize.cjs`) submits
-the app to Apple's notary service, and the DMG built afterwards carries the
-stapled ticket. The hook no-ops when credentials are absent, so local builds
-are unaffected.
-
-Both repositories use the **same four secret names**, so one certificate
-serves both — copy the values from TI-Toolbox:
-
-| Secret | What it is |
-| --- | --- |
-| `CSC_LINK` | base64 of the exported *Developer ID Application* .p12 |
-| `CSC_KEY_PASSWORD` | the password set when exporting that .p12 |
-| `APPLE_ID` | the Apple ID that owns the developer account |
-| `APPLE_APP_SPECIFIC_PASSWORD` | an app-specific password from appleid.apple.com |
-
-The team id (`3BMY24SA43`) is not a secret and is set directly in the
-workflow, as TI-Toolbox does.
-
-The mac job then verifies its own output — `codesign --verify`, `spctl -a -t
-install`, `xcrun stapler validate` — so a build that signs but fails to
-notarize shows up in CI rather than in a user's "damaged" dialog.
-
-Once notarized, `scripts/install-macos.sh` becomes a convenience rather than
-a requirement, and the README's quarantine instructions can go.
+- Release builds are signed with the **Developer ID Application** certificate
+  of team `3BMY24SA43`, hardened, notarized by Apple, and stapled. A downloaded
+  `.dmg` opens by double-clicking it, with no `xattr` step.
+- Builds without a certificate — a fork, a contributor, CI's packaging gate —
+  are **ad-hoc signed** (`--config.mac.identity=-`) with the hardened runtime
+  off. The bundle is valid and runs locally; a *browser download* of one is
+  still refused by Gatekeeper.
+- `identity: null` must never be used. It skips signing entirely, and Apple
+  silicon then rejects the app as *"SUNA is damaged and can't be opened"* with
+  no override offered. `scripts/e2e/packaged.mjs` asserts the signature
+  verifies so this cannot regress silently.
+- Windows builds are unsigned; SmartScreen warns about an unknown publisher.
 
 ## Releases
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds on
-macOS, Windows and Linux runners and uploads every artifact to a draft GitHub
-Release. Publish the draft once the artifacts look right.
+Pushing a `v*` tag runs `.github/workflows/release.yml`: it creates a draft
+Release, builds macOS, Linux and Windows in parallel with each leg attaching its
+own assets, and a final `verify` job publishes the Release once every required
+asset is actually attached. There is no manual publish step, and an incomplete
+release never becomes public. `docs/RELEASING.md` is the operator's manual.

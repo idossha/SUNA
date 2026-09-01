@@ -46,3 +46,17 @@ Electron academic-writing platform. pnpm monorepo, TypeScript strict.
   validation and resolver all follow. Colours are NOT in any stylesheet: they
   come from the theme registry (`packages/core/src/theme.ts`) as a generated
   sheet. See `docs/design/configuration.md`.
+
+## Packaging and releases
+
+- Packaging goes through `scripts/electron-builder.sh` on EVERY path
+  (`pnpm package`, CI, the release workflow). It owns `--publish never` and the
+  one macOS signing conditional; never call `electron-builder` directly.
+- `apps/desktop/electron-builder.yml` describes the SIGNED build. It has no
+  `identity:` key on purpose — with one, electron-builder never reads
+  `CSC_LINK`. `identity: null` must never be used: Apple silicon rejects such a
+  bundle as "damaged" with no override.
+- Cutting a release is `scripts/release.sh <version>`, which never pushes.
+  Pushing the tag is what publishes, and is a human's act, not an agent's.
+- `docs/RELEASING.md` is the operator's manual; `docs/packaging.md` covers what
+  goes inside the bundle.

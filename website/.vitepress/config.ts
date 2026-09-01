@@ -140,6 +140,7 @@ export default defineConfig({
         items: [
           { text: 'Keyboard shortcuts', link: '/reference/shortcuts' },
           { text: 'Files and formats', link: '/reference/files' },
+          { text: 'Building and releasing', link: '/guide/building' },
           { text: 'FAQ', link: '/reference/faq' }
         ]
       }

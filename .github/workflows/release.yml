@@ -1,3 +1,27 @@
+# SUNA release — build every installer on a `v*` tag and publish the Release.
+#
+#   create-release  →  one job per OS, each attaching its own assets
+#                   →  verify, which fails if an expected asset is missing
+#                      and publishes the Release when none is
+#
+# Creating the Release FIRST, rather than collecting everything and creating it
+# at the end, means a slow leg does not hold the fast ones hostage: each
+# platform attaches its assets as soon as it has them, and a leg that fails
+# leaves the others already attached. The cost is that the Release object
+# exists before it is complete — which is exactly why it is created as a
+# **draft** and why `verify` exists.
+#
+# The draft window lasts the length of the build only. `verify` reads the
+# assets actually attached and publishes when every required one is there. No
+# human step: a green `verify` is the same statement a maintainer used to make
+# by eye before pressing Publish. A leg that fails leaves `verify` red and the
+# Release a draft, so an incomplete release is never public — and a release
+# nobody remembers to publish, which is its own failure, cannot happen either.
+#
+# `workflow_dispatch` builds the same matrix without touching any Release:
+# `create-release`, every attach step and `verify` are `if:`-gated on
+# `refs/tags/`, so a dispatch still produces downloadable workflow artifacts
+# and proves the matrix.
 name: Release
 
 on:
@@ -5,22 +29,119 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
-  contents: write
+  contents: write # create the Release and attach assets
+
+env:
+  # Public information, not a secret — the Developer ID's team. Written here
+  # rather than kept as a secret so a reader can see what the build claims to
+  # be signed as.
+  APPLE_TEAM_ID: 3BMY24SA43
 
 jobs:
+  # --------------------------------------------------------------------------
+  # 1. The Release object, before anything is built.
+  # --------------------------------------------------------------------------
+  create-release:
+    name: Create the Release (draft until verified)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # `generate_release_notes` diffs against the previous tag
+
+      - name: Version and notes
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # node rather than awk/sed: the CHANGELOG heading contains `[` and
+          # `]` and the body contains backticks and `$`. A heredoc-delimited
+          # multi-line value is the only way to pass it on.
+          node scripts/changelog-section.mjs "$version" > /tmp/notes.md
+          {
+            echo 'body<<SUNA_EOF'
+            cat /tmp/notes.md
+            echo 'SUNA_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create the draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: SUNA ${{ steps.version.outputs.version }}
+          body: ${{ steps.version.outputs.body }}
+          generate_release_notes: true
+          draft: true
+          prerelease: false
+
+  # --------------------------------------------------------------------------
+  # 2. One job per OS: build, verify the signature, smoke-test the real bundle,
+  #    upload a workflow artifact, attach to the Release.
+  # --------------------------------------------------------------------------
   build:
+    name: ${{ matrix.name }}
+    needs: create-release
+    # `always()` plus the explicit check, so a `workflow_dispatch` run — where
+    # `create-release` is skipped rather than successful — still builds the
+    # matrix. A *tagged* run whose Release could not be created stops here
+    # instead of building three artifacts with nowhere to put them.
+    if: ${{ always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    # Windows is optional; see the matrix comment. A failure there must not
+    # fail the workflow.
+    continue-on-error: ${{ matrix.required == 'no' }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            args: --mac
-          - os: windows-latest
-            args: --win
-          - os: ubuntu-latest
-            args: --linux
-    runs-on: ${{ matrix.os }}
+          # ONE macOS runner builds BOTH slices: electron-builder.yml declares
+          # `arch: [arm64, x64]`, so `--mac` emits every mac asset whatever
+          # runner it is on. An Intel runner would add nothing here and would
+          # bill separately.
+          - name: macOS arm64 + x64 (dmg + zip)
+            os: macos-latest
+            builder: --mac
+            required: 'yes'
+            artifacts: |
+              release/*.dmg
+              release/*.zip
+              release/*.blockmap
+              release/latest-mac.yml
+          - name: Linux x64 + arm64 (AppImage + deb + tar.gz)
+            os: ubuntu-latest
+            builder: --linux
+            required: 'yes'
+            artifacts: |
+              release/*.AppImage
+              release/*.deb
+              release/*.tar.gz
+              release/latest-linux.yml
+          # Windows is OPTIONAL. macOS and Linux are the platforms SUNA is
+          # actually exercised on; this leg is here because it costs nothing to
+          # keep — electron-builder downloads its own NSIS and produces an
+          # unsigned installer with no extra tooling. `continue-on-error` plus
+          # `required: no` mean a Windows failure never blocks a macOS/Linux
+          # release, and `verify` reports it as an absence instead of failing.
+          - name: Windows x64 + arm64 (nsis, optional)
+            os: windows-latest
+            builder: --win
+            required: 'no'
+            artifacts: |
+              release/*.exe
+              release/*.blockmap
+              release/latest.yml
+
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -28,68 +149,244 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm stage:resources
-      - run: pnpm --filter @suna/desktop exec electron-builder --config electron-builder.config.cjs ${{ matrix.args }} --publish never
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Stage the bundled resources
+        run: pnpm stage:resources
+
+      # CHECK THE NOTARIZATION CREDENTIALS BEFORE THE BUILD, NOT AFTER IT. A
+      # bad or revoked app-specific password fails here in seconds with Apple's
+      # own message; the same failure inside electron-builder costs the whole
+      # build first — and every retry is another failed sign-in against the
+      # Apple ID, which Apple locks after a few in a row. No re-run can undo
+      # that. Runs with no secrets skip this and build ad-hoc signed, exactly
+      # as scripts/electron-builder.sh does.
+      - name: Notarization credentials must be accepted (macOS, signed builds only)
+        if: runner.os == 'macOS'
+        shell: bash
         env:
-          # Same secret names as TI-Toolbox, so one Developer ID serves both
-          # repositories. Absent, the mac build ad-hoc signs and skips
-          # notarization (see apps/desktop/electron-builder.config.cjs).
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CSC_LINK:-}" ]; then echo "no CSC_LINK: ad-hoc build, nothing to check"; exit 0; fi
+          if [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]; then
+            echo "CSC_LINK is set but APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD are not:" >&2
+            echo "the app would sign but not notarize, and a download would still be refused." >&2
+            echo "Set both (docs/RELEASING.md §4) or unset CSC_LINK for an unsigned build." >&2
+            exit 1
+          fi
+          if ! out="$(xcrun notarytool history --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" 2>&1)"; then
+            echo "$out" >&2
+            echo >&2
+            echo "notarytool rejected the credentials. Do NOT re-run this leg until they are fixed:" >&2
+            echo "every failed attempt counts against the Apple ID and can lock it." >&2
+            exit 1
+          fi
+          echo "notarytool accepted the credentials for $APPLE_TEAM_ID"
+
+      # scripts/electron-builder.sh, not electron-builder directly: it owns
+      # `--publish never` and the one macOS signing conditional. The four
+      # signing secrets are passed on every leg and are ALLOWED TO BE EMPTY —
+      # with them the mac leg produces a Developer ID-signed, hardened,
+      # notarized and stapled app; without them (a fork) the script falls back
+      # to an ad-hoc build rather than failing. That fallback is the difference
+      # between a release that is merely unsigned and no release at all.
+      - name: electron-builder ${{ matrix.builder }}
+        shell: bash
+        env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: 3BMY24SA43
+        run: bash scripts/electron-builder.sh ${{ matrix.builder }}
 
-      # Prove the claim rather than assume it: an unsigned or un-stapled build
-      # should be visible here, not in a user's "damaged" dialog.
-      - name: Verify signature and notarization
-        if: matrix.os == 'macos-latest'
+      # electron-builder notarizes and staples the .app, but it never submits
+      # the .dmg itself, so the disk image carries no ticket of its own. A dmg
+      # without a ticket still opens — Gatekeeper finds the app's stapled
+      # ticket once the image is mounted — but it fails an offline check on the
+      # image and the stapler gate below. Submit each dmg and staple it, with
+      # the same credentials the builder used.
+      - name: Notarize and staple the dmg (macOS, signed builds only)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
-          APP=$(find release -maxdepth 2 -name "*.app" -type d | head -1)
-          [ -n "$APP" ] || { echo "no .app found"; exit 1; }
-          echo "=== codesign ==="
-          codesign -dv --verbose=4 "$APP" 2>&1 || true
-          codesign --verify --deep --strict "$APP" && echo "signature verifies"
-          echo "=== gatekeeper ==="
-          spctl -a -vvv -t install "$APP" 2>&1 || true
-          echo "=== staple ==="
-          xcrun stapler validate "$APP" 2>&1 || true
-      - uses: actions/upload-artifact@v4
+          set -euo pipefail
+          if [ -z "${CSC_LINK:-}" ]; then echo "no CSC_LINK: ad-hoc build, nothing to staple"; exit 0; fi
+          for dmg in release/*.dmg; do
+            [ -f "$dmg" ] || continue
+            echo "=== notarytool submit $dmg"
+            xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+              --wait --timeout 30m
+            xcrun stapler staple "$dmg"
+          done
+
+      # What the signature actually says, on the runner that made it — and a
+      # GATE when there was a certificate to sign with. With no CSC_LINK the
+      # build is legitimately ad-hoc (a fork) and the checks only report; with
+      # one, an app Gatekeeper does not accept as a notarized Developer ID
+      # build, or a .dmg with no stapled ticket, fails the leg HERE rather than
+      # on a user's machine as "SUNA is damaged". Both slices, since only one
+      # of them would otherwise be looked at.
+      - name: Signature, Gatekeeper and staple
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          set -uo pipefail
+          signed=1
+          [ -n "${CSC_LINK:-}" ] || signed=0
+          [ "$signed" = "1" ] || echo "no CSC_LINK: this build is ad-hoc signed, reporting only"
+          rc=0
+          found=0
+          for app in release/mac-arm64/SUNA.app release/mac/SUNA.app; do
+            [ -d "$app" ] || continue
+            found=1
+            echo "=== $app"
+            codesign -dv --verbose=4 "$app" 2>&1 || rc=$((rc + signed))
+            codesign --verify --deep --strict --verbose=2 "$app" 2>&1 || rc=$((rc + signed))
+            # "accepted" plus "source=Notarized Developer ID" is the whole
+            # claim; spctl exits 0 for an accepted-but-not-notarized app too,
+            # so the source line is checked, not just the exit code.
+            out="$(spctl -a -vv -t install "$app" 2>&1)" || rc=$((rc + signed))
+            echo "$out"
+            if [ "$signed" = "1" ] && ! echo "$out" | grep -q 'Notarized Developer ID'; then
+              echo "spctl did not report a Notarized Developer ID" >&2
+              rc=$((rc + 1))
+            fi
+          done
+          [ "$found" = "1" ] || { echo "no SUNA.app was built" >&2; exit 1; }
+          for dmg in release/*.dmg; do
+            [ -f "$dmg" ] || continue
+            echo "=== stapler $dmg"
+            xcrun stapler validate "$dmg" 2>&1 || rc=$((rc + signed))
+          done
+          exit "$rc"
+
+      # The packaged layout only exists after a build, so this is the only
+      # place the `process.resourcesPath` wiring — the bundled example, the MCP
+      # server, the Python kernel — is ever exercised. It boots the real
+      # bundle hidden, with isolated user data.
+      - name: Packaged smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: node scripts/e2e/packaged.mjs --app release/mac-arm64/SUNA.app
+
+      - name: Upload the workflow artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: suna-${{ matrix.os }}
-          path: |
-            release/*.dmg
-            release/*.exe
-            release/*.AppImage
-            release/*.deb
+          path: ${{ matrix.artifacts }}
           if-no-files-found: error
+          retention-days: 14
 
-  # Attach whatever built to the tag's release, so one platform failing does
-  # not withhold the installers that did build.
-  upload:
-    needs: build
-    if: always() && startsWith(github.ref, 'refs/tags/v')
+      # Straight onto the Release from the runner that built them — no
+      # download-artifact round trip. Tagged runs only: a workflow_dispatch has
+      # no Release to attach to.
+      - name: Attach to the Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          files: ${{ matrix.artifacts }}
+          fail_on_unmatched_files: false
+
+  # --------------------------------------------------------------------------
+  # 3. Verify. A release is not done because three jobs went green — it is done
+  #    when the files a user will click on are actually attached.
+  # --------------------------------------------------------------------------
+  verify:
+    name: Verify the Release assets
+    needs: [create-release, build]
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/v') && needs.create-release.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-      - env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Every expected asset must be attached
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.create-release.outputs.version }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json assets --jq '.assets[].name' | sort > /tmp/attached.txt
+          echo "attached:"
+          sed 's/^/  /' /tmp/attached.txt
+
+          # REQUIRED. The arch token is each ecosystem's own spelling of x64
+          # (docs/RELEASING.md §1): `x86_64` for the AppImage, `amd64` for the
+          # deb, `x64` everywhere else.
+          required=(
+            "SUNA-$VERSION-mac-arm64.dmg"
+            "SUNA-$VERSION-mac-x64.dmg"
+            "SUNA-$VERSION-mac-arm64.zip"
+            "SUNA-$VERSION-mac-x64.zip"
+            "SUNA-$VERSION-linux-x86_64.AppImage"
+            "SUNA-$VERSION-linux-amd64.deb"
+          )
+          # OPTIONAL — Windows is a bonus leg, the arm64 Linux builds are
+          # untested, and the latest*.yml feeds exist for a future in-app
+          # updater rather than for a human. Absence is reported, not fatal.
+          optional=(
+            "SUNA-$VERSION-win-x64.exe"
+            "SUNA-$VERSION-linux-arm64.AppImage"
+            "SUNA-$VERSION-linux-x64.tar.gz"
+            "latest-mac.yml"
+            "latest-linux.yml"
+            "latest.yml"
+          )
+
+          missing=0
+          for asset in "${required[@]}"; do
+            if grep -qxF "$asset" /tmp/attached.txt; then
+              echo "ok       $asset"
+            else
+              echo "MISSING  $asset (required)" >&2
+              missing=1
+            fi
+          done
+          for asset in "${optional[@]}"; do
+            if grep -qxF "$asset" /tmp/attached.txt; then
+              echo "ok       $asset (optional)"
+            else
+              echo "absent   $asset (optional)"
+            fi
+          done
+
+          if [ "$missing" != "0" ]; then
+            echo >&2
+            echo "The Release is incomplete, so it stays a draft. Re-run the failed build leg" >&2
+            echo "(this job then publishes it), or delete the draft and the tag and cut again." >&2
+            exit 1
+          fi
+          echo
+          echo "All required assets are attached."
+
+      # The end of the draft window. `--latest` is explicit rather than
+      # inherited: GitHub picks "Latest" by semver among *published* releases,
+      # and saying so here means the tag just built is the one the repository
+      # page and every download link point at.
+      - name: Publish the Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
+        shell: bash
         run: |
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "SUNA $TAG" --generate-notes
-          # One file at a time with retries: a single flaky 400 from the
-          # uploads endpoint must not cost the whole release.
-          for f in artifacts/*; do
-            for attempt in 1 2 3; do
-              gh release upload "$TAG" "$f" --clobber && break
-              echo "retrying $(basename "$f") (attempt $attempt)"
-              sleep 15
-            done
-          done
-          gh release view "$TAG" --json assets -q '.assets[].name'
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false --latest
+          echo "Published $TAG."

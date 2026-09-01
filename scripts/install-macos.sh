@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Install the latest SUNA release on macOS.
 #
-# Why this exists: SUNA is not notarized (no Apple Developer certificate yet),
-# and macOS refuses to open ANY quarantined app it cannot check with Apple —
-# reporting it as "damaged", with no "open anyway". A browser attaches that
-# quarantine flag; curl does not. This script downloads with curl, installs to
-# /Applications, and strips the flag if one is present anyway.
+# THIS IS NOW A CONVENIENCE, NOT A REQUIREMENT. SUNA's macOS builds are signed
+# with a Developer ID and notarized by Apple, so the normal path works: open
+# the .dmg, drag SUNA to Applications, double-click it. Use this if you would
+# rather install from a terminal, or want the right slice picked for you.
+#
+# It downloads with curl (which attaches no quarantine flag), installs to
+# /Applications, and clears the attribute if one is present anyway — harmless
+# on a notarized build, and it keeps the script working on an older release.
 #
 #   curl -fsSL https://raw.githubusercontent.com/idossha/SUNA/main/scripts/install-macos.sh | bash
 #

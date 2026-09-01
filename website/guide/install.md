@@ -4,31 +4,56 @@ Download an installer, or run from a source checkout. Most people want the insta
 
 ## Download
 
-Every [release](https://github.com/idossha/SUNA/releases) carries builds for macOS, Windows and Linux.
+Every [release](https://github.com/idossha/SUNA/releases) carries installers for macOS, Windows and Linux. Take the one for your machine from the newest release's **Assets** list.
+
+| Your machine | The file to download |
+|---|---|
+| Mac with Apple silicon (M1–M4) | `SUNA-<version>-mac-arm64.dmg` |
+| Mac with an Intel processor | `SUNA-<version>-mac-x64.dmg` |
+| Windows | `SUNA-<version>-win-x64.exe` |
+| Debian, Ubuntu, or a derivative | `SUNA-<version>-linux-amd64.deb` |
+| Any other Linux | `SUNA-<version>-linux-x86_64.AppImage` |
+
+Not sure which Mac you have? Apple menu → About This Mac. "Apple M1" or later means arm64; "Intel" means x64.
 
 ### macOS
 
-SUNA is not notarized by Apple yet, and macOS refuses to open an app it cannot check — reporting it as **"damaged"**, with no override in the dialog. The quarantine flag that triggers this is attached by the *browser*, not by the file, so install from a terminal instead:
+1. Open the downloaded `.dmg`.
+2. Drag **SUNA** onto the **Applications** shortcut in the window that appears.
+3. Eject the disk image and open SUNA from Applications or Spotlight.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/idossha/SUNA/main/scripts/install-macos.sh | bash
-```
+That is all of it. SUNA's macOS builds are signed with an Apple Developer ID and notarized by Apple, so macOS recognises them and opens them without a warning. You do **not** need to right-click → Open, run `xattr`, or change anything in System Settings.
 
-That picks the right build for your Mac (Apple silicon or Intel), installs it to `/Applications`, and opens cleanly. Read [the script](https://github.com/idossha/SUNA/blob/main/scripts/install-macos.sh) first if you would rather not pipe to a shell.
-
-Already downloaded the DMG in a browser? Drag SUNA to Applications, then:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/SUNA.app
-```
+::: tip If macOS still complains
+An unexpected *"damaged"* or *"cannot be opened"* dialog means the download did not finish or is not one of ours. Delete it, and download again from the [releases page](https://github.com/idossha/SUNA/releases) — not from a mirror. If it persists, [open an issue](https://github.com/idossha/SUNA/issues) with the exact wording of the dialog.
+:::
 
 ### Windows
 
-Take the `.exe` matching your architecture. SmartScreen warns about an unknown publisher — choose *More info* → *Run anyway*.
+Run the `.exe`. The installer lets you choose the install location and installs for the current user only, so it needs no administrator password.
+
+Windows SmartScreen will warn about an **unknown publisher** — SUNA has no Windows code-signing certificate. Choose *More info* → *Run anyway*. Windows is not a platform SUNA has been exercised on; see [platform support](#platform-support) below.
 
 ### Linux
 
-Take the AppImage for your architecture (`chmod +x` it and run), or the `.deb` on Debian and Ubuntu.
+The `.deb` installs with your package manager:
+
+```bash
+sudo apt install ./SUNA-<version>-linux-amd64.deb
+```
+
+The AppImage is a single self-contained file — make it executable and run it:
+
+```bash
+chmod +x SUNA-<version>-linux-x86_64.AppImage
+./SUNA-<version>-linux-x86_64.AppImage
+```
+
+A `.tar.gz` is also attached for distributions where neither of those fits.
+
+### Updating
+
+SUNA has no in-app updater yet. To move to a newer version, download the new installer and install over the top: on macOS drag the new app to Applications and replace the old one, on Windows run the new `.exe`, on Linux install the new package. Your projects live in your own folders and are never touched by an install, and your settings live in `~/.suna/`.
 
 ## Run from source
 
@@ -105,7 +130,11 @@ On first use SUNA creates a machine-level `~/SunaConfig/` folder holding the con
 
 ## Platform support
 
-macOS is the only platform SUNA has been exercised on. The code carries Windows branches and non-Darwin fallbacks, but no Windows or Linux run is on record, so treat those as untested rather than supported. One feature is macOS-only by construction: the "Use Spotlight" setting, which asks `mdfind` for PDFs whose text contains a DOI or title before walking your folders, appears only on macOS.
+**macOS is the platform SUNA is actually exercised on.** Every pull request typechecks and unit-tests on Linux, macOS and Windows, so platform-branching code is covered, and the macOS leg additionally packages the app and launches the real bundle. Nothing in that pipeline ever boots a packaged Windows or Linux build.
+
+So treat Windows and Linux as **untested rather than unsupported**: they build, the code carries the branches they need, and no machine has confirmed the result opens. If you run SUNA on either, [bug reports](https://github.com/idossha/SUNA/issues) are genuinely useful — say which platform you are on.
+
+One feature is macOS-only by construction: the "Use Spotlight" setting, which asks `mdfind` for PDFs whose text contains a DOI or title before walking your folders, appears only on macOS.
 
 ## Troubleshooting
 
@@ -118,7 +147,7 @@ macOS is the only platform SUNA has been exercised on. The code carries Windows 
 | A project has no `.mcp.json` | The wiring is written on open and is gitignored, so it never travels with a clone | Open the project in SUNA once |
 | The example looks stale or you broke it | You are editing the copy, not the shipped demo | Delete `~/Library/Application Support/@suna/desktop/example-project` and choose Open example again |
 
-## Developer commands
+## Developing SUNA
 
 | Command | What it does |
 |---|---|
@@ -129,8 +158,10 @@ macOS is the only platform SUNA has been exercised on. The code carries Windows 
 
 Do not pipe the typecheck into a pager: `pnpm typecheck | tail` reports `tail`'s exit status, not `tsc`'s, and hides a failure.
 
-::: warning Not built yet
-`pnpm smoke`, the end-to-end UI smoke test, is stale. It still clicks a removed button and reads manuscript paths that no longer exist, so several of its steps fail on a healthy checkout. Do not treat it as a green check that your install is good; use `pnpm typecheck && pnpm test` for that.
+[Building and releasing](/guide/building) covers the rest — the hidden-app UI driver, what CI checks, building installers yourself, and how a release is cut and signed.
+
+::: warning `pnpm smoke` is stale
+The end-to-end UI smoke test still clicks a removed button and reads manuscript paths that no longer exist, so several of its steps fail on a healthy checkout. Do not treat it as a green check that your install is good; use `pnpm typecheck && pnpm test` for that.
 :::
 
 Next: the [quickstart](/guide/quickstart) takes the example project from open to exported PDF, or take the [tour](/guide/tour) of the workspace first.
