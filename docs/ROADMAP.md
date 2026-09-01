@@ -78,9 +78,10 @@ gap between the architecture's claim and its delivery.
 **3. Manuscript-side compliance UI.** The engine is built and agent-reachable as `check_manuscript`;
 compliance is surfaced in the Export dialog only, not as inline diagnostics while writing.
 
-**4. The compliance rule set is a fraction of the planned one.** 26 rules implemented against 55
-specified, with **no citation (`CIT-*`) surface at all** and the `export` and `package` diagnostic
-surfaces declared but emitted by nothing (§20.8).
+**4. The compliance rule set is a fraction of the planned one.** 26 rules are implemented; of the
+54 sourced against real guidelines, only 13 ship, so **41 remain unbuilt** — inventoried at the end
+of §12.1 with the profile field each would read. There is **no citation (`CIT-*`) surface at all**,
+and the `export` and `package` diagnostic surfaces are declared but emitted by nothing (§20.8).
 
 **5. `suna_mpl` is scaffolded but not delivered.** The starter `plot.py` imports it; it is neither
 staged into the bundle nor on PyPI, so a packaged-app user who runs the scaffolded script gets
@@ -97,7 +98,12 @@ hosted documents, host-peer authority — so a future attempt does not rediscove
 **8. Sponsor packages and the round freeze.** Schema only. `FreezeSchema` exists but there is no
 `git:tag` IPC channel, so the tagging half has no transport; treat `Freeze.tag` as reserved.
 
-**9. LaTeX-native export.** Deliberately absent, not missing: PDF export is a clean submission
+**9. The response workspace's third pane.** Undecided: should it show the manuscript, or the diff
+against the frozen submission? Both are defensible and a toggle is the obvious way to ship two half
+features, so this wants an answer before it is built rather than after. Recorded here because the
+design note that raised it is gone and the question outlived it.
+
+**10. LaTeX-native export.** Deliberately absent, not missing: PDF export is a clean submission
 manuscript, not TeX-quality typesetting. A bundled-Tectonic path is a quality upgrade for
 LaTeX-native journals, and nothing in the current export path needs it.
 

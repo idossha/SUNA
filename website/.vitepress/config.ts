@@ -57,14 +57,11 @@ export default defineConfig({
     siteTitle: 'SUNA',
     outline: { level: [2, 3], label: 'On this page' },
 
-    nav: [
-      {
-        text: 'Guide',
-        link: '/',
-        activeMatch: '^/(guide|writing|figures|documents|publishing|ai)/'
-      },
-      { text: 'Reference', link: '/reference/shortcuts', activeMatch: '^/reference/' }
-    ],
+    // No `nav`. The sidebar already carries every page, and a top bar
+    // repeating two of its section names was navigation that pointed back at
+    // what was already on screen. The repository link is the one thing the
+    // sidebar cannot offer.
+    socialLinks: [{ icon: 'github', link: 'https://github.com/idossha/SUNA' }],
 
     sidebar: [
       {
