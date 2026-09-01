@@ -40,6 +40,15 @@ check('resources/mcp/node_modules/jsdom shipped', existsSync(join(res, 'mcp', 'n
 check('resources/mcp/node_modules/zod shipped', existsSync(join(res, 'mcp', 'node_modules', 'zod')))
 check('resources/examples/hello-suna shipped', existsSync(join(res, 'examples', 'hello-suna', 'suna.json')))
 check('resources/python kernel bridge shipped', existsSync(join(res, 'python', 'suna_kernel', 'bridge.py')))
+// suna_mpl is not on PyPI, so the bundled example's plot.py has no other
+// source for the library it imports (§16.1, §20.6). `uv run --with <dir>`
+// needs the pyproject.toml at the root and the sources it names — assert both,
+// because staging one without the other fails only at the user's terminal.
+check(
+  'resources/python/suna_mpl shipped',
+  existsSync(join(res, 'python', 'suna_mpl', 'pyproject.toml')) &&
+    existsSync(join(res, 'python', 'suna_mpl', 'src', 'suna_mpl', '__init__.py'))
+)
 // An invalid signature is not a cosmetic problem on macOS: arm64 refuses the
 // app outright with "SUNA is damaged and can't be opened". electron-builder
 // with `identity: null` produced exactly that, so assert the bundle really is

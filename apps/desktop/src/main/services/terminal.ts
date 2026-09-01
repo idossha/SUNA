@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { EVENT_CHANNELS } from '@suna/core'
 import { assertInsideAllowedRoot } from './roots'
+import { sunaMplProjectPath } from './suna-mpl'
 
 /**
  * Pty sessions keyed by id. Output is pushed to the renderer over
@@ -38,6 +39,14 @@ function loginShell(): { file: string; args: string[] } {
  * Environment for the pty. A selected python env is activated the way its
  * tool would: bin/ first on PATH, plus the marker variable the shell prompt
  * and tooling look for.
+ *
+ * `SUNA_MPL` is exported here for one reason: `suna_mpl` is not on PyPI, so
+ * a figure script that imports it can only run through the copy SUNA ships,
+ * and that copy is in a different place in a checkout than in a packaged app
+ * (§16.1, §20.6). Scripts therefore write
+ * `uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}"`, which
+ * resolves in this terminal in either layout and still falls back to the
+ * repo-relative path in a checkout shell that SUNA never launched.
  */
 function ptyEnv(envPath: string | null): Record<string, string> {
   const base: Record<string, string> = {}
@@ -48,6 +57,9 @@ function ptyEnv(envPath: string | null): Record<string, string> {
   delete base['ELECTRON_RUN_AS_NODE']
   delete base['ELECTRON_RENDERER_URL']
   base['TERM'] = 'xterm-256color'
+
+  const sunaMpl = sunaMplProjectPath()
+  if (sunaMpl !== null) base['SUNA_MPL'] = sunaMpl
 
   if (envPath !== null) {
     const bin = join(envPath, 'bin')

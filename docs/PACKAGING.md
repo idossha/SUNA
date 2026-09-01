@@ -23,7 +23,7 @@ says so — see `docs/RELEASING.md` §4.
 
 ## What ships beside the app
 
-The main process resolves three things from `process.resourcesPath` when
+The main process resolves four things from `process.resourcesPath` when
 packaged, so `scripts/packaging/stage-resources.mjs` stages them into
 `apps/desktop/build/resources/` before `electron-builder` copies that
 directory verbatim into `Contents/Resources`:
@@ -33,6 +33,22 @@ directory verbatim into `Contents/Resources`:
 | `examples/hello-suna` | `main/ipc.ts` | the "open example project" command |
 | `mcp/server.mjs` + `mcp/node_modules` | `main/services/agentLayer.ts` | the MCP server agent CLIs spawn |
 | `python/suna_kernel` | `main/services/kernel.ts` | the notebook kernel bridge |
+| `python/suna_mpl` | `main/services/suna-mpl.ts` | the matplotlib companion the author's figure scripts import |
+
+`python/suna_mpl` ships because it is **not on PyPI**: the bundled example's
+`figures/timesheet/source/plot.py` does `import suna_mpl`, and without staging
+the library it imports there is nothing on the machine to install (§20.6). Only
+`pyproject.toml` and `src/` are staged — 36 KB — not `tests/`, `examples/` or
+`uv.lock`. `sunaMplProjectPath()` resolves it in both layouts and `terminal.ts`
+exports the result as `SUNA_MPL`, so scripts are written
+`uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python …`.
+
+**`--with`, not `--project`.** `--project` makes the staged directory uv's
+project root and uv then creates `.venv` *inside it* — inside `Contents/
+Resources`, which is read-only in an installed app. It fails with
+`Permission denied (os error 13)`. `--with` caches the environment under
+`~/.cache/uv` and writes nothing into the bundle. `uv` itself remains the
+user's to install; SUNA ships no Python interpreter.
 
 `build-mcp.mjs` deliberately leaves `zod` and `jsdom` external, so the staging
 script flattens their dependency closure out of pnpm's symlink store into a

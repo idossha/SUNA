@@ -2,7 +2,13 @@
 
 Run from the project root:
 
-    uv run --project ../../python/suna_mpl python analysis/fit_happiness.py
+    uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python analysis/fit_happiness.py
+
+(This script needs only numpy, but it borrows `suna_mpl`'s environment so that
+one command runs everything in the project. `$SUNA_MPL` is exported by SUNA's
+terminal panel and points at the copy of `suna_mpl` that ships with the app,
+wherever it is installed; the `:-` fallback covers a source checkout. `uv`
+itself has to be on your PATH.)
 
 Deterministic: rerunning it reproduces the committed results file byte for
 byte. The numbers quoted in the manuscript's Results come from here rather

@@ -83,10 +83,12 @@ compliance is surfaced in the Export dialog only, not as inline diagnostics whil
 of §12.1 with the profile field each would read. There is **no citation (`CIT-*`) surface at all**,
 and the `export` and `package` diagnostic surfaces are declared but emitted by nothing (§20.8).
 
-**5. `suna_mpl` is scaffolded but not delivered.** The starter `plot.py` imports it; it is neither
-staged into the bundle nor on PyPI, so a packaged-app user who runs the scaffolded script gets
-`ModuleNotFoundError`. Notebooks have the same shape — the kernel bridge asks for `ipykernel` and
-nothing in onboarding installs it (§20.6).
+**5. Notebooks still need `ipykernel` installed by hand.** The kernel bridge asks for it and
+nothing in onboarding installs it, so the first notebook a new user opens fails (§20.6). The
+`suna_mpl` half of this item is **done**: the library is staged into the bundle and located
+through `$SUNA_MPL`, so the bundled example's figure regenerates from an installed app (§16.1).
+What no staging can fix is that `uv` and a Python interpreter are the user's to install; the docs
+state that rather than implying a batteries-included Python.
 
 **6. In-app AI is shallow.** Three non-streaming `chat()` adapters, no tool use, no streaming, no
 ghost suggestions. The MCP path driven by an agent CLI is the capable route and is where the depth
@@ -113,10 +115,29 @@ LaTeX-native journals, and nothing in the current export path needs it.
 
 These are failures, not gaps. Fix them before adding to the list above.
 
-- **`pnpm smoke` does not finish.** Five steps pass, then `reading-mode` fails on
-  `document.querySelector('.editor-tab__mode')` being null. That button still exists but renders
-  only for a markdown tab, so what drifted is the step's precondition, not the selector.
-  `SUNA_SMOKE_KEEP_GOING=1` shows what the rest say meanwhile.
+- **`pnpm smoke` gets through 62 of ~80 steps; 16 fail.** Measured 2026-09-01. It used to die at
+  step 6, so this is a backlog being worked off rather than one stale selector. Fixed so far: the
+  `reading-mode` step's stale `.editor-tab__mode` precondition; a flat `sleep(1500)` after CDP
+  connect that made `app-loads-welcome` fail on cold-dev-server boot timing rather than on anything
+  it asserts (now a real poll, outside the step system so `--only` runs get it too); and the PDF
+  steps, which read three real journal PDFs from a **local stash at `<repo>/references/` that was
+  never committed** — those steps could not pass on any clean checkout, and committing publisher
+  PDFs would breach this repo's own no-third-party-content rule, so the fixtures are generated
+  instead (`scripts/e2e/fixtures/make-pdf.mjs`).
+
+  Still failing: `tree-icons`, `onboarding-version-control`, `agent-cli-mcp-config`,
+  `terminal-panel`, `references-panel-fits`, `shared-buffer-live-sync`, `external-edit-live-reload`,
+  `mcp-server-exposes-all-verbs`, `reference-pdfs-resolve-and-open-in-side-group`,
+  `command-palette-modes`, `palette-ai-ask-cancel`, `recent-projects-list-open-and-forget`,
+  `onboarding-creates-exactly-what-review-showed`, `help-overlay`, `help-in-vim-mode`,
+  `figure-save-shows-in-manuscript`.
+
+  **That list is not 16 independent bugs.** It was measured under
+  `SUNA_SMOKE_KEEP_GOING=1`, and steps consume state earlier steps create — so an unknown number
+  are cascades from an earlier failure rather than faults of their own. Triage by running the first
+  failing step alone with its prerequisites (`--only`) before believing any single entry.
+  `terminal-panel` in particular is suspected environmental: `term:create` fails with
+  `posix_spawnp failed` in the driven dev app, and that reproduces with unrelated changes reverted.
 - **PDF export has never been produced under automation.** `printToPDF` needs a running Electron
   process; the DOCX half is asserted down to `word/document.xml`, the PDF half only as far as the
   HTML it prints.

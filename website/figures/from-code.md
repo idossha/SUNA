@@ -42,13 +42,21 @@ Two further behaviours worth knowing: `save_svg` writes the `figure.svg.suna.jso
 
 ## Installing and running it
 
-`suna_mpl` needs Python ≥ 3.10 and matplotlib ≥ 3.8. It is not on PyPI — you run your figure scripts *through* its environment with [uv](https://docs.astral.sh/uv/), from the project root:
+`suna_mpl` needs Python ≥ 3.10 and matplotlib ≥ 3.8. It is not on PyPI — you run your figure scripts *through* a throwaway environment that [uv](https://docs.astral.sh/uv/) builds around it, from the project root:
 
 ```bash
-uv run --project ../../python/suna_mpl python figures/fig-spectrum/source/plot.py
+uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python figures/fig-spectrum/source/plot.py
 ```
 
-Adjust the `--project` path to wherever the SUNA repo sits relative to your project. To run the package's own tests:
+**`$SUNA_MPL` is set for you in SUNA's own terminal panel**, and points at the copy of `suna_mpl` that ships with the app — the one inside `SUNA.app/Contents/Resources/python/suna_mpl` in an installed build, or `python/suna_mpl` in a source checkout. That is why the command above is written this way rather than with a bare relative path: a relative path is only correct in a checkout, and the demo paper you open from an installed app is not in one.
+
+In a shell SUNA did not launch, the variable is unset and the `:-` fallback applies, so adjust that fallback to wherever the SUNA repo sits relative to your project — or export `SUNA_MPL` yourself in your profile.
+
+`--with` rather than `--project` matters: `--project` would make SUNA's own copy the uv project root and uv would try to create a `.venv` inside it, which is refused because the inside of an installed `.app` is read-only. `--with` builds and caches the environment under `~/.cache/uv` instead and writes nothing into the app. The first run downloads matplotlib and takes a moment; later runs are instant.
+
+You still need `uv` on your PATH. SUNA does not install it and does not bundle a Python interpreter; without `uv` (or your own environment with matplotlib and `python/suna_mpl` on `PYTHONPATH`) no figure script runs, packaged or not.
+
+To run the package's own tests, from a source checkout:
 
 ```bash
 cd python/suna_mpl && uv run pytest
@@ -136,7 +144,7 @@ The sidecar is written correctly and the coordinate mapping in it is real. No co
 The analysis moves, the figure has to follow. Today that is a terminal action you perform:
 
 ```bash
-uv run --project ../../python/suna_mpl python figures/fig-spectrum/source/plot.py
+uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python figures/fig-spectrum/source/plot.py
 ```
 
 There is no "Run script" or "Regenerate figure" button in the app. The script writes `figure.svg` wholesale, overwriting whatever was there. If the figure tab is open with unsaved changes, save or undo them first.

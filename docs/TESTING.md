@@ -57,8 +57,8 @@ Delete the copy directory to start fresh.
 Regenerate the figures at any time (from `examples/hello-suna/`):
 
 ```bash
-uv run --project ../../python/suna_mpl python analysis/fit_happiness.py
-uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
+uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python analysis/fit_happiness.py
+uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python figures/timesheet/source/plot.py
 ```
 
 ## Human walkthrough (~5 minutes)

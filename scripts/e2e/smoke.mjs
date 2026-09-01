@@ -30,6 +30,7 @@
  * Exit 0 = all steps passed. Artifacts in scripts/e2e/.artifacts/.
  */
 import { execSync, execFileSync } from 'node:child_process'
+import { writePdf } from './fixtures/make-pdf.mjs'
 import {
   chmodSync,
   copyFileSync,
@@ -418,6 +419,10 @@ const reloadComments = () =>
       detached: s.comments.map((c) => c.detached),
       authors: s.comments.map((c) => c.author.kind),
       bodies: s.comments.map((c) => c.body),
+      ids: s.comments.map((c) => c.id),
+      quotes: s.comments.map((c) => c.target.anchor.quote),
+      anchorIds: [...document.querySelectorAll('.cm-content .cmt-anchor[data-comment-id]')]
+        .map((a) => a.dataset.commentId),
       anchorsInDom: document.querySelectorAll('.cm-content .cmt-anchor').length,
       detachedChips: document.querySelectorAll('.cmt__detached').length
     };
@@ -578,7 +583,46 @@ try {
 }
 const { send, evalJs, click, rclick, mouse, key, insertText } = cdp
 const screenshot = (name) => cdp.screenshot(join(ARTIFACTS, name))
-await sleep(1500) // let the renderer finish booting before anything measures
+
+/**
+ * Poll a page expression until it is truthy. A fixed sleep after connect used
+ * to stand in for this and is not enough: CDP answers as soon as electron-vite
+ * has a page, but on a cold dev server the renderer's first paint lands
+ * seconds later, so `app-loads-welcome` failed on boot timing rather than on
+ * anything it asserts. drive.mjs has always polled here; the suite now does
+ * too.
+ */
+const waitFor = async (expr, { timeoutMs = 20_000, intervalMs = 200, desc } = {}) => {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const value = await evalJs(expr)
+    if (value) return value
+    if (Date.now() > deadline) {
+      throw new Error(`timed out after ${timeoutMs}ms waiting for ${desc ?? expr.slice(0, 80)}`)
+    }
+    await sleep(intervalMs)
+  }
+}
+
+// Boot readiness, OUTSIDE the step system so --only/--from runs get it too:
+// CDP answers as soon as electron-vite has a page, but on a cold dev server
+// the renderer's first paint and the __sunaDev dev seam land seconds later.
+// This used to be a flat sleep(1500) and it was not enough — the run died on
+// 'welcome screen not rendered' before asserting anything real.
+try {
+  // 60s, not 20: this is a COLD electron-vite dev server on the first run
+  // after a change, and the renderer's first paint can be well over 20s on a
+  // busy machine.
+  await waitFor(`!!document.querySelector('.welcome__title')`, {
+    timeoutMs: 60_000,
+    desc: 'welcome screen'
+  })
+  await waitFor(`!!window.__sunaDev`, { timeoutMs: 60_000, desc: 'window.__sunaDev' })
+} catch (error) {
+  console.error(`\nFAILED: ${error.message ?? error}`)
+  console.error(`artifacts: ${ARTIFACTS}`)
+  process.exit(1)
+}
 
 let exitCode = 0
 try {
@@ -614,8 +658,8 @@ try {
   })
 
   await step('app-loads-welcome', async () => {
-    const ok = await evalJs(`!!document.querySelector('.welcome__title')`)
-    assert(ok, 'welcome screen not rendered')
+    await waitFor(`!!document.querySelector('.welcome__title')`, { desc: 'welcome screen' })
+    await waitFor(`!!window.__sunaDev`, { desc: 'window.__sunaDev' })
   })
 
   await step('open-example-project', async () => {
@@ -731,21 +775,35 @@ try {
     assert(reset.saved === '272', `reset not persisted: ${reset.saved}`)
   })
 
+  // The flat manuscript (ARCHITECTURE §4.3) opens manuscript.md in the
+  // manuscript document tab, whose view control is a THREE-state segmented
+  // control — Source / Reading / Pages — not the two-state
+  // `.editor-tab__mode` button that plain-markdown EditorTabs still carry.
+  // These read and drive that control.
+  const docMode = () =>
+    evalJs(`document.querySelector('.msdoc__modes .seg__option.is-on')?.textContent ?? null`)
+  const setDocMode = async (name) => {
+    await evalJs(`(() => {
+      const btn = [...document.querySelectorAll('.msdoc__modes .seg__option')]
+        .find((b) => b.textContent === ${JSON.stringify(name)});
+      if (!btn) throw new Error('no ' + ${JSON.stringify(name)} + ' option in .msdoc__modes');
+      btn.click();
+    })()`)
+    await sleep(450)
+  }
+
   await step('reading-mode', async () => {
-    // modes are two-state: the button (or ⌘E) toggles Source ⇄ Reading, and
-    // Reading — the *editable* live preview — is the default markdown mode,
-    // so a freshly opened section is already there.
-    const opened = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(opened === 'Reading', `markdown should open in Reading, got ${opened}`)
-    // round-trip through Source proves the toggle still works both ways
-    await evalJs(`document.querySelector('.editor-tab__mode').click()`)
-    await sleep(400)
-    const toggled = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(toggled === 'Source', `toggle from Reading gave ${toggled} (want Source)`)
-    await evalJs(`document.querySelector('.editor-tab__mode').click()`)
-    await sleep(500)
-    const label = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(label === 'Reading', `mode after toggling back: ${label} (want Reading)`)
+    // Reading — the *editable* live preview — is the default manuscript mode,
+    // so a freshly opened manuscript is already there.
+    const opened = await docMode()
+    assert(opened === 'Reading', `manuscript should open in Reading, got ${opened}`)
+    // round-trip through Source proves the control still works both ways
+    await setDocMode('Source')
+    const toggled = await docMode()
+    assert(toggled === 'Source', `picking Source gave ${toggled}`)
+    await setDocMode('Reading')
+    const label = await docMode()
+    assert(label === 'Reading', `mode after picking Reading again: ${label}`)
     const before = await evalJs(`({
       katex: !!document.querySelector('.cm-content .katex'),
       block: !!document.querySelector('.cm-content .cm-lp-math-block'),
@@ -802,10 +860,9 @@ try {
     )
     assert(reverted, 'undo did not revert the reading-mode edit')
 
-    await evalJs(`document.querySelector('.editor-tab__mode').click()`) // Reading → Source
-    await sleep(300)
-    const back = await evalJs(`document.querySelector('.editor-tab__mode').textContent`)
-    assert(back === 'Source', `mode label after toggle back: ${back} (want Source)`)
+    await setDocMode('Source')
+    const back = await docMode()
+    assert(back === 'Source', `mode after picking Source: ${back}`)
   })
 
   await step('canvas-opens-figure', async () => {
@@ -3244,6 +3301,19 @@ try {
   const MANUSCRIPT_JSON = join(COPY_DIR, 'manuscript', 'manuscript.json')
   const AUTHORS_JSON = join(COPY_DIR, 'manuscript', 'authors.json')
   const COMMENTS_JSON = join(COPY_DIR, 'manuscript', 'comments.json')
+  /**
+   * How many comment threads the example project SHIPS. These steps used to
+   * assert absolute counts of 1 and 2 and read `detached[0]`, which only held
+   * while the example's comments.json was empty; it has carried demo threads
+   * (three on manuscript.md, one with an agent reply) for a long time. They
+   * assert DELTAS against this baseline now, and identify the thread they
+   * created by id rather than by position.
+   */
+  const SHIPPED_COMMENTS = JSON.parse(
+    readFileSync(join(ROOT, 'examples', 'hello-suna', 'manuscript', 'comments.json'), 'utf8')
+  ).comments.length
+  /** The id of the thread comments-select-create-anchor creates. */
+  let MY_COMMENT = null
   const MANUSCRIPT_MD = join(COPY_DIR, 'manuscript', 'manuscript.md')
   const BIB = join(COPY_DIR, 'manuscript', 'references.bib')
 
@@ -3575,15 +3645,20 @@ try {
 
     const file = JSON.parse(readFileSync(COMMENTS_JSON, 'utf8'))
     assert(file.schemaVersion === 1, `comments.json schemaVersion: ${file.schemaVersion}`)
-    assert(file.comments.length === 1, `comments.json entries: ${file.comments.length}`)
     assert(
-      file.comments[0].target.anchor.quote === 'number is worked out at',
-      `stored anchor: ${JSON.stringify(file.comments[0].target.anchor)}`
+      file.comments.length === SHIPPED_COMMENTS + 1,
+      `comments.json entries: ${file.comments.length} (want the ${SHIPPED_COMMENTS} shipped + 1)`
     )
-    assert(file.comments[0].author.kind === 'human', 'comment is not attributed to the human')
+    const mine = file.comments.find((c) => c.target.anchor.quote === 'number is worked out at')
+    assert(
+      mine !== undefined,
+      `no stored comment anchored to the selection: ${JSON.stringify(file.comments.map((c) => c.target.anchor.quote))}`
+    )
+    MY_COMMENT = mine.id
+    assert(mine.author.kind === 'human', 'comment is not attributed to the human')
     // sidecar only: the prose must be untouched
     assert(
-      !readFileSync(MANUSCRIPT_MD, 'utf8').includes(file.comments[0].id),
+      !readFileSync(MANUSCRIPT_MD, 'utf8').includes(mine.id),
       'a comment marker leaked into the section prose'
     )
     const ui = await evalJs(`({
@@ -3591,13 +3666,17 @@ try {
       // counts REAL threads only even if the composer failed to close.
       cards: document.querySelectorAll('.cmt-rail .cmt-card[data-comment-id]').length,
       drafts: document.querySelectorAll('.cmt-rail .cmt__draft').length,
-      anchors: [...document.querySelectorAll('.cm-content .cmt-anchor')].map((a) => a.textContent)
+      anchors: [...document.querySelectorAll('.cm-content .cmt-anchor')].map((a) => a.textContent),
+      mine: document.querySelector('.cm-content .cmt-anchor[data-comment-id="' + ${JSON.stringify(MY_COMMENT)} + '"]')?.textContent ?? null
     })`)
-    assert(ui.cards === 1, `comment cards in the rail: ${ui.cards}`)
+    assert(
+      ui.cards === SHIPPED_COMMENTS + 1,
+      `comment cards in the rail: ${ui.cards} (want the ${SHIPPED_COMMENTS} shipped + 1)`
+    )
     assert(ui.drafts === 0, 'the draft composer stayed open after the comment was submitted')
     assert(
-      ui.anchors.length === 1 && ui.anchors[0] === 'number is worked out at',
-      `anchor highlight: ${JSON.stringify(ui.anchors)}`
+      ui.mine === 'number is worked out at',
+      `the new comment's anchor highlight reads ${JSON.stringify(ui.mine)}; all anchors: ${JSON.stringify(ui.anchors)}`
     )
   })
 
@@ -3610,10 +3689,19 @@ try {
     await sleep(300)
     await key('s', 'KeyS', 4)
     await sleep(1200)
+    /** The state of the thread this suite created, found by id. */
+    const mineIn = (state) => {
+      const i = state.ids.indexOf(MY_COMMENT)
+      assert(i !== -1, `comments.json lost ${MY_COMMENT}: ${JSON.stringify(state.ids)}`)
+      return { detached: state.detached[i], anchored: state.anchorIds.includes(MY_COMMENT) }
+    }
     let state = await reloadComments()
-    assert(state.count === 1, `comment count after editing around it: ${state.count}`)
-    assert(state.detached[0] === false, 'editing around the anchor detached the comment')
-    assert(state.anchorsInDom === 1, 'anchor highlight lost after an edit around it')
+    assert(
+      state.count === SHIPPED_COMMENTS + 1,
+      `comment count after editing around it: ${state.count} (want the ${SHIPPED_COMMENTS} shipped + 1)`
+    )
+    assert(mineIn(state).detached === false, 'editing around the anchor detached the comment')
+    assert(mineIn(state).anchored, 'anchor highlight lost after an edit around it')
 
     // delete the quoted text -> detached, NEVER dropped
     const quote = await dragSelectInSection('number is worked out at')
@@ -3623,12 +3711,15 @@ try {
     await key('s', 'KeyS', 4)
     await sleep(1200)
     state = await reloadComments()
-    assert(state.count === 1, `deleting the quote dropped the comment (count ${state.count})`)
-    assert(state.detached[0] === true, 'deleting the quoted text did not mark the comment detached')
-    assert(state.detachedChips === 1, 'the panel does not show a "detached" chip')
-    assert(state.anchorsInDom === 0, 'a detached comment still paints an anchor highlight')
     assert(
-      JSON.parse(readFileSync(COMMENTS_JSON, 'utf8')).comments.length === 1,
+      state.count === SHIPPED_COMMENTS + 1,
+      `deleting the quote dropped the comment (count ${state.count})`
+    )
+    assert(mineIn(state).detached === true, 'deleting the quoted text did not mark the comment detached')
+    assert(state.detachedChips >= 1, 'the panel does not show a "detached" chip')
+    assert(!mineIn(state).anchored, 'a detached comment still paints an anchor highlight')
+    assert(
+      JSON.parse(readFileSync(COMMENTS_JSON, 'utf8')).comments.length === SHIPPED_COMMENTS + 1,
       'comments.json lost the detached comment'
     )
 
@@ -3640,7 +3731,7 @@ try {
     await key('s', 'KeyS', 4)
     await sleep(1200)
     state = await reloadComments()
-    assert(state.detached[0] === false, 'the comment did not re-attach once its quote came back')
+    assert(mineIn(state).detached === false, 'the comment did not re-attach once its quote came back')
   })
 
   await step('comments-mcp-add-shows-in-app', async () => {
@@ -3652,16 +3743,26 @@ try {
     })
     assert(/^added c-/.test(out.trim()), `MCP add_comment said: ${out.trim()}`)
     const state = await reloadComments()
-    assert(state.count === 2, `comments after the MCP call: ${state.count}`)
+    assert(
+      state.count === SHIPPED_COMMENTS + 2,
+      `comments after the MCP call: ${state.count} (want the ${SHIPPED_COMMENTS} shipped + 2)`
+    )
     assert(state.authors.includes('agent'), 'the agent-authored comment is missing')
-    assert(state.anchorsInDom === 2, `anchors after the MCP comment: ${state.anchorsInDom}`)
+    assert(
+      state.anchorIds.includes(MY_COMMENT),
+      'the comment this suite created lost its anchor highlight'
+    )
 
     // Rail cards always render (no viewport-strip collapse any more), sorted
-    // by document offset. The flash still proves card -> anchor navigation.
+    // by document offset. Revealing the thread still proves card -> anchor
+    // navigation. (The store verb is requestReveal; the old requestFlash — a
+    // one-shot wash on the anchor — was replaced by the pin model in
+    // comments/anchorExtension.ts, which scrolls the anchor into view and
+    // marks it .cmt-anchor--active until something aborts the pin.)
     const agentId = await evalJs(`(() => {
       const c = window.__sunaDev.commentsStore.getState().comments.find((x) => x.author.kind === 'agent');
       if (!c) throw new Error('no agent-authored comment in the store');
-      window.__sunaDev.commentsStore.getState().requestFlash(c.id);
+      window.__sunaDev.commentsStore.getState().requestReveal(c.id);
       return c.id;
     })()`)
     await sleep(1200)
@@ -3680,9 +3781,20 @@ try {
     })()`)
     assert(agent.card, 'the agent comment has no card in the rail')
     assert(agent.badge === 1, `the agent comment is not visually distinct: ${JSON.stringify(agent)}`)
+    // CodeMirror only renders the viewport, so docOrder holds the anchors
+    // currently painted — a SUBSET of the rail's cards. The rail is sorted by
+    // document offset exactly when that subset appears in listOrder in the
+    // same relative order.
+    const rest = [...agent.listOrder]
+    const subsequence = agent.docOrder.every((id) => {
+      const at = rest.indexOf(id)
+      if (at === -1) return false
+      rest.splice(0, at + 1)
+      return true
+    })
     assert(
-      JSON.stringify(agent.listOrder) === JSON.stringify(agent.docOrder),
-      `rail order ${JSON.stringify(agent.listOrder)} != document order ${JSON.stringify(agent.docOrder)}`
+      agent.docOrder.length > 0 && subsequence,
+      `rail order ${JSON.stringify(agent.listOrder)} does not follow document order ${JSON.stringify(agent.docOrder)}`
     )
     await screenshot('21-comments.png')
   })
@@ -3706,7 +3818,19 @@ try {
     // rail the card sits level with the (visible) highlight, so it must
     // already intersect the rail viewport — no rail scrolling exists
     const hl = await evalJs(`(async () => {
-      const el = document.querySelector('.msdoc .cm-content .cmt-anchor[data-comment-id]');
+      // The FIRST anchor in DOM order is not necessarily on screen — the
+      // example ships several threads and CodeMirror renders well past the
+      // viewport in both directions — and the rail can only put a card level
+      // with an anchor that is inside the rail's own visible band. Pick an
+      // anchor from that band. (The .cm-scroller's box is NOT that band: the
+      // manuscript document scrolls its page container, so the scroller's
+      // rect extends far above and below the window.)
+      const band = document.querySelector('.cmt-rail__viewport').getBoundingClientRect();
+      const el = [...document.querySelectorAll('.msdoc .cm-content .cmt-anchor[data-comment-id]')]
+        .find((a) => {
+          const r = a.getBoundingClientRect();
+          return r.top >= band.top + 4 && r.bottom <= band.bottom - 4;
+        });
       if (!el) return { clicked: false };
       const id = el.dataset.commentId;
       el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
@@ -3761,22 +3885,34 @@ try {
       'cards did not track the document while scrolling'
     )
 
-    // (b) clicking a DIFFERENT card flashes + scrolls to its anchor
-    const flash = await evalJs(`(async () => {
+    // (b) clicking a DIFFERENT card activates + scrolls to its anchor.
+    // A card click used to paint a one-shot .cmt-anchor--flash wash; the pin
+    // model replaced it, so what proves the navigation now is that the
+    // clicked thread becomes active, its anchor carries .cmt-anchor--active,
+    // and the pin has scrolled that anchor into the viewport.
+    const reveal = await evalJs(`(async () => {
       const activeId = window.__sunaDev.commentsStore.getState().activeId;
       const card = [...document.querySelectorAll('.cmt-rail .cmt-card[data-comment-id]')]
         .find((c) => c.dataset.commentId !== activeId);
       if (!card) return { clicked: false };
+      const id = card.dataset.commentId;
       card.querySelector('.cmt-card__main')?.click();
       await new Promise((r) => setTimeout(r, 900));
-      const f = document.querySelector('.msdoc .cm-content .cmt-anchor--flash');
-      if (!f) return { clicked: true, flashed: false };
-      const r = f.getBoundingClientRect();
-      return { clicked: true, flashed: true, visible: r.top > 0 && r.bottom < window.innerHeight };
+      const el = document.querySelector('.msdoc .cm-content .cmt-anchor[data-comment-id="' + id + '"]');
+      if (!el) return { clicked: true, id, active: false };
+      const r = el.getBoundingClientRect();
+      return {
+        clicked: true,
+        id,
+        storeActive: window.__sunaDev.commentsStore.getState().activeId === id,
+        active: el.classList.contains('cmt-anchor--active'),
+        visible: r.top > 0 && r.bottom < window.innerHeight
+      };
     })()`)
-    assert(flash.clicked, 'no second comment card to click')
-    assert(flash.flashed, 'clicking a rail card did not flash its anchor')
-    assert(flash.visible, 'clicking a rail card did not scroll its anchor into view')
+    assert(reveal.clicked, 'no second comment card to click')
+    assert(reveal.storeActive, 'clicking a rail card did not activate its thread')
+    assert(reveal.active, `clicking a rail card did not mark its anchor active: ${JSON.stringify(reveal)}`)
+    assert(reveal.visible, 'clicking a rail card did not scroll its anchor into view')
 
     // (c) delete -> gone immediately + Undo toast; Undo restores the thread
     const beforeDelete = JSON.parse(readFileSync(COMMENTS_JSON, 'utf8'))
@@ -4396,7 +4532,9 @@ try {
     // 178 mm at 300 dpi is 2102 px — the arithmetic, not a magic number
     assert(wantW === Math.round((178 / 25.4) * 300), `readout width ${wantW} px is not 178 mm @ 300 dpi`)
 
-    const png = join(COPY_DIR, 'output', 'hello.png')
+    // Exports land in output/figures/<figureId>.<ext>, never flat in output/
+    // (figure-export.ts) — the figure driven here is figures/timesheet/.
+    const png = join(COPY_DIR, 'output', 'figures', 'timesheet.png')
     rmSync(png, { force: true })
     await evalJs(canvasJs(`
       [...CT.querySelectorAll('.canvas-figure__action')].find((b) => b.textContent.trim() === 'PNG').click();
@@ -4877,15 +5015,22 @@ try {
       .map((e) => e.textContent)`)
 
   /**
-   * Three real PDFs from a LOCAL stash at <repo>/references/, which is not in
-   * the repository — these steps are skipped-by-failure on a checkout that
-   * has no stash. The citekeys are the shipped example's; which PDF backs
-   * which key is arbitrary, the step only cares that a file arrives.
+   * Three PDFs for the citekeys the shipped example cites. These used to be
+   * real journal PDFs read from a LOCAL stash at <repo>/references/ that was
+   * never committed, so every one of these steps failed on a clean checkout —
+   * and publisher PDFs are third-party content this public repo must not
+   * carry anyway. They are GENERATED instead (make-pdf.mjs), the same way
+   * writePng() above generates the raster fixture, so the suite depends on
+   * nothing outside the repository. Which PDF backs which key is arbitrary;
+   * the steps only care that a real, multi-page, text-bearing file arrives.
    */
-  const REF_PDFS = {
-    knuth1984: join(ROOT, 'references', 'nphys3816.pdf'),
-    wong2011: join(ROOT, 'references', 's41550-026-02905-7.pdf'),
-    hunter2007: join(ROOT, 'references', 's41550-026-02892-9.pdf')
+  const PDF_DIR = join(USER_DATA, 'pdf-fixtures')
+  mkdirSync(PDF_DIR, { recursive: true })
+  const REF_PDFS = {}
+  for (const citekey of ['knuth1984', 'wong2011', 'hunter2007']) {
+    REF_PDFS[citekey] = writePdf(join(PDF_DIR, `${citekey}.pdf`), {
+      title: `Reference for @${citekey}`
+    })
   }
   const INTRO_MD = join(COPY_DIR, 'manuscript', 'manuscript.md')
 
@@ -4929,8 +5074,8 @@ try {
 
   await step('pdf-viewer-page-count-and-canvas-bound', async () => {
     await resetDock()
-    const src = join(ROOT, 'references', 'nphys3816.pdf')
-    const dst = join(COPY_DIR, 'references', 'nphys3816.pdf')
+    const src = REF_PDFS.knuth1984
+    const dst = join(COPY_DIR, 'references', 'sample-paper.pdf')
     rmSync(dst, { force: true })
     // through the real fs:copy-file channel (creates references/, refuses to
     // overwrite, never moves the original)
@@ -5014,7 +5159,7 @@ try {
   await step('image-viewer-dimensions-match-ihdr', async () => {
     await resetDock()
     // the PNG the canvas export step already wrote, reopened in the viewer
-    const png = join(COPY_DIR, 'output', 'hello.png')
+    const png = join(COPY_DIR, 'output', 'figures', 'timesheet.png')
     assert(existsSync(png), `no exported PNG at ${png} (the canvas export step should have written it)`)
     const real = pngIhdr(png)
     assert(
@@ -5067,7 +5212,14 @@ try {
         `@${citekey} resolved to ${map[citekey].path}`
       )
     }
-    assert(map['peng2010'] === null, 'peng2010 has no PDF and must resolve to null, not a guess')
+    // A cited key with no PDF beside it resolves to null — never to a guess.
+    // (This used to name peng2010, which the example's references.bib has not
+    // contained for a long time: an absent key is `undefined`, so the
+    // assertion was passing/failing on the wrong thing entirely.)
+    assert(
+      map['lamport1994'] === null,
+      `lamport1994 has no PDF and must resolve to null, not a guess: ${JSON.stringify(map['lamport1994'])}`
+    )
 
     await resetDock()
     await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(INTRO_MD)})`)
@@ -5128,15 +5280,47 @@ try {
     // Reading mode replaces each [@key] with a .cm-lp-cite chip; scope the
     // lookup to the VISIBLE editor so a zero-size hidden panel can't supply
     // the coordinates.
-    const chips = await evalJs(`(() => {
+    //
+    // The whole flat manuscript is one document now (ARCHITECTURE §4.3) and
+    // CodeMirror only renders the viewport, so the chips reachable without
+    // scrolling are whichever two or three happen to sit on the first screen
+    // — and a right-click at an off-screen chip's coordinates opens nothing.
+    // This used to read the chip list once and hope; it sweeps the scroller
+    // instead, so which citations the example happens to open with cannot
+    // decide the outcome.
+    const SCROLLER = `[...document.querySelectorAll('.cm-scroller')].find((e) => e.getBoundingClientRect().width > 0)`
+    const scrollTo = async (top) => {
+      await evalJs(`(() => { const el = ${SCROLLER}; el.scrollTop = ${top}; })()`)
+      await sleep(500)
+    }
+    /** Chips fully inside the scroller's box — the ones a real click can hit. */
+    const visibleChips = () => evalJs(`(() => {
       const host = [...document.querySelectorAll('.cm-content')].find((e) => e.getBoundingClientRect().width > 0);
       if (!host) throw new Error('no visible editor');
+      const box = ${SCROLLER}.getBoundingClientRect();
       return [...host.querySelectorAll('.cm-lp-cite')].map((c) => {
         const r = c.getBoundingClientRect();
-        return { text: c.textContent, x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      });
+        return { text: c.textContent, x: r.left + r.width / 2, y: r.top + r.height / 2, top: r.top, bottom: r.bottom };
+      }).filter((c) => c.top >= box.top + 4 && c.bottom <= box.bottom - 4);
     })()`)
-    assert(chips.length >= 3, `expected several citation chips in the intro, got ${chips.length}`)
+    /** Scroll top→bottom, running `visit` on each visible chip; first truthy wins. */
+    const sweepChips = async (visit) => {
+      const box = await evalJs(`(() => { const el = ${SCROLLER}; return { h: el.clientHeight, total: el.scrollHeight }; })()`)
+      const stride = Math.max(200, box.h - 120)
+      for (let top = 0; top < box.total; top += stride) {
+        await scrollTo(top)
+        for (const chip of await visibleChips()) {
+          const hit = await visit(chip)
+          if (hit) return hit
+        }
+      }
+      return null
+    }
+    const totalChips = await evalJs(`(() => {
+      const host = [...document.querySelectorAll('.cm-content')].find((e) => e.getBoundingClientRect().width > 0);
+      return host.querySelectorAll('.cm-lp-cite').length;
+    })()`)
+    assert(totalChips >= 2, `expected citation chips in the manuscript, got ${totalChips}`)
 
     const menuOn = async (chip) => {
       await rclick(chip.x, chip.y)
@@ -5153,16 +5337,12 @@ try {
     }
 
     // A citation WITHOUT a PDF: the item is present, disabled, and names the key.
-    let disabled = null
-    for (const chip of chips) {
+    const disabled = await sweepChips(async (chip) => {
       const items = await menuOn(chip)
       const item = items.find((i) => i.action === 'openReferencePdf')
       await dismissMenu()
-      if (item !== undefined && item.disabled) {
-        disabled = { chip: chip.text, item }
-        break
-      }
-    }
+      return item !== undefined && item.disabled ? { chip: chip.text, item } : null
+    })
     assert(disabled !== null, 'no citation without a PDF produced a disabled "Open reference PDF"')
     assert(
       /^No PDF found for @\w/.test(disabled.item.label),
@@ -5174,6 +5354,7 @@ try {
     )
 
     // A right-click on plain prose must not offer the item at all.
+    await scrollTo(0)
     const proseAt = await evalJs(`(() => {
       const line = [...document.querySelectorAll('.cm-line')].find((e) => e.getBoundingClientRect().width > 0);
       const r = line.getBoundingClientRect();
@@ -5194,11 +5375,16 @@ try {
     // A citation WITH a PDF: enabled, and choosing it opens the paper in the
     // side group without disturbing the manuscript group.
     const before = await dockState()
-    const enabledChip = chips[0]
-    const items = await menuOn(enabledChip)
-    const item = items.find((i) => i.action === 'openReferencePdf')
-    assert(item !== undefined, `no "Open reference PDF" on ${enabledChip.text}`)
-    assert(!item.disabled, `"Open reference PDF" is disabled on ${enabledChip.text}`)
+    const enabled = await sweepChips(async (chip) => {
+      const items = await menuOn(chip)
+      const item = items.find((i) => i.action === 'openReferencePdf')
+      if (item !== undefined && !item.disabled) return { chip, item }
+      await dismissMenu()
+      return null
+    })
+    assert(enabled !== null, 'no citation WITH a PDF produced an enabled "Open reference PDF"')
+    // the menu for the winning chip is deliberately still open here
+    const item = enabled.item
     assert(item.label === 'Open reference PDF', `unexpected label: ${item.label}`)
     await evalJs(`[...document.querySelectorAll('.md-ctxmenu__item')]
       .find((i) => i.getAttribute('data-action') === 'openReferencePdf').click()`)

@@ -101,6 +101,14 @@ with plt.rc_context(suna_mpl.journal_rc()):
 
 \`suna_mpl.save_svg\` writes text as real \`<text>\` elements rather than outlines, which is what keeps a figure's labels editable on the canvas after it has been exported.
 
+\`suna_mpl\` is not on PyPI; it ships inside SUNA. Run a script that imports it from SUNA's terminal panel, which exports \`$SUNA_MPL\` pointing at that copy:
+
+\`\`\`bash
+uv run --no-project --with "$SUNA_MPL" python figures/hello/source/plot.py
+\`\`\`
+
+You need \`uv\` on your PATH — SUNA bundles no Python interpreter.
+
 Three things worth trying before you delete this file:
 
 1. Open \`figures/hello/figure.svg\` to edit the figure on the canvas.

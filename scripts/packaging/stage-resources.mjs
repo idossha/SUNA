@@ -1,10 +1,12 @@
 // Stage everything the packaged app expects under Contents/Resources.
 //
-// The main process resolves three things by `process.resourcesPath` when
-// packaged (see ipc.ts, agentLayer.ts, kernel.ts):
+// The main process resolves four things by `process.resourcesPath` when
+// packaged (see ipc.ts, agentLayer.ts, kernel.ts, suna-mpl.ts):
 //   resources/examples/hello-suna   - the "open example project" command
 //   resources/mcp/server.mjs        - the MCP server agents spawn
 //   resources/python/suna_kernel    - the notebook kernel bridge
+//   resources/python/suna_mpl       - the matplotlib companion figure
+//                                     scripts import ($SUNA_MPL)
 // electron-builder copies this staging directory verbatim, so anything the
 // app needs at runtime has to land here first.
 import { cp, mkdir, rm, readdir, readFile, realpath } from 'node:fs/promises'
@@ -31,7 +33,35 @@ await cp(join(repo, 'python/suna_kernel'), join(stage, 'python/suna_kernel'), {
   filter: (src) => !/__pycache__|\.pyc$/.test(src)
 })
 
-// 3. MCP server bundle
+// 3. suna_mpl, as an installable source tree.
+//
+// The bundled example's plot.py does `import suna_mpl`, and suna_mpl is not
+// on PyPI — without this the example ships and the library it imports does
+// not (§20.6). Scripts reach it as
+// `uv run --no-project --with "$SUNA_MPL" python ...`, which needs a
+// pyproject.toml at the root plus the sources it names, and nothing else.
+//
+// NOT `--project`: that makes the staged directory uv's project root and uv
+// then creates `.venv` inside it, which fails with EACCES in an installed
+// .app (Resources is read-only) and would break the code signature if it
+// did not. `--with` builds the wheel and caches the environment under
+// ~/.cache/uv instead, writing nothing into the bundle. Measured, not
+// assumed — `--project` was tried against a read-only copy first and died.
+//
+// uv.lock is deliberately NOT staged: `--with` resolves from pyproject.toml
+// and never consults it, so shipping it would be 240 KB implying a
+// reproducibility guarantee that does not apply. tests/ and examples/ are
+// the library's own development, not the user's.
+const mplSrc = join(repo, 'python/suna_mpl')
+const mplOut = join(stage, 'python/suna_mpl')
+await mkdir(mplOut, { recursive: true })
+await cp(join(mplSrc, 'pyproject.toml'), join(mplOut, 'pyproject.toml'))
+await cp(join(mplSrc, 'src'), join(mplOut, 'src'), {
+  recursive: true,
+  filter: (src) => !/__pycache__|\.pyc$/.test(src)
+})
+
+// 4. MCP server bundle
 const mcpBundle = join(repo, 'packages/agent/dist-mcp/server.mjs')
 if (!existsSync(mcpBundle)) {
   throw new Error('packages/agent/dist-mcp/server.mjs missing - run `pnpm --filter @suna/agent build:mcp` first')

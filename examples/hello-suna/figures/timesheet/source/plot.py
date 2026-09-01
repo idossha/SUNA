@@ -1,6 +1,14 @@
 """Generate figures/timesheet/figure.svg. Run from the project root:
 
-    uv run --project ../../python/suna_mpl python figures/timesheet/source/plot.py
+    uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python figures/timesheet/source/plot.py
+
+`suna_mpl` is not on PyPI, so the only copy is the one SUNA ships, and it
+sits in a different place depending on how SUNA is installed. SUNA's terminal
+panel exports `$SUNA_MPL` pointing at it — in an installed app that is
+`SUNA.app/Contents/Resources/python/suna_mpl`, in a source checkout it is
+`python/suna_mpl` — and the `:-` fallback covers a checkout shell SUNA never
+launched. Run the line above in SUNA's terminal and it resolves either way.
+You do need `uv` on your PATH; SUNA bundles no Python.
 
 Unlike Figure 1 — which was drawn by hand, as the referees noticed — this one
 comes from code kept beside it, which is the arrangement the manuscript's

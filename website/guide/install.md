@@ -104,10 +104,10 @@ The app opens on the Welcome tab, which offers **Create project**, **Open projec
 **Python and uv.** Wizard step 4 "Python environment" offers Skip, an existing detected environment, or "Create with uv". Detection looks for a project-local `.venv`, `venv`, or `env` (it needs a `pyvenv.cfg`), one nested level down, plus conda environments via `conda env list --json`; uv is probed with `uv --version`. Without uv, the "Create with uv" option is disabled and says so. The `suna-mpl` companion needs Python >= 3.10 and `matplotlib >= 3.8`. The example's figures are regenerated from `examples/hello-suna/` with commands of the form:
 
 ```bash
-uv run --project ../../python/suna_mpl python figures/fig-spectrum/source/plot.py
+uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python figures/fig-spectrum/source/plot.py
 ```
 
-See [figures from code](/figures/from-code).
+`$SUNA_MPL` is set for you in SUNA's terminal panel and points at the copy of `suna_mpl` inside the app (`Contents/Resources/python/suna_mpl` when installed, `python/suna_mpl` in a checkout), so that command works from the copied example too. `uv` itself is still yours to install — SUNA ships no Python interpreter. See [figures from code](/figures/from-code).
 
 **An agent CLI.** Wizard step 5 "AI" recommends "Agent CLI", which uses an existing Claude Code or Codex subscription and stores no API key. With neither on PATH, Settings reports "Neither was found on PATH — literature search falls back to Crossref." — literature search still works, without the AI-search provider. See [references](/writing/references).
 
