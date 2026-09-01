@@ -44,29 +44,18 @@ The practical consequence: every file that matters is diffable. `git diff` on a 
 
 **The canvas edits the SVG, not a copy of it.** There is no import/export conversion and no parallel scene graph — `figures/<slug>/figure.svg` on disk is always a valid SVG, byte-identical after a round trip. Text stays text, so a matplotlib figure exported through the `suna_mpl` companion remains editable label by label.
 
-**A profile encodes author guidelines, not page design.** Each field — citation format, figure width in mm, minimum font size, abstract word limit, required sections — carries the source URL it came from, and anything the journal does not state is `null` rather than guessed. Checkers flag; they never silently reformat your document.
+**A profile encodes author guidelines, not page design.** Each field — citation format, figure width in mm, minimum font size, abstract word limit, required sections — carries the source URL it came from, and anything the journal does not state is `null`. Checkers flag; they never silently reformat your document.
 
 <figure class="shot">
   <img src="/shots/export.webp" alt="The Export tab showing Document, Format, Journal profile and Article type pickers, checkboxes for double spacing, line numbers and page numbers, a COMPLIANCE CHECK panel listing two errors, and a REQUIREMENTS panel of the journal's stated rules with guideline links." />
   <figcaption>Export runs the compliance check against the profile you are about to render with. Warnings are non-blocking, and each requirement links back to the guideline it came from.</figcaption>
 </figure>
 
-## How it compares
-
-|                    | What it does that SUNA does not                             | What SUNA does that it does not                                                     |
-| ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Overleaf           | Full LaTeX typesetting, real-time co-editing in the browser | Figures, references and journal compliance in the same tree; a vector figure editor |
-| Word               | Track changes with co-authors; everyone already has it      | Plain-text sources under git; derived numbering; agent access to the document       |
-| Zotero             | A machine-wide library across every project                 | Cites, renders and checks against the journal from the same `references.bib`        |
-| A plain LaTeX repo | Typesetting quality, full macro control                     | A figure editor, live rendering, profile-driven compliance, an MCP interface        |
-
 ## What SUNA is not, yet
 
 SUNA is in active development. Be clear-eyed about these before you move a paper into it.
 
 ::: warning Not built yet
-**No packaged binary.** SUNA is macOS-first and runs from source — `pnpm install`, then `pnpm dev`. There is no signed installer. See [install](/guide/install).
-
 **No LaTeX typesetting path.** PDF export is produced from SUNA's own HTML, not by running LaTeX or Tectonic — there is no external typesetting binary anywhere in the project. Output is clean and profile-driven, but it is not TeX-quality line breaking.
 
 **Figure-to-code provenance is not built.** Editing a figure on the canvas does not sync those edits back into the Python that generated it; re-running the script overwrites your canvas work. Read [figures from code](/figures/from-code) before you build a workflow on it.
@@ -75,8 +64,6 @@ SUNA is in active development. Be clear-eyed about these before you move a paper
 
 **Agent chat has no streaming and no tool use.** The conversation is multi-turn — each send posts the accumulated transcript — but the panel cannot read or edit your files. The capable path today is the [MCP server](/ai/mcp) driven by a coding CLI, plus [directed actions](/ai/in-app) from a comment card or the canvas.
 :::
-
-Two profiles also need care: `neuron` and `sleep-advances` are thin. Cell Press returned HTTP 403 to every automated fetch of Neuron's author pages, and SLEEP Advances' guidelines page is materially thinner than its sibling's. Their word limits and figure rules are largely `null`, so check them against the journal's own site before you trust a clean compliance run. The [profiles page](/publishing/profiles) says which fields are missing.
 
 ## Where to go next
 
