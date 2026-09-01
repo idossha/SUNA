@@ -12,6 +12,10 @@ them, not for the commit log, which GitHub appends underneath on its own.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.1.0] - 2026-09-01
+
 ### Added
 
 - macOS builds are signed with a Developer ID and notarized by Apple, so a
