@@ -22,6 +22,16 @@
 **/__fixtures__/** text eol=lf
 examples/** text eol=lf
 
+# The stock agent docs are embedded verbatim into a generated module, and that
+# module's sha256 IS their identity (packages/agent/src/context/context.test.ts
+# asserts both the bytes and the hash). `core.autocrlf` is a per-clone setting
+# that can be turned on anywhere, so without this pin the same sources can hash
+# differently in two checkouts of the same commit — `\r\n` lands inside every
+# string a model reads. Not a Windows concern; a reproducibility one.
+resources/suna-context/** text eol=lf
+resources/suna-skill/** text eol=lf
+packages/agent/src/context/docs.gen.ts text eol=lf
+
 # Binary, so git never tries.
 *.png binary
 *.webp binary

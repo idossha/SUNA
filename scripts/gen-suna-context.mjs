@@ -18,6 +18,15 @@ const srcDir = path.join(repoRoot, 'resources', 'suna-context')
 const skillPath = path.join(repoRoot, 'resources', 'suna-skill', 'SKILL.md')
 const outPath = path.join(repoRoot, 'packages', 'agent', 'src', 'context', 'docs.gen.ts')
 
+/**
+ * Line endings are normalised on the way in. These bytes are not a file on
+ * disk: they are embedded into a generated module and handed to a model as
+ * context, and the hash below is their identity. `.gitattributes` pins these
+ * trees to LF as well; this is the half that does not depend on how the tree
+ * was checked out.
+ */
+const lf = (text) => text.replace(/\r\n/g, '\n')
+
 /** Pure so the drift-gate test can compare without touching the tree. */
 export function generate() {
   const names = fs
@@ -29,11 +38,11 @@ export function generate() {
   const files = {}
   const hasher = createHash('sha256')
   for (const n of names) {
-    const body = fs.readFileSync(path.join(srcDir, n), 'utf8')
+    const body = lf(fs.readFileSync(path.join(srcDir, n), 'utf8'))
     files[n] = body
     hasher.update(n).update('\0').update(body).update('\0')
   }
-  const skill = fs.readFileSync(skillPath, 'utf8')
+  const skill = lf(fs.readFileSync(skillPath, 'utf8'))
   hasher.update('SKILL.md').update('\0').update(skill).update('\0')
   const hash = hasher.digest('hex').slice(0, 16)
 
