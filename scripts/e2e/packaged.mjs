@@ -68,6 +68,24 @@ if (process.platform === 'darwin') {
   check('code signature verifies', sigOk, sigDetail)
 }
 
+// The in-app updater (ARCHITECTURE §23) reads its feed out of app-update.yml,
+// which electron-builder writes from electron-builder.yml's `publish:` block —
+// and writes only for a real target, never for `--dir`. Without it every check
+// in a shipped build fails with "provider is not configured", which nothing in
+// a dev tree can notice. `electron-updater` itself must also be INSIDE the
+// asar: it is a runtime import, not a build-time one.
+check(
+  'app-update.yml embedded (the updater feed)',
+  existsSync(join(res, 'app-update.yml')),
+  'only written for a real target — a --dir build legitimately has none'
+)
+check(
+  'electron-updater shipped',
+  execFileSync('npx', ['--yes', 'asar', 'list', join(res, 'app.asar')], { encoding: 'utf8' }).includes(
+    '/node_modules/electron-updater/package.json'
+  )
+)
+
 check('node-pty unpacked from asar', existsSync(join(res, 'app.asar.unpacked', 'node_modules', 'node-pty')))
 
 const userData = mkdtempSync(join(tmpdir(), 'suna-packaged-'))
