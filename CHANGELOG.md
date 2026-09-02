@@ -34,7 +34,16 @@ Nothing yet.
   - A `.deb` or `.tar.gz` install belongs to whatever installed it, so there
     SUNA only tells you a new version exists and offers the releases page.
 - **Settings → About shows the version you are actually running.** It had been
-  reporting `0.1.0` since the first week.
+  reporting `0.1.0` since the first week, and the status bar `0.1`.
+
+### Changed
+
+- **The documentation is split by audience.** The site is for people who use
+  SUNA; the developer documentation has one copy in the repository and the
+  site's new Developers section is a generated view of it. Three pages that
+  still described the old two-level settings model — global values plus
+  per-project overrides in `suna.json` — now describe the single
+  `~/.suna/config.yml` that replaced it.
 
 ## [1.1.1] - 2026-09-02
 
