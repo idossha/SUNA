@@ -1842,8 +1842,9 @@ that is four resolvers — the example project (`ipc.ts`), `mcp/server.mjs` (`ag
 This section is normative: where a design document contradicts what is written below, the code —
 and this file — win. Every item was verified by reading source.
 
-**20.1 There is no LaTeX and no Tectonic.** The package description of `@suna/formatter` still
-describes a LaTeX emitter and a Tectonic PDF path, as did the design note this file replaced. Neither exists. `@suna/markdown` has one emitter (HTML); `@suna/formatter` contains no
+**20.1 There is no LaTeX and no Tectonic.** The design note this file replaced described a LaTeX
+emitter and a Tectonic PDF path, and `@suna/formatter`'s package description repeated the claim
+until it was removed. Neither exists. `@suna/markdown` has one emitter (HTML); `@suna/formatter` contains no
 formatting at all — it is a profile loader plus four compliance checkers; PDF is Chromium
 `printToPDF` and DOCX is the `docx` library, both in main (§13). SciMark's ` ```{=latex} ` escape
 hatch parses to a node that renders as an HTML comment.

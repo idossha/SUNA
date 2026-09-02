@@ -1,21 +1,22 @@
 # Settings and themes
 
-Everything you can change about how SUNA looks and behaves, and how the two levels fit together: a global value applies everywhere, and a project can override it in `suna.json`.
+Everything you can change about how SUNA looks and behaves — and the one place it is all kept.
 
-## Two levels, one resolution rule
+## One file, one level
 
-SUNA resolves every adjustable value the same way:
+SUNA is configured the way nvim and ghostty are: **one plain-text file you own**, seeded on first launch with every key present and commented.
 
-> **project value → global value → built-in default**
+```
+~/.suna/config.yml      every setting
+~/.suna/themes/*.yml    one colour theme per file
+```
 
-The Settings tab says so in its own subtitle: "Two levels: Global applies everywhere; This project overrides it in suna.json". Each row in the **This project** section carries a badge naming the level the current value came from — `from project`, `from global` or `default` — and a **Reset to global** button that is enabled only when a project override is actually in force.
+A key the file sets wins; a key it does not set takes the shipped default. **There is no project level and no second store.** The Settings tab edits this same file in place, keeping your comments and key order, and the file is watched — a save in any editor repaints every window without a restart. Hand-edit or click; both land in the same place.
 
-Global values live in the app's own `settings.json`, outside any project. Project values live in the `settings` block of `suna.json` at the project root, which is a committed file — so a project's editor mode, theme, figure width and Python environment travel with the repository to your co-author's machine. See [project layout](/guide/project) and [files and formats](/reference/files).
+A bad value never takes the app down: it falls back to the default and appears as a diagnostic in the Settings tab, naming the key and what was wrong with it.
 
-A value that fails validation — a font size of 400, a theme name that does not exist — is skipped rather than throwing, and resolution falls through to the next level. Hand-editing `suna.json` cannot take the settings surface down.
-
-::: tip
-Setting a project key to `null` means "not set", exactly like the key being absent. That is how a hand-edit spells "reset to global".
+::: tip Where the full key list lives
+Every key, its bounds and its default are documented in the file itself, and the exhaustive reference is [the configuration reference](/developers/configuration).
 :::
 
 ## Opening Settings
@@ -27,11 +28,11 @@ Click **Settings** in the status bar, or open the command palette with <kbd>⌘�
   <figcaption>The Global scope. Every row states its effect under the label, and the numeric rows name their default.</figcaption>
 </figure>
 
-The tab ends with an **About** block: SUNA 0.1.0, the Electron and Chrome versions, the platform, and the path of the open project.
+The tab ends with an **About** page: the SUNA version you are running, the Electron and Chrome versions, the platform, the path of the open project, and the [Updates](/guide/install#updating) controls.
 
-## Global settings
+## The settings
 
-These apply to every project. The key column is the name the value has in the global settings file.
+The key column is the dot-path the value has in `config.yml` — `editor.lineHeight` is `editor:` then `lineHeight:`.
 
 | Setting | Key | Default | Effect |
 | --- | --- | --- | --- |
@@ -39,7 +40,7 @@ These apply to every project. The key column is the name the value has in the gl
 | Vim motions | `editor.vimMotions` | off | Vim keybindings in the source editor |
 | Editor theme | `editor.theme` | SUNA Dark | Theme for the whole app: editor surface and chrome |
 | Autosave | `editor.autosave` | on | Saves editors and the figure canvas a second after you stop editing |
-| Interface scale | `appearance.uiScale` | 100% | Zoom applied to the whole window; 90%, 100%, 110% or 125% |
+| Interface scale | `ui.scale` | 100% | Zoom applied to the whole window; 90%, 100%, 110% or 125% |
 | Font size | `editor.fontSizePx` | 14 | Base editor font size in px, 12–22 |
 | Line height | `editor.lineHeight` | 1.6 | Line spacing in both modes, 1.4–2 |
 | Content width | `editor.contentWidthCh` | 140 | Reading-mode column width in characters, 50–150 |
@@ -50,12 +51,13 @@ These apply to every project. The key column is the name the value has in the gl
 | AI CLI preference | `literature.cli` | Automatic | Which agent CLI the "AI search" literature provider spawns |
 | Model | `ai.model` | Sonnet | Model tier every AI call runs at — Opus, Sonnet or Haiku |
 | Effort | `ai.effort` | Low | How hard it thinks before answering — Low, Medium, High, Extra high or Max |
+| Check on launch | `updates.checkOnLaunch` | on | Ask GitHub for a newer SUNA a few seconds after start — see [updating](/guide/install#updating) |
 
 The Shell setting applies to newly opened terminals only, and its basename becomes the default terminal tab title.
 
-## The four themes
+## The themes
 
-SUNA ships four themes, and the choice covers the whole window — the editor surface and the app chrome change together, so the title bar, sidebar and status bar never disagree with the text you are reading.
+SUNA ships six themes, and the choice covers the whole window — the editor surface and the app chrome change together, so the title bar, sidebar and status bar never disagree with the text you are reading.
 
 | Theme | Character |
 | --- | --- |
@@ -63,8 +65,10 @@ SUNA ships four themes, and the choice covers the whole window — the editor su
 | SUNA Light | Paper-cream background, dark text |
 | Gruvbox | Warm dark browns with orange headings |
 | Jellybeans | Cool near-black with muted highlights |
+| Mono Blue Dark | Near-monochrome, one blue accent |
+| Mono Blue Light | The same restraint on paper |
 
-Pick one under **Global · General → Editor theme**, from the gear popover on the editor toolbar, or per project under **This project → Editor theme**.
+Pick one under **Appearance → Editor theme**, or from the gear popover on the editor toolbar. Your own themes go in `~/.suna/themes/` and appear in the same list.
 
 <figure class="shot">
   <img src="/shots/manuscript-reading-dark.webp" alt="The combined Manuscript tab in the SUNA Dark theme: near-black background, a serif title page with authors and affiliations, an abstract, and the outline sidebar on the left." />
@@ -102,7 +106,7 @@ Content width applies to reading mode, and the `ch` unit resolves against the ed
 
 ## Vim motions
 
-Vim motions are off by default and apply to the source editor. Turn them on globally under **General → Vim motions**, or for one project under **This project → Vim motions**. When a project overrides the value, the popover's checkbox is shown but disabled, with the tooltip pointing you at Settings → This project — because the popover writes the global level, and the project's value would win right back.
+Vim motions are off by default and apply to the source editor. Turn them on under **Editor → Vim motions**, or from the gear popover on an editor tab.
 
 While vim is active, the status bar shows the current mode. These ex commands are registered:
 
@@ -128,9 +132,9 @@ The Python environment is set in two independent places, and they mean different
 
 **Per machine** — the status-bar chip, titled "Python environment for new terminals". Clicking it re-scans and opens a popover listing what was detected by kind (`uv`, `venv`, `conda`) and name, plus a "none" row. With nothing selected the chip reads `no env`; with nothing found the popover says "No environments found (uv, .venv, conda)." The choice applies to newly opened terminals and is remembered per project directory on that machine.
 
-**Per project** — **This project → Python environment**, an absolute interpreter or venv path stored in `suna.json` as `python.envPath`. It is the path this project's figure scripts run in. Leave it empty and the per-machine pick applies instead.
+**In your config** — **Python → Environment path** (`python.envPath`), an absolute interpreter or venv path. It is the path figure scripts run in. Leave it empty and the per-machine pick applies instead.
 
-The split is deliberate: the committed path is the one your co-author should reproduce, while the machine pick is the one whose absolute location differs on every laptop. See [installation](/guide/install) for what SUNA detects.
+The split is deliberate: an absolute interpreter path differs on every laptop, so the status-bar pick is remembered per directory on this machine and never travels. See [installation](/guide/install) for what SUNA detects.
 
 ## Literature providers and API keys
 
@@ -147,7 +151,7 @@ Four HTTP providers are listed, each with its own status line:
 
 OpenAlex is the only provider with a key field, with **Save** and **Clear** buttons; the row reads "Key saved." once one is stored.
 
-Per project, **This project → Literature provider** picks which provider the References panel defaults to. Its "Auto (prefers a detected agent CLI)" option is the default. More in [references](/writing/references).
+**References → Literature provider** picks which provider the References panel defaults to; "Auto (prefers a detected agent CLI)" is the default. More in [references](/writing/references).
 
 ## AI CLI preference
 
@@ -161,7 +165,7 @@ Per project, **This project → Literature provider** picks which provider the R
 
 The row reports what it found: "Detected: …", or "Neither was found on PATH — literature search falls back to Crossref." Losing the CLI costs you the AI-search provider, not literature search itself.
 
-Separately, **This project → AI mode** (`ai.mode`) sets how this project talks to an AI at all: **Agent CLI (uses your subscription)**, **API key**, or **Off**.
+Separately, **AI → Mode** (`ai.mode`) sets how SUNA talks to an AI at all: **Agent CLI (uses your subscription)**, **API key**, or **Off**.
 
 ## Model and effort
 
@@ -172,9 +176,9 @@ Separately, **This project → AI mode** (`ai.mode`) sets how this project talks
 | Model | Opus (most capable), Sonnet (balanced), Haiku (fastest) | Sonnet |
 | Effort | Low, Medium, High, Extra high, Max | Low |
 
-Both live at all three levels: globally under **Global → AI**, per project under **This project → AI** (written to `suna.json`), and in the editor's quick-settings popover (the gear on an editor tab) right under Vim motions. The popover writes the global level and shows which level the value came from — when a project overrides it, the control is disabled with a tooltip pointing at Settings → This project, exactly like Vim motions.
+Both live under **AI** in Settings, and in the editor's quick-settings popover (the gear on an editor tab) right under Vim motions.
 
-The model is stored as a **tier**, not a dated model id, so a committed `suna.json` does not go stale when a new generation ships. Where it lands:
+The model is stored as a **tier**, not a dated model id, so your config does not go stale when a new generation ships. Where it lands:
 
 - **Agent CLI mode** — `claude --model <tier> --effort <level>`.
 - **API mode** — the tier maps to the current model id (Sonnet → `claude-sonnet-5`) and the effort is sent as `output_config.effort`.
@@ -204,56 +208,11 @@ Download policy has three settings:
 
 No policy ever tries to get past a paywall. A 403 is reported as a 403.
 
-## Project settings in suna.json
+## There are no project-level settings
 
-The **This project** section is empty until a project is open ("Open a project to see and override its settings here."). With one open, it offers these overrides, each written into `suna.json`:
+`suna.json` once carried a `settings` block that overrode your global values. **It is no longer read.** Two levels meant a value could be silently outranked by a file you were not looking at, which is the failure the single-file design exists to avoid — see [the configuration reference](/developers/configuration). An old project's block is left alone on disk and simply ignored; delete it whenever you like.
 
-| Row | Path in `suna.json` `settings` | Default |
-| --- | --- | --- |
-| Preview / render profile | `previewProfileId` | follows the manifest's `activeProfileId` |
-| Default editor mode | `editor.defaultMode` | reading |
-| Content width | `editor.contentWidthCh` | 140 |
-| Font size | `editor.fontSizePx` | 14 |
-| Line height | `editor.lineHeight` | 1.6 |
-| Body font | `editor.fontFamily` | serif |
-| Editor theme | `editor.editorTheme` | suna-dark |
-| Vim motions | `editor.vimMotions` | false |
-| Default figure width | `figures.defaultWidthPreset` | double |
-| Python environment | `python.envPath` | null |
-| Literature provider | `literature.provider` | null (auto) |
-| AI mode | `ai.mode` | cli |
-| Model | `ai.model` | sonnet |
-| Effort | `ai.effort` | low |
-| — (no row; hand-edit only) | `ai.cliCommand` | null (auto-detect the installed CLI) |
-
-Figure width presets are `single`, `onehalf` and `double`, shown as **Single column**, **1.5 column** and **Double column**; the profile you export under decides what those measure. See [profiles](/publishing/profiles).
-
-::: warning Stored, not yet honoured
-**Default figure width** is written and read back correctly, but nothing consumes it: figure creation always uses the profile's double-column width. Set the width per figure on [the canvas](/figures/canvas) instead.
-:::
-
-::: warning One key spelled two ways
-The theme's global key is `editor.theme`, but its path inside `suna.json` is `editor.editorTheme`. Both name the same setting. Use the right one for the file you are editing.
-:::
-
-A project block looks like this:
-
-```json
-{
-  "schemaVersion": 1,
-  "name": "Ram-pressure stripping in a z=1.7 cluster (demo)",
-  "activeProfileId": "nature",
-  "directories": { "manuscript": "manuscript", "figures": "figures" },
-  "createdAt": "2026-08-14T00:00:00.000Z",
-  "settings": {
-    "editor": { "fontSizePx": 16, "editorTheme": "gruvbox", "vimMotions": true },
-    "figures": { "defaultWidthPreset": "single" },
-    "python": { "envPath": "/Users/you/paper/.venv/bin/python" }
-  }
-}
-```
-
-The section's footer says it plainly — "Project settings live in `suna.json` — you can edit it directly" — with an **Open suna.json** button beside it. Settings re-resolve when the file is saved, so a hand-edit takes effect without a restart. The `settings` block is optional; projects created before it existed have none.
+What still travels with a project in `suna.json` is the project's own facts: its name, its active journal profile and its directory-name map. See [project layout](/guide/project).
 
 ::: warning Not built yet
 There is no shortcut editor. The chords shown in the keyboard overlay (<kbd>?</kbd>) are fixed, and Settings offers no way to rebind them.

@@ -83,8 +83,10 @@ interpolates into the favicon link by hand, so local builds stay at `/`.
 website/
   index.md                  home page
   guide/  writing/  figures/  publishing/  ai/  reference/
+  developers/                GENERATED — do not edit, do not commit
   public/shots/*.webp        generated app screenshots
-  scripts/shots.mjs          regeneration entry point
+  scripts/shots.mjs          screenshot regeneration
+  scripts/sync-docs.mjs      the Developers mirror
   .vitepress/
     config.ts                nav, sidebar, base, search
     theme/suna.css           SUNA's palette and typography
@@ -93,3 +95,19 @@ website/
 
 The sidebar is declared in `config.ts`; a new page has to be added there or it
 will not be reachable.
+
+## The Developers section is a mirror
+
+Every page under `developers/` is generated from `docs/*.md` and `AGENTS.md` by
+`scripts/sync-docs.mjs`, which `docs:dev` and `docs:build` run first. The
+directory is gitignored.
+
+This is the split the site keeps: **these hand-written pages are for people who
+use SUNA; `docs/` is for people who work on it.** The developer documentation
+has exactly one copy, and the site shows a view of it — a hand-written
+"Building and releasing" page used to sit in the Reference section, and it had
+already drifted from `docs/RELEASING.md` before anyone noticed.
+
+To add a page, add it to `PAGES` in the script and to the Developers sidebar in
+`config.ts`. `node scripts/sync-docs.mjs --check` exits 1 when the mirror is
+stale.

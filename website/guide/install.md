@@ -48,7 +48,18 @@ A `.tar.gz` is also attached for distributions where neither of those fits.
 
 ### Updating
 
-SUNA has no in-app updater yet. To move to a newer version, download the new installer and install over the top: on macOS drag the new app to Applications and replace the old one, on Linux install the new package. Your projects live in your own folders and are never touched by an install, and your settings live in `~/.suna/`.
+**SUNA updates itself.** A few seconds after it starts it asks GitHub whether there is a newer release, and tells you in **Settings → About → Updates** if there is. Nothing is downloaded until you press **Download**, and nothing is installed until you press **Restart and install** — or until you quit, if you would rather finish what you were doing first.
+
+| What you see | What to do |
+|---|---|
+| **Download** | Fetches the new version in the background; you keep working |
+| **Restart and install** | Closes SUNA and reopens it on the new version |
+| **Skip this version** | Silences this one release. The next one still says hello |
+| **Check on launch** | Turn the automatic check off. **Check now** always works — that is you asking, not SUNA reaching the network on its own |
+
+If you installed the `.deb` or the `.tar.gz`, SUNA tells you a new version exists but does not install it: that copy belongs to whatever installed it, so update it the same way. The `.dmg` and the AppImage update in place.
+
+Your projects live in your own folders and are never touched by an update, and your settings live in `~/.suna/`.
 
 ## Run from source
 
@@ -67,7 +78,7 @@ You need a source checkout to develop SUNA, or to run an unreleased revision.
 
 Electron is not a separate install. It comes down as a devDependency of the desktop app during `pnpm install`.
 
-You do **not** need LaTeX or Tectonic. PDF export goes through a hidden Electron window's `printToPDF`, with no external binary involved — the package table in the repo's own `README.md` is stale on this point.
+You do **not** need LaTeX or Tectonic. PDF export goes through a hidden Electron window's `printToPDF`, with no external binary involved.
 
 ## Clone and run
 
@@ -149,19 +160,6 @@ One feature is macOS-only by construction: the "Use Spotlight" setting, which as
 
 ## Developing SUNA
 
-| Command | What it does |
-|---|---|
-| `pnpm typecheck` | Strict TypeScript across the workspace |
-| `pnpm test` | Vitest across the workspace |
-| `pnpm build` | `pnpm -r build` — includes the MCP server bundle |
-| `cd python/suna_mpl && uv run pytest` | Python companion tests |
-
-Do not pipe the typecheck into a pager: `pnpm typecheck | tail` reports `tail`'s exit status, not `tsc`'s, and hides a failure.
-
-[Building and releasing](/guide/building) covers the rest — the hidden-app UI driver, what CI checks, building installers yourself, and how a release is cut and signed.
-
-::: warning `pnpm smoke` does not currently finish
-The end-to-end UI smoke test gets five steps in and then fails on a stale precondition in its `reading-mode` step, so it stops before reaching the rest. Do not treat it as a green check that your install is good — use `pnpm typecheck && pnpm test` for that.
-:::
+Building, testing, packaging and releasing SUNA are the developer half of this site: start at [Working on SUNA](/developers/contributing), which is the same document a contributor reads in the repository.
 
 Next: the [quickstart](/guide/quickstart) takes the example project from open to exported PDF, or take the [tour](/guide/tour) of the workspace first.

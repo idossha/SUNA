@@ -56,7 +56,9 @@ reference.
 
 **Shipping.** Signed and notarized macOS builds, plus Linux installers, published by a
 release workflow that verifies its own assets before publishing. CI typechecks and tests on both
-supported platforms and launches the packaged bundle on macOS.
+supported platforms and launches the packaged bundle on macOS. Installed copies update themselves
+(§23): a launch check against the published Releases, and download-and-restart on macOS and the
+AppImage — a `.deb`/`.tar.gz` is told, not replaced.
 
 ---
 

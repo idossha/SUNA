@@ -170,7 +170,7 @@ Resolving moves a thread out of the working surface into a separate history grou
 
 ## The status bar
 
-The left group carries, in order: **SUNA 0.1** (the status bar prints the short version; Settings → About prints the full `0.1.0`), the active journal profile name, a Python environment chip (only with a project open), the current vim mode (only when an editor has vim motions on), and a transient status note.
+The left group carries, in order: **SUNA** and the version you are running, the active journal profile name, a Python environment chip (only with a project open), the current vim mode (only when an editor has vim motions on), and a transient status note.
 
 The Python chip is titled "Python environment for new terminals". Click it to re-scan and open a **Python environment** popover listing what was detected by kind and name — `uv`, `venv` and `conda` — plus a **none** row, footed with "Applies to newly opened terminals." With nothing selected the chip reads **no env**; with nothing found the popover says "No environments found (uv, .venv, conda)." The choice is remembered per project folder.
 

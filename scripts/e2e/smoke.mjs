@@ -2527,6 +2527,13 @@ try {
       `Updates offers ${JSON.stringify(state.buttons)}`
     )
     assert(state.buttons[0].disabled, 'Check now is live in a build that cannot check')
+
+    // The status bar prints the same number, from the same source. It said
+    // "SUNA 0.1" for four releases because it was a literal.
+    const bar = await evalJs(
+      `document.querySelector('.statusbar .statusbar__group span')?.textContent ?? ''`
+    )
+    assert(bar.includes(version), `the status bar says "${bar}", not ${version}`)
     await screenshot('settings-updates.png')
   })
 

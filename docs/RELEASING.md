@@ -2,9 +2,7 @@
 
 How a version becomes installers that people can download and double-click.
 This is the operator's manual; `docs/PACKAGING.md` describes what is inside the
-bundle, and the website's [Building and releasing](../website/guide/building.md)
-page is the same story written for someone who does not have this repository
-open.
+bundle.
 
 | | |
 | --- | --- |

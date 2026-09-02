@@ -1,4 +1,4 @@
-import { useEffect, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { getBundledProfile } from '@suna/formatter'
 import { useUiStore } from '../state/ui'
 import { useProjectStore } from '../state/project'
@@ -54,6 +54,22 @@ export function StatusBar(): JSX.Element {
     void useSettingsStore.getState().load()
   }, [])
 
+  // The running version, asked for rather than typed. This line said
+  // "SUNA 0.1" through four releases (ARCHITECTURE §23).
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    let live = true
+    void window.suna
+      .invoke('update:state', {})
+      .then((status) => {
+        if (live) setVersion(status.current)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+
   // the env selection follows the open project
   useEffect(() => {
     if (rootDir !== null) void useEnvsStore.getState().loadSelected(rootDir)
@@ -62,7 +78,7 @@ export function StatusBar(): JSX.Element {
   return (
     <footer className="statusbar">
       <div className="statusbar__group">
-        <span>SUNA 0.1</span>
+        <span>SUNA{version === '' ? '' : ` ${version}`}</span>
         {profile && <span className="statusbar__profile">{profile.journalName}</span>}
         {/* Nothing at all when no editor has vim installed — the only feedback
             that normal mode is swallowing plain typing, so it must be there

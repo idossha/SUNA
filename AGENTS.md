@@ -22,6 +22,14 @@ known disagreements** — check it before assuming either side is right.
 
 `docs/` is flat — there is no `design/` tier and no other nested directory.
 
+**Two audiences, and nothing written twice.** `website/` is for people who USE SUNA — task-oriented,
+no build commands, no internals. `docs/` and this file are for people who CHANGE it. The site still
+carries the developer half, as a *mirror*: `website/scripts/sync-docs.mjs` generates
+`website/developers/` from these same files on every `docs:dev` / `docs:build`, and that directory
+is gitignored. **Never hand-write a page there, and never restate a document in the other tree** —
+a second copy of the release procedure is how the one on the site came to describe a workflow that
+had already changed.
+
 ## Commands
 
 - `pnpm install` · `pnpm build` (workspace + `electron-vite build` + the MCP bundle) ·
@@ -36,7 +44,8 @@ known disagreements** — check it before assuming either side is right.
   dead internal link, so the build *is* the link checker. Run
   `node website/scripts/normalize.mjs --check` before pushing a page: a shortcut written
   `<kbd>⌘\</kbd>` compiles to a broken Vue template, and `{{ }}` inside inline code is interpolated
-  by Vue and will crash the render.
+  by Vue and will crash the render. The generated Developers pages need neither: `sync-docs.mjs`
+  applies both fixes on the way through.
 
 ## Testing
 

@@ -55,7 +55,7 @@ A freshly scaffolded project is smaller than this. The wizard writes the seven d
 
 | Entry | Written by | What it holds |
 | --- | --- | --- |
-| `suna.json` | SUNA, hand-editable | The manifest: schema version, project name, active journal profile, directory-name map, creation timestamp, optional settings. |
+| `suna.json` | SUNA, hand-editable | The manifest: schema version, project name, active journal profile, directory-name map, creation timestamp. |
 | `.gitignore` | SUNA, yours after | Five lines: `output/`, `.DS_Store`, `__pycache__/`, `.venv/`, `.mcp.json`. |
 | `.mcp.json` | SUNA | Points Claude Code and Codex at this project's SUNA MCP server. Gitignored — it is machine-local. See [MCP](/ai/mcp). |
 | `AGENTS.md`, `CLAUDE.md` | SUNA, yours on request | Identical generated stubs that send a coding agent to the context layers. |
@@ -93,7 +93,7 @@ Six fields, five of them required:
 | `activeProfileId` | string | The journal profile behind the compliance checks. `"suna"` is the house style and flags nothing. |
 | `directories` | map of role → folder name | Which folder plays which role. Keys: `manuscript`, `figures`, `code`, `data`, `analysis`, `results`, `output`. |
 | `createdAt` | ISO timestamp | When the project was created. |
-| `settings` | object, optional | Project-level overrides of your global settings. Absent on every project made before the block existed. |
+| `settings` | object, optional | Obsolete and no longer read. See below. |
 
 A minimal manifest, as written for the bundled example:
 
@@ -123,27 +123,9 @@ Projects created through the wizard take whichever profile you chose at step 2. 
 There is no UI for renaming a project directory. Doing it means editing `suna.json` by hand and moving the folder yourself.
 :::
 
-### The optional `settings` block
+### The obsolete `settings` block
 
-Every key here is optional and nullable. An absent or `null` key falls through to the corresponding global setting — see [settings](/guide/settings).
-
-| Key | Values |
-| --- | --- |
-| `previewProfileId` | Profile the preview surfaces use; falls back to `activeProfileId`. |
-| `editor.defaultMode` | `source` or `reading` |
-| `editor.contentWidthCh` | 50–150 |
-| `editor.fontSizePx` | 12–22 |
-| `editor.lineHeight` | 1.4–2.0 |
-| `editor.fontFamily` | `serif`, `sans`, `mono` |
-| `editor.editorTheme` | `suna-dark`, `suna-light`, `gruvbox`, `jellybeans`, `mono-blue-dark`, `mono-blue-light` |
-| `editor.vimMotions` | boolean |
-| `figures.defaultWidthPreset` | `single`, `onehalf`, `double` |
-| `python.envPath` | Path to the project's Python environment. |
-| `literature.provider` | Literature-search provider. |
-| `ai.mode` | `cli`, `api` or `none` |
-| `ai.cliCommand` | The CLI to spawn, such as `claude` or `codex`. `null` means auto-detect. |
-
-The numeric bounds are enforced. A hand-edited `fontSizePx` of 40 is rejected by the writer rather than silently clamped.
+Older projects carry a `settings` block in `suna.json` that once overrode your global values. **SUNA no longer reads it.** Settings have one level — `~/.suna/config.yml`, see [settings](/guide/settings). The block is left alone on disk rather than deleted; remove it whenever you like.
 
 ### Editing suna.json by hand
 

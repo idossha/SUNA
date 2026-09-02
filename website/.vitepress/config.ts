@@ -137,8 +137,28 @@ export default defineConfig({
         items: [
           { text: 'Keyboard shortcuts', link: '/reference/shortcuts' },
           { text: 'Files and formats', link: '/reference/files' },
-          { text: 'Building and releasing', link: '/guide/building' },
           { text: 'FAQ', link: '/reference/faq' }
+        ]
+      },
+      // GENERATED, and collapsed because this half of the site is not for the
+      // people the rest of it is written for. Every page here is a mirror of a
+      // file in the repository, written by website/scripts/sync-docs.mjs — the
+      // developer documentation has exactly one copy, and this is a view of
+      // it. Adding a page means adding it to PAGES in that script as well.
+      {
+        text: 'Developers',
+        collapsed: true,
+        items: [
+          { text: 'Working on SUNA', link: '/developers/contributing' },
+          { text: 'Architecture', link: '/developers/architecture' },
+          { text: 'Decision log', link: '/developers/decisions' },
+          { text: 'Testing', link: '/developers/testing' },
+          { text: 'Packaging', link: '/developers/packaging' },
+          { text: 'Releasing', link: '/developers/releasing' },
+          { text: 'Automation', link: '/developers/automation' },
+          { text: 'Configuration reference', link: '/developers/configuration' },
+          { text: 'Roadmap', link: '/developers/roadmap' },
+          { text: 'GitHub OAuth', link: '/developers/github-oauth' }
         ]
       }
     ],

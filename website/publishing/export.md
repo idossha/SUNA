@@ -19,7 +19,7 @@ DOCX is built entirely with the bundled `docx` library and PDF with Electron's `
 The PDF and the web page render in the app's active editor theme — it rides along in the export request, so a dark project exports a dark PDF. DOCX deliberately ignores the theme: a Word file is a collaboration surface, not a themed reading artifact.
 
 ::: warning Not built yet
-There is no LaTeX export. SUNA has no `.tex` output path, and **Tectonic is not used and does not need to be installed** — some older design documents still describe a LaTeX/Tectonic pipeline, and they are stale. LaTeX inside your prose is handled in two narrow places only: raw-LaTeX escapes in the Markdown dialect, and a LaTeX-to-OMML converter inside the Word writer.
+There is no LaTeX export. SUNA has no `.tex` output path, and **Tectonic is not used and does not need to be installed**. LaTeX inside your prose is handled in two narrow places only: raw-LaTeX escapes in the Markdown dialect, and a LaTeX-to-OMML converter inside the Word writer.
 :::
 
 ## The form, field by field

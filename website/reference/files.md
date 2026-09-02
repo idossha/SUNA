@@ -35,9 +35,9 @@ The manifest at the project root. Its presence is what makes a folder a SUNA pro
 | `activeProfileId` | string | The journal profile behind compliance checking and citation rendering. `"suna"` is the house style and flags nothing. See [profiles](/publishing/profiles). |
 | `directories` | map of role → folder name | Keys are `manuscript`, `figures`, `code`, `data`, `analysis`, `results`, `output`. The map is partial: omit a key and SUNA falls back to the default name. |
 | `createdAt` | ISO timestamp | When the project was created. |
-| `settings` | object, optional | Project-level overrides of your global settings. The full key list is in [anatomy of a project](/guide/project); how the levels resolve is in [settings](/guide/settings). |
+| `settings` | object, optional | Obsolete and no longer read — settings have one level, `~/.suna/config.yml`. See [settings](/guide/settings). |
 
-Hand-editing is safe and supported. The settings writer re-reads the file from disk, merges its change, validates the whole result *before* writing anything, writes atomically, and preserves every other key verbatim — including keys this schema version does not know about. Invalid JSON is reported as `suna.json is not valid JSON (<path>): …` rather than being overwritten. Numeric bounds in `settings.editor` are enforced, so a hand-edited `fontSizePx` of 40 is rejected rather than clamped.
+Hand-editing is safe and supported. The settings writer re-reads the file from disk, merges its change, validates the whole result *before* writing anything, writes atomically, and preserves every other key verbatim — including keys this schema version does not know about. Invalid JSON is reported as `suna.json is not valid JSON (<path>): …` rather than being overwritten.
 
 Every service resolves paths through `directories` rather than a hard-coded `manuscript/`, so a folder renamed here keeps working.
 

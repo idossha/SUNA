@@ -76,4 +76,4 @@ Comments and replies written over MCP are always marked as authored by an agent,
 - [The in-app AI](/ai/in-app) — providers, keys, the directed actions, and their limits.
 - [Directed actions](/ai/directed) — the six one-shot jobs you can hand to your agent CLI.
 
-Working on SUNA itself, rather than with it? [`docs/AUTOMATION.md`](https://github.com/idossha/SUNA/blob/main/docs/AUTOMATION.md) in the repository is the implementation-level version of these pages — every verb's exact signature, the drift gates that keep the shipped docs honest, and how to drive the app headlessly. [Building and releasing](/guide/building) is the rest of the developer story.
+Working on SUNA itself, rather than with it? [Automation](/developers/automation) is the implementation-level version of these pages — every verb's exact signature, the drift gates that keep the shipped docs honest, and how to drive the app headlessly.

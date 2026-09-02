@@ -55,5 +55,10 @@ examples/*
 
 # docs site build artifacts (website/.vitepress/dist is covered by dist/)
 website/.vitepress/cache/
+# The site's Developers section is a MIRROR of docs/ and AGENTS.md, written by
+# website/scripts/sync-docs.mjs on every docs:dev / docs:build. Committing it
+# would create a second copy of the developer documentation, which is the one
+# thing that split is there to prevent.
+website/developers/
 website/public/shots/*.png
 .suna/
