@@ -140,10 +140,24 @@ These are failures, not gaps. Fix them before adding to the list above.
   must now be shown NOT to clobber a project's own `context/MEMORY.md`, and the shared-buffer step
   targets its editor tab by `data-path` rather than by "the first visible one").
 
-  **Still open, one level down:** `cdp.mjs`'s `evalJs` has no timeout, so a lost CDP round trip
-  parks the whole suite silently — seen once in six full runs, hanging in `crossref-resolution`
-  while the app answered a second CDP client normally. Kill and re-run clears it; a deadline on
-  `evalJs` would turn it into a named failure instead of a hang.
+  **The stall under it is fixed too (2026-09-01).** Roughly one run in six parked forever in
+  `crossref-resolution` — the app answered a second CDP client normally, so it was the driver's
+  connection that stalled, and `cdp.mjs` had no deadline on a call and nothing rejecting calls in
+  flight when the socket died. Both are closed: every CDP call carries a generous timeout
+  (240 s default, `SUNA_CDP_TIMEOUT_MS` or a per-call override), and a closed or errored socket
+  now fails every request waiting on it. A hang is the worst failure a suite can have — it is
+  indistinguishable from slow progress, and CI would burn its whole job budget before saying
+  anything — so this converts "never" into a named failure, deliberately without policing latency:
+  the agent-CLI steps legitimately hold a call open for their full 180 s budget.
+
+  **Separately, the suite is currently flaky and that is NOT the same problem.** Measured
+  2026-09-01 across four consecutive runs: three greens earlier in the day, then four runs that
+  each failed a *different* step — `recent-projects-list-open-and-forget`,
+  `explorer-create-rename-delete`, `explorer-drag-move`, `canvas-opens-figure` — including one run
+  with the CDP change reverted, so the deadline is not the cause. Every one of those steps waits
+  for an asynchronous UI update (a file watcher reaching the tree, a canvas mounting), which is the
+  same class of fixed-`sleep`-instead-of-poll problem that made `app-loads-welcome` fail on boot
+  timing. Treat a single red run as unproven until the step is re-run alone.
 
 - ~~**The New project wizard's Review page previewed a `suna.json` it did not write.**~~ **Fixed
   2026-09-01, and it is the most valuable thing the stale suite was hiding.** `scaffoldProject`

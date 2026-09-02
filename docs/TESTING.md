@@ -682,13 +682,19 @@ with Default App* must launch nothing and leave
 pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
-> **A known stall, worth recognising.** One run in six hung indefinitely in
-> `crossref-resolution` — the app stayed responsive to a second CDP client
-> and the driver's own `evalJs` never returned, so it is the driver's
-> connection that stalls, not the app. `evalJs` has no timeout, so a lost
-> CDP round trip parks the whole suite with no output. If a run goes quiet
-> on one step for minutes, kill it and re-run before investigating that
-> step; giving `evalJs` a deadline is open work.
+> **The stall that used to park a run is fixed (2026-09-01).** One run in six
+> hung indefinitely in `crossref-resolution` — the app stayed responsive to a
+> second CDP client while the driver's own call never returned, so it was the
+> driver's connection that stalled, not the app. `cdp.mjs` now puts a deadline
+> on every CDP call and fails every call in flight when the socket closes or
+> errors, so a lost round trip is a named failure naming the method and the
+> wait, not silence.
+>
+> The default is **240 s** and is meant to be generous, not tight: the
+> agent-CLI steps run against a 180 s budget and hold a call open for all of
+> it, so the deadline exists to convert "never" into "eventually, with a
+> message" rather than to police latency. Override globally with
+> `SUNA_CDP_TIMEOUT_MS`, or per call with `evalJs(expr, { timeoutMs })`.
 >
 > **The flat-layout staleness is gone (2026-09-01).** The driver no longer
 > clicks `.ms__open`, no longer saves or compares `manuscript/sections/*.md`,

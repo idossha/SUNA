@@ -112,28 +112,78 @@ export async function connect({ port, timeoutMs = 60000, diagnostics }) {
     const p = msg.id && pending.get(msg.id)
     if (p) {
       pending.delete(msg.id)
+      clearTimeout(p.timer)
       msg.error ? p.rej(new Error(msg.error.message)) : p.res(msg.result)
     }
   }
+  // A dead socket must fail every call waiting on it. Without this, closing or
+  // erroring the connection leaves each pending promise unsettled forever —
+  // the same silent park a missing per-call deadline causes, arrived at from
+  // the other direction.
+  const failAllPending = (why) => {
+    for (const [id, p] of pending) {
+      pending.delete(id)
+      clearTimeout(p.timer)
+      p.rej(new Error(why))
+    }
+  }
+  ws.onclose = () => failAllPending('CDP websocket closed while a call was in flight')
   await new Promise((res, rej) => {
     ws.onopen = res
     ws.onerror = () => rej(new Error('CDP websocket failed'))
   })
+  // Replace the connect-time handler: after open, an error must reject the
+  // calls in flight rather than the (already settled) connect promise.
+  ws.onerror = () => failAllPending('CDP websocket errored while a call was in flight')
 
-  function send(method, params = {}) {
+  /**
+   * Every CDP call gets a deadline.
+   *
+   * Measured 2026-09-01: roughly one smoke run in six parked forever in
+   * `crossref-resolution`. The app was healthy — a second CDP client attached
+   * and evaluated normally — so it is this connection that stalls, and with no
+   * timeout the reply simply never came and an 80-step suite sat producing no
+   * output until a human noticed. A hang is the worst failure mode a suite can
+   * have: it looks identical to slow progress, and CI would burn its whole
+   * job budget before saying anything.
+   *
+   * The default is deliberately GENEROUS rather than tight. Some evaluations
+   * legitimately take minutes — the agent-CLI steps run against a 180 s budget
+   * and `awaitPromise: true` means the call is outstanding for all of it. The
+   * point is to convert "never" into "eventually, with a message naming the
+   * method", not to police latency. Override per call for anything known to be
+   * slower, or globally with SUNA_CDP_TIMEOUT_MS.
+   */
+  const DEFAULT_TIMEOUT_MS = Number(process.env['SUNA_CDP_TIMEOUT_MS'] ?? 240_000)
+
+  function send(method, params = {}, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     return new Promise((res, rej) => {
       const id = ++msgId
-      pending.set(id, { res, rej })
+      const startedAt = Date.now()
+      const timer = setTimeout(() => {
+        pending.delete(id)
+        rej(
+          new Error(
+            `CDP ${method} did not answer within ${Math.round(timeoutMs / 1000)}s ` +
+              `(waited ${Math.round((Date.now() - startedAt) / 1000)}s). The connection is ` +
+              `stalled, not the app — see docs/TESTING.md. Raise SUNA_CDP_TIMEOUT_MS if this ` +
+              `call is legitimately slower.`
+          )
+        )
+      }, timeoutMs)
+      // Never let a pending call keep the process alive on its own.
+      timer.unref?.()
+      pending.set(id, { res, rej, timer })
       ws.send(JSON.stringify({ id, method, params }))
     })
   }
 
-  async function evalJs(expression) {
-    const r = await send('Runtime.evaluate', {
-      expression,
-      awaitPromise: true,
-      returnByValue: true
-    })
+  async function evalJs(expression, opts) {
+    const r = await send(
+      'Runtime.evaluate',
+      { expression, awaitPromise: true, returnByValue: true },
+      opts
+    )
     if (r.exceptionDetails) {
       throw new Error(`page exception: ${JSON.stringify(r.exceptionDetails.exception ?? {}).slice(0, 400)}`)
     }
