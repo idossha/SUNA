@@ -12,6 +12,36 @@ them, not for the commit log, which GitHub appends underneath on its own.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.1.1]
+
+### Fixed
+
+- **The project wizard's Review page now shows what Create will actually
+  write.** Its `suna.json` preview was omitting the whole document registry,
+  so the cover letter that ships beside the paper in the Starter scaffold was
+  invisible until after you clicked Create. The preview and the writer now
+  call one function, so they cannot drift apart again.
+- **Notebooks work after the wizard provisions a Python environment.** The
+  "Create with uv" branch made the environment but never selected it, so the
+  first notebook ran under the system Python and failed inside the environment
+  onboarding had just built for it.
+- **The integrated terminal no longer breaks after packaging the app.**
+  Building the macOS installers rebuilt native modules for both CPU slices in
+  turn and left the wrong one behind, so `pnpm package:mac` silently killed
+  every terminal in a development build. Only developers were affected;
+  installed apps were always correct.
+
+### Added
+
+- **The wizard can install the notebook runtime for you.** Step 4 offers to
+  add `ipykernel` to the environment it is about to create — checked by
+  default when SUNA creates the environment, offered but unchecked for an
+  environment you already had, since that one may be shared with other work.
+  Nothing is installed until you press Create. Notebooks also offer to repair
+  the interpreter you have selected at any later point.
+
 ### Removed
 
 - Windows support. SUNA is a macOS and Linux application: there is no longer a
@@ -21,6 +51,13 @@ them, not for the commit log, which GitHub appends underneath on its own.
   shipped as a best-effort extra that no machine ever exercised, and carrying
   a platform nobody runs cost more in code paths and CI minutes than it
   returned.
+
+### Internal
+
+- The end-to-end smoke suite passes all 78 steps again (it stopped at step 6),
+  PDF export is verified by parsing the bytes of a real exported file, and
+  `suna_mpl` ships with the app so the bundled example's figure script runs
+  from an installed copy.
 
 ## [1.1.0] - 2026-09-01
 
