@@ -218,14 +218,19 @@ def main() -> int:
     try:
         import jupyter_client  # noqa: F401
     except ImportError:
-        # The one failure the author can actually fix, so it says how.
+        # The one failure the author can actually fix, so it says how -- and
+        # it names sys.executable, because "pip install ipykernel" is useless
+        # advice when the user has several interpreters and SUNA picked one of
+        # them for them. The app offers a button that runs exactly this; the
+        # message has to stand alone anyway, for the machine where that fails.
         emit(
             {
                 "type": "fatal",
                 "code": "no-jupyter-client",
                 "message": (
-                    "This environment has no jupyter_client. Install the notebook "
-                    "runtime into it with:  pip install ipykernel"
+                    f"{sys.executable} has no jupyter_client, so no notebook cell can run "
+                    f"under it. Install the notebook runtime into that interpreter with:  "
+                    f"{sys.executable} -m pip install ipykernel"
                 ),
             }
         )
@@ -237,8 +242,8 @@ def main() -> int:
         name = type(error).__name__
         code = "no-kernelspec" if name == "NoSuchKernel" else "start-failed"
         message = (
-            f"No kernel named {kernel_name!r} is installed in this environment. "
-            "Install one with:  pip install ipykernel"
+            f"No kernel named {kernel_name!r} is installed for {sys.executable}. "
+            f"Install one with:  {sys.executable} -m pip install ipykernel"
             if code == "no-kernelspec"
             else f"Could not start the kernel: {error}"
         )

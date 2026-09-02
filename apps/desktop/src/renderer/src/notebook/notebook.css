@@ -123,6 +123,32 @@
   font-size: var(--s-text-xs);
 }
 
+/* The one-click repair for a missing ipykernel. Sized to its own text
+   because it names the interpreter path it would write into — a button that
+   says only "Install" would be exactly the ambiguity this panel exists to
+   remove. */
+.nb-fault__action {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--s-border-strong);
+  border-radius: 4px;
+  background: var(--s-bg-panel);
+  color: var(--s-ink);
+  font-family: inherit;
+  font-size: var(--s-text-xs);
+  cursor: pointer;
+}
+
+.nb-fault__action:hover:not(:disabled) {
+  background: var(--s-bg-hover);
+}
+
+.nb-fault__action:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .nb-fault__hint {
   color: var(--s-ink-faint);
   font-size: var(--s-text-xs);

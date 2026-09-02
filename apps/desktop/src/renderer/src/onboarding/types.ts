@@ -89,6 +89,15 @@ export interface WizardState {
   detectedEnvs: DetectedEnvRow[]
   envsScanned: boolean
   uvAvailable: boolean | null
+  /**
+   * Install `ipykernel` into the chosen environment, so the first notebook
+   * cell the user runs actually runs (ROADMAP item 5). It is an OFFER, never
+   * a silent side effect (D5) — and its default deliberately differs by
+   * branch, which is why the step sets it when the branch changes:
+   * on for "create with uv" (SUNA made that env), OFF for an existing
+   * environment (that one is the user's, possibly shared with other work).
+   */
+  installKernel: boolean
 
   // Step 4 — AI
   aiChoice: AiChoice
@@ -150,6 +159,7 @@ export function createInitialWizardState(
     detectedEnvs: [],
     envsScanned: false,
     uvAvailable: null,
+    installKernel: true,
 
     aiChoice: 'cli',
     detectedClis: [],

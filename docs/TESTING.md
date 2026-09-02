@@ -545,7 +545,7 @@ role line → TASK → CONTEXT → RULES → "reply with a concise summary"):
   Bash(node:*)`. The bundle reaches disk whether or not a CLI ever runs —
   the bundle IS the fallback.
 
-Unbilled coverage: smoke steps 67–69 — `help-overlay` (open / section
+Unbilled coverage: smoke steps 71–73 — `help-overlay` (open / section
 tab / close), `ai-capture-rect` (the IPC writes a real PNG whose IHDR
 size matches the requested rect × devicePixelRatio), and
 `comment-ai-cancel` (a real comment fix started and cancelled ~3 s in;
@@ -596,6 +596,38 @@ here:
   fig-spectrum; `figure.svg` on disk carried exactly that text change,
   "observed" and every id untouched, and the open canvas tab re-read the
   file and rendered the new label without a manual reload.
+
+### The notebook kernel, end to end (DECISIONS 2026-09-01)
+
+`scripts/e2e/probes/notebook-kernel-onboarding.mjs` is the proof that a user
+who completes the wizard and opens a notebook can run a cell — ROADMAP item 5.
+It needs **`uv` on PATH and a network**, which is why it is a probe and not a
+unit gate and not a `pnpm smoke` step; it says so and stops rather than
+failing obscurely.
+
+```bash
+node scripts/e2e/drive.mjs --boot
+node scripts/e2e/drive.mjs run scripts/e2e/probes/notebook-kernel-onboarding.mjs
+node scripts/e2e/drive.mjs --stop
+```
+
+It does **not** stub the install. It walks the real wizard into a fresh temp
+directory, takes the "Create with uv" branch, checks that step 4's kernel
+offer is on by default for that branch, presses the real Create, and then
+asserts the **output text** of an executed cell (`kernel ran: 42`) — "the
+kernel went idle" is exactly the kind of green that hides a broken runtime.
+It then proves the honest-failure half against a second project whose
+selected interpreter has no `ipykernel`, requiring the message to name that
+interpreter *and* the command, and finally clicks the panel's repair button
+and re-runs the cell, because offering a fix that does not fix anything would
+be worse than the plain message.
+
+Two things it is worth knowing this probe learned the hard way. Create
+**closes the wizard tab** (it opens the new project), so `onboarding.getState()`
+goes null the moment it succeeds — progress is watched on disk, not through
+wizard state. And the renderer **caches the selected env per project**, so
+switching interpreters cannot be tested by re-selecting inside the project
+already open; the bare-interpreter leg uses a separate project directory.
 
 ### Explorer drag-and-drop, and the OS actions (DECISIONS 2026-08-17)
 
@@ -650,22 +682,30 @@ with Default App* must launch nothing and leave
 pnpm smoke        # = node scripts/e2e/smoke.mjs
 ```
 
-> **STALE as of the flat layout (ARCHITECTURE §4.3) — the driver has not been updated to the
-> flat layout and several steps below still describe the old one.**
-> `scripts/e2e/smoke.mjs` still clicks `.ms__open` (the removed *Open full
-> manuscript* button, lines 1070/1074/1658/1662/2029), still saves and
-> compares `manuscript/sections/*.md` (lines 1183, 1607, 1852, 4490) and
-> still targets comments at `sections/02-results.md` (lines 2316, 2409).
-> None of those paths or selectors exist any more, so those steps will
-> fail. The flat-manuscript work shipped with `pnpm typecheck`, `pnpm test`
-> and `pnpm --filter @suna/desktop build` as its gates and **no smoke run**
-> (DECISIONS 2026-08-15); updating the driver is tracked in
-> `docs/ROADMAP.md`. Everything each affected step measures is still a real
-> requirement — only the selectors and file paths changed.
+> **A known stall, worth recognising.** One run in six hung indefinitely in
+> `crossref-resolution` — the app stayed responsive to a second CDP client
+> and the driver's own `evalJs` never returned, so it is the driver's
+> connection that stalls, not the app. `evalJs` has no timeout, so a lost
+> CDP round trip parks the whole suite with no output. If a run goes quiet
+> on one step for minutes, kill it and re-run before investigating that
+> step; giving `evalJs` a deadline is open work.
+>
+> **The flat-layout staleness is gone (2026-09-01).** The driver no longer
+> clicks `.ms__open`, no longer saves or compares `manuscript/sections/*.md`,
+> and no longer targets comments at `sections/02-results.md`; the only
+> mentions of those names left in `smoke.mjs` are comments saying why they
+> are not used. The suite runs to completion and every step passes.
+>
+> **The lesson the banner recorded still holds**: the flat-manuscript work
+> shipped on `pnpm typecheck`, `pnpm test` and a desktop build with **no
+> smoke run** (DECISIONS 2026-08-15), and the suite then rotted quietly for
+> weeks. Nothing in it measures anything less real than it did — a step that
+> fails after an app change is a stale selector or a regression, and telling
+> those two apart is the work. Never weaken a step to make it pass.
 
 Launches the app **hidden** (no window, no dock icon; pass `--show` or
 `SUNA_SMOKE_SHOW=1` for a visible window) with a DevTools-protocol
-endpoint (`SUNA_SMOKE_PORT`, default 9321) and drives 71 steps end to
+endpoint (`SUNA_SMOKE_PORT`, default 9321) and drives 78 steps end to
 end (`--list` prints their names). Reset strategy: the run's entire userData is the isolated
 `scripts/e2e/.userdata-smoke`, **wiped at run start** — every run
 exercises the pristine copy-on-open path (fresh git repo, exactly one
@@ -1074,9 +1114,9 @@ and `23-lit-search.png` from steps 34–41, plus `text-context-menu.png`,
 steps 44–47, plus `split-view.png`, `pdf-viewer.png`,
 `image-viewer.png`, `reference-pdf-side.png` and `command-palette.png`
 from steps 48–53, plus `help-overlay.png` and `comment-ai-busy.png` from
-smoke steps 67–69, plus `explorer-drag-move.png` (taken
+smoke steps 71–73, plus `explorer-drag-move.png` (taken
 mid-drag, with the drop target lit) and `help-in-vim-mode.png` from the
-smoke steps 70–71) land in `scripts/e2e/.artifacts/`; failures add
+smoke steps 74–75) land in `scripts/e2e/.artifacts/`; failures add
 `FAIL-<step>.png`. `ai-lit-search.png` in the same directory is from the
 manual billed run described under step 47 — `pnpm smoke` never
 overwrites it.
@@ -1239,18 +1279,93 @@ Exports land in `<project>/output/` and never touch the sources.
 
 ### What is NOT verified here, and why
 
-- **`export:pdf`'s actual PDF bytes.** `exportPdf` renders through
-  `BrowserWindow.printToPDF`, which needs a running Electron process.
-  Electron cannot launch in the sandboxed agent environment used for this
-  work (it dies with `mach_port_rendezvous` / `SIGTRAP` before `app.ready`),
-  so **no `.pdf` was produced or inspected**. What *is* asserted is the
-  exact HTML `printToPDF` consumes, under both profiles, including the
-  `ms-body` anchor its line-number injector queries. Producing a PDF and
-  checking it starts with `%PDF` remains a **manual** step: run
-  `pnpm dev`, export, and open the file.
+- **`export:pdf`'s actual PDF bytes** are not covered by `pnpm test` and
+  cannot be: `exportPdf` renders through `BrowserWindow.printToPDF`, which
+  needs a running Electron process. What the unit gates assert is the exact
+  HTML `printToPDF` consumes, under both profiles, including the `ms-body`
+  anchor its line-number injector queries. **The bytes themselves are now
+  covered by a driven probe** — see *Asserting the PDF bytes* below. This
+  stopped being a manual step on 2026-09-01.
 - **The import review screen's own commit button**, which opens a *native*
   directory picker CDP cannot drive. `openDocxImportTab(path)` is seamed, but
   choosing the target directory is not — see *Not yet covered*.
+
+### Asserting the PDF bytes
+
+`scripts/e2e/probes/pdf-export-bytes.mjs` (ARCHITECTURE §13) is the only
+thing in the repo that produces a real `.pdf` and looks inside it. It runs
+against the hidden driven app — `printToPDF` has no offline mode, so there
+is no other way.
+
+```bash
+node scripts/e2e/pdf-probes.mjs --only pdf-export-bytes.mjs   # boots, runs, stops
+
+# or against an app you already have up:
+node scripts/e2e/drive.mjs --boot --example
+node scripts/e2e/drive.mjs run scripts/e2e/probes/pdf-export-bytes.mjs
+node scripts/e2e/drive.mjs --stop
+```
+
+It exports the example project's manuscript twice — under `suna` (house
+style, figures inline) and under `sleep`, the one bundled profile whose
+`documentStyle` states real submission-convention deltas — reads both back
+with **pdf.js** (already an `apps/desktop` dependency; nothing new was
+added), and asserts:
+
+| # | Assertion | What a failure means |
+| --- | --- | --- |
+| 1 | `%PDF-` header, `%%EOF` in the tail, > 20 KB | truncated, empty or zero-byte write |
+| 2 | pdf.js parses it; 2–40 pages | the file is not a readable PDF |
+| 3 | **every** page measures 612 × 792 pt (± 2) | the profile's paper size did not reach `printToPDF`, or the hidden window's own size leaked into the page setup |
+| 4 | seven manuscript strings in the text layer — title, abstract, `Results`, `Methods`, body prose, a table cell, and a **reference-list-only** string | an empty or image-only render, or a dropped reference list |
+| 5 | at least one image XObject is painted (from `getOperatorList`, not from the file size) | the figures were silently dropped |
+| 6 | `sleep` (`figurePlacement: 'captions-list'`) paints **zero** images where `suna` paints some | profile-driven page setup silently not applying |
+| 7 | under `sleep` the figure captions sit **after** the references; under `suna` they sit before | `tablePlacement` / `referencesStartNewPage` not reaching the bytes |
+
+Deliberately **not** asserted: an exact page count or an exact byte size.
+Both move with a font substitution or a Chromium upgrade, and a check that
+goes red for that is worse than no check.
+
+The reference-list needle is `Literate Programming`, not `Knuth`: the house
+profile renders **author-year** citations, so `Knuth` appears in the body
+prose too and the check would pass over a PDF with no reference list at all.
+That is not hypothetical — it is how this check first went green wrongly.
+
+**It is not in `pnpm smoke`, and it should be.** The reason it was kept out
+— adding steps to a suite that cannot reach them looks like coverage
+without being any — **expired on 2026-09-01, when that suite started
+finishing green.** It is a real end-to-end assertion of a shipped feature
+and belongs beside the other export steps; moving it in is now open work
+rather than a deliberate exclusion. It sits in `pdf-probes.mjs` until then. It is exempt from that
+runner's reference-PDF fixture staging (`NO_FIXTURE`), because it does not
+read a reference PDF, it makes one.
+
+**Two things found while building it**, both pre-existing:
+
+- `pdf-probes.mjs`'s other four probes cannot run on a fresh checkout at
+  all. `resetFixture()` copies `output/ram-pressure-stripping-at-z-1-7.pdf`
+  as the paper to annotate, and a fresh `.userdata-drive` copy of the
+  example project has no `output/` directory — so every one of them dies on
+  the fixture until a human has exported by hand once. The irony is exact:
+  the reading-notes probes needed an automated PDF export and there wasn't one.
+- `scripts/e2e/probes/table-pagination.mjs` — which *does* already export a
+  real PDF, for the break-inside checks — guards on
+  `window.__sunaDev.exportProfileFor`, which does not exist and never has,
+  so it always takes its fallback branch. It should move to
+  `__sunaDev.exportSeam.exportManuscript` (below) and stop carrying a
+  half-copy of the export dialog's request.
+
+The seam it drives is `window.__sunaDev.exportSeam.exportManuscript(rootDir,
+profileId, format, outputName, options?)`
+(`apps/desktop/src/renderer/src/export/devSeam.ts`, dev builds only). It is
+deliberately thin — real manuscript, real profile, the app's **real**
+figure rasterizer, the real `export:pdf` channel — because the one step a
+Node driver genuinely cannot do is rasterizing figures on an offscreen
+canvas in the renderer. Everything after that is the IPC contract in
+`packages/core/src/ipc.ts`. It exists for the same reason `openExportTab`
+does: the export page's format and profile controls are React `<select>`s
+behind a compliance gate, so a probe driving the UI would be testing the
+dialog, not the printer.
 
 ## Unit gates
 
@@ -1376,13 +1491,6 @@ byte-identical with `sections/` intact.
   developer's screen — so "Finder actually came up at the right folder"
   is the one-line manual check under *Explorer drag-and-drop, and the OS
   actions*. Last measured: **PENDING**.
-- **The smoke driver's flat-layout update** (ARCHITECTURE §4.3). See the
-  warning at the top of *Agent / CI smoke test*: `scripts/e2e/smoke.mjs`
-  still drives `.ms__open` and `manuscript/sections/*.md`. The milestone
-  shipped without a smoke run by request, and the driver was **not**
-  rewritten blind — rewriting an e2e driver that cannot be executed to
-  confirm the rewrite would replace a known-stale suite with an
-  unverified one.
 - **Feature-plan-7 §3's switching behaviour in the running app.**
   `openProjectAt` and `closeProjectTabs` have unit tests, and the menu
   itself is ordinary DOM, but no automated run has actually switched a

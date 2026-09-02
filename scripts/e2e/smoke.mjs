@@ -1966,6 +1966,17 @@ try {
       await sleep(1200)
       await showView('explorer')
       await sleep(500)
+      // A project now opens with EVERY folder closed (03df63b, "Open a
+      // project without prying every folder open first"), so the rows this
+      // step measures — manuscript.md, references.bib, and hello/ inside
+      // figures/ — have to be revealed first. Expanding is the step's setup,
+      // not its subject; the icon assertions below are unchanged.
+      await evalJs(`(() => {
+        const dir = window.__sunaDev.projectStore.getState().rootDir;
+        const toggle = window.__sunaDev.explorerStore.getState().toggleExpanded;
+        for (const sub of ['manuscript', 'figures']) toggle(dir + '/' + sub);
+      })()`)
+      await sleep(500)
 
       const rows = await evalJs(`(() => {
         const all = [...document.querySelectorAll('.tree__row')];
@@ -2036,20 +2047,20 @@ try {
         return { path: row.dataset.path, icon: row.querySelector('.tree__icon svg').innerHTML,
                  expanded: row.getAttribute('aria-expanded') };
       })()`)
-      const opened = await folderIcon()
-      assert(opened.expanded === 'true', `hello/ starts collapsed (${opened.expanded})`)
+      const closed = await folderIcon()
+      assert(closed.expanded === 'false', `hello/ starts expanded (${closed.expanded})`)
       await evalJs(
-        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(opened.path)})`
+        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(closed.path)})`
       )
       await sleep(400)
-      const closed = await folderIcon()
-      assert(closed.expanded === 'false', `collapsing hello/ left aria-expanded=${closed.expanded}`)
+      const opened = await folderIcon()
+      assert(opened.expanded === 'true', `expanding hello/ left aria-expanded=${opened.expanded}`)
       assert(
         closed.icon !== opened.icon,
         'the folder icon is identical open and closed — no open/closed mark is drawn'
       )
       await evalJs(
-        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(opened.path)})`
+        `window.__sunaDev.explorerStore.getState().toggleExpanded(${JSON.stringify(closed.path)})`
       )
       await sleep(300)
 
@@ -2070,7 +2081,12 @@ try {
         const row = [...document.querySelectorAll('.tree__row')]
           .find((r) => (r.dataset.path ?? '').split('/').pop() === 'references.bib');
         const norm = (v) => v.replace(/\\s+/g, '');
-        const root = getComputedStyle(document.documentElement);
+        // The theme's variables are stamped on .app[data-suna-theme] and
+        // body[data-suna-theme] (packages/core/src/theme.ts), NOT on :root,
+        // so documentElement resolves every one of them to '' and the band
+        // comparison below silently became ''===''. Read them off the row
+        // itself, which inherits the ones actually in force on it.
+        const root = getComputedStyle(row);
         return {
           hovering: row.matches(':hover'),
           background: norm(getComputedStyle(row).backgroundColor),
@@ -2476,7 +2492,7 @@ try {
       name: 'vcs-paper',
       targetExists: false,
       targetParentWritable: true,
-      step: 7
+      step: 6
     })`)
     await sleep(1200)
 
@@ -2615,7 +2631,16 @@ try {
     // ARCHITECTURE §15.4: the write heals the whole agent layer, not just .mcp.json
     assert(written.agents.includes('suna:agent-stub'), 'AGENTS.md stub missing after heal')
     assert(written.claude.includes('suna:agent-stub'), 'CLAUDE.md stub missing after heal')
-    assert(written.notebook.includes('Session log'), 'context/MEMORY.md missing after heal')
+    // The example ships its OWN context/MEMORY.md, so the heal must leave it
+    // alone (D7 — detached, never deleted; writeIfMissing, never overwrite).
+    // Asserting the fresh template's '## Session log' here asserted that the
+    // heal had CLOBBERED the author's memory file, which is the opposite of
+    // what §15.4 promises.
+    assert(written.notebook.trim() !== '', 'context/MEMORY.md missing after heal')
+    assert(
+      written.notebook.includes('Memory — Hello SUNA'),
+      'the heal overwrote the project\'s own context/MEMORY.md'
+    )
     assert(
       written.gitignore.split('\n').some((l) => l.trim() === '.mcp.json'),
       '.gitignore does not ignore .mcp.json after heal'
@@ -3283,15 +3308,31 @@ try {
     assert(panel.spill.length === 0, `row content spills past its row: ${panel.spill.join(', ')}`)
     assert(panel.titleClamp === '2', `titles not clamped to 2 lines: ${panel.titleClamp}`)
 
-    // the sidebar manuscript summary renders its title math, like the title page
+    // The sidebar summary deliberately does NOT repeat the manuscript's own
+    // title (ManuscriptView.tsx: it cost three wrapped lines of a narrow
+    // sidebar and told the user nothing the title page and tab did not).
+    // What must hold is that the row is the static label and that no raw TeX
+    // from the title leaks into the sidebar anywhere — which is what the old
+    // "renders KaTeX" assertion was really protecting.
     await activateView('Writing')
     await sleep(900)
-    const title = await evalJs(`(() => {
+    const summary = await evalJs(`(() => {
       const el = document.querySelector('.ms__title');
-      return { text: el?.textContent ?? '', katex: !!el?.querySelector('.katex') };
+      const view = document.querySelector('.view');
+      return { title: el?.textContent ?? null, viewText: view?.textContent ?? '' };
     })()`)
-    assert(title.katex, 'sidebar manuscript title does not render KaTeX')
-    assert(!title.text.includes('$'), `sidebar title still shows raw TeX: ${title.text}`)
+    assert(summary.title === 'Manuscript', `sidebar title row reads ${JSON.stringify(summary.title)}`)
+    const rawTitle = JSON.parse(
+      readFileSync(join(COPY_DIR, 'manuscript', 'manuscript.json'), 'utf8')
+    ).title
+    assert(
+      /\$/.test(rawTitle),
+      `the example's title carries no math any more — this assertion proves nothing: ${rawTitle}`
+    )
+    assert(
+      !summary.viewText.includes(rawTitle),
+      'the sidebar repeats the manuscript title verbatim, raw TeX and all'
+    )
   })
 
   // ======================= DECISIONS 2026-08-14 acceptance =====================
@@ -4124,29 +4165,78 @@ try {
     // contains the unsaved edit (one buffer, two views)
     await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(MANUSCRIPT_MD)})`)
     await sleep(2000)
+    // The marker is in the intro, thirteen lines down. CodeMirror renders only
+    // its viewport, and this tab may have been opened by an earlier step and
+    // kept a scroll position — measured: a run reached here with 41 of 83
+    // lines rendered and the marker's line among the missing ones, so a DOM
+    // check reported "the edit is not visible" about a view that was simply
+    // scrolled elsewhere. Park it at the top, where the marker is, so the
+    // assertion below is about the sync and not about the scrollbar.
+    const RAW_TAB_PRE = `[...document.querySelectorAll('.editor-tab')]
+      .find((t) => t.dataset.path === ${JSON.stringify(MANUSCRIPT_MD)})`
+    const scrollRawTo = (top) => evalJs(`(() => {
+      const tab = ${RAW_TAB_PRE};
+      const sc = tab?.querySelector('.cm-scroller');
+      if (!sc) return null;
+      sc.scrollTop = ${top};
+      return { top: sc.scrollTop, height: sc.scrollHeight, client: sc.clientHeight };
+    })()`)
+    const markerOnScreen = () => evalJs(
+      `(${RAW_TAB_PRE})?.querySelector('.cm-content')?.textContent.includes(${JSON.stringify(marker)}) ?? false`
+    )
+    // Walk the raw tab's viewport until the edit is on screen. CodeMirror
+    // renders only what is visible, and this tab may have been opened by an
+    // earlier step and kept a scroll position — measured: a run reached here
+    // with 41 of 83 lines rendered and the marker's line among the missing
+    // ones, so a fixed-position DOM check reported "the edit is not visible"
+    // about a view that was merely scrolled elsewhere. Scrolling proves the
+    // same thing the original check meant: the OTHER view is showing the
+    // unsaved edit. A buffer that never received it fails every position.
+    await scrollRawTo(0)
+    await sleep(600)
+    for (let i = 1; i <= 12 && !(await markerOnScreen()); i++) {
+      await scrollRawTo(i * 400)
+      await sleep(350)
+    }
+    // BY PATH, not "the first visible non-msdoc editor tab". dockview keeps
+    // every panel mounted and earlier steps leave other editors open in other
+    // groups with non-zero boxes, so the old selector could measure a
+    // different file entirely — which is exactly how this step failed in a
+    // full run while passing in isolation.
+    const RAW_TAB = `[...document.querySelectorAll('.editor-tab')]
+      .find((t) => t.dataset.path === ${JSON.stringify(MANUSCRIPT_MD)})`
     const fileTab = await evalJs(`(() => {
-      const tab = [...document.querySelectorAll('.editor-tab')]
-        .filter((t) => !t.classList.contains('msdoc'))
-        .find((t) => t.getBoundingClientRect().width > 0);
+      const tab = ${RAW_TAB};
       const meta = window.__sunaDev.docSessions.meta.getState().meta.get(${JSON.stringify(MANUSCRIPT_MD)});
+      const text = tab?.querySelector('.cm-content')?.textContent ?? '';
       return {
         found: !!tab,
-        hasMarker: tab ? tab.querySelector('.cm-content')?.textContent.includes(${JSON.stringify(marker)}) ?? false : false,
+        hasMarker: text.includes(${JSON.stringify(marker)}),
+        // Diagnostics for the failure message: a CodeMirror renders only its
+        // viewport, so "not in the DOM" and "not in the buffer" look the same
+        // from here and have to be told apart.
+        renderedChars: text.length,
+        renderedLines: tab ? tab.querySelectorAll('.cm-line').length : 0,
+        bufferChars: (window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)}) ?? '').length,
+        markerInBuffer: (window.__sunaDev.docSessions.peek(${JSON.stringify(MANUSCRIPT_MD)}) ?? '').includes(${JSON.stringify(marker)}),
+        head: text.slice(0, 120),
         views: meta?.views ?? 0,
         dirty: meta?.dirty ?? false
       };
     })()`)
     assert(fileTab.found, 'the raw editor tab did not open')
-    assert(fileTab.hasMarker, 'the raw editor tab does not show the other tab\'s unsaved edit')
+    assert(
+      fileTab.hasMarker,
+      "the raw editor tab does not show the other tab's unsaved edit: " + JSON.stringify(fileTab)
+    )
     assert(fileTab.views === 2, `session views: ${fileTab.views} (expected 2)`)
     assert(fileTab.dirty, 'the shared session is not marked dirty after an edit')
 
     // one ⌘S (in the file tab, the active panel) cleans BOTH surfaces —
     // click into its editor first so the keystroke lands there
     const lineSpot = await evalJs(`(() => {
-      const tab = [...document.querySelectorAll('.editor-tab')]
-        .filter((t) => !t.classList.contains('msdoc'))
-        .find((t) => t.getBoundingClientRect().width > 0);
+      const tab = ${RAW_TAB};
+      if (!tab) throw new Error('the raw manuscript.md editor tab is gone');
       const l = [...tab.querySelectorAll('.cm-line')].find((el) => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && r.top > 60 && r.bottom < window.innerHeight - 40;
@@ -4969,7 +5059,12 @@ try {
 
     // the anchored edit primitive, round-tripped through the real bundle:
     // edit a unique phrase, verify the section report, put it back
-    const phrase = 'Galaxies falling into dense cluster environments'
+    // A phrase from the SHIPPED example (hello-suna). The old one belonged to
+    // the demo paper this example replaced (3d3b03f), so the edit matched
+    // nothing and the step failed on a phrase that no longer existed.
+    // It must also not be the quote of any comment thread in the example, or
+    // the round trip would detach an anchor other steps assert on.
+    const phrase = 'Writing the analysis down so somebody else can rerun it is old advice'
     const edited = mcpCall(COPY_DIR, 'edit_manuscript', {
       find: phrase, replace: `${phrase} (smoke)`
     })
@@ -5192,8 +5287,20 @@ try {
     for (const [citekey, src] of Object.entries(REF_PDFS)) {
       copyFileSync(src, join(COPY_DIR, 'references', `${citekey}.pdf`))
     }
-    await evalJs(`window.__sunaDev.referencePdfsStore.getState().scan(${JSON.stringify(COPY_DIR)})`)
-    await sleep(1200)
+    // Kick the scan off WITHOUT awaiting it over CDP and poll the store
+    // instead. Awaiting it returned `Promise was collected` in a full run:
+    // the store re-scans itself on every saveBump, so by the time the
+    // debugger got round to the handle this call's promise had been dropped.
+    // What the step is about is the resolved map, and that is what is waited
+    // on here — nothing is skipped, and a scan that never lands still fails.
+    await evalJs(`(() => { void window.__sunaDev.referencePdfsStore.getState().scan(${JSON.stringify(COPY_DIR)}); return 'started' })()`)
+    for (let i = 0; i < 40; i++) {
+      const ready = await evalJs(
+        `window.__sunaDev.referencePdfsStore.getState().map.has('knuth1984')`
+      )
+      if (ready) break
+      await sleep(250)
+    }
     const map = await evalJs(`(() => {
       const out = {};
       for (const [k, v] of window.__sunaDev.referencePdfsStore.getState().map) {
@@ -6258,8 +6365,12 @@ try {
 
     // --- opening a listed project restores it ------------------------------
     await evalJs(`(() => {
+      // The bundled example is 'Hello SUNA' (3d3b03f replaced the demo paper
+      // this used to name), and its recents entry is the one that must reopen.
       const li = [...document.querySelectorAll('.recents__item')]
-        .find((n) => n.querySelector('.recents__name')?.textContent.includes('Ram-pressure'));
+        .find((n) => n.querySelector('.recents__name')?.textContent.includes('Hello SUNA'));
+      if (!li) throw new Error('no recents row for the example project: ' +
+        [...document.querySelectorAll('.recents__name')].map((n) => n.textContent).join(', '));
       li.querySelector('.recents__row').click();
     })()`)
     await sleep(2500)
@@ -6475,7 +6586,10 @@ try {
       };
     })()`)
     assert(opened !== null, `'?' did not open the help overlay`)
-    const sectionIds = ['global', 'editor', 'manuscript', 'canvas', 'explorer', 'viewers']
+    // 'notebook' joined the inventory when .ipynb editing landed; the list is
+    // asserted in full so a section that appears without a tab (or the other
+    // way round) still fails here.
+    const sectionIds = ['global', 'editor', 'manuscript', 'canvas', 'notebook', 'explorer', 'viewers']
     assert(sectionIds.includes(opened.section), `data-help-section: ${opened.section}`)
     assert(
       opened.tabs.length === sectionIds.length,
@@ -7056,10 +7170,18 @@ try {
     await evalJs(`window.__sunaDev.openFileTab(${JSON.stringify(MANUSCRIPT_MD)})`)
     await sleep(1500)
 
-    /** The inlined figure in the prose: its <text> count and its panel letters. */
+    /**
+     * The inlined figure in the prose: its <text> count and its panel letters.
+     * Keyed to FIGURE — the figure this step actually auto-letters and saves.
+     * It used to be hard-coded to `hello/figure.svg` while FIGURE has long
+     * been `timesheet/figure.svg`, so the step watched one embed and edited
+     * another and could never see the repaint it was asserting on. (Measured:
+     * at the moment of failure the timesheet host in the same document did
+     * carry its two letters.)
+     */
     const embedded = () =>
       evalJs(`(() => {
-        const host = document.querySelector('[data-suna-asset-path$="hello/figure.svg"]');
+        const host = document.querySelector('[data-suna-asset-path=' + ${JSON.stringify(JSON.stringify(FIGURE))} + ']');
         if (!host) return null;
         return {
           texts: host.querySelectorAll('text').length,
@@ -7117,7 +7239,11 @@ try {
     const after = await embedded()
     assert(after !== null, 'the embed disappeared from the manuscript after the save')
     assert(
-      after.letters.join(',') === 'a,b',
+      // UPPERCASE, because the example project runs SUNA style and its panel
+      // convention is `letterCase: "upper"` — the same letters
+      // canvas-auto-letter-panels asserts above. The old lowercase expectation
+      // predates that profile and could not have passed.
+      after.letters.join(',') === 'A,B',
       `the manuscript did not pick up the saved figure: letters=[${after.letters.join(',')}], ` +
         `texts ${before.texts} -> ${after.texts}`
     )

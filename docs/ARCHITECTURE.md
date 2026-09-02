@@ -1279,6 +1279,16 @@ Two hazards recorded so the next person does not rediscover them:
   `preferCSSPageSize: true` so the CSS `@page` rule wins. Anyone copying the figure printer as a
   model for a new component printer gets a silently wrong page size.
 
+**The PDF bytes are asserted, and only a driven run can assert them.** `printToPDF` has no
+offline mode, so no vitest file can ever produce a `.pdf` — the unit gates stop at the HTML, by
+necessity rather than by neglect. `scripts/e2e/probes/pdf-export-bytes.mjs` closes the rest: it
+exports the example manuscript from the hidden driven app under **two profiles** and reads both
+back with pdf.js — header and trailer, page count, US Letter geometry on every page, manuscript
+strings in the text layer, and a painted image XObject. The two-profile part is the point:
+`sleep`'s `figurePlacement: 'captions-list'` must yield **zero** painted images where the house
+style yields some, which is what catches a profile's page setup silently not reaching the printer.
+`docs/TESTING.md` has the full assertion table and the run command.
+
 **Known defect, unfixed and pre-existing:** the line-number script de-duplicates wrapped lines by
 exact rounded `top`, so an inline `<sup>` or a KaTeX span whose rect sits a pixel off counts as an
 extra line, visible as overlapping numbers in the gutter.
@@ -1624,8 +1634,38 @@ Electron bump across a platform matrix, for an optional feature. `jupyter_client
   parent is **dropped deliberately**, rather than pinned to whichever cell ran last.
 * One kernel per open notebook; `allow_stdin=False`; failures are `fatal` events with actionable
   codes (`no-jupyter-client`, `no-kernelspec`, `start-failed`, `op-failed`), each naming its
-  remedy.
+  remedy. A remedy names **`sys.executable`**, not a bare `pip install ipykernel`: SUNA picked the
+  interpreter, so telling a user with several of them to "run pip" is advice they cannot act on
+  without first guessing which pip.
 * It **does** ship in the packaged app (`stage-resources.mjs`).
+
+**`ipykernel` is offered, never assumed.** The bridge needs `jupyter_client` (and a kernelspec) in
+the *project's selected interpreter*, and there is nowhere to stage that into — which is why this
+was open as ROADMAP item 5 for as long as it was. It is closed by one primitive with two asking
+callers, not by packaging:
+
+* `installKernelRuntime(envPath)` (`main/services/envs.ts`) — `uv pip install ipykernel` with a
+  `python -m pip` fallback, guarded by a `probe` on both sides. The **trailing** probe is the
+  load-bearing half: a pip that reports success into a different interpreter must not be reported
+  as a working kernel, so the claim is *importable*, never *installed*. It never throws; every
+  failure comes back as a message naming the exact command to run by hand.
+* One channel, `env:install-kernel` (§5.2). Its two callers are the onboarding wizard's env
+  sub-step and the notebook's own "no kernel" panel.
+
+Both callers **ask first** (D5), and the wizard's default differs by branch because the branches
+are not equivalent: on for "create with uv", where the environment is one SUNA is about to create;
+**off** for an existing detected environment, which is the user's and may be shared with other
+projects (D9). "Skip" is offered nothing, because there is no environment to install into, and the
+step says that rather than showing an inert checkbox. A failed install is a wizard *warning*, never
+an error on the env row — the environment does exist, and creation is never blocked on a step that
+needs a network.
+
+The notebook's fault panel is **not redundant** with the wizard: the interpreter is a per-project
+pick changeable at any time from the status bar, projects also arrive by clone and by DOCX import,
+and an install can fail on a machine with no network. So the kernel path degrades on its own terms
+rather than assuming onboarding ran — it offers the same one-click repair against whichever
+interpreter is selected *now*, and where it cannot repair (no env selected, no network, a read-only
+interpreter) it says so and names the command.
 
 **There is no sandbox.** This is a plain child process running arbitrary user code under the
 project's own interpreter with full user privileges. The only containment is
@@ -1649,6 +1689,12 @@ Three conventions, all read off nbformat rather than guessed:
    has a figure in it.
 3. **Unknown keys are never dropped.** Every interface carries an index signature and objects are
    mutated rather than rebuilt. Throwing them away on save is data loss.
+
+Running a cell needs a kernel, and a kernel needs `ipykernel` in the project's selected
+interpreter — which SUNA now offers to install rather than assuming (§16.2 has the mechanism and
+who asks). The model half is unaffected either way: a notebook whose kernel never starts still
+opens, still edits and still round-trips byte-identically, because the `.ipynb` is the document and
+the kernel is only what executes it.
 
 Cell ids are minted only when the format version actually has them (`nbformat > 4 ||
 nbformat_minor >= 5`) — a v4.4 file that gains ids on save is a file every other tool then
@@ -1752,9 +1798,14 @@ else: a first-paint ground before the generated sheet lands.
   hidden window with an isolated `userData` and a relocated `SUNA_CONFIG_HOME` — *the user's real
   `~/.suna` must never be touched by a driven run* — then `--shot`, `--eval` and `run probe.mjs`
   iterate in seconds. `pnpm dev` is for humans only.
-* **`pnpm smoke`** is ~80 named end-to-end steps over CDP, hidden by default, filterable with
-  `--only` / `--from` / `--until` / `--list`. Step names are the feature inventory.
-* `scripts/e2e/probes/` holds focused drivers for areas the main suite does not cover.
+* **`pnpm smoke`** is 78 named end-to-end steps over CDP, hidden by default, filterable with
+  `--only` / `--from` / `--until` / `--list`. Step names are the feature inventory. It runs to
+  completion green (2026-09-01) and is a gate, not a document; a red step is either a stale
+  selector or a regression, and **weakening one to make it pass is never the answer**.
+* `scripts/e2e/probes/` holds focused drivers for areas the main suite does not cover. Some of
+  them are not optional extras: **`pdf-export-bytes.mjs` is the only check anywhere that produces
+  a real `.pdf` and inspects it** (§13), because `printToPDF` needs a live Electron process and
+  no vitest file can have one. `node scripts/e2e/pdf-probes.mjs --only pdf-export-bytes.mjs`.
 * Python: `cd python/suna_mpl && uv run pytest`.
 * CI runs typecheck and tests on Linux and macOS for every PR, and additionally packages
   on macOS and launches the real bundle — **the packaged layout is the one thing `pnpm dev` can
@@ -1831,7 +1882,7 @@ is no `manuscript/sections/*.md`; there is one `manuscript.md`. `references.bib`
 `letters/`, `archive/`, `rounds/`, `context/`, `references/notes/` and `.suna/` are all real and
 undocumented there.
 
-**20.6 The `suna_mpl` half is resolved; the `ipykernel` half is not.** `suna_mpl` used not to be
+**20.6 Both halves are resolved; what remains is that Python itself is the user's.** `suna_mpl` used not to be
 staged into the bundle, so the packaged example shipped a `plot.py` that did `import suna_mpl`
 while the library it imports did not ship at all, and — not being on PyPI — could not be installed
 either. It is now staged (`python/suna_mpl`: `pyproject.toml`, `uv.lock`, `src/`) and located
@@ -1843,11 +1894,23 @@ than runnable — and the script that actually shipped broken was the bundled ex
 user's to install.** SUNA bundles no Python interpreter, so a machine without `uv` still cannot
 regenerate a figure, and the docs say so.
 
-**The notebook half of this item stands.** The kernel bridge enumerates `no-jupyter-client` with a
-`pip install ipykernel` remedy, but nothing in onboarding installs it, so a user who completes the
-wizard and opens a notebook still hits that error on first run. Staging `suna_mpl` does not touch
-it: the bridge runs under the *project's selected interpreter*, not under a bundled environment,
-and there is nowhere to stage `ipykernel` to that would satisfy it.
+**The notebook half is now resolved too, and not by packaging.** The reasoning that kept it open
+was correct and still is: the bridge runs under the *project's selected interpreter*, so there is
+nowhere to stage `ipykernel` to. The fix is therefore in onboarding and in the kernel's own
+startup path (§16.2), as one primitive — `installKernelRuntime` — behind one channel,
+`env:install-kernel`, with two callers that both **ask first**: the wizard's env sub-step (checked
+by default only for the env SUNA creates; off for an environment the user already owned) and the
+notebook's "no kernel" panel, which repairs whichever interpreter is selected now. Proven end to
+end by `scripts/e2e/probes/notebook-kernel-onboarding.mjs`, which drives the real wizard and
+asserts a cell's *output text*.
+
+**What is still open here is narrower and is the honest residue.** SUNA bundles no Python
+interpreter and no `uv`, so both remain the user's to install: on a machine with neither, the
+wizard's uv branch is offered disabled and a figure still cannot be regenerated. An install also
+needs a **network**; where it fails — no network, no pip, a read-only or externally-managed
+interpreter — nothing is silently swallowed. The wizard records a warning and the notebook panel
+shows a message naming the interpreter and the exact command, because the one thing this item must
+never become is a claim that it worked.
 
 **20.7 Dock layout is not persisted.** Every launch opens the welcome panel. Session restore is a
 gap, not a recorded decision.

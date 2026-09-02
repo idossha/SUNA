@@ -54,6 +54,7 @@ describe('CHANNELS', () => {
       'docx:preview',
       'env:create',
       'env:detect',
+      'env:install-kernel',
       'env:select',
       'env:selected',
       'env:uv-available',
@@ -370,6 +371,25 @@ describe('CHANNELS', () => {
       error: 'uv is not installed or not on PATH',
     };
     expect(CHANNELS['env:create'].response.parse(createRes)).toEqual(createRes);
+  });
+
+  it('validates env:install-kernel shapes, including its honest-failure reply', () => {
+    const req: RequestOf<'env:install-kernel'> = { envPath: '/work/my-paper/.venv' };
+    expect(CHANNELS['env:install-kernel'].request.parse(req)).toEqual(req);
+    const installed: ResponseOf<'env:install-kernel'> = {
+      ok: true,
+      alreadyPresent: false,
+      error: null,
+    };
+    expect(CHANNELS['env:install-kernel'].response.parse(installed)).toEqual(installed);
+    // The failure carries a message rather than throwing: a user whose
+    // machine has no network still has to be told what to run.
+    const failed: ResponseOf<'env:install-kernel'> = {
+      ok: false,
+      alreadyPresent: false,
+      error: 'Run this yourself to fix it:  /work/my-paper/.venv/bin/python -m pip install ipykernel',
+    };
+    expect(CHANNELS['env:install-kernel'].response.parse(failed)).toEqual(failed);
   });
 
   it('validates fs:write-text round trip shapes', () => {

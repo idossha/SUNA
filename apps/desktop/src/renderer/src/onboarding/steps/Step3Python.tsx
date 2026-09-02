@@ -49,7 +49,10 @@ export function Step3Python({ state, update, scanDir }: Step4Props): JSX.Element
           name="onboard-python"
           disabled={state.detectedEnvs.length === 0}
           checked={state.pythonChoice === 'existing'}
-          onChange={() => update({ pythonChoice: 'existing' })}
+          // Default the kernel install OFF here: this environment is the
+          // user's and may be shared with other projects, so installing into
+          // it is a side effect on something SUNA did not create (D9).
+          onChange={() => update({ pythonChoice: 'existing', installKernel: false })}
         />
         <div className="onboard__choice-body">
           <div className="onboard__choice-title">Use an existing environment</div>
@@ -88,7 +91,8 @@ export function Step3Python({ state, update, scanDir }: Step4Props): JSX.Element
           name="onboard-python"
           disabled={state.uvAvailable === false}
           checked={state.pythonChoice === 'create-uv'}
-          onChange={() => update({ pythonChoice: 'create-uv' })}
+          // SUNA creates this env, so provisioning it is not a surprise.
+          onChange={() => update({ pythonChoice: 'create-uv', installKernel: true })}
         />
         <div className="onboard__choice-body">
           <div className="onboard__choice-title">Create with uv</div>
@@ -100,6 +104,61 @@ export function Step3Python({ state, update, scanDir }: Step4Props): JSX.Element
           </div>
         </div>
       </label>
+
+      <KernelOffer state={state} update={update} />
     </div>
+  )
+}
+
+/**
+ * The notebook runtime, offered rather than assumed (ROADMAP item 5, §20.6).
+ *
+ * Without `ipykernel` in the selected environment the first notebook cell a
+ * new user runs fails with `no-jupyter-client` and a remedy they have to go
+ * and type themselves — which is a poor thing to discover at the moment you
+ * wanted to run a cell. So the wizard offers to do it, and, per D5, does
+ * nothing until Create project is pressed.
+ *
+ * It is a checkbox and not an automatic step because the three branches are
+ * not equivalent, and the copy says which one you are on:
+ *
+ *  - "Create with uv" — SUNA's own fresh env; checked by default.
+ *  - an existing environment — the USER's env, possibly shared with other
+ *    projects; unchecked by default, and it names the path being written to.
+ *  - "Skip" — there is no environment, so there is nothing to install into
+ *    and the offer is not shown at all. Saying so beats an inert checkbox.
+ */
+function KernelOffer({ state, update }: Pick<StepProps, 'state' | 'update'>): JSX.Element {
+  if (state.pythonChoice === 'skip') {
+    return (
+      <p className="onboard__step-sub">
+        Notebooks need <code>ipykernel</code> in an environment. With no environment there is
+        nothing to install it into — pick one here, or install it yourself later with{' '}
+        <code>pip install ipykernel</code>.
+      </p>
+    )
+  }
+
+  const target =
+    state.pythonChoice === 'create-uv'
+      ? 'the new .venv'
+      : (state.existingEnvPath ?? 'the selected environment')
+
+  return (
+    <label className="onboard__choice">
+      <input
+        type="checkbox"
+        checked={state.installKernel}
+        onChange={(event) => update({ installKernel: event.target.checked })}
+      />
+      <div className="onboard__choice-body">
+        <div className="onboard__choice-title">Install the notebook runtime (ipykernel)</div>
+        <div className="onboard__choice-hint">
+          {state.pythonChoice === 'create-uv'
+            ? 'Into the environment SUNA is about to create, so notebook cells run straight away. Needs a network; if it fails, creation still finishes and SUNA tells you the command to run.'
+            : `Writes into ${target} — an environment SUNA did not create, and one other projects may share. Off unless you ask for it.`}
+        </div>
+      </div>
+    </label>
   )
 }

@@ -167,6 +167,7 @@ import {
   awaitProvision,
   createEnvWithUv,
   detectEnvs,
+  installKernelRuntime,
   provisionProjectEnv,
   selectEnv,
   selectedEnv,
@@ -1029,6 +1030,7 @@ export function registerIpcHandlers(): void {
   handle('env:selected', async ({ dir }) => ({ envPath: await selectedEnv(dir) }))
   handle('env:uv-available', async () => ({ available: await uvAvailable() }))
   handle('env:create', ({ dir }) => createEnvWithUv(dir))
+  handle('env:install-kernel', ({ envPath }) => installKernelRuntime(envPath))
 
   handle('config:get', async () => ({ config: toPayload(await loadConfig()) }))
   handle('config:set', async ({ key, value }) => {

@@ -53,9 +53,11 @@ known disagreements** — check it before assuming either side is right.
   the packaged layout — asar contents, `extraResources`, the MCP bundle beside its `node_modules`.
 - `pnpm dev` opens a real window and is **for the human only**.
 
-**Establish a baseline before blaming your change.** One failure currently pre-dates any work you
-are doing: `pnpm smoke` stops at `reading-mode` on a stale precondition. It is not
-yours unless you made it worse.
+**Establish a baseline before blaming your change.** As of 2026-09-01 there is no known-broken
+step: `pnpm smoke` runs all 78 to completion, green. That is a floor to defend, not a guarantee —
+the suite has timing flakes, so a single red step is worth re-running before it is worth debugging,
+and a red one is either a stale selector or a regression. **Never weaken a step to make it pass**;
+an honest red is worth more than a fake green.
 
 ## Rules
 

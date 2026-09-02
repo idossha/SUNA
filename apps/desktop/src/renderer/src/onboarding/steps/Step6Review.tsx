@@ -30,8 +30,12 @@ function scaffoldSummary(state: StepProps['state']): string {
 
 function pythonSummary(state: StepProps['state']): string {
   if (state.pythonChoice === 'skip') return 'Skipped — set up later.'
-  if (state.pythonChoice === 'create-uv') return 'Create a new environment with uv.'
-  return state.existingEnvPath ?? 'Use an existing environment.'
+  // The kernel install is a write into an environment, so it belongs on the
+  // page where the user confirms what Create will do (D5) — most of all on
+  // the existing-environment branch, where the env is theirs.
+  const kernel = state.installKernel ? ' Plus ipykernel, so notebooks run.' : ''
+  if (state.pythonChoice === 'create-uv') return `Create a new environment with uv.${kernel}`
+  return `${state.existingEnvPath ?? 'Use an existing environment.'}${kernel}`
 }
 
 function aiSummary(state: StepProps['state']): string {
@@ -51,7 +55,8 @@ export function Step6Review({ state, update, targetPath }: Step6Props): JSX.Elem
     targetPath !== null
       ? buildProjectManifest({
           name: state.name || (targetPath.split('/').pop() ?? 'project'),
-          activeProfileId: HOUSE_PROFILE_ID
+          activeProfileId: HOUSE_PROFILE_ID,
+          scaffold: state.scaffold
         })
       : null
 

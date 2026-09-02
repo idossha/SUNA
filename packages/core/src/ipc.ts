@@ -1529,6 +1529,27 @@ export const CHANNELS = {
     }),
   },
   /**
+   * Install `ipykernel` into `envPath`'s interpreter — the one thing that
+   * turns a selected environment into one a notebook cell can actually run in
+   * (ROADMAP item 5, §16.2). Called from exactly two places, and both ASK
+   * first: the onboarding wizard's env sub-step, and the notebook's own "no
+   * kernel" panel, where the user can repair whichever interpreter they have
+   * since picked.
+   *
+   * `ok: false` never throws — a missing pip, no network or a read-only
+   * interpreter comes back as a human `error` naming the command to run by
+   * hand. `alreadyPresent` distinguishes "we installed it" from "it was
+   * already there", so the UI does not claim work it did not do.
+   */
+  'env:install-kernel': {
+    request: z.object({ envPath: z.string().min(1) }),
+    response: z.object({
+      ok: z.boolean(),
+      alreadyPresent: z.boolean(),
+      error: z.string().nullable(),
+    }),
+  },
+  /**
    * The whole configured state of the app: every resolved setting, where each
    * came from, the stylesheet for every theme, and anything wrong with the
    * file. One channel rather than a per-key read because the renderer wants

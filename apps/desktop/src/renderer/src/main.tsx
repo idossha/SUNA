@@ -5,6 +5,7 @@ import { canvasToolsSeam } from './canvas/dev-seam'
 import { dataviewDevSeam } from './dataview/devSeam'
 import { schemaDevSeam } from './dev/schemaSeam'
 import { editorDevSeam } from './editor/devSeam'
+import { exportDevSeam } from './export/devSeam'
 import { manuscriptDevSeam } from './manuscript/devSeam'
 import { onboardingSeam } from './onboarding/devSeam'
 import { settingsDevSeam } from './settings/devSeam'
@@ -107,6 +108,11 @@ if (import.meta.env.DEV) {
       // analyze→review→commit e2e needs a target-directory seam inside
       // import/DocxImportTab.tsx (ARCHITECTURE §13).
       dock: dockDevSeam,
+      // --- ARCHITECTURE §13 ---------------------------------------------------
+      // Producing REAL PDF bytes. 'export:pdf' prints through a hidden
+      // BrowserWindow, so only the running app can make one — see
+      // export/devSeam.ts for why the probe cannot just drive the export page.
+      exportSeam: exportDevSeam,
       // Command registry (§5): list/inspect/run a command by id, so a driver
       // can assert '>split right' without synthesizing every keystroke.
       commands: commandsDevSeam,

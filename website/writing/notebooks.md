@@ -23,7 +23,7 @@ A kernel starts per open notebook, on demand. SUNA does not speak the Jupyter ZM
 
 Two consequences worth knowing:
 
-- **You need `jupyter_client` and a kernel in the environment you selected.** `pip install ipykernel` (which pulls in `jupyter_client`) is the whole setup. Without it the toolbar says the kernel is not running and tells you what is missing.
+- **You need `ipykernel` in the environment you selected** — it pulls in `jupyter_client` and registers the kernel, and it is the whole setup. SUNA offers to install it for you rather than leaving it to you to remember: the [project wizard](/guide/install) offers it on its Python step, and if a kernel ever fails to start, the notebook says which interpreter it failed under and offers a one-click **Install ipykernel** into it. Where it cannot install — no network, or an interpreter you do not have write access to — it tells you the exact command to run instead.
 - **Any Jupyter kernel works**, not only Python — anything with a kernelspec, because the bridge is protocol translation rather than a Python-specific integration.
 
 The toolbar carries **Run all**, **Interrupt**, **Restart** and **Clear outputs**, and a status that reads `no kernel`, `starting…`, `idle`, `busy` or `not running`.

@@ -60,10 +60,49 @@ elif [ "$(uname -s)" = "Darwin" ]; then
   echo "==> CSC_LINK is present: signing with Developer ID${APPLE_ID:+ and notarizing as $APPLE_ID}"
 fi
 
+# PUT THE WORKING TREE BACK AFTERWARDS. A `--mac` build packages BOTH slices,
+# and electron-builder rebuilds the native modules for each one in turn against
+# the shared `node_modules`. Whichever arch it built last is what it leaves
+# there — so after packaging on Apple silicon, `node_modules/node-pty` holds an
+# **x86_64** `pty.node` and `spawn-helper`, and every terminal in the dev app
+# then dies with `posix_spawnp failed`. The packaged apps are fine (each slice
+# got its own correct build); it is the developer's tree that is left broken,
+# silently, by a command that appears to have succeeded.
+#
+# Measured 2026-09-01: this is what broke `pnpm smoke`'s terminal-panel and
+# command-palette-modes steps, and it reproduces from plain node, not just
+# under Electron. So rebuild for the host arch on the way out.
+#
+# Not `exec`, because there is work after the build. The rebuild is best-effort
+# and never fails the packaging run: the artifacts are already built and valid,
+# and a failure here costs a developer one `pnpm rebuild:native`, which the
+# message names.
+restore_host_native_modules() {
+  [ "$(uname -s)" = "Darwin" ] || return 0
+  echo "==> restoring native modules for the host arch ($(uname -m)) after packaging"
+  ./node_modules/.bin/electron-rebuild -f -w node-pty >/dev/null 2>&1 || {
+    echo "    WARNING: could not rebuild node-pty for $(uname -m)." >&2
+    echo "    Terminals in the dev app will fail with 'posix_spawnp failed' until you run:" >&2
+    echo "      pnpm rebuild:native" >&2
+    return 0
+  }
+  echo "    done — dev terminals will work again"
+}
+
 # `${extra[@]+...}` rather than a bare `"${extra[@]}"`: macOS ships bash 3.2,
 # where an empty array expanded under `set -u` is an unbound-variable error.
-exec ./node_modules/.bin/electron-builder \
+# `set +e` around the build: under `set -e` a failed electron-builder would
+# exit here, before `status=$?` and before the restore — leaving the tree with
+# the wrong-arch native modules precisely on the runs where a developer is
+# about to retry and needs a working app.
+set +e
+./node_modules/.bin/electron-builder \
   --config electron-builder.yml \
   --publish never \
   ${extra[@]+"${extra[@]}"} \
   "$@"
+status=$?
+set -e
+
+restore_host_native_modules
+exit "$status"

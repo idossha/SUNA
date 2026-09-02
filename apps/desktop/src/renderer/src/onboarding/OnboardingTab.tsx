@@ -253,10 +253,27 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
 
     progress = { ...progress, env: 'active' }
     update({ progress })
+    /** The env the notebook runtime would go into, once this branch has one. */
+    let envPath: string | null = null
     if (snapshot.pythonChoice === 'create-uv') {
       try {
         const res = await window.suna.invoke('env:create', { dir: targetPath })
         if (res.ok) {
+          envPath = res.envPath
+          // SELECT what we just created, here, rather than leaving it to the
+          // detection pass that runs when a project is opened. That pass does
+          // find a `.venv`, but it is asynchronous and the renderer can start
+          // a notebook kernel before it lands — which then runs under the
+          // system `python3` and fails with `no-jupyter-client` in the very
+          // environment the wizard had just provisioned. SUNA made this env;
+          // SUNA names it.
+          if (envPath !== null) {
+            try {
+              await window.suna.invoke('env:select', { dir: targetPath, envPath })
+            } catch (error) {
+              warnings.push(errorMessage(error))
+            }
+          }
           progress = { ...progress, env: 'done' }
         } else {
           warnings.push(res.error ?? 'Could not create a uv environment.')
@@ -269,6 +286,7 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
     } else if (snapshot.pythonChoice === 'existing' && snapshot.existingEnvPath !== null) {
       try {
         await window.suna.invoke('env:select', { dir: targetPath, envPath: snapshot.existingEnvPath })
+        envPath = snapshot.existingEnvPath
         progress = { ...progress, env: 'done' }
       } catch (error) {
         warnings.push(errorMessage(error))
@@ -276,6 +294,27 @@ export function OnboardingTab({ api, params }: DockPanelProps): JSX.Element {
       }
     } else {
       progress = { ...progress, env: 'skipped' }
+    }
+
+    /*
+     * The notebook runtime, only where step 4 asked for it (ROADMAP item 5).
+     *
+     * Failing to install it is a WARNING and never an error on the env row:
+     * the environment does exist, and the rest of the project is fine — what
+     * the user loses is the ability to run a cell, which the warning names
+     * along with the command that fixes it. This is also why creation is
+     * never blocked on it: an install needs a network and can take a minute
+     * on a cold cache, so it runs last and reports rather than gating.
+     */
+    if (envPath !== null && snapshot.installKernel) {
+      try {
+        const res = await window.suna.invoke('env:install-kernel', { envPath })
+        if (!res.ok) {
+          warnings.push(res.error ?? 'Could not install ipykernel into the environment.')
+        }
+      } catch (error) {
+        warnings.push(errorMessage(error))
+      }
     }
     update({ progress, createWarnings: [...warnings] })
 

@@ -1,12 +1,20 @@
 import {
   DEFAULT_PROJECT_DIRS,
   SunaProjectManifestSchema,
+  starterDocuments,
   type SunaProjectManifest
 } from '@suna/core'
+import type { ScaffoldKind } from './types'
 
 export interface WizardManifestInput {
   name: string
   activeProfileId: string
+  /**
+   * Which scaffold Create will run. It changes the manifest: only the Starter
+   * ships a cover letter beside the paper, so only the Starter declares a
+   * document registry (ARCHITECTURE §4.2) — exactly as `scaffoldProject` does.
+   */
+  scaffold: ScaffoldKind
   /** Injectable for deterministic tests/snapshots; defaults to "now". */
   createdAt?: string
 }
@@ -24,6 +32,10 @@ export function buildProjectManifest(input: WizardManifestInput): SunaProjectMan
     name: input.name,
     activeProfileId: input.activeProfileId,
     directories: DEFAULT_PROJECT_DIRS,
+    // Absent, not empty, for every other scaffold: a manifest with
+    // `documents: []` is a different thing on disk from one that never
+    // mentions documents at all.
+    ...(input.scaffold === 'starter' ? { documents: starterDocuments() } : {}),
     createdAt: input.createdAt ?? new Date().toISOString()
   })
 }

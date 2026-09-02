@@ -83,12 +83,19 @@ compliance is surfaced in the Export dialog only, not as inline diagnostics whil
 of §12.1 with the profile field each would read. There is **no citation (`CIT-*`) surface at all**,
 and the `export` and `package` diagnostic surfaces are declared but emitted by nothing (§20.8).
 
-**5. Notebooks still need `ipykernel` installed by hand.** The kernel bridge asks for it and
-nothing in onboarding installs it, so the first notebook a new user opens fails (§20.6). The
-`suna_mpl` half of this item is **done**: the library is staged into the bundle and located
-through `$SUNA_MPL`, so the bundled example's figure regenerates from an installed app (§16.1).
-What no staging can fix is that `uv` and a Python interpreter are the user's to install; the docs
-state that rather than implying a batteries-included Python.
+**5. Python itself is the user's to install.** The `ipykernel` half of this item is **done** and
+**verified**: onboarding offers to install the notebook runtime into the environment it is about
+to create, the notebook's own "no kernel" panel repairs whichever interpreter is selected later,
+and `scripts/e2e/probes/notebook-kernel-onboarding.mjs` drives the real wizard and asserts a cell's
+output text. Both callers ask first, and an environment the user already owned is offered the
+install **unchecked** (§16.2, §20.6). The `suna_mpl` half is done too: the library is staged into
+the bundle and located through `$SUNA_MPL`, so the bundled example's figure regenerates from an
+installed app (§16.1).
+
+What is left is the part no code can fix: SUNA bundles no interpreter and no `uv`, and the install
+needs a network. On a machine with neither, the uv branch is offered disabled and a figure cannot
+be regenerated; where an install fails it is reported with the command to run, never swallowed.
+The docs state this rather than implying a batteries-included Python.
 
 **6. In-app AI is shallow.** Three non-streaming `chat()` adapters, no tool use, no streaming, no
 ghost suggestions. The MCP path driven by an agent CLI is the capable route and is where the depth
@@ -115,32 +122,46 @@ LaTeX-native journals, and nothing in the current export path needs it.
 
 These are failures, not gaps. Fix them before adding to the list above.
 
-- **`pnpm smoke` gets through 62 of ~80 steps; 16 fail.** Measured 2026-09-01. It used to die at
-  step 6, so this is a backlog being worked off rather than one stale selector. Fixed so far: the
-  `reading-mode` step's stale `.editor-tab__mode` precondition; a flat `sleep(1500)` after CDP
-  connect that made `app-loads-welcome` fail on cold-dev-server boot timing rather than on anything
-  it asserts (now a real poll, outside the step system so `--only` runs get it too); and the PDF
-  steps, which read three real journal PDFs from a **local stash at `<repo>/references/` that was
-  never committed** — those steps could not pass on any clean checkout, and committing publisher
-  PDFs would breach this repo's own no-third-party-content rule, so the fixtures are generated
-  instead (`scripts/e2e/fixtures/make-pdf.mjs`).
+- ~~**`pnpm smoke` gets through 62 of ~80 steps; 16 fail.**~~ **Closed 2026-09-01.** The suite runs
+  all **78** steps to completion, green, on two consecutive full runs. Of the sixteen, three were
+  one environmental fault (`pnpm package:mac` rebuilding `node-pty` per-slice and leaving the wrong
+  arch in the shared `node_modules`, fixed in `scripts/electron-builder.sh`), two more were cascades
+  of a single earlier failure, one more only looked like a bug (see the shared-buffer note in
+  DECISIONS 2026-09-01), and the rest were **stale steps** — assertions still describing an
+  app that had deliberately moved: the explorer no longer pre-expands folders, theme variables live
+  on `.app[data-suna-theme]` rather than `:root`, the wizard lost its "Import existing" step, the
+  sidebar no longer repeats the manuscript title, the help overlay gained a Notebook section, and
+  three steps still named the demo paper `examples/hello-suna` replaced. **One was a real
+  regression** — see the next entry.
 
-  Still failing: `tree-icons`, `onboarding-version-control`, `agent-cli-mcp-config`,
-  `terminal-panel`, `references-panel-fits`, `shared-buffer-live-sync`, `external-edit-live-reload`,
-  `mcp-server-exposes-all-verbs`, `reference-pdfs-resolve-and-open-in-side-group`,
-  `command-palette-modes`, `palette-ai-ask-cancel`, `recent-projects-list-open-and-forget`,
-  `onboarding-creates-exactly-what-review-showed`, `help-overlay`, `help-in-vim-mode`,
-  `figure-save-shows-in-manuscript`.
+  The steps were fixed, never weakened: no assertion was deleted, no matcher loosened, and nothing
+  was skipped. Where a step could not pass honestly it was rewritten to assert the *new intended*
+  behaviour, which in two cases is a stronger check than the one it replaced (the agent-layer heal
+  must now be shown NOT to clobber a project's own `context/MEMORY.md`, and the shared-buffer step
+  targets its editor tab by `data-path` rather than by "the first visible one").
 
-  **That list is not 16 independent bugs.** It was measured under
-  `SUNA_SMOKE_KEEP_GOING=1`, and steps consume state earlier steps create — so an unknown number
-  are cascades from an earlier failure rather than faults of their own. Triage by running the first
-  failing step alone with its prerequisites (`--only`) before believing any single entry.
-  `terminal-panel` in particular is suspected environmental: `term:create` fails with
-  `posix_spawnp failed` in the driven dev app, and that reproduces with unrelated changes reverted.
-- **PDF export has never been produced under automation.** `printToPDF` needs a running Electron
-  process; the DOCX half is asserted down to `word/document.xml`, the PDF half only as far as the
-  HTML it prints.
+  **Still open, one level down:** `cdp.mjs`'s `evalJs` has no timeout, so a lost CDP round trip
+  parks the whole suite silently — seen once in six full runs, hanging in `crossref-resolution`
+  while the app answered a second CDP client normally. Kill and re-run clears it; a deadline on
+  `evalJs` would turn it into a named failure instead of a hang.
+
+- ~~**The New project wizard's Review page previewed a `suna.json` it did not write.**~~ **Fixed
+  2026-09-01, and it is the most valuable thing the stale suite was hiding.** `scaffoldProject`
+  gained `documents: starterDocuments()` when a project learned to hold more than one document
+  (§4.2); `buildProjectManifest`, which renders the Review preview, did not — so the page whose
+  entire promise is "this is exactly what Create will write" showed a manifest missing the whole
+  document registry, and the cover letter the Starter ships was invisible until after Create. One
+  definition now serves both (`starterDocuments()` in `@suna/core`), with a unit test either side
+  of it. DECISIONS 2026-09-01.
+
+- ~~**PDF export has never been produced under automation.**~~ **Closed 2026-09-01.**
+  `scripts/e2e/probes/pdf-export-bytes.mjs` exports `examples/hello-suna` from the hidden driven
+  app under two profiles and asserts the bytes with pdf.js: `%PDF-` header and `%%EOF` trailer,
+  page count, US Letter page geometry on every page, seven manuscript strings in the text layer,
+  and a painted image XObject. `pnpm test` still stops at the HTML `printToPDF` consumes — that has
+  not changed and does not need to; the bytes are the driven probe's job.
+  Run it with `node scripts/e2e/pdf-probes.mjs --only pdf-export-bytes.mjs`. It is **not** in
+  `pnpm smoke` yet, for the reason the whole `pdf-probes.mjs` runner is not (see `docs/TESTING.md`).
 - **The study-acquisition download ladder and local scan have no smoke step.** Unit-tested end to
   end with injected providers and a real temp tree; never driven in the running app.
 

@@ -5,8 +5,10 @@ import { describe, expect, it } from 'vitest'
 import {
   awaitProvision,
   createEnvWithUv,
+  installKernelRuntime,
   provisionProjectEnv,
   uvAvailable,
+  type KernelRuntimeRunners,
   type ProvisionRunners
 } from './envs'
 
@@ -123,5 +125,80 @@ describe('provisionProjectEnv', () => {
     expect(log).toEqual(['create', 'install'])
     await expect(awaitProvision(join(dir, '.venv'))).resolves.toBeUndefined()
     await expect(awaitProvision(null)).resolves.toBeUndefined()
+  })
+})
+
+/**
+ * The ipykernel install (ROADMAP item 5, §20.6). Every branch here is a
+ * failure the user must be told about honestly rather than left to discover
+ * when a cell does not run.
+ */
+describe('installKernelRuntime', () => {
+  /** A directory shaped like a venv, so resolvePython finds an interpreter. */
+  const venv = async (): Promise<string> => {
+    const dir = await mkdtemp(join(tmpdir(), 'suna-kernel-'))
+    const envPath = join(dir, '.venv')
+    await mkdir(join(envPath, 'bin'), { recursive: true })
+    await writeFile(join(envPath, 'bin', 'python'), '#!/bin/sh\n')
+    return envPath
+  }
+
+  const runners = (log: string[], present: boolean[]): KernelRuntimeRunners => ({
+    probe: async () => {
+      log.push('probe')
+      return present.shift() ?? false
+    },
+    install: async () => {
+      log.push('install')
+    }
+  })
+
+  it('installs when the runtime is missing, then re-checks that it is importable', async () => {
+    const log: string[] = []
+    const result = await installKernelRuntime(await venv(), runners(log, [false, true]))
+    expect(result).toEqual({ ok: true, alreadyPresent: false, error: null })
+    // The trailing probe is the point: "pip succeeded" is not the claim.
+    expect(log).toEqual(['probe', 'install', 'probe'])
+  })
+
+  it('installs nothing when the runtime is already there', async () => {
+    const log: string[] = []
+    const result = await installKernelRuntime(await venv(), runners(log, [true]))
+    expect(result).toEqual({ ok: true, alreadyPresent: true, error: null })
+    expect(log).toEqual(['probe'])
+  })
+
+  it('reports the command to run by hand when the install fails', async () => {
+    const envPath = await venv()
+    const result = await installKernelRuntime(envPath, {
+      probe: async () => false,
+      install: async () => {
+        throw new Error('Could not reach https://pypi.org')
+      }
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('Could not reach https://pypi.org')
+    expect(result.error).toContain(`${join(envPath, 'bin', 'python')} -m pip install ipykernel`)
+  })
+
+  it('does not claim success when the install left nothing importable', async () => {
+    const log: string[] = []
+    const result = await installKernelRuntime(await venv(), runners(log, [false, false]))
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('still not importable')
+  })
+
+  it('refuses honestly when the env has no interpreter at all', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'suna-kernel-'))
+    const result = await installKernelRuntime(dir, {
+      probe: async () => {
+        throw new Error('must not probe an env with no interpreter')
+      },
+      install: async () => {
+        throw new Error('must not install into an env with no interpreter')
+      }
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('has no interpreter')
   })
 })

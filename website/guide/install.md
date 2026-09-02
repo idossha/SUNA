@@ -101,7 +101,9 @@ The app opens on the Welcome tab, which offers **Create project**, **Open projec
 
 ## What the optional pieces add
 
-**Python and uv.** Wizard step 4 "Python environment" offers Skip, an existing detected environment, or "Create with uv". Detection looks for a project-local `.venv`, `venv`, or `env` (it needs a `pyvenv.cfg`), one nested level down, plus conda environments via `conda env list --json`; uv is probed with `uv --version`. Without uv, the "Create with uv" option is disabled and says so. The `suna-mpl` companion needs Python >= 3.10 and `matplotlib >= 3.8`. The example's figures are regenerated from `examples/hello-suna/` with commands of the form:
+**Python and uv.** Wizard step 4 "Python environment" offers Skip, an existing detected environment, or "Create with uv". Detection looks for a project-local `.venv`, `venv`, or `env` (it needs a `pyvenv.cfg`), one nested level down, plus conda environments via `conda env list --json`; uv is probed with `uv --version`. Without uv, the "Create with uv" option is disabled and says so.
+
+The same step offers to install **`ipykernel`**, which is what a notebook cell needs in order to run. The default differs by branch, deliberately: it is **checked** for "Create with uv", where the environment is one SUNA is about to create, and **unchecked** for an existing environment, which is yours and may be shared with other projects — SUNA will not write into it unless you ask. Nothing is installed until you press **Create project**, and if the install fails (it needs a network) the project is still created and the wizard tells you the command to run. Choosing Skip means there is no environment to install into; you can pick one later from the status bar, and the notebook will offer to install into it then. See [notebooks](/writing/notebooks). The `suna-mpl` companion needs Python >= 3.10 and `matplotlib >= 3.8`. The example's figures are regenerated from `examples/hello-suna/` with commands of the form:
 
 ```bash
 uv run --no-project --with "${SUNA_MPL:-../../python/suna_mpl}" python figures/fig-spectrum/source/plot.py
@@ -138,6 +140,7 @@ One feature is macOS-only by construction: the "Use Spotlight" setting, which as
 | Symptom | What it means | What to do |
 |---|---|---|
 | "uv was not found on PATH — install it first, or choose Skip." | uv is not installed | Install uv, or pick Skip and set the environment up yourself |
+| "…has no jupyter_client, so no notebook cell can run under it." | The selected interpreter has no `ipykernel` | Use the notebook's **Install ipykernel** button, or run the command the message names |
 | "git init failed (continuing without VCS)" | No `git` binary on PATH | Install git if you want project history; the project is still usable |
 | "secure key storage is not available on this system" | `safeStorage` encryption is unavailable, so saving a key throws rather than storing it in the clear | Use the agent-CLI option instead of an API key |
 | An external agent cannot start the SUNA MCP server | `packages/agent/dist-mcp/server.mjs` was never built | Run `pnpm build` at the repo root |

@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
+  STARTER_LETTER_ID,
   CommentsFileSchema,
   CoverLetterMetaSchema,
-  DocumentEntrySchema,
   LetterPrivateSchema,
   ManuscriptSchema,
   ReviewerReportSchema,
@@ -15,7 +15,6 @@ import {
   unansweredMarker,
   type CommentsFile,
   type CoverLetterMeta,
-  type DocumentEntry,
   type LetterPrivate,
   type Manuscript,
   type Round
@@ -336,7 +335,9 @@ export async function writeStarterFigure(projectDir: string, figuresDir: string)
  * sentence below is either about the starter project itself or is a
  * placeholder that says so.
  */
-export const STARTER_LETTER_ID = 'cover'
+// The id itself lives in @suna/core beside starterDocuments(), so the
+// wizard's Review preview and this writer name the same letter.
+export { STARTER_LETTER_ID } from '@suna/core'
 
 export const STARTER_LETTER_MD = `Dear Editor,
 
@@ -796,21 +797,7 @@ export async function writeStarterRound(projectDir: string, createdAt: string): 
  * explicitly rather than left to `resolveDocuments`' synthesized one, because
  * a manifest that declares ANY document has to declare them all.
  */
-export function starterDocuments(): DocumentEntry[] {
-  return [
-    DocumentEntrySchema.parse({
-      id: 'manuscript',
-      kind: 'manuscript',
-      file: null,
-      meta: 'manuscript.json',
-      title: 'Manuscript'
-    }),
-    DocumentEntrySchema.parse({
-      id: STARTER_LETTER_ID,
-      kind: 'cover-letter',
-      file: `letters/${STARTER_LETTER_ID}.md`,
-      meta: `letters/${STARTER_LETTER_ID}.json`,
-      title: 'Cover letter'
-    })
-  ]
-}
+// starterDocuments() moved to @suna/core: the wizard's Review preview needs
+// the SAME registry this writer writes, and a second copy here is exactly how
+// the two came to disagree. Re-exported so existing importers are unaffected.
+export { starterDocuments } from '@suna/core'

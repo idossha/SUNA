@@ -179,6 +179,39 @@ function synthesizedPrimary(): DocumentEntry {
   };
 }
 
+/** The id of the cover letter the Starter scaffold ships beside the paper. */
+export const STARTER_LETTER_ID = 'cover';
+
+/**
+ * The registry the **Starter** scaffold declares: the manuscript plus the
+ * cover letter it ships beside it (ARCHITECTURE §4.2).
+ *
+ * It lives in @suna/core rather than beside the writer because BOTH the New
+ * project wizard's Review preview and the main-process writer have to produce
+ * the same suna.json — and they did not. The writer gained `documents` when a
+ * project learned to hold more than one document; the wizard's preview did
+ * not, so Review showed the user a manifest missing the whole registry it was
+ * about to write. Two definitions is how that happens; there is now one.
+ */
+export function starterDocuments(): DocumentEntry[] {
+  return [
+    DocumentEntrySchema.parse({
+      id: PRIMARY_DOCUMENT_ID,
+      kind: 'manuscript',
+      file: null,
+      meta: 'manuscript.json',
+      title: 'Manuscript',
+    }),
+    DocumentEntrySchema.parse({
+      id: STARTER_LETTER_ID,
+      kind: 'cover-letter',
+      file: `letters/${STARTER_LETTER_ID}.md`,
+      meta: `letters/${STARTER_LETTER_ID}.json`,
+      title: 'Cover letter',
+    }),
+  ];
+}
+
 /**
  * The project's primary document — the manuscript. Every project has exactly
  * one; a registry that declares none is repaired here rather than throwing,

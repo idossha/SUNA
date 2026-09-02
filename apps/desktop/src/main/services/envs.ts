@@ -165,6 +165,113 @@ export async function createEnvWithUv(
 }
 
 /* ------------------------------------------------------------------ */
+/* The notebook runtime (ipykernel)                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `ipykernel` is what makes a notebook cell able to run at all: it pulls in
+ * `jupyter_client`, which the bridge imports, and it registers the `python3`
+ * kernelspec the bridge asks for. Without it the first cell a new user runs
+ * fails with `no-jupyter-client` and a remedy they have to go and type
+ * themselves (ROADMAP item 5, §20.6).
+ *
+ * This is deliberately ONE primitive with three callers rather than three
+ * install paths: the wizard's uv branch, the wizard's existing-env branch and
+ * the notebook's own fault panel. Whether it is polite to run it is the
+ * CALLER's question — every caller asks first (D5: nothing is written until
+ * confirmed), and the existing-env caller defaults to not asking for it,
+ * because that env is the user's and may be shared with other projects.
+ */
+export const KERNEL_RUNTIME_PACKAGE = 'ipykernel'
+
+export interface InstallKernelResult {
+  ok: boolean
+  /** Already there — nothing was installed and nothing needed to be. */
+  alreadyPresent: boolean
+  /** A human message naming what to run, when SUNA could not do it. */
+  error: string | null
+}
+
+/** Injectable so the install is testable without a network or a real env. */
+export interface KernelRuntimeRunners {
+  probe: (python: string) => Promise<boolean>
+  install: (python: string) => Promise<void>
+}
+
+const defaultKernelRuntimeRunners: KernelRuntimeRunners = {
+  probe: async (python) => {
+    try {
+      // The bridge's own import, asked the same way, so "present" here and
+      // "starts" there cannot disagree.
+      await run(python, ['-c', 'import jupyter_client, ipykernel'], { timeout: 30_000 })
+      return true
+    } catch {
+      return false
+    }
+  },
+  install: async (python) => {
+    try {
+      // uv is the fast path and is already how this file installs things.
+      await run('uv', ['pip', 'install', '--python', python, KERNEL_RUNTIME_PACKAGE], {
+        timeout: 600_000
+      })
+    } catch {
+      // ...but uv is the user's to install, so pip is the one that has to work.
+      await run(python, ['-m', 'pip', 'install', '-q', KERNEL_RUNTIME_PACKAGE], {
+        timeout: 600_000
+      })
+    }
+  }
+}
+
+/**
+ * Install `ipykernel` into `envPath`'s interpreter, unless it is already
+ * importable there. Never throws: no network, no pip, a read-only interpreter
+ * — every one of those comes back as `ok: false` with a message that names
+ * the exact command the user can run instead. A silent failure here would be
+ * worse than the gap it is closing.
+ */
+export async function installKernelRuntime(
+  envPath: string,
+  runners: KernelRuntimeRunners = defaultKernelRuntimeRunners
+): Promise<InstallKernelResult> {
+  const python = await resolvePython(envPath)
+  if (python === null) {
+    return {
+      ok: false,
+      alreadyPresent: false,
+      error: `${envPath} has no interpreter at bin/python, so nothing could be installed into it.`
+    }
+  }
+  if (await runners.probe(python)) return { ok: true, alreadyPresent: true, error: null }
+  try {
+    await runners.install(python)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    return {
+      ok: false,
+      alreadyPresent: false,
+      error:
+        `Could not install ${KERNEL_RUNTIME_PACKAGE} into ${envPath}: ${detail}\n` +
+        `Run this yourself to fix it:  ${python} -m pip install ${KERNEL_RUNTIME_PACKAGE}`
+    }
+  }
+  // Installing is not the claim; importable is. A pip that "succeeded" into a
+  // different interpreter, or a wheel that half-landed, must not be reported
+  // as a working kernel.
+  if (!(await runners.probe(python))) {
+    return {
+      ok: false,
+      alreadyPresent: false,
+      error:
+        `${KERNEL_RUNTIME_PACKAGE} installed but is still not importable from ${python}. ` +
+        `Run this yourself to fix it:  ${python} -m pip install ${KERNEL_RUNTIME_PACKAGE}`
+    }
+  }
+  return { ok: true, alreadyPresent: false, error: null }
+}
+
+/* ------------------------------------------------------------------ */
 /* Automatic provisioning                                              */
 /* ------------------------------------------------------------------ */
 

@@ -19,8 +19,9 @@
  * Boots the app hidden with the example project, stages a reference PDF the
  * probes can annotate, runs each probe against the same instance, and stops.
  *
- *   node scripts/e2e/pdf-probes.mjs            all probes
- *   node scripts/e2e/pdf-probes.mjs --keep     leave the app running
+ *   node scripts/e2e/pdf-probes.mjs                    all probes
+ *   node scripts/e2e/pdf-probes.mjs --only <name.mjs>  just one
+ *   node scripts/e2e/pdf-probes.mjs --keep             leave the app running
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
@@ -33,6 +34,10 @@ const PROJECT = join(ROOT, 'scripts', 'e2e', '.userdata-drive', 'example-project
 
 /** The probes, in the order they build on each other's assumptions. */
 const PROBES = [
+  // Export first: it asserts the bytes 'export:pdf' writes and needs nothing
+  // the reading-notes fixture sets up, so it is the one probe here that still
+  // means something if the fixture staging below fails.
+  'pdf-export-bytes.mjs',
   'pdf-textlayer-scale.mjs',
   'pdf-quote.mjs',
   'pdf-highlight.mjs',
@@ -42,7 +47,17 @@ const PROBES = [
   'pdf-notes-suite.mjs'
 ]
 
+/** Probes that need no staged reference PDF (see the loop below). */
+const NO_FIXTURE = new Set(['pdf-export-bytes.mjs'])
+
 const keep = process.argv.includes('--keep')
+const onlyIdx = process.argv.indexOf('--only')
+const only = onlyIdx === -1 ? null : process.argv[onlyIdx + 1]
+if (only !== null && !PROBES.includes(only)) {
+  console.error(`--only ${only}: not one of ${PROBES.join(', ')}`)
+  process.exit(1)
+}
+const selected = only === null ? PROBES : [only]
 
 function drive(args, { quiet = false } = {}) {
   return spawnSync(process.execPath, [DRIVE, ...args], {
@@ -128,17 +143,24 @@ function rescanReferences() {
 }
 
 const results = []
-for (const probe of PROBES) {
+for (const probe of selected) {
   console.log(`\n${'='.repeat(64)}\n${probe}\n${'='.repeat(64)}`)
-  closePdfTab()
-  try {
-    resetFixture()
-  } catch (error) {
-    console.error(`  fixture: ${error.message}`)
-    results.push({ probe, ok: false })
-    continue
+  // The export probe reads no reference PDF — it MAKES one. Staging the
+  // annotate fixture for it would be backwards, and today it would also be
+  // fatal: resetFixture's source is an exported PDF, which a fresh
+  // .userdata-drive copy of the example project does not have, so every probe
+  // here dies on the fixture until someone has exported by hand at least once.
+  if (!NO_FIXTURE.has(probe)) {
+    closePdfTab()
+    try {
+      resetFixture()
+    } catch (error) {
+      console.error(`  fixture: ${error.message}`)
+      results.push({ probe, ok: false })
+      continue
+    }
+    rescanReferences()
   }
-  rescanReferences()
   const run = drive([join(ROOT, 'scripts', 'e2e', 'probes', probe)])
   results.push({ probe, ok: run.status === 0 })
 }

@@ -3,6 +3,8 @@ import type { CellType, CodeCell } from '@suna/notebook'
 import type { DockPanelProps } from '../shell/dock/DockHost'
 import { editorSurfaceStyle, useEditorSettings } from '../editor/settings'
 import { editorThemeClass } from '../editor/themes'
+import { useProjectStore } from '../state/project'
+import { selectedEnvPathFor } from '../state/envs'
 import { useUiStore } from '../state/ui'
 import { CellView } from './CellView'
 import type { CellCommands } from './commands'
@@ -108,9 +110,43 @@ function Toolbar({
  * The kernel could not start, and it is nearly always the same fixable
  * thing: the selected environment has no `ipykernel` in it. Say which
  * environment, and say the command.
+ *
+ * The wizard offers to install this at project creation, but this panel is
+ * NOT redundant with it (ROADMAP item 5): the interpreter is a per-project
+ * pick the user can change at any time from the status bar, projects arrive
+ * by clone and by DOCX import as well as through the wizard, and a wizard
+ * install can fail on a machine with no network. So the kernel path degrades
+ * on its own terms rather than assuming onboarding ran — it offers the same
+ * one-click repair here, against whichever interpreter is selected NOW, and
+ * where it cannot repair it says so and names the command.
  */
-function KernelFault({ path }: { path: string }): JSX.Element | null {
+function KernelFault({ path, session }: { path: string; session: NotebookSession }): JSX.Element | null {
   const meta = useNotebookMeta(path)
+  const rootDir = useProjectStore((s) => s.rootDir)
+  const envPath = rootDir === null ? null : selectedEnvPathFor(rootDir)
+  const [installing, setInstalling] = useState(false)
+  const [installError, setInstallError] = useState<string | null>(null)
+
+  const install = useCallback(async () => {
+    if (envPath === null) return
+    setInstalling(true)
+    setInstallError(null)
+    try {
+      const res = await window.suna.invoke('env:install-kernel', { envPath })
+      if (!res.ok) {
+        // Honest failure: no network, no pip, a read-only interpreter. The
+        // message names the command, and the panel stays put.
+        setInstallError(res.error ?? 'Could not install ipykernel.')
+        return
+      }
+      await session.ensureKernel()
+    } catch (error) {
+      setInstallError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setInstalling(false)
+    }
+  }, [envPath, session])
+
   if (meta.kernelError === null) return null
   const installable =
     meta.kernelError.code === 'no-jupyter-client' || meta.kernelError.code === 'no-kernelspec'
@@ -118,12 +154,22 @@ function KernelFault({ path }: { path: string }): JSX.Element | null {
     <div className="nb-fault">
       <strong className="nb-fault__title">No kernel</strong>
       <span className="nb-fault__message">{meta.kernelError.message}</span>
-      {installable && (
+      {installable && envPath !== null && (
+        <button
+          className="nb-fault__action"
+          onClick={() => void install()}
+          disabled={installing}
+        >
+          {installing ? 'Installing ipykernel…' : `Install ipykernel into ${envPath}`}
+        </button>
+      )}
+      {installable && envPath === null && (
         <span className="nb-fault__hint">
-          Pick the environment at the top right, then install it there — SUNA runs the kernel
-          under whichever interpreter that chip names.
+          No environment is selected, so there is nothing to install into. Pick one at the top
+          right — SUNA runs the kernel under whichever interpreter that chip names.
         </span>
       )}
+      {installError !== null && <span className="nb-fault__message">{installError}</span>}
     </div>
   )
 }
@@ -383,7 +429,7 @@ export function NotebookTab({ params }: DockPanelProps): JSX.Element {
         }}
         onHelp={() => useUiStore.getState().setHelpOpen(true)}
       />
-      <KernelFault path={path} />
+      <KernelFault path={path} session={session} />
       <div className="nb__cells" ref={cellsRef} tabIndex={0}>
         {session.nb.cells.map((cell, cellIndex) => {
           const key = cellKey(cell)

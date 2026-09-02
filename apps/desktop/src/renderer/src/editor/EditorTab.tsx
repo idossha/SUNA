@@ -360,6 +360,11 @@ export function EditorTab({ api, params }: DockPanelProps): JSX.Element {
   return (
     <div
       ref={rootRef}
+      // Which file this surface is showing, so a driver (and a human in
+      // DevTools) can tell two editor tabs apart. dockview keeps every panel
+      // mounted, several of them non-zero-sized in other groups, so "the
+      // visible .editor-tab" is not a unique thing to point at.
+      data-path={path}
       className={`editor-tab ${CONTENT_KIND_CLASS[contentKind]} ${editorThemeClass(editorTheme)}`}
       style={editorSurfaceStyle(editorSettings)}
     >
