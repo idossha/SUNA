@@ -21,10 +21,16 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      # The site's Developers section is generated from these, so an edit to
+      # one of them changes the published site without touching website/.
+      - 'docs/**'
+      - 'AGENTS.md'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'website/**'
+      - 'docs/**'
+      - 'AGENTS.md'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
