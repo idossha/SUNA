@@ -2479,6 +2479,58 @@ try {
   })
 
   /**
+   * In-app updates (ARCHITECTURE §23) in Settings → About.
+   *
+   * A driven run is `SUNA_HIDDEN=1`, so the updater's mode is 'off' by
+   * construction — and the assertion that matters is exactly that: the page
+   * SAYS this build cannot update itself and offers no button that could only
+   * fail. It also proves the version on the page is `app.getVersion()` rather
+   * than the hand-typed string it used to be, which is the failure this
+   * feature was one release away from shipping again.
+   */
+  await step('settings-updates', async () => {
+    await evalJs(`window.__sunaDev.dock.openSettingsTab()`)
+    await sleep(800)
+    await evalJs(`document.querySelector('.settings-tab__nav-item[data-category="about"]').click()`)
+    await sleep(500)
+
+    const sections = await evalJs(
+      `[...document.querySelectorAll('.settings-tab__section')].map((e) => e.textContent)`
+    )
+    assert(sections.includes('Updates'), `Settings/About has no Updates section: ${sections.join(', ')}`)
+
+    const state = await evalJs(`(() => {
+      const info = document.querySelector('.settings-tab__info')?.textContent ?? '';
+      const row = document.querySelector('.settings-tab__keyrow');
+      const buttons = [...(row?.querySelectorAll('button') ?? [])];
+      return {
+        info,
+        line: row?.querySelector('.settings-tab__hint')?.textContent ?? '',
+        buttons: buttons.map((b) => ({ label: b.textContent.trim(), disabled: b.disabled })),
+        toggle: !!document.querySelector('#set-updates-check')
+      };
+    })()`)
+
+    const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version
+    assert(
+      state.info.includes(version),
+      `About shows no running version ${version}: ${state.info.slice(0, 160)}`
+    )
+    assert(state.toggle, 'the "Check on launch" toggle is missing')
+    assert(
+      /cannot update itself/i.test(state.line),
+      `a hidden dev run must say it cannot update itself, not "${state.line}"`
+    )
+    // Off means off: the only button is Check now, and it refuses to be pressed.
+    assert(
+      state.buttons.length === 1 && state.buttons[0].label === 'Check now',
+      `Updates offers ${JSON.stringify(state.buttons)}`
+    )
+    assert(state.buttons[0].disabled, 'Check now is live in a build that cannot check')
+    await screenshot('settings-updates.png')
+  })
+
+  /**
    * Version control on the wizard's Review step. The local repository is never
    * optional — the assertion that matters is that the summary says so, and
    * that the publish substep stays out of the way until it is asked for.

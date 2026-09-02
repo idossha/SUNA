@@ -107,6 +107,7 @@ import {
 import { appMcpInvocation, healProjectAgentLayer } from './services/agentLayer'
 import { approvePeerReviewAi } from './services/peer-review-approval'
 import { updateManuscript } from './services/manuscript'
+import { updaterService } from './services/updater'
 import { migrateProject } from './services/migrate-manuscript'
 import {
   gitApplyHunk,
@@ -1066,6 +1067,15 @@ export function registerIpcHandlers(): void {
     })
     return { path: result.canceled ? null : (result.filePaths[0] ?? null) }
   })
+
+  // In-app updates (ARCHITECTURE §23). The service is the app's one updater and
+  // pushes every status change on EVENT_CHANNELS.updateStatus; these five verbs
+  // are the renderer's pull and its four clicks. No bytes cross here.
+  handle('update:state', async () => updaterService().current())
+  handle('update:check', async () => updaterService().check())
+  handle('update:download', async () => updaterService().download())
+  handle('update:install', async () => updaterService().install())
+  handle('update:skip', async ({ version }) => updaterService().skip(version))
 
   handle('dialog:pick-file', async ({ title, extensions }) => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]

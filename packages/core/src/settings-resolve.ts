@@ -124,6 +124,15 @@ export interface ResolvedSettings {
   'trash.maxFileMb': number;
   /** How long a file waits in SUNA's trash before it is passed to the OS trash. */
   'trash.retentionDays': number;
+
+  /* -- updates --------------------------------------------------------- */
+  /**
+   * Ask GitHub once, a few seconds after launch, whether a newer SUNA has
+   * been released. Off means SUNA never reaches the network on its own; the
+   * Settings tab's "Check now" still works, because asking by hand is the
+   * user doing it, not the app.
+   */
+  'updates.checkOnLaunch': boolean;
 }
 
 export type ResolvedSettingKey = keyof ResolvedSettings;
@@ -390,6 +399,13 @@ export const SETTING_KEYS: {
     schema: bounded(TRASH_LIMITS.retentionDays),
     default: TRASH_DEFAULTS.retentionDays,
     doc: "How long a file waits in SUNA's trash before it is passed to the OS trash.",
+  },
+
+  'updates.checkOnLaunch': {
+    path: ['updates', 'checkOnLaunch'],
+    schema: z.boolean(),
+    default: true,
+    doc: 'Check GitHub for a newer SUNA a few seconds after launch.\nOff means SUNA never reaches the network unless you ask it to.',
   },
 };
 

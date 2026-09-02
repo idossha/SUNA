@@ -318,15 +318,18 @@ jobs:
             "SUNA-$VERSION-mac-x64.zip"
             "SUNA-$VERSION-linux-x86_64.AppImage"
             "SUNA-$VERSION-linux-amd64.deb"
+            # The in-app updater's feeds (ARCHITECTURE §23). REQUIRED since
+            # 1.2.0: a release missing one is a release that silently stops
+            # updating every install that reads it, and the failure is
+            # invisible from here — the app just never offers anything again.
+            "latest-mac.yml"
+            "latest-linux.yml"
           )
-          # OPTIONAL — the arm64 Linux builds are untested and the latest*.yml
-          # feeds exist for a future in-app updater rather than for a human.
-          # Absence is reported, not fatal.
+          # OPTIONAL — the arm64 Linux builds are untested. Absence is
+          # reported, not fatal.
           optional=(
             "SUNA-$VERSION-linux-arm64.AppImage"
             "SUNA-$VERSION-linux-x64.tar.gz"
-            "latest-mac.yml"
-            "latest-linux.yml"
           )
 
           missing=0

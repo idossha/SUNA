@@ -73,6 +73,7 @@ preview profile is `preview: profileId:` in the file and `previewProfileId` in
 | `review:` | `aiDiffs` |
 | `response:` | `colorRoles`, `quickInsert` |
 | `trash:` | `maxFileMb`, `retentionDays` |
+| `updates:` | `checkOnLaunch` — ask GitHub for a newer SUNA a few seconds after launch |
 
 A key set to `null` means the same as an absent key: the shipped default. That
 is how the GUI's "Reset to default" leaves a clean file.

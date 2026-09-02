@@ -60,6 +60,48 @@ export const FsNodeSchema: z.ZodType<FsNode> = z.lazy(() =>
   ]),
 );
 
+/**
+ * In-app updates (ARCHITECTURE §23) — the whole renderer-visible state, small
+ * JSON and nothing else. Bytes never cross the bridge: the main process owns
+ * the download and the installer, and this is the phase, the two versions and
+ * a progress pair the UI paints from.
+ */
+export const UpdateModeSchema = z.enum(['inplace', 'notify', 'off']);
+export type UpdateMode = z.infer<typeof UpdateModeSchema>;
+
+export const UpdatePhaseSchema = z.enum([
+  'idle',
+  'checking',
+  'available',
+  'none',
+  'downloading',
+  'downloaded',
+  'error',
+]);
+export type UpdatePhase = z.infer<typeof UpdatePhaseSchema>;
+
+export const UpdateStatusSchema = z.object({
+  phase: UpdatePhaseSchema,
+  /** `app.getVersion()`; it rides along on every status so the UI needs no second call. */
+  current: z.string().min(1),
+  /** The newest published version, once a check has answered. */
+  available: z.string().optional(),
+  /** Release notes for `available`, already reduced to plain text. */
+  notes: z.string().optional(),
+  received: z.number().optional(),
+  total: z.number().optional(),
+  error: z.string().optional(),
+  /**
+   * This launch's posture: 'inplace' can download and restart, 'notify' (a
+   * .deb/.tar.gz, which the package manager owns) can only point at the
+   * Releases page, 'off' is a dev tree or a driven test run and never checks.
+   */
+  mode: UpdateModeSchema,
+  /** True when the status came from the launch check rather than a click. */
+  auto: z.boolean().optional(),
+});
+export type UpdateStatus = z.infer<typeof UpdateStatusSchema>;
+
 export interface ChannelContract {
   readonly request: z.ZodType;
   readonly response: z.ZodType;
@@ -878,6 +920,48 @@ export const CHANNELS = {
   'shell:reveal': {
     request: z.object({ path: z.string().min(1) }),
     response: z.object({ error: z.string().nullable() }),
+  },
+  /**
+   * The current update state — the renderer's pull, on mount and on every
+   * open of the Settings tab. Never a check: it answers from memory.
+   */
+  'update:state': {
+    request: z.object({}),
+    response: UpdateStatusSchema,
+  },
+  /**
+   * Ask GitHub now. A manual check also CLEARS a skipped version: asking
+   * again is un-skipping. Errors land in the returned status rather than
+   * throwing — an offline laptop is not a fault the user caused.
+   */
+  'update:check': {
+    request: z.object({}),
+    response: UpdateStatusSchema,
+  },
+  /**
+   * Download the artifact. 'inplace' only, and only from the 'available'
+   * phase: nothing downloads without this call, which carries a click.
+   */
+  'update:download': {
+    request: z.object({}),
+    response: z.object({ ok: z.boolean(), error: z.string().optional() }),
+  },
+  /**
+   * Restart into the downloaded update — or, in 'notify' mode, open the
+   * Releases page, which is the only thing a package-managed install may do.
+   */
+  'update:install': {
+    request: z.object({}),
+    response: z.object({ ok: z.boolean(), error: z.string().optional() }),
+  },
+  /**
+   * "Skip this version": the launch check stays quiet about exactly this one.
+   * A newer release announces itself again — a skip answers a version, not
+   * the question of updates.
+   */
+  'update:skip': {
+    request: z.object({ version: z.string().min(1) }),
+    response: UpdateStatusSchema,
   },
   /**
    * Open `path` with the OS's default application. Root-confined, and refuses
@@ -2372,6 +2456,13 @@ export const CHANNELS = {
  * exposes subscription helpers for exactly these prefixes.
  */
 export const EVENT_CHANNELS = {
+  /**
+   * The update state changed (ARCHITECTURE §23): a check answered, a download
+   * progressed, an artifact landed. Payload: UpdateStatus. One global channel
+   * — there is one app and one updater, and every window shows the same
+   * answer.
+   */
+  updateStatus: 'update:status',
   termData: (id: string) => `term:data:${id}`,
   /**
    * Every event from one notebook kernel: ready / status / input / output /

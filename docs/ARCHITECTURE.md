@@ -2062,3 +2062,56 @@ operating a relay means operating a service, which is new for this project.
 The reason this is weeks rather than a rewrite is one observation: the sync core is already
 transport-free, and its per-view pending queue — written so an IME-composing view can defer remote
 changes — means **a network peer is just a view that lags.**
+
+---
+
+## 23. In-app updates
+
+`apps/desktop/src/main/services/updater.ts`, five IPC verbs, one event channel, and a section in
+Settings → About. Built on `electron-updater` against the GitHub Releases the `release.yml`
+workflow publishes (§19), which is why `apps/desktop/electron-builder.yml` carries a `publish:`
+block: it does not publish anything — `scripts/electron-builder.sh` hard-codes `--publish never` —
+but it embeds `app-update.yml` (provider, owner, repo) into the packaged app and makes
+electron-builder write the `latest-mac.yml` / `latest-linux.yml` feeds the workflow attaches.
+
+**Main owns the network and the installer; the renderer sees small JSON.** The whole
+renderer-visible state is `UpdateStatus` (`packages/core/src/ipc.ts`): a phase, the running
+version, the available one, plain-text notes, a `received`/`total` pair, an error and the mode.
+No bytes cross the bridge, and nothing installs without an `update:install` call carrying a click.
+
+**Three postures, decided once per launch by `updateMode()` — from facts, never from preference.**
+
+| Mode | When | What it may do |
+|---|---|---|
+| `inplace` | packaged macOS, or a Linux AppImage launch (`APPIMAGE` is set) | check, download, restart into the update |
+| `notify` | a packaged Linux `.deb` / `.tar.gz` | check the same `latest-linux.yml` feed and offer the Releases page — the package manager owns the install |
+| `off` | a dev tree (`!app.isPackaged`) or a driven run (`SUNA_HIDDEN=1`) | nothing, and it says so rather than pretending to check |
+
+`updates.checkOnLaunch` (config.yml, default on) gates only the AUTOMATIC check, six seconds after
+first paint. It is re-read when that timer fires, not at boot, and the check is skipped if the user
+has meanwhile started one by hand. A user who switches it off can still press **Check now** —
+asking is the user reaching the network, not the app doing it.
+
+**The rules that make this a feature rather than a nuisance:**
+
+1. **Nothing downloads without a click** (`autoDownload = false`), and nothing installs before an
+   artifact has landed. `autoInstallOnAppQuit` is on, so a downloaded update the user postponed
+   lands on the next quit — the least surprising meaning of having pressed Download.
+2. **A skip answers a version, not the question.** `updates.skippedVersion` in `settings.json`
+   (machine state — §6.2) silences the *launch* check for exactly that version; a newer release
+   announces itself again, and a manual check clears the skip, because asking again is un-skipping.
+3. **Release notes are reduced to plain text** before they reach the renderer. The GitHub provider
+   returns the release body as HTML, and nothing renderer-side interprets markup off the network.
+4. **A check never runs over a download.** A `checking` push would blank the progress the user is
+   watching, and nothing a check could learn beats the artifact already arriving.
+5. **Deliberately not a signing check.** A packaged-but-unsigned contributor build is `inplace` and
+   will check; on macOS Squirrel then refuses the swap, which surfaces as an honest `error` phase
+   rather than a silent no-op.
+
+The version shown in Settings → About is `app.getVersion()`, arriving on every status — never a
+string typed into the renderer, which is how it went stale before this section existed.
+
+`electron-updater` is reached by dynamic `import()` on first use, so `updater.test.ts` injects an
+`UpdaterImpl` and the suite never loads it and never touches the network. `pnpm smoke --only
+settings-updates` asserts the `off` posture end to end: the page says this build cannot update
+itself, offers no button that could only fail, and shows the real version.

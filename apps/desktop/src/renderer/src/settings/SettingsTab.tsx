@@ -31,7 +31,8 @@ import {
   type ResolvedSettings,
   type ReviewAiDiffs,
   type ResponseOf,
-  type UiLitProviderId
+  type UiLitProviderId,
+  type UpdateStatus
 } from '@suna/core'
 import { BUNDLED_PROFILE_IDS, type BundledProfileId } from '@suna/formatter'
 import { AI_EFFORT_LABELS, AI_MODEL_LABELS } from './aiChoice'
@@ -574,6 +575,7 @@ type ConfigToggleKey =
   | 'export.lineNumbers'
   | 'export.pageNumbers'
   | 'references.autoOpenPdf'
+  | 'updates.checkOnLaunch'
 
 const AI_DIFF_LABELS: Record<ReviewAiDiffs, string> = {
   inline: 'Show inline',
@@ -1262,15 +1264,183 @@ function TrashPane(): JSX.Element {
   )
 }
 
+/**
+ * "Updates" (ARCHITECTURE §23). The renderer never sees an artifact and never
+ * decides anything: it paints the status the main process pushes and sends
+ * back four clicks. `mode` decides which buttons exist, so the page cannot
+ * offer a restart to a `.deb` install that has no business restarting.
+ */
+function UpdatesSection(): JSX.Element {
+  const [status, setStatus] = useState<UpdateStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let live = true
+    void window.suna
+      .invoke('update:state', {})
+      .then((next) => {
+        if (live) setStatus(next)
+      })
+      .catch((err: unknown) => {
+        if (live) setError(errMessage(err))
+      })
+    // The launch check answers on its own schedule, and a download reports
+    // progress; both arrive here rather than by polling.
+    const stop = window.suna.onUpdateStatus((next) => {
+      if (live) setStatus(next)
+    })
+    return () => {
+      live = false
+      stop()
+    }
+  }, [])
+
+  const act = async (run: () => Promise<{ ok: boolean; error?: string }>): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await run()
+      if (!result.ok) setError(result.error ?? 'the update could not be applied')
+    } catch (err) {
+      setError(errMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const version = status?.current ?? '…'
+  const phase = status?.phase ?? 'idle'
+  const mode = status?.mode ?? 'off'
+  const available = status?.available
+
+  const line = ((): string => {
+    if (mode === 'off') {
+      return 'This build cannot update itself — a development tree has nothing to replace.'
+    }
+    if (phase === 'checking') return 'Checking…'
+    if (phase === 'none') return `SUNA ${version} is the newest release.`
+    if (phase === 'available' && available !== undefined) {
+      return mode === 'inplace'
+        ? `SUNA ${available} is available.`
+        : `SUNA ${available} is available. This install came from a package, so update it the way you installed it.`
+    }
+    if (phase === 'downloading') {
+      const received = status?.received ?? 0
+      const total = status?.total ?? 0
+      const percent = total > 0 ? Math.round((received / total) * 100) : 0
+      return `Downloading ${available ?? ''}… ${percent}%`
+    }
+    if (phase === 'downloaded') return `SUNA ${available ?? ''} is ready. Restart to install it.`
+    if (phase === 'error') return status?.error ?? 'The check failed.'
+    return `SUNA ${version}.`
+  })()
+
+  return (
+    <>
+      <h3 className="settings-tab__section">Updates</h3>
+      <ConfigToggleRow
+        settingKey="updates.checkOnLaunch"
+        id="set-updates-check"
+        label="Check on launch"
+        hint="Ask GitHub once, a few seconds after SUNA starts. Off means SUNA never reaches the network unless you press Check now."
+      />
+      <div className="settings-tab__keyrow">
+        <span className="settings-tab__hint">{line}</span>
+        <div className="settings-tab__keyrow-actions">
+          <button
+            type="button"
+            disabled={busy || mode === 'off' || phase === 'checking' || phase === 'downloading'}
+            onClick={() =>
+              void act(async () => {
+                const next = await window.suna.invoke('update:check', {})
+                setStatus(next)
+                return { ok: next.phase !== 'error', ...(next.error ? { error: next.error } : {}) }
+              })
+            }
+          >
+            Check now
+          </button>
+          {phase === 'available' && mode === 'inplace' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void act(() => window.suna.invoke('update:download', {}))}
+            >
+              Download
+            </button>
+          )}
+          {phase === 'available' && mode === 'notify' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void act(() => window.suna.invoke('update:install', {}))}
+            >
+              Open Releases
+            </button>
+          )}
+          {phase === 'downloaded' && mode === 'inplace' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void act(() => window.suna.invoke('update:install', {}))}
+            >
+              Restart and install
+            </button>
+          )}
+          {phase === 'available' && available !== undefined && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void act(async () => {
+                  const next = await window.suna.invoke('update:skip', { version: available })
+                  setStatus(next)
+                  return { ok: true }
+                })
+              }
+            >
+              Skip this version
+            </button>
+          )}
+        </div>
+      </div>
+      {status?.notes !== undefined && status.notes !== '' && phase === 'available' && (
+        <pre className="settings-tab__notes">{status.notes}</pre>
+      )}
+      {error !== null && <div className="settings-tab__error">{error}</div>}
+    </>
+  )
+}
+
 function AboutPane(): JSX.Element {
   const rootDir = useProjectStore((s) => s.rootDir)
+  const [version, setVersion] = useState('…')
+
+  // The one place the running version is stated, and it is asked for rather
+  // than typed: a hand-written version string is wrong the first release
+  // nobody remembers to edit it.
+  useEffect(() => {
+    let live = true
+    void window.suna
+      .invoke('update:state', {})
+      .then((status) => {
+        if (live) setVersion(status.current)
+      })
+      .catch(() => {
+        if (live) setVersion('unknown')
+      })
+    return () => {
+      live = false
+    }
+  }, [])
 
   return (
     <>
       <h3 className="settings-tab__section">About</h3>
       <div className="settings-tab__info">
         <div>
-          <span>SUNA</span> 0.1.0
+          <span>SUNA</span> {version}
         </div>
         <div>
           <span>Electron</span> {window.suna.versions.electron}
@@ -1285,6 +1455,7 @@ function AboutPane(): JSX.Element {
           <span>Project</span> {rootDir ?? 'no project open'}
         </div>
       </div>
+      <UpdatesSection />
     </>
   )
 }
@@ -1346,7 +1517,7 @@ const SETTINGS_CATEGORIES: readonly [SettingsCategory, ...SettingsCategory[]] = 
     blurb: 'Which deletions stay restorable, and for how long.',
     Pane: TrashPane
   },
-  { id: 'about', label: 'About', blurb: 'This build.', Pane: AboutPane }
+  { id: 'about', label: 'About', blurb: 'This build, and updates to it.', Pane: AboutPane }
 ]
 
 /* --------------------------------------------------------------------------

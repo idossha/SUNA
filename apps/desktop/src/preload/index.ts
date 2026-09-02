@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { EVENT_CHANNELS } from '@suna/core'
-import type { ChannelName, LoadedConfigPayload, RequestOf, ResponseOf } from '@suna/core'
+import type {
+  ChannelName,
+  LoadedConfigPayload,
+  RequestOf,
+  ResponseOf,
+  UpdateStatus
+} from '@suna/core'
 
 // The typed IPC surface. The main process re-validates every request and
 // response against the @suna/core channel contracts.
@@ -274,6 +280,33 @@ const api = {
       const text = typeof object['text'] === 'string' ? object['text'] : null
       const error = typeof object['error'] === 'string' ? object['error'] : null
       listener({ text, error })
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  },
+
+  /**
+   * Subscribe to update-state pushes (EVENT_CHANNELS.updateStatus): a check
+   * answered, a download progressed, the artifact landed. The payload is
+   * hand-checked for the same reason every other subscription in this file is
+   * — zod cannot run in this context (see isConfigPayload). Returns an
+   * unsubscribe function.
+   */
+  onUpdateStatus: (listener: (status: UpdateStatus) => void): (() => void) => {
+    const channel = EVENT_CHANNELS.updateStatus
+    const handler = (_event: IpcRendererEvent, payload: unknown): void => {
+      if (typeof payload !== 'object' || payload === null) return
+      const value = payload as Record<string, unknown>
+      if (
+        typeof value['phase'] !== 'string' ||
+        typeof value['current'] !== 'string' ||
+        typeof value['mode'] !== 'string'
+      ) {
+        return
+      }
+      listener(payload as UpdateStatus)
     }
     ipcRenderer.on(channel, handler)
     return () => {

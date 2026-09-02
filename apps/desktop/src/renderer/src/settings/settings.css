@@ -202,7 +202,9 @@
 
 .settings-tab__keyrow {
   display: flex;
+  flex-wrap: wrap;
   flex-shrink: 0;
+  align-items: center;
   gap: 6px;
 }
 
@@ -384,4 +386,31 @@
   font-family: var(--s-font-mono);
   font-size: var(--s-text-xs);
   user-select: text;
+}
+
+/* ---- Updates (ARCHITECTURE §23) -------------------------------------------
+   One line of state and the buttons that state allows. The row wraps because
+   its sentence is a sentence — an error from the feed is as long as the feed
+   made it, and truncating it would hide the only thing that says what went
+   wrong. ------------------------------------------------------------------ */
+
+.settings-tab__keyrow-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.settings-tab__notes {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font-family: var(--s-font-mono);
+  font-size: var(--s-text-xs);
+  line-height: 1.5;
+  color: var(--s-ink-muted);
+  white-space: pre-wrap;
+  background: var(--s-bg-raised);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
 }

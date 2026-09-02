@@ -14,6 +14,28 @@ them, not for the commit log, which GitHub appends underneath on its own.
 
 Nothing yet.
 
+## [1.2.0]
+
+### Added
+
+- **SUNA tells you when a new version is out, and installs it for you.**
+  Settings → About has an Updates section: it shows the version you are
+  running, checks GitHub for a newer one, and — on macOS and on the Linux
+  AppImage — downloads it and restarts into it when you say so. Nothing is
+  downloaded until you press Download and nothing is installed until you press
+  Restart; if you would rather not restart now, the update lands the next time
+  you quit.
+  - SUNA checks once, a few seconds after launch. Turn that off with **Check
+    on launch** (or `updates: checkOnLaunch: false` in `~/.suna/config.yml`)
+    and SUNA never reaches the network on its own — **Check now** still works,
+    because that is you asking.
+  - **Skip this version** silences one version, not the feature: the next
+    release after it says hello again.
+  - A `.deb` or `.tar.gz` install belongs to whatever installed it, so there
+    SUNA only tells you a new version exists and offers the releases page.
+- **Settings → About shows the version you are actually running.** It had been
+  reporting `0.1.0` since the first week.
+
 ## [1.1.1] - 2026-09-02
 
 ### Fixed

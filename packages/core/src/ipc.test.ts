@@ -180,6 +180,11 @@ describe('CHANNELS', () => {
       'trash:empty',
       'trash:list',
       'trash:restore',
+      'update:check',
+      'update:download',
+      'update:install',
+      'update:skip',
+      'update:state',
       'version:list',
       'version:log',
       'version:read-file',
@@ -1037,6 +1042,51 @@ describe('EVENT_CHANNELS', () => {
   it('namespaces ai:ask progress/done events by askId', () => {
     expect(EVENT_CHANNELS.aiAskProgress('ai-ask-1')).toBe('ai:progress:ai-ask-1');
     expect(EVENT_CHANNELS.aiAskDone('ai-ask-1')).toBe('ai:done:ai-ask-1');
+  });
+
+  it('pushes update state on one global channel — one app, one updater', () => {
+    expect(EVENT_CHANNELS.updateStatus).toBe('update:status');
+  });
+});
+
+describe('the update channels', () => {
+  it('accept the smallest honest status: a phase, a version and a mode', () => {
+    const parsed = CHANNELS['update:state'].response.safeParse({
+      phase: 'idle',
+      current: '1.1.1',
+      mode: 'off',
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('carry progress and notes when a download is running', () => {
+    const parsed = CHANNELS['update:check'].response.parse({
+      phase: 'downloading',
+      current: '1.1.1',
+      available: '1.2.0',
+      notes: 'Fixed the thing',
+      received: 512,
+      total: 1024,
+      mode: 'inplace',
+      auto: true,
+    });
+    expect(parsed.received).toBe(512);
+    expect(parsed.mode).toBe('inplace');
+  });
+
+  it('refuse a phase and a mode that are not in the vocabulary', () => {
+    const base = { current: '1.1.1', mode: 'inplace' };
+    expect(CHANNELS['update:state'].response.safeParse({ ...base, phase: 'thinking' }).success).toBe(
+      false,
+    );
+    expect(
+      CHANNELS['update:state'].response.safeParse({ ...base, phase: 'idle', mode: 'maybe' }).success,
+    ).toBe(false);
+  });
+
+  it('refuse a skip with no version to skip', () => {
+    expect(CHANNELS['update:skip'].request.safeParse({ version: '' }).success).toBe(false);
+    expect(CHANNELS['update:skip'].request.safeParse({ version: '1.2.0' }).success).toBe(true);
   });
 });
 

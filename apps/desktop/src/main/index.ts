@@ -12,6 +12,7 @@ import { cancelAllAiCliSearches } from './services/lit'
 import { killAllTerminals } from './services/terminal'
 import { shutdownAllKernels } from './services/kernel'
 import { handleOutputFrameScheme, registerOutputFrameScheme } from './services/output-frame'
+import { updaterService } from './services/updater'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
@@ -109,6 +110,12 @@ app.whenReady().then(() => {
   // default one and correcting itself.
   void loadConfig().then(() => {
     createWindow()
+
+    // In-app updates (ARCHITECTURE §23). Scheduled, never awaited: a network
+    // round trip has no business gating first paint. The service refuses on
+    // its own in a dev tree or a hidden driven run, and re-reads
+    // `updates.checkOnLaunch` when it fires rather than now.
+    updaterService().startLaunchCheck()
 
     // Live reload: an edit to config.yml or a theme file — in SUNA, in vim, in
     // anything — repaints every open window. The payload is the whole reloaded
