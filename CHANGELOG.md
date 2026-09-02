@@ -14,7 +14,7 @@ them, not for the commit log, which GitHub appends underneath on its own.
 
 Nothing yet.
 
-## [1.2.0]
+## [1.2.0] - 2026-09-02
 
 ### Added
 

@@ -1,7 +1,7 @@
 {
   "name": "suna",
   "private": true,
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "SUNA — academic co-writing platform: manuscripts, figures, references, and publisher-ready output",
   "type": "module",
   "engines": {
